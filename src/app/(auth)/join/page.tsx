@@ -19,9 +19,8 @@ export default function JoinPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        email: formData.get("email"),
+        login: formData.get("login"),
         username: formData.get("username"),
-        displayName: formData.get("displayName"),
         password: formData.get("password"),
         inviteCode: formData.get("inviteCode"),
       }),
@@ -50,12 +49,11 @@ export default function JoinPage() {
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
           <label className="block text-sm font-medium">
-            Электронная почта
+            Логин
             <input
               className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-              name="email"
-              type="email"
-              autoComplete="email"
+              name="login"
+              autoComplete="username"
               required
             />
           </label>
@@ -66,16 +64,6 @@ export default function JoinPage() {
               className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
               name="username"
               autoComplete="username"
-              required
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Отображаемое имя
-            <input
-              className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-              name="displayName"
-              autoComplete="name"
               required
             />
           </label>

@@ -7,6 +7,7 @@ type AdminSection = "users" | "invites" | "security" | "audit";
 type UserItem = {
   id: string;
   email: string | null;
+  login: string | null;
   username: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
   status: "PENDING" | "ACTIVE" | "BLOCKED" | "REVOKED";
@@ -332,6 +333,9 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
                 <div>
                   <h3 className="text-lg font-semibold">{user.profile?.displayName ?? user.username}</h3>
                   <p className="mt-1 text-sm text-neutral-400">@{user.username}</p>
+                  <p className="mt-1 break-words text-sm text-neutral-400">
+                    Логин: {user.login ?? "Не задан"}
+                  </p>
                   <p className="mt-1 break-words text-sm text-neutral-400">{user.email ?? "Электронная почта не указана"}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">

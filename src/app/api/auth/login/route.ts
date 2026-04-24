@@ -6,7 +6,7 @@ import { getPrisma } from "@/lib/prisma";
 import { canUseApp, isEmergencyLocked } from "@/lib/permissions";
 
 const loginSchema = z.object({
-  identifier: z.string().min(3).max(128).trim(),
+  login: z.string().min(3).max(128).trim(),
   password: z.string().min(1).max(128),
 });
 
@@ -18,14 +18,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Некорректные данные для входа." }, { status: 400 });
   }
 
-  const identifier = parsed.data.identifier.toLowerCase();
+  const login = parsed.data.login.toLowerCase();
   const prisma = getPrisma();
   const user = await prisma.user.findFirst({
     where: {
-      OR: [{ email: identifier }, { username: identifier }],
+      OR: [{ login }, { username: login }, { email: login }],
     },
     select: {
       id: true,
+      login: true,
       email: true,
       username: true,
       passwordHash: true,
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
   const response = NextResponse.json({
     user: {
       id: user.id,
+      login: user.login,
       email: user.email,
       username: user.username,
       role: user.role,

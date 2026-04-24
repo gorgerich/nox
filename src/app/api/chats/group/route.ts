@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { findDirectChatBetween } from "@/lib/direct-chats";
 import { getPrisma } from "@/lib/prisma";
 
 const groupChatSchema = z.object({
@@ -39,6 +40,17 @@ export async function POST(request: Request) {
 
   if (activeUsers.length !== memberIds.length) {
     return NextResponse.json({ error: "Один или несколько пользователей не найдены." }, { status: 400 });
+  }
+
+  if (user.role !== "OWNER" && user.role !== "ADMIN") {
+    const contactChecks = await Promise.all(memberIds.map((memberId) => findDirectChatBetween(prisma, user.id, memberId)));
+
+    if (contactChecks.some((chat) => !chat)) {
+      return NextResponse.json(
+        { error: "Группу можно создать только с существующими контактами." },
+        { status: 403 },
+      );
+    }
   }
 
   const chat = await prisma.chat.create({

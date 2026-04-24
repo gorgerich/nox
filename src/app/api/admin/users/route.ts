@@ -15,6 +15,7 @@ export async function GET() {
     select: {
       id: true,
       email: true,
+      login: true,
       username: true,
       role: true,
       status: true,
@@ -29,4 +30,3 @@ export async function GET() {
 
   return NextResponse.json({ users });
 }
-

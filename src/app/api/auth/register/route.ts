@@ -6,14 +6,18 @@ import { validateInvite } from "@/lib/invites";
 import { getPrisma } from "@/lib/prisma";
 
 const registerSchema = z.object({
-  email: z.email().trim().toLowerCase(),
+  login: z
+    .string()
+    .min(3)
+    .max(64)
+    .regex(/^[a-zA-Z0-9_@.-]+$/)
+    .transform((value) => value.toLowerCase()),
   username: z
     .string()
     .min(3)
     .max(32)
     .regex(/^[a-zA-Z0-9_]+$/)
     .transform((value) => value.toLowerCase()),
-  displayName: z.string().min(2).max(80).trim(),
   password: z.string().min(8).max(128),
   inviteCode: z.string().min(4).max(128).trim(),
 });
@@ -26,8 +30,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Некорректные данные регистрации." }, { status: 400 });
   }
 
-  const { email, username, displayName, password, inviteCode } = parsed.data;
-  const inviteResult = await validateInvite({ inviteCode, email, username });
+  const { login, username, password, inviteCode } = parsed.data;
+  const inviteResult = await validateInvite({ inviteCode, username });
 
   if (!inviteResult.ok) {
     return NextResponse.json({ error: inviteResult.reason }, { status: 403 });
@@ -35,10 +39,27 @@ export async function POST(request: Request) {
 
   const prisma = getPrisma();
   const passwordHash = await bcrypt.hash(password, 12);
-  const role = process.env.OWNER_EMAIL?.toLowerCase() === email ? "OWNER" : "MEMBER";
+  const role = process.env.OWNER_LOGIN?.toLowerCase() === login ? "OWNER" : "MEMBER";
 
   try {
     const user = await prisma.$transaction(async (tx) => {
+      const existingUser = await tx.user.findFirst({
+        where: {
+          OR: [
+            { login },
+            { username: login },
+            { email: login },
+            { login: username },
+            { username },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingUser) {
+        throw new Error("Login or username is already taken.");
+      }
+
       const currentInvite = await tx.invite.findUnique({
         where: { id: inviteResult.invite.id },
       });
@@ -54,20 +75,22 @@ export async function POST(request: Request) {
 
       const createdUser = await tx.user.create({
         data: {
-          email,
+          email: null,
+          login,
           username,
           passwordHash,
           status: "ACTIVE",
           role,
           profile: {
             create: {
-              displayName,
+              displayName: username,
             },
           },
         },
         select: {
           id: true,
           role: true,
+          login: true,
           email: true,
           username: true,
         },
@@ -95,6 +118,8 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error && error.message === "Invite is no longer available."
         ? "Приглашение больше недоступно."
+        : error instanceof Error && error.message === "Login or username is already taken."
+          ? "Логин или username уже занят."
         : "Не удалось создать аккаунт.";
 
     return NextResponse.json({ error: message }, { status: 400 });

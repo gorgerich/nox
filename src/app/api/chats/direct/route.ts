@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { createDirectChat, findDirectChatBetween } from "@/lib/direct-chats";
 import { getPrisma } from "@/lib/prisma";
 
 const directChatSchema = z.object({
@@ -35,60 +36,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Пользователь не найден." }, { status: 404 });
   }
 
-  const existingCandidates = await prisma.chat.findMany({
-    where: {
-      type: "DIRECT",
-      AND: [
-        { members: { some: { userId: user.id, status: "ACTIVE" } } },
-        { members: { some: { userId: targetUser.id, status: "ACTIVE" } } },
-      ],
-    },
-    include: {
-      members: {
-        select: {
-          userId: true,
-          status: true,
-        },
-      },
-    },
-  });
-
-  const existingChat = existingCandidates.find((chat) => {
-    const activeMemberIds = chat.members
-      .filter((member) => member.status === "ACTIVE")
-      .map((member) => member.userId);
-
-    return (
-      activeMemberIds.length === 2 &&
-      activeMemberIds.includes(user.id) &&
-      activeMemberIds.includes(targetUser.id)
-    );
-  });
+  const existingChat = await findDirectChatBetween(prisma, user.id, targetUser.id);
 
   if (existingChat) {
     return NextResponse.json({ chat: existingChat });
   }
 
-  const chat = await prisma.chat.create({
-    data: {
-      type: "DIRECT",
-      createdByUserId: user.id,
-      members: {
-        create: [
-          { userId: user.id, role: "OWNER" },
-          { userId: targetUser.id, role: "MEMBER" },
+  if (user.role !== "OWNER" && user.role !== "ADMIN") {
+    const acceptedRequest = await prisma.chatRequest.findFirst({
+      where: {
+        status: "ACCEPTED",
+        OR: [
+          { fromUserId: user.id, toUserId: targetUser.id },
+          { fromUserId: targetUser.id, toUserId: user.id },
         ],
       },
+    });
+
+    if (!acceptedRequest) {
+      return NextResponse.json({ error: "Сначала нужен принятый запрос на общение." }, { status: 403 });
+    }
+  }
+
+  const chat = await createDirectChat(prisma, user.id, targetUser.id);
+
+  await prisma.chatRequest.updateMany({
+    where: {
+      status: "ACCEPTED",
+      chatId: null,
+      OR: [
+        { fromUserId: user.id, toUserId: targetUser.id },
+        { fromUserId: targetUser.id, toUserId: user.id },
+      ],
     },
-    include: {
-      members: {
-        select: {
-          userId: true,
-          role: true,
-          status: true,
-        },
-      },
-    },
+    data: { chatId: chat.id },
   });
 
   return NextResponse.json({ chat }, { status: 201 });

@@ -66,6 +66,7 @@ async function seedEmergencyLockSetting(client: OptionalSystemSettingClient) {
 async function main() {
   const ownerEmail = requireEnv("OWNER_EMAIL").trim().toLowerCase();
   const ownerPassword = requireEnv("OWNER_PASSWORD");
+  const ownerLogin = (process.env.OWNER_LOGIN || "owner").trim().toLowerCase();
   const ownerUsername = (process.env.OWNER_USERNAME || "owner").trim().toLowerCase();
   const ownerDisplayName = (process.env.OWNER_DISPLAY_NAME || "Owner").trim();
   const passwordHash = await bcrypt.hash(ownerPassword, 12);
@@ -74,6 +75,7 @@ async function main() {
     where: { email: ownerEmail },
     update: {
       username: ownerUsername,
+      login: ownerLogin,
       passwordHash,
       status: "ACTIVE",
       role: "OWNER",
@@ -91,6 +93,7 @@ async function main() {
     create: {
       email: ownerEmail,
       username: ownerUsername,
+      login: ownerLogin,
       passwordHash,
       status: "ACTIVE",
       role: "OWNER",
@@ -103,6 +106,7 @@ async function main() {
     select: {
       id: true,
       email: true,
+      login: true,
     },
   });
 
@@ -119,6 +123,7 @@ async function main() {
   });
 
   console.log(`OWNER_EMAIL=${owner.email ?? ownerEmail}`);
+  console.log(`OWNER_LOGIN=${owner.login ?? ownerLogin}`);
   console.log(`RAW_INVITE_CODE=${rawInviteCode}`);
 }
 

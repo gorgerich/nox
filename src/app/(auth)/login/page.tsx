@@ -19,7 +19,7 @@ export default function LoginPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        identifier: formData.get("identifier"),
+        login: formData.get("login"),
         password: formData.get("password"),
       }),
     });
@@ -42,15 +42,15 @@ export default function LoginPage() {
         <div className="mb-8">
           <p className="text-sm font-medium text-emerald-400">Закрытый мессенджер</p>
           <h1 className="mt-2 text-2xl font-semibold">Войти</h1>
-          <p className="mt-2 text-sm text-neutral-400">Используйте электронную почту или имя пользователя.</p>
+          <p className="mt-2 text-sm text-neutral-400">Используйте приватный логин.</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm font-medium">
-            Электронная почта или имя пользователя
+            Логин
             <input
               className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-              name="identifier"
+              name="login"
               autoComplete="username"
               required
             />

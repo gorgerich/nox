@@ -70,9 +70,17 @@ enum CallStatus {
   MISSED
 }
 
+enum ChatRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+}
+
 model User {
   id           String     @id @default(uuid())
   email        String?    @unique
+  login        String?    @unique
   username     String     @unique
   passwordHash String?
   status       UserStatus @default(PENDING)
@@ -90,6 +98,8 @@ model User {
   adminActions  AdminActionLog[] @relation("AdminActions")
   createdChats  Chat[] @relation("ChatCreator")
   callSessions  CallSession[] @relation("CallCreator")
+  sentChatRequests ChatRequest[] @relation("SentChatRequests")
+  receivedChatRequests ChatRequest[] @relation("ReceivedChatRequests")
 
   @@index([status])
   @@index([role])
@@ -253,6 +263,24 @@ model CallSession {
   createdBy User @relation("CallCreator", fields: [createdByUserId], references: [id])
 
   @@index([chatId])
+  @@index([status])
+}
+
+model ChatRequest {
+  id          String            @id @default(uuid())
+  fromUserId  String
+  toUserId    String
+  status      ChatRequestStatus @default(PENDING)
+  message     String?
+  chatId      String?
+  createdAt   DateTime          @default(now())
+  respondedAt DateTime?
+
+  fromUser User @relation("SentChatRequests", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("ReceivedChatRequests", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId])
+  @@index([toUserId])
   @@index([status])
 }
 

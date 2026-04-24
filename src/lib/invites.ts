@@ -9,12 +9,12 @@ export function hashInviteCode(code: string) {
 
 export async function validateInvite(input: {
   inviteCode: string;
-  email: string;
+  email?: string | null;
   username: string;
 }) {
   const prisma = getPrisma();
   const codeHash = hashInviteCode(input.inviteCode);
-  const email = input.email.trim().toLowerCase();
+  const email = input.email?.trim().toLowerCase() ?? "";
   const username = input.username.trim().toLowerCase();
 
   const invite = await prisma.invite.findUnique({
