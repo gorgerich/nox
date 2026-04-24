@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+  REVOKED
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  REVOKED
+}
+
+enum DeviceStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum ChatType {
+  DIRECT
+  GROUP
+}
+
+enum ChatMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum ChatMemberStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+  BLOCKED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  FILE
+  VOICE
+  SYSTEM
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String?    @unique
+  username     String     @unique
+  passwordHash String?
+  status       UserStatus @default(PENDING)
+  role         UserRole   @default(MEMBER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  lastSeenAt   DateTime?
+
+  profile       Profile?
+  devices       Device[]
+  createdInvites Invite[] @relation("InviteCreator")
+  chatMembers   ChatMember[]
+  messages      Message[]
+  attachments   Attachment[]
+  adminActions  AdminActionLog[] @relation("AdminActions")
+  createdChats  Chat[] @relation("ChatCreator")
+  callSessions  CallSession[] @relation("CallCreator")
+
+  @@index([status])
+  @@index([role])
+}
+
+model Profile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  displayName      String
+  avatarUrl        String?
+  bio              String?
+  showOnline       Boolean  @default(false)
+  showReadReceipts Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invite {
+  id             String       @id @default(uuid())
+  codeHash       String       @unique
+  createdByUserId String
+  targetEmail    String?
+  targetUsername String?
+  maxUses        Int          @default(1)
+  usedCount      Int          @default(0)
+  status         InviteStatus @default(ACTIVE)
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  createdBy User @relation("InviteCreator", fields: [createdByUserId], references: [id])
+
+  @@index([status])
+  @@index([targetEmail])
+  @@index([targetUsername])
+}
+
+model Device {
+  id                    String       @id @default(uuid())
+  userId                String
+  deviceName            String
+  deviceFingerprintHash String
+  platform              String
+  pushToken             String?
+  status                DeviceStatus @default(ACTIVE)
+  lastSeenAt            DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Chat {
+  id              String   @id @default(uuid())
+  type            ChatType
+  title           String?
+  avatarUrl       String?
+  createdByUserId String
+  isLocked        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdBy User @relation("ChatCreator", fields: [createdByUserId], references: [id])
+  members   ChatMember[]
+  messages  Message[]
+  calls     CallSession[]
+
+  @@index([type])
+  @@index([updatedAt])
+}
+
+model ChatMember {
+  id                String           @id @default(uuid())
+  chatId            String
+  userId            String
+  role              ChatMemberRole   @default(MEMBER)
+  status            ChatMemberStatus @default(ACTIVE)
+  joinedAt          DateTime         @default(now())
+  lastReadMessageId String?
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId])
+  @@index([chatId])
+  @@index([status])
+}
+
+model Message {
+  id                String      @id @default(uuid())
+  chatId            String
+  senderUserId      String
+  body              String?
+  encryptedBody     String?
+  encryptionVersion String?
+  type              MessageType @default(TEXT)
+  replyToMessageId  String?
+  editedAt          DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime    @default(now())
+
+  chat        Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender      User         @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  reactions   Reaction[]
+
+  @@index([chatId, createdAt])
+  @@index([senderUserId])
+}
+
+model Attachment {
+  id              String   @id @default(uuid())
+  messageId       String
+  uploaderUserId  String
+  storageKey      String
+  fileName        String
+  mimeType        String
+  sizeBytes       Int
+  width           Int?
+  height          Int?
+  durationSeconds Int?
+  encryptionKeyId String?
+  createdAt       DateTime @default(now())
+
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploaderUserId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([uploaderUserId])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model CallSession {
+  id               String     @id @default(uuid())
+  chatId           String
+  createdByUserId  String
+  provider         String     @default("livekit")
+  providerRoomName String
+  type             CallType
+  status           CallStatus @default(RINGING)
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime   @default(now())
+
+  chat      Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CallCreator", fields: [createdByUserId], references: [id])
+
+  @@index([chatId])
+  @@index([status])
+}
+
+model AdminActionLog {
+  id          String   @id @default(uuid())
+  adminUserId String
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  ipHash      String?
+  createdAt   DateTime @default(now())
+
+  admin User @relation("AdminActions", fields: [adminUserId], references: [id])
+
+  @@index([adminUserId])
+  @@index([targetType])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
