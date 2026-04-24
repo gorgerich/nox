@@ -10,58 +10,82 @@ export async function GET() {
   }
 
   const prisma = getPrisma();
-  const chats = await prisma.chat.findMany({
-    where: {
-      members: {
-        some: {
-          userId: user.id,
-          status: "ACTIVE",
+  const [chats, incomingRequests] = await Promise.all([
+    prisma.chat.findMany({
+      where: {
+        members: {
+          some: {
+            userId: user.id,
+            status: "ACTIVE",
+          },
         },
       },
-    },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      members: {
-        where: { status: "ACTIVE" },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              profile: {
-                select: {
-                  displayName: true,
-                  avatarUrl: true,
+      orderBy: { updatedAt: "desc" },
+      include: {
+        members: {
+          where: { status: "ACTIVE" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                profile: {
+                  select: {
+                    displayName: true,
+                    avatarUrl: true,
+                  },
                 },
               },
             },
           },
+          orderBy: { joinedAt: "asc" },
         },
-        orderBy: { joinedAt: "asc" },
-      },
-      messages: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        include: {
-          attachments: {
-            select: {
-              id: true,
-              fileName: true,
-              mimeType: true,
-              sizeBytes: true,
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: {
+            attachments: {
+              select: {
+                id: true,
+                fileName: true,
+                mimeType: true,
+                sizeBytes: true,
+              },
+            },
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                profile: { select: { displayName: true } },
+              },
             },
           },
-          sender: {
-            select: {
-              id: true,
-              username: true,
-              profile: { select: { displayName: true } },
+        },
+      },
+    }),
+    prisma.chatRequest.findMany({
+      where: {
+        toUserId: user.id,
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        message: true,
+        createdAt: true,
+        fromUser: {
+          select: {
+            username: true,
+            profile: {
+              select: {
+                displayName: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
 
-  return NextResponse.json({ chats });
+  return NextResponse.json({ chats, incomingRequests });
 }

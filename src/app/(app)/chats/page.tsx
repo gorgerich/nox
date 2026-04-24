@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { IncomingRequestCards } from "./IncomingRequestCards";
 
 function formatChatTime(value: Date) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -47,66 +48,99 @@ function getMessagePreview(message: {
 export default async function ChatsPage() {
   const user = await getCurrentUser();
   const prisma = getPrisma();
-  const chats = user
-    ? await prisma.chat.findMany({
-        where: {
-          members: {
-            some: {
-              userId: user.id,
-              status: "ACTIVE",
+  const [chats, incomingRequests] = user
+    ? await Promise.all([
+        prisma.chat.findMany({
+          where: {
+            members: {
+              some: {
+                userId: user.id,
+                status: "ACTIVE",
+              },
             },
           },
-        },
-        orderBy: { updatedAt: "desc" },
-        include: {
-          members: {
-            where: { status: "ACTIVE" },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  profile: {
-                    select: {
-                      displayName: true,
+          orderBy: { updatedAt: "desc" },
+          include: {
+            members: {
+              where: { status: "ACTIVE" },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    profile: {
+                      select: {
+                        displayName: true,
+                      },
                     },
                   },
                 },
               },
+              orderBy: { joinedAt: "asc" },
             },
-            orderBy: { joinedAt: "asc" },
-          },
-          messages: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              type: true,
-              body: true,
-              deletedAt: true,
-              createdAt: true,
-              attachments: {
-                select: {
-                  fileName: true,
+            messages: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: {
+                type: true,
+                body: true,
+                deletedAt: true,
+                createdAt: true,
+                attachments: {
+                  select: {
+                    fileName: true,
+                  },
+                },
+                sender: {
+                  select: {
+                    id: true,
+                    username: true,
+                    profile: { select: { displayName: true } },
+                  },
                 },
               },
-              sender: {
-                select: {
-                  id: true,
-                  username: true,
-                  profile: { select: { displayName: true } },
+            },
+          },
+        }),
+        prisma.chatRequest.findMany({
+          where: {
+            toUserId: user.id,
+            status: "PENDING",
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            message: true,
+            createdAt: true,
+            fromUser: {
+              select: {
+                username: true,
+                profile: {
+                  select: {
+                    displayName: true,
+                  },
                 },
               },
             },
           },
-        },
-      })
-    : [];
+        }),
+      ])
+    : [[], []];
 
   return (
     <section className="lg:grid lg:gap-6 lg:grid-cols-[340px_1fr]">
       <aside className="min-h-[calc(100svh-88px)] rounded-lg border border-neutral-800 bg-neutral-900 p-4 sm:min-h-[calc(100svh-112px)]">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Чаты</h1>
+          <div>
+            <h1 className="text-xl font-semibold">Чаты</h1>
+            {incomingRequests.length > 0 ? (
+              <p className="mt-1 text-sm text-emerald-300">
+                {incomingRequests.length === 1
+                  ? "У вас новый запрос на общение"
+                  : `Новые запросы на общение: ${incomingRequests.length}`}
+              </p>
+            ) : null}
+          </div>
           <Link
             className="inline-flex min-h-11 items-center rounded-md bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400"
             href="/chats/new"
@@ -114,10 +148,18 @@ export default async function ChatsPage() {
             Создать
           </Link>
         </div>
+
+        <IncomingRequestCards
+          requests={incomingRequests.map((request) => ({
+            ...request,
+            createdAt: request.createdAt.toISOString(),
+          }))}
+        />
+
         {chats.length === 0 ? (
           <div className="mt-6 rounded-md border border-dashed border-neutral-700 p-5 text-sm text-neutral-400">
             <h2 className="text-lg font-semibold text-neutral-100">У вас пока нет чатов</h2>
-            <p className="mt-2">Создайте личный или групповой чат.</p>
+            <p className="mt-2">Найдите пользователя по username и отправьте запрос на общение.</p>
             <Link
               className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-neutral-700 px-4 text-sm text-neutral-200 transition hover:border-neutral-500 hover:text-white sm:w-auto"
               href="/chats/new"
@@ -162,7 +204,7 @@ export default async function ChatsPage() {
           <div className="mt-24 text-center">
             <h2 className="text-2xl font-semibold">У вас пока нет чатов</h2>
             <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-neutral-400">
-              Создайте личный или групповой чат.
+              Найдите пользователя по username и отправьте запрос на общение.
             </p>
             <Link
               className="mt-6 inline-flex h-11 items-center rounded-md bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400"
