@@ -24,30 +24,36 @@ export default async function AppLayout({
   });
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <header className="border-b border-neutral-800 bg-neutral-950/95">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-4">
-          <Link className="shrink-0 text-sm font-semibold tracking-wide text-emerald-300 sm:text-base" href="/chats">
-            <span className="sm:hidden">Мессенджер</span>
-            <span className="hidden sm:inline">Закрытый мессенджер</span>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b border-border-subtle bg-background/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+          <Link className="flex items-center gap-2 transition-opacity hover:opacity-80" href="/chats">
+            <span className="text-xl font-bold tracking-tighter text-primary">Nox</span>
           </Link>
 
-          <nav className="flex items-center gap-1.5 text-sm sm:gap-3">
-            <Link className="inline-flex min-h-10 items-center px-1 text-neutral-300 transition hover:text-white" href="/chats">
+          <nav className="flex items-center gap-2">
+            <Link 
+              className="flex h-10 items-center rounded-xl px-3 text-sm font-medium text-muted transition hover:bg-surface-hover hover:text-foreground" 
+              href="/chats"
+            >
               Чаты
               {incomingRequestCount > 0 ? (
-                <span className="ml-1.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-xs font-semibold text-neutral-950">
+                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-neutral-950">
                   {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                 </span>
               ) : null}
             </Link>
             {isAdminRole(user.role) ? (
-              <Link className="inline-flex min-h-10 items-center px-1 text-neutral-300 transition hover:text-white" href="/admin">
-                Админка
+              <Link 
+                className="flex h-10 items-center rounded-xl px-3 text-sm font-medium text-muted transition hover:bg-surface-hover hover:text-foreground" 
+                href="/admin"
+              >
+                Админ
               </Link>
             ) : null}
+            <div className="ml-1 h-6 w-px bg-border-subtle" />
             <form action="/api/auth/logout" method="post">
-              <button className="min-h-10 rounded-md border border-neutral-700 px-2.5 py-2 text-neutral-200 transition hover:border-neutral-500 hover:text-white sm:px-3">
+              <button className="flex h-10 items-center rounded-xl px-3 text-sm font-medium text-muted transition hover:bg-red-500/10 hover:text-red-400">
                 Выйти
               </button>
             </form>
@@ -55,7 +61,7 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-10">{children}</main>
     </div>
   );
 }

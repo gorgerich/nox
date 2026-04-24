@@ -24,15 +24,6 @@ async function readJson<T>(url: string, init?: RequestInit) {
   return data;
 }
 
-function formatRequestDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 export function IncomingRequestCards({ requests }: { requests: IncomingRequest[] }) {
   const router = useRouter();
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
@@ -87,21 +78,10 @@ export function IncomingRequestCards({ requests }: { requests: IncomingRequest[]
   }
 
   return (
-    <section className="mt-5 grid gap-3">
-      {visibleRequests.length > 0 ? (
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-          <h2 className="text-base font-semibold text-emerald-100">Запросы на общение</h2>
-          <p className="mt-1 text-sm text-emerald-200">
-            {visibleRequests.length === 1
-              ? "У вас новый запрос на общение"
-              : `Новые запросы на общение: ${visibleRequests.length}`}
-          </p>
-        </div>
-      ) : null}
-
-      {error ? <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p> : null}
+    <div className="mb-8 space-y-4">
+      {error ? <p className="text-center text-xs text-red-400 bg-red-400/10 py-2 rounded-lg">{error}</p> : null}
       {notice ? (
-        <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+        <p className="text-center text-xs text-primary bg-primary/10 py-2 rounded-lg">
           {notice}
         </p>
       ) : null}
@@ -111,49 +91,41 @@ export function IncomingRequestCards({ requests }: { requests: IncomingRequest[]
 
         return (
           <article
-            className="rounded-md border border-emerald-500/40 bg-neutral-950 p-4 shadow-[0_0_0_1px_rgba(16,185,129,0.08)]"
+            className="card-clean border-primary/20 bg-primary/5 p-4"
             key={request.id}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Новый запрос</p>
-                <h3 className="mt-1 truncate text-base font-semibold text-neutral-100">{displayName}</h3>
-                <p className="mt-1 truncate text-sm text-neutral-400">@{request.fromUser.username}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Новый запрос</p>
+                <h3 className="truncate font-semibold">{displayName}</h3>
               </div>
-              <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-1 text-xs text-emerald-200">
-                Запрос
-              </span>
+              <div className="flex gap-2">
+                <button
+                  className="h-8 rounded-lg bg-primary px-3 text-xs font-bold text-neutral-950 transition active:scale-95 disabled:opacity-50"
+                  disabled={pendingAction !== ""}
+                  onClick={() => acceptRequest(request.id)}
+                  type="button"
+                >
+                  {pendingAction === `accept-${request.id}` ? "..." : "Принять"}
+                </button>
+                <button
+                  className="h-8 rounded-lg bg-surface border border-border-subtle px-3 text-xs font-bold transition active:scale-95 disabled:opacity-50"
+                  disabled={pendingAction !== ""}
+                  onClick={() => declineRequest(request.id)}
+                  type="button"
+                >
+                  {pendingAction === `decline-${request.id}` ? "..." : "Пропустить"}
+                </button>
+              </div>
             </div>
-
-            <p className="mt-3 text-sm leading-6 text-neutral-300">Хочет начать с вами личный чат</p>
-            {request.message ? (
-              <p className="mt-2 whitespace-pre-wrap rounded-md bg-neutral-900 p-3 text-sm leading-6 text-neutral-300">
-                {request.message}
+            {request.message && (
+              <p className="mt-3 text-sm text-muted line-clamp-2">
+                &ldquo;{request.message}&rdquo;
               </p>
-            ) : null}
-            <p className="mt-3 text-sm text-neutral-500">{formatRequestDate(request.createdAt)}</p>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                className="min-h-10 rounded-md bg-emerald-500 px-3 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={pendingAction !== ""}
-                onClick={() => acceptRequest(request.id)}
-                type="button"
-              >
-                {pendingAction === `accept-${request.id}` ? "Принимаем..." : "Принять"}
-              </button>
-              <button
-                className="min-h-10 rounded-md border border-neutral-700 px-3 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={pendingAction !== ""}
-                onClick={() => declineRequest(request.id)}
-                type="button"
-              >
-                {pendingAction === `decline-${request.id}` ? "Отклоняем..." : "Отклонить"}
-              </button>
-            </div>
+            )}
           </article>
         );
       })}
-    </section>
+    </div>
   );
 }

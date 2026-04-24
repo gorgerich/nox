@@ -37,54 +37,49 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-8 text-neutral-100 sm:px-6 sm:py-12">
-      <section className="w-full max-w-md rounded-lg border border-neutral-800 bg-neutral-900 p-5 shadow-2xl sm:p-6">
-        <div className="mb-8">
-          <p className="text-sm font-medium text-emerald-400">Закрытый мессенджер</p>
-          <h1 className="mt-2 text-2xl font-semibold">Войти</h1>
-          <p className="mt-2 text-sm text-neutral-400">Используйте приватный логин.</p>
+    <main className="flex min-h-[100svh] flex-col items-center justify-center bg-background px-6">
+      <div className="w-full max-w-[360px]">
+        <div className="mb-10 text-center">
+          <h1 className="text-3xl font-bold tracking-tighter text-foreground">Вход</h1>
+          <p className="mt-2 text-sm text-muted">Введите приватный логин.</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="block text-sm font-medium">
-            Логин
+          <div className="space-y-2">
             <input
-              className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
+              className="input-nox"
               name="login"
+              placeholder="Логин"
               autoComplete="username"
               required
             />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Пароль
             <input
-              className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
+              className="input-nox"
               name="password"
               type="password"
+              placeholder="Пароль"
               autoComplete="current-password"
               required
             />
-          </label>
+          </div>
 
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
+          {error ? <p className="text-center text-xs text-red-400">{error}</p> : null}
 
           <button
-            className="h-11 w-full rounded-md bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn-primary w-full"
             disabled={pending}
             type="submit"
           >
-            {pending ? "Входим..." : "Войти"}
+            {pending ? "..." : "Войти"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-neutral-400">
-          Есть приглашение?{" "}
-          <Link className="font-medium text-emerald-300 hover:text-emerald-200" href="/join">
-            Присоединиться
+        <div className="mt-8 text-center">
+          <Link className="text-sm font-medium text-muted transition hover:text-primary" href="/join">
+            Присоединиться по приглашению
           </Link>
-        </p>
-      </section>
+        </div>
+      </div>
     </main>
   );
 }

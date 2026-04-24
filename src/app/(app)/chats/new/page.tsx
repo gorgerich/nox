@@ -3,22 +3,21 @@ import { NewChatForm } from "./NewChatForm";
 
 export default async function NewChatPage() {
   return (
-    <section className="mx-auto max-w-2xl">
-      <Link className="inline-flex min-h-10 items-center text-sm text-neutral-400 transition hover:text-white" href="/chats">
-        Назад к чатам
-      </Link>
+    <div className="mx-auto max-w-2xl">
+      <div className="mb-8 px-2">
+        <Link 
+          className="mb-4 inline-flex items-center text-xs font-bold uppercase tracking-widest text-muted transition hover:text-foreground" 
+          href="/chats"
+        >
+          ← Назад
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight">Новый чат</h1>
+        <p className="mt-1 text-sm text-muted">Введите username пользователя для поиска.</p>
+      </div>
 
-      <div className="mt-4 rounded-lg border border-neutral-800 bg-neutral-900 p-5 sm:p-6">
-        <div className="mb-6">
-          <p className="text-sm font-medium text-emerald-400">Новый чат</p>
-          <h1 className="mt-1 text-2xl font-semibold">Найти контакт</h1>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">
-            Введите точный username пользователя и отправьте запрос на общение.
-          </p>
-        </div>
-
+      <div className="rounded-2xl bg-background p-2">
         <NewChatForm />
       </div>
-    </section>
+    </div>
   );
 }

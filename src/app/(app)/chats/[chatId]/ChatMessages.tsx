@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
+import Link from "next/link";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -37,22 +38,14 @@ function canDeleteMessage(message: Message, currentUserId: string, currentRole: 
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("ru-RU", {
-    month: "short",
-    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
 }
 
 function formatFileSize(sizeBytes: number) {
-  if (sizeBytes < 1024) {
-    return `${sizeBytes} B`;
-  }
-
-  if (sizeBytes < 1024 * 1024) {
-    return `${(sizeBytes / 1024).toFixed(1)} KB`;
-  }
-
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -61,11 +54,11 @@ function AttachmentContent({ attachment }: { attachment: Attachment }) {
 
   if (attachment.mimeType.startsWith("image/")) {
     return (
-      <a className="mt-3 block" href={href} target="_blank" rel="noreferrer">
+      <a className="mt-2 block overflow-hidden rounded-lg border border-border-subtle" href={href} target="_blank" rel="noreferrer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           alt={attachment.fileName}
-          className="max-h-80 max-w-full rounded-md border border-neutral-800 object-contain"
+          className="max-h-80 w-full object-cover transition hover:scale-105"
           src={href}
         />
       </a>
@@ -73,13 +66,15 @@ function AttachmentContent({ attachment }: { attachment: Attachment }) {
   }
 
   return (
-    <div className="mt-3 rounded-md border border-neutral-800 bg-neutral-950/60 p-3">
-      <p className="break-words text-sm font-medium text-neutral-100">{attachment.fileName}</p>
-      <p className="mt-1 text-xs text-neutral-500">
-        {attachment.mimeType} · {formatFileSize(attachment.sizeBytes)}
-      </p>
+    <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-background/40 p-3 border border-border-subtle">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-foreground">{attachment.fileName}</p>
+        <p className="text-[10px] text-muted uppercase font-bold tracking-tighter">
+          {formatFileSize(attachment.sizeBytes)}
+        </p>
+      </div>
       <a
-        className="mt-3 inline-flex min-h-10 items-center rounded-md border border-neutral-700 px-3 text-sm text-neutral-200 transition hover:border-neutral-500 hover:text-white"
+        className="shrink-0 text-xs font-bold text-primary hover:underline"
         href={href}
       >
         Скачать
@@ -89,24 +84,11 @@ function AttachmentContent({ attachment }: { attachment: Attachment }) {
 }
 
 function getUiErrorMessage(message?: string) {
-  if (!message) {
-    return "Не удалось выполнить действие.";
-  }
-
+  if (!message) return "Ошибка действия.";
   const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.includes("размер")) {
-    return "Файл слишком большой.";
-  }
-
-  if (lowerMessage.includes("тип")) {
-    return "Этот тип файла не поддерживается.";
-  }
-
-  if (lowerMessage.includes("доступ") || lowerMessage.includes("forbidden")) {
-    return "Нет доступа.";
-  }
-
+  if (lowerMessage.includes("размер")) return "Файл слишком большой.";
+  if (lowerMessage.includes("тип")) return "Формат не поддерживается.";
+  if (lowerMessage.includes("доступ")) return "Нет доступа.";
   return message;
 }
 
@@ -132,34 +114,32 @@ export function ChatMessages({
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const memberLocked = isLocked && currentRole === "MEMBER";
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   useEffect(() => {
-    if (!socket) {
-      return;
-    }
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (!socket) return;
 
     function handleNewMessage(payload: { chatId: string; message: Message }) {
       console.log("[client socket] received message:new", payload);
-      if (payload.chatId !== chatId) {
-        return;
-      }
-
+      if (payload.chatId !== chatId) return;
       setMessages((current) => {
-        if (current.some((message) => message.id === payload.message.id)) {
-          return current;
-        }
-
-        return [...current, payload.message].slice(-50);
+        if (current.some((message) => message.id === payload.message.id)) return current;
+        return [...current, payload.message].slice(-100);
       });
     }
 
     function handleDeletedMessage(payload: { chatId: string; messageId: string }) {
       console.log("[client socket] received message:deleted", payload);
-      if (payload.chatId !== chatId) {
-        return;
-      }
-
+      if (payload.chatId !== chatId) return;
       setMessages((current) =>
         current.map((message) =>
           message.id === payload.messageId
@@ -184,12 +164,7 @@ export function ChatMessages({
 
   async function refreshMessages() {
     const response = await fetch(`/api/chats/${chatId}/messages`);
-
-    if (!response.ok) {
-      setError("Не удалось загрузить чаты.");
-      return;
-    }
-
+    if (!response.ok) return;
     const data = (await response.json()) as { messages: Message[] };
     setMessages(data.messages);
     router.refresh();
@@ -198,43 +173,33 @@ export function ChatMessages({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextBody = body.trim();
-
-    if (!nextBody) {
-      return;
-    }
+    if (!nextBody) return;
 
     setError("");
     setPending(true);
-
     const response = await fetch(`/api/chats/${chatId}/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ body: nextBody }),
     });
-
     setPending(false);
 
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(getUiErrorMessage(data?.error) || "Не удалось отправить сообщение.");
+      setError(getUiErrorMessage(data?.error));
       return;
     }
 
     const data = (await response.json()) as { message: Message };
-    setMessages((current) => [...current, data.message].slice(-50));
+    setMessages((current) => [...current, data.message].slice(-100));
     setBody("");
     router.refresh();
   }
 
   async function uploadAttachment() {
-    if (!selectedFile) {
-      setError("Выберите файл для отправки.");
-      return;
-    }
-
+    if (!selectedFile) return;
     setError("");
     setUploading(true);
-
     const formData = new FormData();
     formData.append("file", selectedFile);
 
@@ -242,37 +207,25 @@ export function ChatMessages({
       method: "POST",
       body: formData,
     });
-
     setUploading(false);
 
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(getUiErrorMessage(data?.error) || "Не удалось загрузить файл.");
+      setError(getUiErrorMessage(data?.error));
       return;
     }
 
     const data = (await response.json()) as { message: Message };
-    setMessages((current) => [...current, data.message].slice(-50));
+    setMessages((current) => [...current, data.message].slice(-100));
     setSelectedFile(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
+    if (fileInputRef.current) fileInputRef.current.value = "";
     router.refresh();
   }
 
   async function deleteMessage(messageId: string) {
-    setError("");
     const response = await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
-
-    if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(getUiErrorMessage(data?.error) || "Не удалось удалить сообщение.");
-      return;
-    }
-
-    const data = (await response.json()) as { message: { id: string; deletedAt: string | null } };
+    if (!response.ok) return;
+    const data = (await response.json()) as { message: { id: string, deletedAt: string } };
     setMessages((current) =>
       current.map((message) =>
         message.id === data.message.id ? { ...message, deletedAt: data.message.deletedAt } : message,
@@ -282,14 +235,27 @@ export function ChatMessages({
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-180px)] flex-col rounded-lg border border-neutral-800 bg-neutral-900 sm:min-h-[calc(100svh-188px)] lg:min-h-[620px]">
-      <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
-        <div>
-          <span className="text-sm text-neutral-400">Сообщений: {messages.length}</span>
-          <p className="mt-1 text-xs text-neutral-500">{connected ? "В сети" : "Подключение..."}</p>
+    <div className="flex h-[calc(100svh-80px)] flex-col lg:h-[750px] lg:max-h-[85vh]">
+      {/* Chat Header */}
+      <div className="flex items-center justify-between border-b border-border-subtle bg-background/50 px-4 py-3 backdrop-blur-md">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/chats" className="text-muted hover:text-foreground">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-bold">Чат</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-muted"}`} />
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                {connected ? "В сети" : "Подключение"}
+              </p>
+            </div>
+          </div>
         </div>
         <button
-          className="min-h-10 rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition hover:border-neutral-500 hover:text-white"
+          className="text-xs font-bold uppercase tracking-widest text-muted hover:text-foreground"
           onClick={refreshMessages}
           type="button"
         >
@@ -297,10 +263,11 @@ export function ChatMessages({
         </button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-hide">
         {messages.length === 0 ? (
-          <div className="rounded-md border border-dashed border-neutral-700 p-6 text-center text-sm text-neutral-400">
-            Сообщений пока нет.
+          <div className="flex h-full items-center justify-center">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted">Сообщений нет</p>
           </div>
         ) : (
           messages.map((message) => {
@@ -308,105 +275,131 @@ export function ChatMessages({
             const displayName = message.sender.profile?.displayName ?? message.sender.username;
 
             return (
-              <div className={`flex ${mine ? "justify-end" : "justify-start"}`} key={message.id}>
-                <div
-                  className={`max-w-[78%] rounded-lg border px-4 py-3 ${
-                    mine
-                      ? "border-emerald-500/30 bg-emerald-500/15"
-                      : "border-neutral-800 bg-neutral-950"
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="text-sm font-medium text-neutral-100">{displayName}</span>
-                    <span className="text-xs text-neutral-500">{formatTime(message.createdAt)}</span>
-                  </div>
+              <div className={`flex flex-col ${mine ? "items-end" : "items-start"}`} key={message.id}>
+                {!mine && (
+                  <span className="mb-1 ml-2 text-[10px] font-bold uppercase tracking-tighter text-muted">
+                    {displayName}
+                  </span>
+                )}
+                <div className={`group relative max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                  mine 
+                    ? "bg-primary text-neutral-950 rounded-tr-none" 
+                    : "bg-surface border border-border-subtle text-foreground rounded-tl-none"
+                }`}>
                   {message.deletedAt ? (
-                    <p className="mt-2 whitespace-pre-wrap text-sm italic leading-6 text-neutral-500">
-                      Сообщение удалено
-                    </p>
+                    <p className="text-xs italic opacity-60">Сообщение удалено</p>
                   ) : (
                     <>
-                      {message.body ? (
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-200">
-                          {message.body}
-                        </p>
-                      ) : null}
+                      {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.body}</p>}
                       {message.attachments.map((attachment) => (
                         <AttachmentContent attachment={attachment} key={attachment.id} />
                       ))}
                     </>
                   )}
-                  {!message.deletedAt && canDeleteMessage(message, currentUserId, currentRole) ? (
-                    <button
-                      className="mt-2 inline-flex min-h-10 items-center text-sm text-neutral-500 transition hover:text-red-300"
-                      onClick={() => deleteMessage(message.id)}
-                      type="button"
-                    >
-                      Удалить
-                    </button>
-                  ) : null}
+                  
+                  <div className={`mt-1 flex items-center gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+                    <span className={`text-[9px] font-bold ${mine ? "text-neutral-950/60" : "text-muted"}`}>
+                      {formatTime(message.createdAt)}
+                    </span>
+                    {!message.deletedAt && canDeleteMessage(message, currentUserId, currentRole) && (
+                      <button
+                        className={`opacity-0 group-hover:opacity-100 transition text-[9px] font-bold uppercase ${
+                          mine ? "text-neutral-950/60 hover:text-neutral-950" : "text-muted hover:text-red-400"
+                        }`}
+                        onClick={() => deleteMessage(message.id)}
+                      >
+                        Удалить
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           })
         )}
+        <div ref={messagesEndRef} />
       </div>
 
-      <form className="sticky bottom-0 border-t border-neutral-800 bg-neutral-900 p-3 sm:p-4" onSubmit={handleSubmit}>
+      {/* Composer */}
+      <div className="p-4 bg-background">
         {memberLocked ? (
-          <p className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-            Этот чат закрыт для участников.
-          </p>
-        ) : null}
-        {error ? <p className="mb-3 text-sm text-red-300">{error}</p> : null}
-        <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="grid gap-2">
-            <input
-              ref={fileInputRef}
-              className="sr-only"
-              disabled={memberLocked || uploading}
-              id="chat-attachment-file"
-              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,video/mp4,application/pdf,text/plain,application/zip"
-            />
-            <label
-              className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-md border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:text-white"
-              htmlFor="chat-attachment-file"
-            >
-              Выбрать файл
-            </label>
-            {selectedFile ? <p className="truncate text-sm text-neutral-400">{selectedFile.name}</p> : null}
+          <div className="rounded-xl bg-surface p-3 text-center border border-border-subtle">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted">Чат закрыт для участников</p>
           </div>
-          <button
-            className="min-h-11 shrink-0 rounded-md border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={memberLocked || uploading || !selectedFile}
-            onClick={uploadAttachment}
-            type="button"
-          >
-            {uploading ? "Загрузка..." : "Прикрепить"}
-          </button>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            {error && <p className="text-center text-[10px] font-bold uppercase text-red-400">{error}</p>}
+            
+            {selectedFile && (
+              <div className="flex items-center justify-between rounded-xl bg-surface-hover px-3 py-2 border border-primary/20 animate-in fade-in slide-in-from-bottom-2">
+                <p className="truncate text-xs font-medium text-primary">{selectedFile.name}</p>
+                <button 
+                  className="text-muted hover:text-foreground p-1"
+                  onClick={() => setSelectedFile(null)}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <textarea
-            className="min-h-11 flex-1 resize-none rounded-md border border-neutral-700 bg-neutral-950 px-3 py-3 text-sm text-neutral-100 outline-none transition focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={memberLocked || pending || uploading}
-            maxLength={4000}
-            onChange={(event) => setBody(event.target.value)}
-            placeholder="Написать сообщение"
-            rows={1}
-            value={body}
-          />
-          <button
-            className="min-h-11 rounded-md bg-emerald-500 px-5 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={memberLocked || pending || uploading || body.trim().length === 0}
-            type="submit"
-          >
-            Отправить
-          </button>
-        </div>
-      </form>
+            <form className="flex items-end gap-2" onSubmit={handleSubmit}>
+              <div className="relative flex-1">
+                <input
+                  ref={fileInputRef}
+                  className="hidden"
+                  id="file-upload"
+                  type="file"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                  disabled={uploading}
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="absolute left-2 bottom-1.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition hover:bg-surface-hover hover:text-foreground active:scale-95"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </label>
+                <textarea
+                  className="input-nox max-h-32 min-h-[44px] py-3 pl-12 pr-4 resize-none leading-tight"
+                  rows={1}
+                  placeholder="Написать..."
+                  value={body}
+                  disabled={pending || uploading}
+                  onChange={(e) => {
+                    setBody(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
+                    }
+                  }}
+                />
+              </div>
+              
+              <button
+                className="btn-primary h-11 w-11 p-0 flex items-center justify-center shrink-0 rounded-full"
+                type="button"
+                disabled={pending || uploading || (body.trim().length === 0 && !selectedFile)}
+                onClick={(e) => selectedFile ? uploadAttachment() : handleSubmit(e as unknown as FormEvent<HTMLFormElement>)}
+              >
+                {uploading || pending ? (
+                  <div className="h-4 w-4 border-2 border-neutral-950 border-t-transparent animate-spin rounded-full" />
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

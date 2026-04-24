@@ -56,83 +56,47 @@ type InviteFormState = {
 };
 
 const sections: { id: AdminSection; label: string }[] = [
-  { id: "users", label: "Пользователи" },
-  { id: "invites", label: "Приглашения" },
-  { id: "security", label: "Безопасность" },
-  { id: "audit", label: "Журнал действий" },
+  { id: "users", label: "Люди" },
+  { id: "invites", label: "Коды" },
+  { id: "security", label: "Защита" },
+  { id: "audit", label: "Логи" },
 ];
 
 function formatDate(value: string | null) {
-  if (!value) {
-    return "Не задано";
-  }
-
+  if (!value) return "∞";
   return new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
 }
 
 function getRoleLabel(role: string) {
-  if (role === "OWNER") {
-    return "Владелец";
-  }
-
-  if (role === "ADMIN") {
-    return "Администратор";
-  }
-
+  if (role === "OWNER") return "Владелец";
+  if (role === "ADMIN") return "Админ";
   return "Участник";
-}
-
-function getStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    ACTIVE: "Активен",
-    BLOCKED: "Заблокирован",
-    REVOKED: "Доступ отозван",
-    PENDING: "Ожидает",
-    USED: "Использовано",
-    EXPIRED: "Истекло",
-  };
-
-  return labels[status] ?? status;
 }
 
 function getActionLabel(action: string) {
   const labels: Record<string, string> = {
-    USER_BLOCKED: "Пользователь заблокирован",
-    USER_UNBLOCKED: "Пользователь разблокирован",
-    USER_REVOKED: "Доступ пользователя отозван",
-    USER_MADE_ADMIN: "Пользователь назначен администратором",
-    USER_ADMIN_REMOVED: "Роль администратора снята",
-    INVITE_CREATED: "Приглашение создано",
-    INVITE_REVOKED: "Приглашение отозвано",
-    EMERGENCY_LOCK_ENABLED: "Экстренная блокировка включена",
-    EMERGENCY_LOCK_DISABLED: "Экстренная блокировка выключена",
+    USER_BLOCKED: "Блокировка",
+    USER_UNBLOCKED: "Разблокировка",
+    USER_REVOKED: "Отказ в доступе",
+    USER_MADE_ADMIN: "Назначен админ",
+    USER_ADMIN_REMOVED: "Снят админ",
+    INVITE_CREATED: "Код создан",
+    INVITE_REVOKED: "Код отозван",
+    EMERGENCY_LOCK_ENABLED: "Lock включен",
+    EMERGENCY_LOCK_DISABLED: "Lock выключен",
   };
-
   return labels[action] ?? action;
-}
-
-function renderMetadata(metadata: unknown) {
-  if (!metadata || typeof metadata !== "object") {
-    return "Нет данных";
-  }
-
-  return JSON.stringify(metadata);
 }
 
 async function readJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, init);
   const data = (await response.json().catch(() => null)) as T & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data?.error ?? "Не удалось выполнить действие.");
-  }
-
+  if (!response.ok) throw new Error(data?.error ?? "Ошибка.");
   return data;
 }
 
@@ -155,9 +119,6 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
   });
 
   async function loadAdminData() {
-    setError("");
-    setLoading(true);
-
     try {
       const [usersData, invitesData, systemData, auditData] = await Promise.all([
         readJson<{ users: UserItem[] }>("/api/admin/users"),
@@ -165,13 +126,12 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
         readJson<SystemState>("/api/admin/system"),
         readJson<{ actions: AuditItem[] }>("/api/admin/audit-log"),
       ]);
-
       setUsers(usersData.users);
       setInvites(invitesData.invites);
       setSystem(systemData);
       setAuditLog(auditData.actions);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось загрузить данные админки.");
+      setError(reason instanceof Error ? reason.message : "Ошибка загрузки.");
     } finally {
       setLoading(false);
     }
@@ -179,8 +139,7 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
 
   useEffect(() => {
     let active = true;
-
-    async function loadInitialData() {
+    const load = async () => {
       try {
         const [usersData, invitesData, systemData, auditData] = await Promise.all([
           readJson<{ users: UserItem[] }>("/api/admin/users"),
@@ -188,42 +147,29 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
           readJson<SystemState>("/api/admin/system"),
           readJson<{ actions: AuditItem[] }>("/api/admin/audit-log"),
         ]);
-
-        if (!active) {
-          return;
-        }
-
+        if (!active) return;
         setUsers(usersData.users);
         setInvites(invitesData.invites);
         setSystem(systemData);
         setAuditLog(auditData.actions);
       } catch (reason) {
-        if (active) {
-          setError(reason instanceof Error ? reason.message : "Не удалось загрузить данные админки.");
-        }
+        setError(reason instanceof Error ? reason.message : "Ошибка загрузки.");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
-    }
-
-    void loadInitialData();
-
-    return () => {
-      active = false;
     };
+    load();
+    return () => { active = false; };
   }, []);
 
   async function runAction(actionId: string, url: string) {
     setError("");
     setPendingAction(actionId);
-
     try {
       await readJson(url, { method: "POST" });
       await loadAdminData();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось выполнить действие.");
+      setError(reason instanceof Error ? reason.message : "Ошибка.");
     } finally {
       setPendingAction("");
     }
@@ -236,75 +182,45 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
     setNotice("");
     setPendingAction("create-invite");
 
-    const maxUses = Number(inviteForm.maxUses);
-
-    if (!Number.isInteger(maxUses) || maxUses < 1) {
-      setPendingAction("");
-      setError("Количество использований должно быть не меньше 1.");
-      return;
-    }
-
-    const expiresAt = inviteForm.expiresAt
-      ? new Date(inviteForm.expiresAt).toISOString()
-      : null;
-
     try {
-      const data = await readJson<{
-        rawInviteCode: string;
-        notice: string;
-      }>("/api/admin/invites", {
+      const data = await readJson<{ rawInviteCode: string; notice: string }>("/api/admin/invites", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          maxUses,
-          expiresAt,
+          maxUses: Number(inviteForm.maxUses),
+          expiresAt: inviteForm.expiresAt ? new Date(inviteForm.expiresAt).toISOString() : null,
           targetEmail: inviteForm.targetEmail.trim() || undefined,
           targetUsername: inviteForm.targetUsername.trim() || undefined,
         }),
       });
-
-      setInviteForm({
-        maxUses: "1",
-        expiresAt: "",
-        targetEmail: "",
-        targetUsername: "",
-      });
+      setInviteForm({ maxUses: "1", expiresAt: "", targetEmail: "", targetUsername: "" });
       setRawInviteCode(data.rawInviteCode);
       setNotice(data.notice);
       await loadAdminData();
-      setActiveSection("invites");
     } catch (reason) {
-      console.error(reason);
-      setError(reason instanceof Error ? reason.message : "Не удалось создать приглашение.");
+      setError(reason instanceof Error ? reason.message : "Ошибка.");
     } finally {
       setPendingAction("");
     }
   }
 
   return (
-    <section className="grid gap-5">
-      <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-5 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-emerald-400">Администрирование</p>
-            <h1 className="mt-1 text-2xl font-semibold">Панель управления</h1>
-          </div>
-          <span className="w-fit rounded-full bg-neutral-800 px-3 py-1 text-sm text-neutral-300">
-            {getRoleLabel(currentUserRole)}
-          </span>
+    <div className="mx-auto max-w-4xl space-y-8">
+      <div className="px-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Управление</h1>
+          <p className="mt-1 text-sm text-muted">Доступ: {getRoleLabel(currentUserRole)}</p>
         </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="flex bg-surface p-1 rounded-2xl border border-border-subtle">
           {sections.map((section) => (
             <button
-              className={`min-h-11 rounded-md border px-3 text-sm font-semibold transition ${
-                activeSection === section.id
-                  ? "border-emerald-500 bg-emerald-500 text-neutral-950"
-                  : "border-neutral-800 bg-neutral-950 text-neutral-200 hover:border-neutral-600"
-              }`}
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              type="button"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeSection === section.id 
+                  ? "bg-primary text-neutral-950 shadow-sm" 
+                  : "text-muted hover:text-foreground"
+              }`}
             >
               {section.label}
             </button>
@@ -312,279 +228,174 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
         </div>
       </div>
 
-      {error ? (
-        <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-          {error}
-        </div>
-      ) : null}
+      {error && <p className="bg-red-500/10 text-red-400 text-xs font-bold p-3 rounded-xl text-center border border-red-500/20">{error}</p>}
+      {loading && <p className="text-center text-xs font-bold uppercase tracking-widest text-muted animate-pulse py-12">Загрузка...</p>}
 
-      {loading ? (
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-5 text-sm text-neutral-400">
-          Загружаем данные...
-        </div>
-      ) : null}
-
-      {activeSection === "users" ? (
-        <section className="grid gap-3">
-          <h2 className="text-xl font-semibold">Пользователи</h2>
-          {users.map((user) => (
-            <article className="rounded-lg border border-neutral-800 bg-neutral-900 p-4" key={user.id}>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">{user.profile?.displayName ?? user.username}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">@{user.username}</p>
-                  <p className="mt-1 break-words text-sm text-neutral-400">
-                    Логин: {user.login ?? "Не задан"}
-                  </p>
-                  <p className="mt-1 break-words text-sm text-neutral-400">{user.email ?? "Электронная почта не указана"}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-neutral-800 px-3 py-1 text-sm text-neutral-300">
-                    {getRoleLabel(user.role)}
-                  </span>
-                  <span className="rounded-full bg-neutral-800 px-3 py-1 text-sm text-neutral-300">
-                    {getStatusLabel(user.status)}
-                  </span>
-                </div>
-              </div>
-              <p className="mt-3 text-sm text-neutral-500">Создан: {formatDate(user.createdAt)}</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                <AdminButton
-                  disabled={pendingAction !== ""}
-                  label="Заблокировать"
-                  onClick={() => runAction(`block-${user.id}`, `/api/admin/users/${user.id}/block`)}
-                  pending={pendingAction === `block-${user.id}`}
-                />
-                <AdminButton
-                  disabled={pendingAction !== ""}
-                  label="Разблокировать"
-                  onClick={() => runAction(`unblock-${user.id}`, `/api/admin/users/${user.id}/unblock`)}
-                  pending={pendingAction === `unblock-${user.id}`}
-                />
-                <AdminButton
-                  disabled={pendingAction !== ""}
-                  label="Отозвать доступ"
-                  onClick={() => runAction(`revoke-${user.id}`, `/api/admin/users/${user.id}/revoke`)}
-                  pending={pendingAction === `revoke-${user.id}`}
-                />
-                <AdminButton
-                  disabled={pendingAction !== ""}
-                  label="Сделать админом"
-                  onClick={() => runAction(`make-admin-${user.id}`, `/api/admin/users/${user.id}/make-admin`)}
-                  pending={pendingAction === `make-admin-${user.id}`}
-                />
-                <AdminButton
-                  disabled={pendingAction !== ""}
-                  label="Убрать админа"
-                  onClick={() => runAction(`remove-admin-${user.id}`, `/api/admin/users/${user.id}/remove-admin`)}
-                  pending={pendingAction === `remove-admin-${user.id}`}
-                />
-              </div>
-            </article>
-          ))}
-        </section>
-      ) : null}
-
-      {activeSection === "invites" ? (
-        <section className="grid gap-4">
-          <h2 className="text-xl font-semibold">Приглашения</h2>
-          <form className="grid gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-4" onSubmit={createInvite}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-medium">
-                Количество использований
-                <input
-                  className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-                  min="1"
-                  max="100"
-                  name="maxUses"
-                  onChange={(event) =>
-                    setInviteForm((current) => ({ ...current, maxUses: event.target.value }))
-                  }
-                  type="number"
-                  value={inviteForm.maxUses}
-                  required
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Действует до
-                <input
-                  className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-                  name="expiresAt"
-                  onChange={(event) =>
-                    setInviteForm((current) => ({ ...current, expiresAt: event.target.value }))
-                  }
-                  style={{ colorScheme: "dark" }}
-                  type="datetime-local"
-                  value={inviteForm.expiresAt}
-                />
-                <span className="mt-2 block text-sm leading-5 text-neutral-500">
-                  Можно оставить пустым — приглашение не будет иметь срока действия.
-                </span>
-              </label>
-              <label className="text-sm font-medium">
-                Целевая электронная почта
-                <input
-                  className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-                  name="targetEmail"
-                  onChange={(event) =>
-                    setInviteForm((current) => ({ ...current, targetEmail: event.target.value }))
-                  }
-                  type="email"
-                  value={inviteForm.targetEmail}
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Целевое имя пользователя
-                <input
-                  className="mt-2 h-11 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 text-neutral-100 outline-none transition focus:border-emerald-400"
-                  name="targetUsername"
-                  onChange={(event) =>
-                    setInviteForm((current) => ({ ...current, targetUsername: event.target.value }))
-                  }
-                  value={inviteForm.targetUsername}
-                />
-              </label>
-            </div>
-            <button
-              className="min-h-11 rounded-md bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={pendingAction !== ""}
-              type="submit"
-            >
-              {pendingAction === "create-invite" ? "Создаём..." : "Создать приглашение"}
-            </button>
-          </form>
-
-          {rawInviteCode ? (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <p className="text-sm text-emerald-200">{notice}</p>
-              <p className="mt-3 break-all rounded-md bg-neutral-950 p-3 font-mono text-sm text-neutral-100">
-                {rawInviteCode}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="grid gap-3">
-            {invites.map((invite) => (
-              <article className="rounded-lg border border-neutral-800 bg-neutral-900 p-4" key={invite.id}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="font-semibold">Приглашение</h3>
-                    <p className="mt-1 text-sm text-neutral-500">{invite.id}</p>
+      {!loading && (
+        <div className="animate-in fade-in duration-500 px-2">
+          {activeSection === "users" && (
+            <div className="space-y-3">
+              {users.map((user) => (
+                <article key={user.id} className="card-clean p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-surface-hover flex items-center justify-center font-bold text-primary">
+                      {user.username.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-bold">{user.profile?.displayName ?? user.username}</h3>
+                      <p className="text-xs text-muted">@{user.username} • {getRoleLabel(user.role)}</p>
+                    </div>
                   </div>
-                  <span className="w-fit rounded-full bg-neutral-800 px-3 py-1 text-sm text-neutral-300">
-                    {getStatusLabel(invite.status)}
-                  </span>
-                </div>
-                <div className="mt-4 grid gap-2 text-sm text-neutral-300 sm:grid-cols-2">
-                  <p>Использовано: {invite.usedCount} из {invite.maxUses}</p>
-                  <p>Истекает: {formatDate(invite.expiresAt)}</p>
-                  <p>Создано: {formatDate(invite.createdAt)}</p>
-                  <p>Кем создано: {invite.createdBy?.profile?.displayName ?? invite.createdBy?.username ?? "Неизвестно"}</p>
-                  <p className="break-words">Целевая почта: {invite.targetEmail ?? "Не задана"}</p>
-                  <p className="break-words">Целевое имя: {invite.targetUsername ?? "Не задано"}</p>
-                </div>
-                <div className="mt-4">
-                  <AdminButton
-                    disabled={pendingAction !== ""}
-                    label="Отозвать"
-                    onClick={() => runAction(`revoke-invite-${invite.id}`, `/api/admin/invites/${invite.id}/revoke`)}
-                    pending={pendingAction === `revoke-invite-${invite.id}`}
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <AdminActionButton 
+                      label="Блок" 
+                      onClick={() => runAction(`block-${user.id}`, `/api/admin/users/${user.id}/block`)}
+                      pending={pendingAction === `block-${user.id}`}
+                      variant="danger"
+                    />
+                    <AdminActionButton 
+                      label="Разблок" 
+                      onClick={() => runAction(`unblock-${user.id}`, `/api/admin/users/${user.id}/unblock`)}
+                      pending={pendingAction === `unblock-${user.id}`}
+                    />
+                    {user.role !== "ADMIN" ? (
+                      <AdminActionButton 
+                        label="+Админ" 
+                        onClick={() => runAction(`make-admin-${user.id}`, `/api/admin/users/${user.id}/make-admin`)}
+                        pending={pendingAction === `make-admin-${user.id}`}
+                      />
+                    ) : (
+                      <AdminActionButton 
+                        label="-Админ" 
+                        onClick={() => runAction(`remove-admin-${user.id}`, `/api/admin/users/${user.id}/remove-admin`)}
+                        pending={pendingAction === `remove-admin-${user.id}`}
+                      />
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {activeSection === "invites" && (
+            <div className="space-y-6">
+              <form className="card-clean p-6 space-y-4" onSubmit={createInvite}>
+                <h2 className="text-sm font-bold uppercase tracking-widest">Создать код</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    className="input-nox"
+                    placeholder="Лимит использований (число)"
+                    type="number"
+                    value={inviteForm.maxUses}
+                    onChange={(e) => setInviteForm({...inviteForm, maxUses: e.target.value})}
+                  />
+                  <input
+                    className="input-nox"
+                    type="datetime-local"
+                    style={{ colorScheme: "dark" }}
+                    value={inviteForm.expiresAt}
+                    onChange={(e) => setInviteForm({...inviteForm, expiresAt: e.target.value})}
                   />
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+                <button className="btn-primary w-full" disabled={pendingAction !== ""}>
+                  {pendingAction === "create-invite" ? "..." : "Сгенерировать"}
+                </button>
+              </form>
 
-      {activeSection === "security" ? (
-        <section className="grid gap-4">
-          <h2 className="text-xl font-semibold">Безопасность</h2>
-          <article className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
-            <p className={`text-lg font-semibold ${system?.emergencyLocked ? "text-red-300" : "text-emerald-300"}`}>
-              {system?.emergencyLocked ? "Экстренная блокировка включена" : "Экстренная блокировка выключена"}
-            </p>
-            <p className="mt-3 text-sm leading-6 text-neutral-400">
-              При включении обычные пользователи временно теряют доступ. Админы остаются внутри.
-            </p>
-            <p className="mt-2 text-sm text-neutral-500">Обновлено: {formatDate(system?.updatedAt ?? null)}</p>
-            <button
-              className={`mt-5 min-h-12 w-full rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                system?.emergencyLocked
-                  ? "bg-emerald-500 text-neutral-950 hover:bg-emerald-400"
-                  : "bg-red-500 text-white hover:bg-red-400"
-              }`}
-              disabled={pendingAction !== ""}
-              onClick={() =>
-                runAction(
-                  system?.emergencyLocked ? "emergency-unlock" : "emergency-lock",
-                  system?.emergencyLocked
-                    ? "/api/admin/system/emergency-unlock"
-                    : "/api/admin/system/emergency-lock",
-                )
-              }
-              type="button"
-            >
-              {system?.emergencyLocked ? "Выключить блокировку" : "Включить блокировку"}
-            </button>
-          </article>
-          <article className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
-            <h3 className="font-semibold">Доступ</h3>
-            <p className="mt-2 text-sm leading-6 text-neutral-400">
-              Заблокированные и пользователи с отозванным доступом не могут пользоваться приложением.
-            </p>
-          </article>
-        </section>
-      ) : null}
-
-      {activeSection === "audit" ? (
-        <section className="grid gap-3">
-          <h2 className="text-xl font-semibold">Журнал действий</h2>
-          {auditLog.map((item) => (
-            <article className="rounded-lg border border-neutral-800 bg-neutral-900 p-4" key={item.id}>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="font-semibold">{getActionLabel(item.action)}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">
-                    Админ: {item.admin.profile?.displayName ?? item.admin.username}
-                  </p>
+              {rawInviteCode && (
+                <div className="card-clean border-primary/30 bg-primary/5 p-6 text-center animate-in zoom-in-95 duration-300">
+                  <p className="text-xs font-bold text-primary uppercase mb-3">{notice}</p>
+                  <code className="block bg-background p-4 rounded-xl border border-border-subtle font-mono text-sm select-all">
+                    {rawInviteCode}
+                  </code>
                 </div>
-                <p className="text-sm text-neutral-500">{formatDate(item.createdAt)}</p>
+              )}
+
+              <div className="space-y-3">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-muted px-2">Активные коды</h2>
+                {invites.map((invite) => (
+                  <article key={invite.id} className="card-clean p-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs truncate opacity-60">{invite.id}</p>
+                      <p className="text-xs mt-1">
+                        <span className="font-bold">{invite.usedCount}/{invite.maxUses}</span> • до {formatDate(invite.expiresAt)}
+                      </p>
+                    </div>
+                    <button 
+                      className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition"
+                      onClick={() => runAction(`revoke-invite-${invite.id}`, `/api/admin/invites/${invite.id}/revoke`)}
+                    >
+                      Отозвать
+                    </button>
+                  </article>
+                ))}
               </div>
-              <div className="mt-3 grid gap-2 text-sm text-neutral-300 sm:grid-cols-2">
-                <p>Тип цели: {item.targetType}</p>
-                <p className="break-all">ID цели: {item.targetId ?? "Не указан"}</p>
-              </div>
-              <p className="mt-3 break-words rounded-md bg-neutral-950 p-3 text-sm text-neutral-400">
-                {renderMetadata(item.metadata)}
-              </p>
-            </article>
-          ))}
-        </section>
-      ) : null}
-    </section>
+            </div>
+          )}
+
+          {activeSection === "security" && (
+            <div className="space-y-6">
+              <article className={`card-clean p-8 text-center border-2 transition-colors ${system?.emergencyLocked ? "border-red-500/50 bg-red-500/5" : "border-primary/20 bg-primary/5"}`}>
+                <div className={`mx-auto mb-6 h-16 w-16 rounded-full flex items-center justify-center text-2xl ${system?.emergencyLocked ? "bg-red-500 text-white animate-pulse" : "bg-primary text-neutral-950"}`}>
+                  {system?.emergencyLocked ? "🔒" : "🛡️"}
+                </div>
+                <h2 className="text-2xl font-bold">Экстренная блокировка</h2>
+                <p className="mt-3 text-sm text-muted max-w-sm mx-auto">
+                  {system?.emergencyLocked 
+                    ? "Доступ для обычных пользователей закрыт. Только администраторы могут войти." 
+                    : "Система работает в штатном режиме. Все пользователи имеют доступ."}
+                </p>
+                <button
+                  className={`mt-8 btn-primary w-full md:w-auto md:px-12 ${system?.emergencyLocked ? "bg-primary" : "bg-red-500 hover:bg-red-600 text-white"}`}
+                  disabled={pendingAction !== ""}
+                  onClick={() => runAction(
+                    system?.emergencyLocked ? "unlock" : "lock",
+                    system?.emergencyLocked ? "/api/admin/system/emergency-unlock" : "/api/admin/system/emergency-lock"
+                  )}
+                >
+                  {system?.emergencyLocked ? "Снять блокировку" : "Активировать блок"}
+                </button>
+              </article>
+            </div>
+          )}
+
+          {activeSection === "audit" && (
+            <div className="space-y-3">
+              {auditLog.map((item) => (
+                <article key={item.id} className="card-clean p-4 text-sm">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <p className="font-bold text-primary">{getActionLabel(item.action)}</p>
+                    <time className="text-[10px] text-muted font-bold uppercase">{formatDate(item.createdAt)}</time>
+                  </div>
+                  <p className="text-xs text-muted">Исполнитель: {item.admin.profile?.displayName ?? item.admin.username}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-function AdminButton({
-  disabled,
-  label,
-  onClick,
-  pending,
-}: {
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-  pending: boolean;
+function AdminActionButton({ label, onClick, pending, variant = "default" }: { 
+  label: string, 
+  onClick: () => void, 
+  pending: boolean,
+  variant?: "default" | "danger" 
 }) {
   return (
     <button
-      className="min-h-10 rounded-md border border-neutral-700 px-3 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={disabled}
+      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
+        variant === "danger" 
+          ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" 
+          : "bg-surface-hover text-muted hover:text-foreground"
+      }`}
+      disabled={pending}
       onClick={onClick}
-      type="button"
     >
-      {pending ? "Выполняем..." : label}
+      {pending ? "..." : label}
     </button>
   );
 }
