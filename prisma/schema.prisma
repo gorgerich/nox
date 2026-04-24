@@ -95,6 +95,7 @@ model User {
   chatMembers   ChatMember[]
   messages      Message[]
   attachments   Attachment[]
+  reactions     Reaction[]
   adminActions  AdminActionLog[] @relation("AdminActions")
   createdChats  Chat[] @relation("ChatCreator")
   callSessions  CallSession[] @relation("CallCreator")
@@ -206,10 +207,12 @@ model Message {
   deletedAt         DateTime?
   createdAt         DateTime    @default(now())
 
-  chat        Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender      User         @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
-  attachments Attachment[]
-  reactions   Reaction[]
+  chat           Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  attachments    Attachment[]
+  reactions      Reaction[]
+  replyToMessage Message?     @relation("MessageReplies", fields: [replyToMessageId], references: [id])
+  replies        Message[]    @relation("MessageReplies")
 
   @@index([chatId, createdAt])
   @@index([senderUserId])
@@ -244,8 +247,9 @@ model Reaction {
   createdAt DateTime @default(now())
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([messageId, userId, emoji])
+  @@unique([messageId, userId])
 }
 
 model CallSession {

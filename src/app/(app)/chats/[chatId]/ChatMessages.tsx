@@ -13,6 +13,8 @@ type Message = {
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
   deletedAt: string | null;
+  editedAt: string | null;
+  replyToMessageId: string | null;
   createdAt: string;
   sender: {
     id: string;
@@ -23,6 +25,29 @@ type Message = {
     } | null;
   };
   attachments: Attachment[];
+  reactions: MessageReaction[];
+  replyToMessage: ParentMessage | null;
+};
+
+type ParentMessage = {
+  id: string;
+  body: string | null;
+  deletedAt: string | null;
+  type: string;
+  sender: {
+    username: string;
+    profile: { displayName: string } | null;
+  };
+};
+
+type MessageReaction = {
+  emoji: string;
+  userId: string;
+  user: {
+    id: string;
+    username: string;
+    profile: { displayName: string } | null;
+  };
 };
 
 type Attachment = {
@@ -31,6 +56,8 @@ type Attachment = {
   mimeType: string;
   sizeBytes: number;
 };
+
+const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "👎"];
 
 function canDeleteMessage(message: Message, currentUserId: string, currentRole: ChatRole) {
   return message.senderUserId === currentUserId || currentRole === "OWNER" || currentRole === "ADMIN";
@@ -92,6 +119,14 @@ function getUiErrorMessage(message?: string) {
   return message;
 }
 
+function getParentPreview(parent: ParentMessage) {
+  if (parent.deletedAt) return "Сообщение удалено";
+  if (parent.body) return parent.body;
+  if (parent.type === "IMAGE") return "Фото";
+  if (parent.type === "VIDEO") return "Видео";
+  return "Файл";
+}
+
 export function ChatMessages({
   chatId,
   currentUserId,
@@ -117,8 +152,13 @@ export function ChatMessages({
   const [isTypingLocal, setIsTypingLocal] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Actions state
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const memberLocked = isLocked && currentRole === "MEMBER";
 
   const scrollToBottom = () => {
@@ -145,11 +185,9 @@ export function ChatMessages({
     if (!socket) return;
 
     function handleNewMessage(payload: { chatId: string; message: Message }) {
-      console.log("[client socket] received message:new", payload);
       if (payload.chatId !== chatId) return;
-      
       setMessages((current) => {
-        if (current.some((message) => message.id === payload.message.id)) return current;
+        if (current.some((m) => m.id === payload.message.id)) return current;
         return [...current, payload.message].slice(-100);
       });
 
@@ -159,13 +197,28 @@ export function ChatMessages({
     }
 
     function handleDeletedMessage(payload: { chatId: string; messageId: string }) {
-      console.log("[client socket] received message:deleted", payload);
       if (payload.chatId !== chatId) return;
       setMessages((current) =>
-        current.map((message) =>
-          message.id === payload.messageId
-            ? { ...message, deletedAt: new Date().toISOString() }
-            : message,
+        current.map((m) =>
+          m.id === payload.messageId
+            ? { ...m, deletedAt: new Date().toISOString() }
+            : m,
+        ),
+      );
+    }
+
+    function handleUpdatedMessage(payload: { chatId: string; message: Message }) {
+      if (payload.chatId !== chatId) return;
+      setMessages((current) =>
+        current.map((m) => (m.id === payload.message.id ? payload.message : m)),
+      );
+    }
+
+    function handleReactionsUpdated(payload: { chatId: string; messageId: string; reactions: MessageReaction[] }) {
+      if (payload.chatId !== chatId) return;
+      setMessages((current) =>
+        current.map((m) =>
+          m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m
         ),
       );
     }
@@ -197,17 +250,19 @@ export function ChatMessages({
       });
     }
 
-    console.log(`[client socket] joining chat room ${chatId}`);
     socket.emit("chat:join", chatId);
     socket.on("message:new", handleNewMessage);
     socket.on("message:deleted", handleDeletedMessage);
+    socket.on("message:updated", handleUpdatedMessage);
+    socket.on("message:reactions-updated", handleReactionsUpdated);
     socket.on("typing:update", handleTypingUpdate);
 
     return () => {
-      console.log(`[client socket] leaving chat room ${chatId}`);
       socket.emit("chat:leave", chatId);
       socket.off("message:new", handleNewMessage);
       socket.off("message:deleted", handleDeletedMessage);
+      socket.off("message:updated", handleUpdatedMessage);
+      socket.off("message:reactions-updated", handleReactionsUpdated);
       socket.off("typing:update", handleTypingUpdate);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       socket.emit("typing:stop", { chatId });
@@ -222,10 +277,10 @@ export function ChatMessages({
     router.refresh();
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     const nextBody = body.trim();
-    if (!nextBody) return;
+    if (!nextBody && !selectedFile) return;
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -236,23 +291,44 @@ export function ChatMessages({
 
     setError("");
     setPending(true);
-    const response = await fetch(`/api/chats/${chatId}/messages`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body: nextBody }),
-    });
-    setPending(false);
 
-    if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(getUiErrorMessage(data?.error));
-      return;
+    try {
+      if (editingMessage) {
+        const response = await fetch(`/api/messages/${editingMessage.id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ body: nextBody }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Не удалось изменить сообщение");
+        }
+        setEditingMessage(null);
+        setBody("");
+      } else if (selectedFile) {
+        await uploadAttachment();
+      } else {
+        const response = await fetch(`/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            body: nextBody,
+            replyToMessageId: replyingToMessage?.id,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Не удалось отправить сообщение");
+        }
+        setReplyingToMessage(null);
+        setBody("");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка");
+    } finally {
+      setPending(false);
+      router.refresh();
     }
-
-    const data = (await response.json()) as { message: Message };
-    setMessages((current) => [...current, data.message].slice(-100));
-    setBody("");
-    router.refresh();
   }
 
   const handleTyping = (text: string) => {
@@ -289,7 +365,6 @@ export function ChatMessages({
 
   async function uploadAttachment() {
     if (!selectedFile) return;
-    setError("");
     setUploading(true);
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -301,33 +376,49 @@ export function ChatMessages({
     setUploading(false);
 
     if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(getUiErrorMessage(data?.error));
-      return;
+      const data = await response.json().catch(() => null);
+      throw new Error(getUiErrorMessage(data?.error));
     }
 
-    const data = (await response.json()) as { message: Message };
-    setMessages((current) => [...current, data.message].slice(-100));
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    router.refresh();
   }
 
   async function deleteMessage(messageId: string) {
-    const response = await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
-    if (!response.ok) return;
-    const data = (await response.json()) as { message: { id: string, deletedAt: string } };
-    setMessages((current) =>
-      current.map((message) =>
-        message.id === data.message.id ? { ...message, deletedAt: data.message.deletedAt } : message,
-      ),
-    );
+    await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
     router.refresh();
+  }
+
+  async function toggleReaction(messageId: string, emoji: string) {
+    try {
+      await fetch(`/api/messages/${messageId}/reactions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+    } catch (err) {
+      console.error("Failed to toggle reaction", err);
+    }
+  }
+
+  function startEditing(message: Message) {
+    if (message.deletedAt || message.senderUserId !== currentUserId) return;
+    setReplyingToMessage(null);
+    setEditingMessage(message);
+    setBody(message.body || "");
+    inputRef.current?.focus();
+  }
+
+  function startReplying(message: Message) {
+    if (message.deletedAt) return;
+    setEditingMessage(null);
+    setReplyingToMessage(message);
+    inputRef.current?.focus();
   }
 
   return (
     <div className="flex h-[calc(100svh-80px)] flex-col lg:h-[750px] lg:max-h-[85vh]">
-      {/* Chat Header ... (unchanged) */}
+      {/* Chat Header */}
       <div className="flex items-center justify-between border-b border-border-subtle bg-background/50 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/chats" className="text-muted hover:text-foreground">
@@ -365,6 +456,14 @@ export function ChatMessages({
             const mine = message.senderUserId === currentUserId;
             const displayName = message.sender.profile?.displayName ?? message.sender.username;
 
+            // Group reactions
+            const groupedReactions = message.reactions.reduce((acc, r) => {
+              if (!acc[r.emoji]) acc[r.emoji] = { count: 0, me: false };
+              acc[r.emoji].count++;
+              if (r.userId === currentUserId) acc[r.emoji].me = true;
+              return acc;
+            }, {} as Record<string, { count: number; me: boolean }>);
+
             return (
               <div className={`flex flex-col ${mine ? "items-end" : "items-start"}`} key={message.id}>
                 {!mine && (
@@ -372,11 +471,20 @@ export function ChatMessages({
                     {displayName}
                   </span>
                 )}
-                <div className={`group relative max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                
+                <div className={`group relative max-w-[85%] rounded-2xl px-4 py-2.5 transition-all ${
                   mine 
                     ? "bg-primary text-neutral-950 rounded-tr-none" 
                     : "bg-surface border border-border-subtle text-foreground rounded-tl-none"
                 }`}>
+                  {/* Reply Preview inside bubble */}
+                  {message.replyToMessage && (
+                    <div className={`mb-2 border-l-2 pl-2 py-0.5 text-xs opacity-80 ${mine ? "border-neutral-950/30" : "border-primary/50"}`}>
+                      <p className="font-bold truncate">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
+                      <p className="truncate line-clamp-1 italic">{getParentPreview(message.replyToMessage)}</p>
+                    </div>
+                  )}
+
                   {message.deletedAt ? (
                     <p className="text-xs italic opacity-60">Сообщение удалено</p>
                   ) : (
@@ -390,20 +498,71 @@ export function ChatMessages({
                   
                   <div className={`mt-1 flex items-center gap-2 ${mine ? "justify-end" : "justify-start"}`}>
                     <span className={`text-[9px] font-bold ${mine ? "text-neutral-950/60" : "text-muted"}`}>
-                      {formatTime(message.createdAt)}
+                      {message.editedAt && "изм. "}{formatTime(message.createdAt)}
                     </span>
-                    {!message.deletedAt && canDeleteMessage(message, currentUserId, currentRole) && (
-                      <button
-                        className={`opacity-0 group-hover:opacity-100 transition text-[9px] font-bold uppercase ${
-                          mine ? "text-neutral-950/60 hover:text-neutral-950" : "text-muted hover:text-red-400"
-                        }`}
-                        onClick={() => deleteMessage(message.id)}
-                      >
-                        Удалить
-                      </button>
+                    {!message.deletedAt && (
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                        <button 
+                          className={`text-[9px] font-bold uppercase ${mine ? "text-neutral-950/60 hover:text-neutral-950" : "text-muted hover:text-primary"}`}
+                          onClick={() => startReplying(message)}
+                        >
+                          Ответить
+                        </button>
+                        {mine && message.type === "TEXT" && (
+                          <button 
+                            className="text-[9px] font-bold uppercase text-neutral-950/60 hover:text-neutral-950"
+                            onClick={() => startEditing(message)}
+                          >
+                            Изменить
+                          </button>
+                        )}
+                        {canDeleteMessage(message, currentUserId, currentRole) && (
+                          <button
+                            className={`text-[9px] font-bold uppercase ${mine ? "text-neutral-950/60 hover:text-neutral-950" : "text-muted hover:text-red-400"}`}
+                            onClick={() => deleteMessage(message.id)}
+                          >
+                            Удалить
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
+
+                  {/* Reaction Selector (on hover/click) */}
+                  {!message.deletedAt && (
+                    <div className={`absolute bottom-0 ${mine ? "right-full mr-2" : "left-full ml-2"} hidden group-hover:flex items-center gap-1 bg-surface border border-border-subtle p-1 rounded-full shadow-lg z-10 animate-in fade-in zoom-in-95`}>
+                      {ALLOWED_REACTIONS.map(emoji => (
+                        <button
+                          key={emoji}
+                          onClick={() => toggleReaction(message.id, emoji)}
+                          className={`hover:scale-125 transition text-sm px-1`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Grouped Reactions Bar */}
+                {Object.keys(groupedReactions).length > 0 && (
+                  <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "justify-end mr-1" : "justify-start ml-1"}`}>
+                    {Object.entries(groupedReactions).map(([emoji, info]) => (
+                      <button
+                        key={emoji}
+                        onClick={() => toggleReaction(message.id, emoji)}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold transition-all border ${
+                          info.me 
+                            ? "bg-primary/20 border-primary/40 text-primary" 
+                            : "bg-surface border-border-subtle text-muted hover:border-muted"
+                        }`}
+                      >
+                        <span>{emoji}</span>
+                        <span>{info.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })
@@ -417,6 +576,28 @@ export function ChatMessages({
           <p className="text-[10px] font-bold text-primary italic uppercase tracking-widest">
             {getTypingText()}
           </p>
+        </div>
+      )}
+
+      {/* Action Plate (Edit/Reply) */}
+      {(editingMessage || replyingToMessage) && (
+        <div className="mx-4 mb-2 p-3 bg-surface border border-border-subtle rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase text-primary tracking-widest">
+              {editingMessage ? "Редактирование" : "Ответ на сообщение"}
+            </p>
+            <p className="text-xs text-muted truncate">
+              {editingMessage ? editingMessage.body : getParentPreview(replyingToMessage!)}
+            </p>
+          </div>
+          <button 
+            className="text-muted hover:text-red-400 p-1"
+            onClick={() => { setEditingMessage(null); setReplyingToMessage(null); if (editingMessage) setBody(""); }}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 
@@ -444,7 +625,7 @@ export function ChatMessages({
               </div>
             )}
 
-            <form className="flex items-end gap-2" onSubmit={handleSubmit}>
+            <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
               <div className="relative flex-1">
                 <input
                   ref={fileInputRef}
@@ -452,20 +633,23 @@ export function ChatMessages({
                   id="file-upload"
                   type="file"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                  disabled={uploading}
+                  disabled={uploading || !!editingMessage}
                 />
-                <label
-                  htmlFor="file-upload"
-                  className="absolute left-2 bottom-1.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition hover:bg-surface-hover hover:text-foreground active:scale-95"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                </label>
+                {!editingMessage && (
+                  <label
+                    htmlFor="file-upload"
+                    className="absolute left-2 bottom-1.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition hover:bg-surface-hover hover:text-foreground active:scale-95"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </label>
+                )}
                 <textarea
-                  className="input-nox max-h-32 min-h-[44px] py-3 pl-12 pr-4 resize-none leading-tight"
+                  ref={inputRef}
+                  className={`input-nox max-h-32 min-h-[44px] py-3 pr-4 resize-none leading-tight transition-all ${editingMessage ? "pl-4" : "pl-12"}`}
                   rows={1}
-                  placeholder="Написать..."
+                  placeholder={editingMessage ? "Изменить..." : "Написать..."}
                   value={body}
                   disabled={pending || uploading}
                   onChange={(e) => {
@@ -476,7 +660,7 @@ export function ChatMessages({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
+                      handleSubmit();
                     }
                   }}
                 />
@@ -486,7 +670,7 @@ export function ChatMessages({
                 className="btn-primary h-11 w-11 p-0 flex items-center justify-center shrink-0 rounded-full"
                 type="button"
                 disabled={pending || uploading || (body.trim().length === 0 && !selectedFile)}
-                onClick={(e) => selectedFile ? uploadAttachment() : handleSubmit(e as unknown as FormEvent<HTMLFormElement>)}
+                onClick={() => handleSubmit()}
               >
                 {uploading || pending ? (
                   <div className="h-4 w-4 border-2 border-neutral-950 border-t-transparent animate-spin rounded-full" />

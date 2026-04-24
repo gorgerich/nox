@@ -7,6 +7,7 @@ import { emitToChat, emitToUsers } from "@/lib/realtime";
 
 const messageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
+  replyToMessageId: z.string().uuid().optional(),
 });
 
 export async function GET(
@@ -52,6 +53,28 @@ export async function GET(
           sizeBytes: true,
         },
       },
+      replyToMessage: {
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              profile: { select: { displayName: true } },
+            },
+          },
+        },
+      },
+      reactions: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              profile: { select: { displayName: true } },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -87,12 +110,26 @@ export async function POST(
   }
 
   const prisma = getPrisma();
+
+  // If replying, check if parent message exists in the same chat
+  if (parsed.data.replyToMessageId) {
+    const parent = await prisma.message.findUnique({
+      where: { id: parsed.data.replyToMessageId },
+      select: { chatId: true, deletedAt: true },
+    });
+
+    if (!parent || parent.chatId !== chatId || parent.deletedAt) {
+      return NextResponse.json({ error: "Нельзя ответить на это сообщение." }, { status: 400 });
+    }
+  }
+
   const message = await prisma.message.create({
     data: {
       chatId,
       senderUserId: user.id,
       type: "TEXT",
       body: parsed.data.body,
+      replyToMessageId: parsed.data.replyToMessageId,
     },
     include: {
       sender: {
@@ -113,6 +150,28 @@ export async function POST(
           fileName: true,
           mimeType: true,
           sizeBytes: true,
+        },
+      },
+      replyToMessage: {
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              profile: { select: { displayName: true } },
+            },
+          },
+        },
+      },
+      reactions: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              profile: { select: { displayName: true } },
+            },
+          },
         },
       },
     },

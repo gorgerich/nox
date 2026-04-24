@@ -17,12 +17,14 @@ function getRoleLabel(role: string) {
   return "Участник";
 }
 
-function serializeMessage(message: {
+type BaseMessage = {
   id: string;
   body: string | null;
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
+  replyToMessageId: string | null;
   deletedAt: Date | null;
+  editedAt: Date | null;
   createdAt: Date;
   sender: {
     id: string;
@@ -38,11 +40,41 @@ function serializeMessage(message: {
     mimeType: string;
     sizeBytes: number;
   }[];
-}) {
+  reactions: {
+    emoji: string;
+    userId: string;
+    user: {
+      id: string;
+      username: string;
+      profile: { displayName: string } | null;
+    };
+  }[];
+  replyToMessage?: {
+    id: string;
+    body: string | null;
+    type: string;
+    deletedAt: Date | null;
+    createdAt: Date;
+    sender: {
+      username: string;
+      profile: { displayName: string } | null;
+    };
+  } | null;
+};
+
+function serializeMessage(message: BaseMessage) {
   return {
     ...message,
     deletedAt: message.deletedAt?.toISOString() ?? null,
+    editedAt: message.editedAt?.toISOString() ?? null,
     createdAt: message.createdAt.toISOString(),
+    replyToMessage: message.replyToMessage
+      ? {
+          ...message.replyToMessage,
+          deletedAt: message.replyToMessage.deletedAt?.toISOString() ?? null,
+          createdAt: message.replyToMessage.createdAt.toISOString(),
+        }
+      : null,
   };
 }
 
@@ -112,6 +144,27 @@ export default async function ChatPage({
             fileName: true,
             mimeType: true,
             sizeBytes: true,
+          },
+        },
+        replyToMessage: {
+          include: {
+            sender: {
+              select: {
+                username: true,
+                profile: { select: { displayName: true } },
+              },
+            },
+          },
+        },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                profile: { select: { displayName: true } },
+              },
+            },
           },
         },
       },
