@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSocket } from "@/hooks/useSocket";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -123,6 +124,7 @@ export function ChatMessages({
   initialMessages: Message[];
 }) {
   const router = useRouter();
+  const { socket, connected } = useSocket();
   const [messages, setMessages] = useState(initialMessages);
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
@@ -131,6 +133,34 @@ export function ChatMessages({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const memberLocked = isLocked && currentRole === "MEMBER";
+
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+
+    function handleNewMessage(payload: { chatId: string; message: Message }) {
+      if (payload.chatId !== chatId) {
+        return;
+      }
+
+      setMessages((current) => {
+        if (current.some((message) => message.id === payload.message.id)) {
+          return current;
+        }
+
+        return [...current, payload.message].slice(-50);
+      });
+    }
+
+    socket.emit("chat:join", chatId);
+    socket.on("message:new", handleNewMessage);
+
+    return () => {
+      socket.emit("chat:leave", chatId);
+      socket.off("message:new", handleNewMessage);
+    };
+  }, [chatId, socket]);
 
   async function refreshMessages() {
     const response = await fetch(`/api/chats/${chatId}/messages`);
@@ -234,7 +264,10 @@ export function ChatMessages({
   return (
     <div className="flex min-h-[calc(100svh-180px)] flex-col rounded-lg border border-neutral-800 bg-neutral-900 sm:min-h-[calc(100svh-188px)] lg:min-h-[620px]">
       <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
-        <span className="text-sm text-neutral-400">Сообщений: {messages.length}</span>
+        <div>
+          <span className="text-sm text-neutral-400">Сообщений: {messages.length}</span>
+          <p className="mt-1 text-xs text-neutral-500">{connected ? "В сети" : "Подключение..."}</p>
+        </div>
         <button
           className="min-h-10 rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 transition hover:border-neutral-500 hover:text-white"
           onClick={refreshMessages}

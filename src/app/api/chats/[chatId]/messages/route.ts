@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
+import { emitToChat, emitToUsers } from "@/lib/realtime";
 
 const messageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
@@ -121,6 +122,23 @@ export async function POST(
     where: { id: chatId },
     data: { updatedAt: new Date() },
   });
+
+  const activeMembers = await prisma.chatMember.findMany({
+    where: {
+      chatId,
+      status: "ACTIVE",
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  emitToChat(chatId, "message:new", { chatId, message });
+  emitToUsers(
+    activeMembers.map((member) => member.userId),
+    "chat:updated",
+    { chatId },
+  );
 
   return NextResponse.json({ message }, { status: 201 });
 }

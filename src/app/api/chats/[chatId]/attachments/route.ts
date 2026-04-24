@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
+import { emitToChat, emitToUsers } from "@/lib/realtime";
 import { getAttachmentRule, saveObject } from "@/lib/storage";
 
 export async function POST(
@@ -85,6 +86,23 @@ export async function POST(
 
     return createdMessage;
   });
+
+  const activeMembers = await prisma.chatMember.findMany({
+    where: {
+      chatId,
+      status: "ACTIVE",
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  emitToChat(chatId, "message:new", { chatId, message });
+  emitToUsers(
+    activeMembers.map((member) => member.userId),
+    "chat:updated",
+    { chatId },
+  );
 
   return NextResponse.json({ message }, { status: 201 });
 }

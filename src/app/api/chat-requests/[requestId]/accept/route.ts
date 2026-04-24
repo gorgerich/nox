@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createDirectChat, findDirectChatBetween } from "@/lib/direct-chats";
 import { getPrisma } from "@/lib/prisma";
+import { emitToUsers } from "@/lib/realtime";
 
 export async function POST(_request: Request, context: { params: Promise<{ requestId: string }> }) {
   const user = await getCurrentUser();
@@ -49,6 +50,23 @@ export async function POST(_request: Request, context: { params: Promise<{ reque
 
     return { status: 200 as const, body: { request: updatedRequest, chat } };
   });
+
+  if ("request" in result.body) {
+    emitToUsers(
+      [result.body.request.fromUserId, result.body.request.toUserId],
+      "chat-request:accepted",
+      {
+        request: result.body.request,
+        chat: result.body.chat,
+      },
+    );
+
+    emitToUsers(
+      [result.body.request.fromUserId, result.body.request.toUserId],
+      "chat:updated",
+      { chatId: result.body.chat.id },
+    );
+  }
 
   return NextResponse.json(result.body, { status: result.status });
 }

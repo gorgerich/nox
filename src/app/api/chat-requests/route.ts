@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { findDirectChatBetween } from "@/lib/direct-chats";
 import { getPrisma } from "@/lib/prisma";
+import { emitToUser } from "@/lib/realtime";
 
 const createRequestSchema = z.object({
   targetUsername: z
@@ -126,6 +127,8 @@ export async function POST(request: Request) {
       toUser: { select: requestUserSelect },
     },
   });
+
+  emitToUser(targetUser.id, "chat-request:new", { request: chatRequest });
 
   return NextResponse.json({ request: chatRequest }, { status: 201 });
 }

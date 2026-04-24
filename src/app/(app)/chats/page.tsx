@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { ChatsRealtimeListener } from "./ChatsRealtimeListener";
 import { IncomingRequestCards } from "./IncomingRequestCards";
 
 function formatChatTime(value: Date) {
@@ -129,6 +130,7 @@ export default async function ChatsPage() {
 
   return (
     <section className="lg:grid lg:gap-6 lg:grid-cols-[340px_1fr]">
+      <ChatsRealtimeListener />
       <aside className="min-h-[calc(100svh-88px)] rounded-lg border border-neutral-800 bg-neutral-900 p-4 sm:min-h-[calc(100svh-112px)]">
         <div className="flex items-center justify-between">
           <div>

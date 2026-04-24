@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { emitToUsers } from "@/lib/realtime";
 
 export async function POST(_request: Request, context: { params: Promise<{ requestId: string }> }) {
   const user = await getCurrentUser();
@@ -29,6 +30,10 @@ export async function POST(_request: Request, context: { params: Promise<{ reque
       status: "DECLINED",
       respondedAt: new Date(),
     },
+  });
+
+  emitToUsers([updatedRequest.fromUserId, updatedRequest.toUserId], "chat-request:declined", {
+    request: updatedRequest,
   });
 
   return NextResponse.json({ request: updatedRequest });
