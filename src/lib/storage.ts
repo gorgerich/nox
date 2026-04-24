@@ -10,9 +10,14 @@ export type AllowedAttachmentMimeType =
   | "video/mp4"
   | "application/pdf"
   | "text/plain"
-  | "application/zip";
+  | "application/zip"
+  | "audio/webm"
+  | "audio/mpeg"
+  | "audio/mp4"
+  | "audio/wav"
+  | "audio/ogg";
 
-export type AttachmentKind = "IMAGE" | "VIDEO" | "FILE";
+export type AttachmentKind = "IMAGE" | "VIDEO" | "FILE" | "VOICE";
 
 const MB = 1024 * 1024;
 
@@ -27,6 +32,11 @@ export const attachmentRules: Record<
   "application/pdf": { maxSizeBytes: 50 * MB, kind: "FILE" },
   "text/plain": { maxSizeBytes: 5 * MB, kind: "FILE" },
   "application/zip": { maxSizeBytes: 50 * MB, kind: "FILE" },
+  "audio/webm": { maxSizeBytes: 25 * MB, kind: "VOICE" },
+  "audio/mpeg": { maxSizeBytes: 25 * MB, kind: "VOICE" },
+  "audio/mp4": { maxSizeBytes: 25 * MB, kind: "VOICE" },
+  "audio/wav": { maxSizeBytes: 25 * MB, kind: "VOICE" },
+  "audio/ogg": { maxSizeBytes: 25 * MB, kind: "VOICE" },
 };
 
 export function getAttachmentRule(mimeType: string) {

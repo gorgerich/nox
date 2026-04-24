@@ -48,6 +48,10 @@ function getMessagePreview(message: {
     return "Видео";
   }
 
+  if (message.type === "VOICE") {
+    return "Голосовое сообщение";
+  }
+
   return "Файл";
 }
 
