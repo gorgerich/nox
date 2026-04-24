@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import Link from "next/link";
@@ -155,26 +155,31 @@ export function ChatMessages({
   // Actions state
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+  
+  // New interaction state
+  const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
+  const [pendingDeleteMessage, setPendingDeleteMessage] = useState<Message | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const memberLocked = isLocked && currentRole === "MEMBER";
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     const markAsRead = async () => {
       try {
         await fetch(`/api/chats/${chatId}/read`, { method: "POST" });
-      } catch (err) {
-        console.error("Failed to mark chat as read:", err);
+      } catch {
+        // Silenced
       }
     };
 
@@ -386,6 +391,7 @@ export function ChatMessages({
 
   async function deleteMessage(messageId: string) {
     await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+    setPendingDeleteMessage(null);
     router.refresh();
   }
 
@@ -396,6 +402,7 @@ export function ChatMessages({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
+      setMenuMessageId(null);
     } catch (err) {
       console.error("Failed to toggle reaction", err);
     }
@@ -406,15 +413,44 @@ export function ChatMessages({
     setReplyingToMessage(null);
     setEditingMessage(message);
     setBody(message.body || "");
-    inputRef.current?.focus();
+    setMenuMessageId(null);
+    setTimeout(() => inputRef.current?.focus(), 50);
   }
 
   function startReplying(message: Message) {
     if (message.deletedAt) return;
     setEditingMessage(null);
     setReplyingToMessage(message);
-    inputRef.current?.focus();
+    setMenuMessageId(null);
+    setTimeout(() => inputRef.current?.focus(), 50);
   }
+
+  const handlePointerDown = (messageId: string) => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      setMenuMessageId(messageId);
+      if (window.navigator.vibrate) window.navigator.vibrate(50);
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handlePointerMove = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, messageId: string) => {
+    e.preventDefault();
+    setMenuMessageId(messageId);
+  };
 
   return (
     <div className="flex h-[calc(100svh-80px)] flex-col lg:h-[750px] lg:max-h-[85vh]">
@@ -472,11 +508,31 @@ export function ChatMessages({
                   </span>
                 )}
                 
-                <div className={`group relative max-w-[85%] rounded-2xl px-4 py-2.5 transition-all ${
-                  mine 
-                    ? "bg-primary text-neutral-950 rounded-tr-none" 
-                    : "bg-surface border border-border-subtle text-foreground rounded-tl-none"
-                }`}>
+                <div 
+                  className={`group relative max-w-[85%] rounded-2xl px-4 py-2.5 transition-all select-none touch-none cursor-default ${
+                    mine 
+                      ? "bg-primary text-neutral-950 rounded-tr-none" 
+                      : "bg-surface border border-border-subtle text-foreground rounded-tl-none"
+                  } ${menuMessageId === message.id ? "ring-2 ring-primary/50 scale-[1.02]" : ""}`}
+                  onPointerDown={() => handlePointerDown(message.id)}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  onPointerMove={handlePointerMove}
+                  onContextMenu={(e) => handleContextMenu(e, message.id)}
+                >
+                  {/* Desktop "..." button */}
+                  {!message.deletedAt && (
+                    <button
+                      className={`absolute top-0 ${mine ? "right-full mr-1" : "left-full ml-1"} hidden lg:flex h-6 w-6 items-center justify-center rounded-full bg-surface/50 text-muted opacity-0 group-hover:opacity-100 transition-all hover:bg-surface hover:text-foreground`}
+                      onClick={(e) => { e.stopPropagation(); setMenuMessageId(message.id); }}
+                      title="Действия"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                      </svg>
+                    </button>
+                  )}
+
                   {/* Reply Preview inside bubble */}
                   {message.replyToMessage && (
                     <div className={`mb-2 border-l-2 pl-2 py-0.5 text-xs opacity-80 ${mine ? "border-neutral-950/30" : "border-primary/50"}`}>
@@ -500,48 +556,7 @@ export function ChatMessages({
                     <span className={`text-[9px] font-bold ${mine ? "text-neutral-950/60" : "text-muted"}`}>
                       {message.editedAt && "изм. "}{formatTime(message.createdAt)}
                     </span>
-                    {!message.deletedAt && (
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                        <button 
-                          className={`text-[9px] font-bold uppercase ${mine ? "text-neutral-950/60 hover:text-neutral-950" : "text-muted hover:text-primary"}`}
-                          onClick={() => startReplying(message)}
-                        >
-                          Ответить
-                        </button>
-                        {mine && message.type === "TEXT" && (
-                          <button 
-                            className="text-[9px] font-bold uppercase text-neutral-950/60 hover:text-neutral-950"
-                            onClick={() => startEditing(message)}
-                          >
-                            Изменить
-                          </button>
-                        )}
-                        {canDeleteMessage(message, currentUserId, currentRole) && (
-                          <button
-                            className={`text-[9px] font-bold uppercase ${mine ? "text-neutral-950/60 hover:text-neutral-950" : "text-muted hover:text-red-400"}`}
-                            onClick={() => deleteMessage(message.id)}
-                          >
-                            Удалить
-                          </button>
-                        )}
-                      </div>
-                    )}
                   </div>
-
-                  {/* Reaction Selector (on hover/click) */}
-                  {!message.deletedAt && (
-                    <div className={`absolute bottom-0 ${mine ? "right-full mr-2" : "left-full ml-2"} hidden group-hover:flex items-center gap-1 bg-surface border border-border-subtle p-1 rounded-full shadow-lg z-10 animate-in fade-in zoom-in-95`}>
-                      {ALLOWED_REACTIONS.map(emoji => (
-                        <button
-                          key={emoji}
-                          onClick={() => toggleReaction(message.id, emoji)}
-                          className={`hover:scale-125 transition text-sm px-1`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Grouped Reactions Bar */}
@@ -569,6 +584,98 @@ export function ChatMessages({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Message Action Menu (Overlay) */}
+      {menuMessageId && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-[2px] lg:items-center"
+          onClick={() => setMenuMessageId(null)}
+          onKeyDown={(e) => e.key === "Escape" && setMenuMessageId(null)}
+        >
+          <div 
+            className="w-full max-w-sm animate-in slide-in-from-bottom-4 duration-200 lg:slide-in-from-top-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-clean shadow-2xl bg-surface p-2">
+              {/* Reactions row */}
+              <div className="flex items-center justify-around border-b border-border-subtle pb-2 mb-2 pt-1 px-2">
+                {ALLOWED_REACTIONS.map(emoji => (
+                  <button
+                    key={emoji}
+                    onClick={() => toggleReaction(menuMessageId, emoji)}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-surface-hover active:scale-125 transition-all text-xl"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              {/* Actions list */}
+              <div className="space-y-1">
+                {(() => {
+                  const m = messages.find(msg => msg.id === menuMessageId);
+                  if (!m || m.deletedAt) return null;
+                  const isMine = m.senderUserId === currentUserId;
+                  
+                  return (
+                    <>
+                      <MenuButton 
+                        label="Ответить" 
+                        onClick={() => startReplying(m)} 
+                        icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>}
+                      />
+                      {isMine && m.type === "TEXT" && (
+                        <MenuButton 
+                          label="Изменить" 
+                          onClick={() => startEditing(m)} 
+                          icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>}
+                        />
+                      )}
+                      {canDeleteMessage(m, currentUserId, currentRole) && (
+                        <MenuButton 
+                          label="Удалить" 
+                          onClick={() => { setPendingDeleteMessage(m); setMenuMessageId(null); }} 
+                          variant="danger"
+                          icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}
+                        />
+                      )}
+                    </>
+                  );
+                })()}
+                <MenuButton 
+                  label="Отмена" 
+                  onClick={() => setMenuMessageId(null)} 
+                  icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {pendingDeleteMessage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="card-clean w-full max-w-xs p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-center mb-2">Удалить сообщение?</h3>
+            <p className="text-sm text-muted text-center mb-6">Это действие нельзя отменить.</p>
+            <div className="flex gap-3">
+              <button 
+                className="btn-secondary flex-1 py-2 text-sm"
+                onClick={() => setPendingDeleteMessage(null)}
+              >
+                Отмена
+              </button>
+              <button 
+                className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-all active:scale-95 py-2"
+                onClick={() => deleteMessage(pendingDeleteMessage.id)}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Typing Indicator */}
       {getTypingText() && (
@@ -685,5 +792,26 @@ export function ChatMessages({
         )}
       </div>
     </div>
+  );
+}
+
+function MenuButton({ label, onClick, icon, variant = "default" }: { 
+  label: string, 
+  onClick: () => void, 
+  icon?: React.ReactNode,
+  variant?: "default" | "danger" 
+}) {
+  return (
+    <button
+      className={`flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
+        variant === "danger" 
+          ? "text-red-400 hover:bg-red-500/10" 
+          : "text-foreground hover:bg-surface-hover"
+      }`}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+    >
+      <span className="shrink-0 opacity-70">{icon}</span>
+      {label}
+    </button>
   );
 }
