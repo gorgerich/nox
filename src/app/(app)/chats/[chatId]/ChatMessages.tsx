@@ -126,15 +126,32 @@ export function ChatMessages({
   }, [messages]);
 
   useEffect(() => {
+    const markAsRead = async () => {
+      try {
+        await fetch(`/api/chats/${chatId}/read`, { method: "POST" });
+      } catch (err) {
+        console.error("Failed to mark chat as read:", err);
+      }
+    };
+
+    markAsRead();
+  }, [chatId]);
+
+  useEffect(() => {
     if (!socket) return;
 
     function handleNewMessage(payload: { chatId: string; message: Message }) {
       console.log("[client socket] received message:new", payload);
       if (payload.chatId !== chatId) return;
+      
       setMessages((current) => {
         if (current.some((message) => message.id === payload.message.id)) return current;
         return [...current, payload.message].slice(-100);
       });
+
+      if (payload.message.senderUserId !== currentUserId) {
+        fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => null);
+      }
     }
 
     function handleDeletedMessage(payload: { chatId: string; messageId: string }) {
@@ -160,7 +177,7 @@ export function ChatMessages({
       socket.off("message:new", handleNewMessage);
       socket.off("message:deleted", handleDeletedMessage);
     };
-  }, [chatId, socket]);
+  }, [chatId, socket, currentUserId]);
 
   async function refreshMessages() {
     const response = await fetch(`/api/chats/${chatId}/messages`);

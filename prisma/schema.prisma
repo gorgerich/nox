@@ -181,6 +181,7 @@ model ChatMember {
   role              ChatMemberRole   @default(MEMBER)
   status            ChatMemberStatus @default(ACTIVE)
   joinedAt          DateTime         @default(now())
+  lastReadAt        DateTime?
   lastReadMessageId String?
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
