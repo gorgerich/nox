@@ -113,6 +113,10 @@ export function ChatMessages({
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; displayName: string; timeoutId: ReturnType<typeof setTimeout> }>>({});
+  const [isTypingLocal, setIsTypingLocal] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const memberLocked = isLocked && currentRole === "MEMBER";
@@ -166,16 +170,47 @@ export function ChatMessages({
       );
     }
 
+    function handleTypingUpdate(payload: { chatId: string; userId: string; username: string; displayName: string; isTyping: boolean }) {
+      if (payload.chatId !== chatId || payload.userId === currentUserId) return;
+
+      setTypingUsers((current) => {
+        const next = { ...current };
+        if (payload.isTyping) {
+          if (next[payload.userId]?.timeoutId) {
+            clearTimeout(next[payload.userId].timeoutId);
+          }
+          const timeoutId = setTimeout(() => {
+            setTypingUsers((prev) => {
+              const cleaned = { ...prev };
+              delete cleaned[payload.userId];
+              return cleaned;
+            });
+          }, 5000);
+          next[payload.userId] = { username: payload.username, displayName: payload.displayName, timeoutId };
+        } else {
+          if (next[payload.userId]?.timeoutId) {
+            clearTimeout(next[payload.userId].timeoutId);
+          }
+          delete next[payload.userId];
+        }
+        return next;
+      });
+    }
+
     console.log(`[client socket] joining chat room ${chatId}`);
     socket.emit("chat:join", chatId);
     socket.on("message:new", handleNewMessage);
     socket.on("message:deleted", handleDeletedMessage);
+    socket.on("typing:update", handleTypingUpdate);
 
     return () => {
       console.log(`[client socket] leaving chat room ${chatId}`);
       socket.emit("chat:leave", chatId);
       socket.off("message:new", handleNewMessage);
       socket.off("message:deleted", handleDeletedMessage);
+      socket.off("typing:update", handleTypingUpdate);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      socket.emit("typing:stop", { chatId });
     };
   }, [chatId, socket, currentUserId]);
 
@@ -191,6 +226,13 @@ export function ChatMessages({
     event.preventDefault();
     const nextBody = body.trim();
     if (!nextBody) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    setIsTypingLocal(false);
+    socket?.emit("typing:stop", { chatId });
 
     setError("");
     setPending(true);
@@ -212,6 +254,38 @@ export function ChatMessages({
     setBody("");
     router.refresh();
   }
+
+  const handleTyping = (text: string) => {
+    setBody(text);
+    if (!socket) return;
+
+    if (text.length > 0) {
+      if (!isTypingLocal) {
+        setIsTypingLocal(true);
+        socket.emit("typing:start", { chatId });
+      }
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTypingLocal(false);
+        socket.emit("typing:stop", { chatId });
+      }, 3000);
+    } else {
+      if (isTypingLocal) {
+        setIsTypingLocal(false);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        socket.emit("typing:stop", { chatId });
+      }
+    }
+  };
+
+  const getTypingText = () => {
+    const users = Object.values(typingUsers);
+    if (users.length === 0) return null;
+    if (users.length > 2) return "Несколько участников печатают...";
+    if (users.length === 2) return `${users[0].displayName} и ${users[1].displayName} печатают...`;
+    return `${users[0].displayName} печатает...`;
+  };
 
   async function uploadAttachment() {
     if (!selectedFile) return;
@@ -253,7 +327,7 @@ export function ChatMessages({
 
   return (
     <div className="flex h-[calc(100svh-80px)] flex-col lg:h-[750px] lg:max-h-[85vh]">
-      {/* Chat Header */}
+      {/* Chat Header ... (unchanged) */}
       <div className="flex items-center justify-between border-b border-border-subtle bg-background/50 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/chats" className="text-muted hover:text-foreground">
@@ -337,6 +411,15 @@ export function ChatMessages({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing Indicator */}
+      {getTypingText() && (
+        <div className="px-4 py-1 animate-in fade-in slide-in-from-bottom-1">
+          <p className="text-[10px] font-bold text-primary italic uppercase tracking-widest">
+            {getTypingText()}
+          </p>
+        </div>
+      )}
+
       {/* Composer */}
       <div className="p-4 bg-background">
         {memberLocked ? (
@@ -386,7 +469,7 @@ export function ChatMessages({
                   value={body}
                   disabled={pending || uploading}
                   onChange={(e) => {
-                    setBody(e.target.value);
+                    handleTyping(e.target.value);
                     e.target.style.height = 'auto';
                     e.target.style.height = e.target.scrollHeight + 'px';
                   }}

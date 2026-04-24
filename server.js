@@ -81,6 +81,12 @@ async function getSocketUser(socket) {
         id: true,
         role: true,
         status: true,
+        username: true,
+        profile: {
+          select: {
+            displayName: true,
+          },
+        },
       },
     });
 
@@ -96,7 +102,13 @@ async function getSocketUser(socket) {
       return null;
     }
 
-    return user;
+    return {
+      id: user.id,
+      role: user.role,
+      status: user.status,
+      username: user.username,
+      displayName: user.profile?.displayName || user.username,
+    };
   } catch (err) {
     console.error(`[socket auth] JWT verify error for socket ${socket.id}:`, err.message);
     return null;
@@ -184,6 +196,43 @@ app.prepare().then(() => {
         socket.leave(`chat:${chatId}`);
         console.log(`[socket] left chat room chat:${chatId} for userId=${user.id}`);
       }
+    });
+
+    socket.on("typing:start", async (data) => {
+      const { chatId } = data;
+      if (typeof chatId !== "string") return;
+
+      const membership = await prisma.chatMember.findFirst({
+        where: {
+          chatId,
+          userId: user.id,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+
+      if (membership) {
+        socket.to(`chat:${chatId}`).emit("typing:update", {
+          chatId,
+          userId: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          isTyping: true,
+        });
+      }
+    });
+
+    socket.on("typing:stop", async (data) => {
+      const { chatId } = data;
+      if (typeof chatId !== "string") return;
+
+      socket.to(`chat:${chatId}`).emit("typing:update", {
+        chatId,
+        userId: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        isTyping: false,
+      });
     });
 
     socket.on("disconnect", (reason) => {
