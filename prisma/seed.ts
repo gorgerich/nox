@@ -71,44 +71,56 @@ async function main() {
   const ownerDisplayName = (process.env.OWNER_DISPLAY_NAME || "Owner").trim();
   const passwordHash = await bcrypt.hash(ownerPassword, 12);
 
-  const owner = await prisma.user.upsert({
-    where: { email: ownerEmail },
-    update: {
-      username: ownerUsername,
-      login: ownerLogin,
-      passwordHash,
-      status: "ACTIVE",
-      role: "OWNER",
-      profile: {
-        upsert: {
-          update: {
-            displayName: ownerDisplayName,
-          },
-          create: {
-            displayName: ownerDisplayName,
-          },
-        },
-      },
-    },
-    create: {
-      email: ownerEmail,
-      username: ownerUsername,
-      login: ownerLogin,
-      passwordHash,
-      status: "ACTIVE",
-      role: "OWNER",
-      profile: {
-        create: {
-          displayName: ownerDisplayName,
-        },
-      },
-    },
-    select: {
-      id: true,
-      email: true,
-      login: true,
-    },
+  // Try to find owner by any unique field
+  const existingOwner = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: ownerEmail },
+        { login: ownerLogin },
+        { username: ownerUsername }
+      ]
+    }
   });
+
+  let ownerId: string;
+
+  if (existingOwner) {
+    console.log(`Found existing owner: ${existingOwner.email} (ID: ${existingOwner.id})`);
+    const updatedOwner = await prisma.user.update({
+      where: { id: existingOwner.id },
+      data: {
+        email: ownerEmail,
+        login: ownerLogin,
+        username: ownerUsername,
+        passwordHash,
+        status: "ACTIVE",
+        role: "OWNER",
+        profile: {
+          upsert: {
+            update: { displayName: ownerDisplayName },
+            create: { displayName: ownerDisplayName },
+          },
+        },
+      },
+    });
+    ownerId = updatedOwner.id;
+  } else {
+    console.log(`Creating new owner: ${ownerEmail}`);
+    const createdOwner = await prisma.user.create({
+      data: {
+        email: ownerEmail,
+        login: ownerLogin,
+        username: ownerUsername,
+        passwordHash,
+        status: "ACTIVE",
+        role: "OWNER",
+        profile: {
+          create: { displayName: ownerDisplayName },
+        },
+      },
+    });
+    ownerId = createdOwner.id;
+  }
 
   await seedEmergencyLockSetting(prisma);
 
@@ -116,14 +128,14 @@ async function main() {
   await prisma.invite.create({
     data: {
       codeHash: hashInviteCode(rawInviteCode),
-      createdByUserId: owner.id,
+      createdByUserId: ownerId,
       status: "ACTIVE",
       maxUses: 5,
     },
   });
 
-  console.log(`OWNER_EMAIL=${owner.email ?? ownerEmail}`);
-  console.log(`OWNER_LOGIN=${owner.login ?? ownerLogin}`);
+  console.log(`OWNER_EMAIL=${ownerEmail}`);
+  console.log(`OWNER_LOGIN=${ownerLogin}`);
   console.log(`RAW_INVITE_CODE=${rawInviteCode}`);
 }
 

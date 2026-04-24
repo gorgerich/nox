@@ -13,20 +13,27 @@ export function ChatsRealtimeListener() {
       return;
     }
 
-    function refreshChats() {
+    function refreshChats(event: string) {
+      console.log(`[client socket] received ${event}, refreshing chats...`);
       router.refresh();
     }
 
-    socket.on("chat:updated", refreshChats);
-    socket.on("chat-request:new", refreshChats);
-    socket.on("chat-request:accepted", refreshChats);
-    socket.on("chat-request:declined", refreshChats);
+    socket.on("server:heartbeat", (payload) => {
+      console.log("[client socket] heartbeat received:", payload);
+    });
+
+    socket.on("chat:updated", () => refreshChats("chat:updated"));
+    socket.on("chat-request:new", () => refreshChats("chat-request:new"));
+    socket.on("chat-request:accepted", () => refreshChats("chat-request:accepted"));
+    socket.on("chat-request:declined", () => refreshChats("chat-request:declined"));
+    socket.on("chat-request:canceled", () => refreshChats("chat-request:canceled"));
 
     return () => {
-      socket.off("chat:updated", refreshChats);
-      socket.off("chat-request:new", refreshChats);
-      socket.off("chat-request:accepted", refreshChats);
-      socket.off("chat-request:declined", refreshChats);
+      socket.off("chat:updated");
+      socket.off("chat-request:new");
+      socket.off("chat-request:accepted");
+      socket.off("chat-request:declined");
+      socket.off("chat-request:canceled");
     };
   }, [router, socket]);
 

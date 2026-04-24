@@ -140,6 +140,7 @@ export function ChatMessages({
     }
 
     function handleNewMessage(payload: { chatId: string; message: Message }) {
+      console.log("[client socket] received message:new", payload);
       if (payload.chatId !== chatId) {
         return;
       }
@@ -153,12 +154,31 @@ export function ChatMessages({
       });
     }
 
+    function handleDeletedMessage(payload: { chatId: string; messageId: string }) {
+      console.log("[client socket] received message:deleted", payload);
+      if (payload.chatId !== chatId) {
+        return;
+      }
+
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === payload.messageId
+            ? { ...message, deletedAt: new Date().toISOString() }
+            : message,
+        ),
+      );
+    }
+
+    console.log(`[client socket] joining chat room ${chatId}`);
     socket.emit("chat:join", chatId);
     socket.on("message:new", handleNewMessage);
+    socket.on("message:deleted", handleDeletedMessage);
 
     return () => {
+      console.log(`[client socket] leaving chat room ${chatId}`);
       socket.emit("chat:leave", chatId);
       socket.off("message:new", handleNewMessage);
+      socket.off("message:deleted", handleDeletedMessage);
     };
   }, [chatId, socket]);
 

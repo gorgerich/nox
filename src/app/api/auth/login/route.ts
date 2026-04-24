@@ -18,11 +18,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Некорректные данные для входа." }, { status: 400 });
   }
 
-  const login = parsed.data.login.toLowerCase();
+  const loginInput = parsed.data.login.toLowerCase();
   const prisma = getPrisma();
+  
+  // Search for user by login, username or email
   const user = await prisma.user.findFirst({
     where: {
-      OR: [{ login }, { username: login }, { email: login }],
+      OR: [
+        { login: loginInput },
+        { username: loginInput },
+        { email: loginInput },
+      ],
     },
     select: {
       id: true,
@@ -35,8 +41,13 @@ export async function POST(request: Request) {
     },
   });
 
-  if (!user?.passwordHash) {
+  if (!user || !user.passwordHash) {
     return NextResponse.json({ error: "Неверный логин или пароль." }, { status: 401 });
+  }
+
+  // Check if user is blocked or revoked
+  if (user.status === "BLOCKED" || user.status === "REVOKED") {
+    return NextResponse.json({ error: "Доступ к вашему аккаунту ограничен." }, { status: 403 });
   }
 
   const passwordMatches = await bcrypt.compare(parsed.data.password, user.passwordHash);
@@ -48,7 +59,7 @@ export async function POST(request: Request) {
   const emergencyLocked = await isEmergencyLocked();
 
   if (!canUseApp(user, emergencyLocked)) {
-    return NextResponse.json({ error: "Доступ запрещён." }, { status: 403 });
+    return NextResponse.json({ error: "Доступ временно ограничен." }, { status: 403 });
   }
 
   await prisma.user.update({

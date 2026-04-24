@@ -10,23 +10,32 @@ export function useSocket() {
 
   useEffect(() => {
     function handleConnect() {
+      console.log("[client socket] connected socketId=", socket.id);
       setConnected(true);
     }
 
-    function handleDisconnect() {
+    function handleDisconnect(reason: string) {
+      console.log("[client socket] disconnected reason=", reason);
       setConnected(false);
+    }
+
+    function handleConnectError(error: Error) {
+      console.error("[client socket] connect_error:", error.message);
     }
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
 
     if (!socket.connected) {
+      console.log("[client socket] initiating connection...");
       socket.connect();
     }
 
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
     };
   }, [socket]);
 

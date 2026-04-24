@@ -32,7 +32,7 @@ export async function POST(_request: Request, context: { params: Promise<{ reque
     },
   });
 
-  emitToUsers([updatedRequest.fromUserId, updatedRequest.toUserId], "chat-request:declined", {
+  emitToUsers([updatedRequest.fromUserId, updatedRequest.toUserId], "chat-request:canceled", {
     request: updatedRequest,
   });
 

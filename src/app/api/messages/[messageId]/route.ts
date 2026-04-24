@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
+import { emitToChat } from "@/lib/realtime";
 
 export async function DELETE(
   _request: Request,
@@ -47,6 +48,11 @@ export async function DELETE(
   const deletedMessage = await prisma.message.update({
     where: { id: message.id },
     data: { deletedAt: message.deletedAt ?? new Date() },
+  });
+
+  emitToChat(message.chatId, "message:deleted", {
+    chatId: message.chatId,
+    messageId: message.id,
   });
 
   return NextResponse.json({ message: deletedMessage });

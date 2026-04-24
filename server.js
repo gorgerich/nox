@@ -52,41 +52,55 @@ async function getEmergencyLocked() {
 }
 
 async function getSocketUser(socket) {
-  const token = getCookie(socket.handshake.headers.cookie, "pm_session");
+  const cookieHeader = socket.handshake.headers.cookie;
+  const token = getCookie(cookieHeader, "pm_session");
 
   if (!token) {
+    console.warn(`[socket auth] No token in cookie for socket ${socket.id}`);
     return null;
   }
 
-  const { jwtVerify } = await import("jose");
-  const secret = process.env.AUTH_SECRET;
+  try {
+    const { jwtVerify } = await import("jose");
+    const secret = process.env.AUTH_SECRET;
 
-  if (!secret) {
-    throw new Error("AUTH_SECRET is required.");
-  }
+    if (!secret) {
+      throw new Error("AUTH_SECRET is required.");
+    }
 
-  const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
 
-  if (typeof payload.userId !== "string") {
+    if (typeof payload.userId !== "string") {
+      console.warn(`[socket auth] Invalid payload for socket ${socket.id}`);
+      return null;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    if (!user) {
+      console.warn(`[socket auth] User not found for userId=${payload.userId}`);
+      return null;
+    }
+
+    const emergencyLocked = await getEmergencyLocked();
+
+    if (!canUseApp(user, emergencyLocked)) {
+      console.warn(`[socket auth] Access denied by canUseApp for userId=${user.id}`);
+      return null;
+    }
+
+    return user;
+  } catch (err) {
+    console.error(`[socket auth] JWT verify error for socket ${socket.id}:`, err.message);
     return null;
   }
-
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: {
-      id: true,
-      role: true,
-      status: true,
-    },
-  });
-
-  const emergencyLocked = await getEmergencyLocked();
-
-  if (!canUseApp(user, emergencyLocked)) {
-    return null;
-  }
-
-  return user;
 }
 
 app.prepare().then(() => {
@@ -99,27 +113,34 @@ app.prepare().then(() => {
   });
 
   globalThis.pmSocketIo = io;
+  global.pmSocketIo = io;
+  process.pmSocketIo = io;
 
   io.use(async (socket, nextSocket) => {
     try {
       const user = await getSocketUser(socket);
 
       if (!user) {
+        console.warn(`[socket auth] Denied: No user found for socket ${socket.id}`);
         nextSocket(new Error("Нет доступа."));
         return;
       }
 
+      console.log(`[socket auth] Success: userId=${user.id} for socket ${socket.id}`);
       socket.data.user = user;
       nextSocket();
     } catch (error) {
-      console.error("Socket auth error:", error);
+      console.error("[socket auth] Error:", error.message);
       nextSocket(new Error("Нет доступа."));
     }
   });
 
   io.on("connection", async (socket) => {
     const user = socket.data.user;
+    console.log(`[socket] connected userId=${user.id} socketId=${socket.id}`);
+
     socket.join(`user:${user.id}`);
+    console.log(`[socket] joined user room user:${user.id}`);
 
     const memberships = await prisma.chatMember.findMany({
       where: {
@@ -133,6 +154,7 @@ app.prepare().then(() => {
 
     memberships.forEach((membership) => {
       socket.join(`chat:${membership.chatId}`);
+      console.log(`[socket] joined chat room chat:${membership.chatId} for userId=${user.id}`);
     });
 
     socket.on("chat:join", async (chatId) => {
@@ -153,15 +175,31 @@ app.prepare().then(() => {
 
       if (membership) {
         socket.join(`chat:${chatId}`);
+        console.log(`[socket] joined chat room chat:${chatId} via chat:join for userId=${user.id}`);
       }
     });
 
     socket.on("chat:leave", (chatId) => {
       if (typeof chatId === "string") {
         socket.leave(`chat:${chatId}`);
+        console.log(`[socket] left chat room chat:${chatId} for userId=${user.id}`);
       }
     });
+
+    socket.on("disconnect", (reason) => {
+      console.log(`[socket] disconnected userId=${user.id} reason=${reason}`);
+    });
+
+    socket.on("error", (error) => {
+      console.error(`[socket] error userId=${user.id}:`, error);
+    });
   });
+
+  // Heartbeat to test connectivity
+  setInterval(() => {
+    io.emit("server:heartbeat", { time: new Date().toISOString() });
+    console.log(`[socket] heartbeat sent at ${new Date().toISOString()}`);
+  }, 30000);
 
   httpServer.listen(port, () => {
     console.log(`> Server listening at http://localhost:${port} as ${dev ? "development" : process.env.NODE_ENV}`);

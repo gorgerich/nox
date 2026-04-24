@@ -51,20 +51,21 @@ export async function POST(_request: Request, context: { params: Promise<{ reque
     return { status: 200 as const, body: { request: updatedRequest, chat } };
   });
 
-  if ("request" in result.body) {
+  if (result.status === 200 && "request" in result.body && "chat" in result.body) {
+    const { request, chat } = result.body;
     emitToUsers(
-      [result.body.request.fromUserId, result.body.request.toUserId],
+      [request.fromUserId, request.toUserId],
       "chat-request:accepted",
       {
-        request: result.body.request,
-        chat: result.body.chat,
+        request,
+        chat,
       },
     );
 
     emitToUsers(
-      [result.body.request.fromUserId, result.body.request.toUserId],
+      [request.fromUserId, request.toUserId],
       "chat:updated",
-      { chatId: result.body.chat.id },
+      { chatId: chat.id },
     );
   }
 
