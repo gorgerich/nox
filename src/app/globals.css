@@ -70,7 +70,7 @@ body {
   }
 
   .nav-blur {
-    @apply sticky bottom-0 z-50 bg-background/80 backdrop-blur-2xl border-t border-border-subtle;
+    @apply fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-2xl border-t border-border-subtle;
     padding-bottom: env(safe-area-inset-bottom);
   }
 

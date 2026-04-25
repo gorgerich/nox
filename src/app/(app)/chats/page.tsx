@@ -30,11 +30,11 @@ function getMessagePreview(message: {
   attachments: { fileName: string }[];
 }) {
   if (message.deletedAt) return "Сообщение удалено";
+  if (message.type === "VOICE") return "Голосовое сообщение";
   if (message.body) return message.body;
   if (message.attachments[0]?.fileName) return message.attachments[0].fileName;
   if (message.type === "IMAGE") return "Фото";
   if (message.type === "VIDEO") return "Видео";
-  if (message.type === "VOICE") return "Голосовое сообщение";
   return "Файл";
 }
 

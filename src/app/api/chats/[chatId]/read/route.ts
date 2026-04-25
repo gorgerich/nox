@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { emitToUsers } from "@/lib/realtime";
 
 export async function POST(
   _request: Request,
@@ -26,6 +27,9 @@ export async function POST(
       lastReadAt: new Date(),
     },
   });
+
+  // Notify the user that their chat has been updated (read status changed)
+  emitToUsers([user.id], "chat:updated", { chatId });
 
   return NextResponse.json({ success: true });
 }

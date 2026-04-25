@@ -2,6 +2,7 @@
 
 import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
+import { useRef } from "react";
 
 export type Message = {
   id: string;
@@ -66,6 +67,36 @@ export function MessageBubble({
   isGroupEnd: boolean;
   showDisplayName: boolean;
 }) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    startPosRef.current = { x: touch.clientX, y: touch.clientY };
+    timerRef.current = setTimeout(() => {
+      onLongPress(message.id);
+      timerRef.current = null;
+    }, 500);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!startPosRef.current || !timerRef.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - startPosRef.current.x);
+    const dy = Math.abs(touch.clientY - startPosRef.current.y);
+    if (dx > 10 || dy > 10) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
   const time = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt));
 
   const radiusClass = settings.bubbleRadius === "round" 
@@ -101,11 +132,15 @@ export function MessageBubble({
       )}
 
       <div
-        className={`group relative max-w-[82%] px-4 py-3 transition-smooth cursor-default message-shadow active:scale-[0.99] ${radiusClass} ${
+        className={`group relative max-w-[82%] px-4 py-3 transition-smooth cursor-default message-shadow active:scale-[0.99] touch-pan-y ${radiusClass} ${
           mine ? "text-white" : incomingClass
         }`}
         style={bubbleStyle}
         onContextMenu={(e) => { e.preventDefault(); onLongPress(message.id); }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         {/* Reply Preview */}
         {message.replyToMessage && (

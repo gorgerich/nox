@@ -90,21 +90,30 @@ export function ChatMessages({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const markAsRead = useCallback(async () => {
+    try {
+      await fetch(`/api/chats/${chatId}/read`, { method: "POST" });
+    } catch {
+      // silenced
+    }
+  }, [chatId]);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
   useEffect(() => {
+    markAsRead();
     scrollToBottom("auto");
     const t = setTimeout(() => scrollToBottom("auto"), 100);
     return () => clearTimeout(t);
-  }, [scrollToBottom]);
+  }, [scrollToBottom, markAsRead]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Socket Logic (Preserved business logic)
+  // Socket Logic
   useEffect(() => {
     if (!socket) return;
 
@@ -119,7 +128,7 @@ export function ChatMessages({
       });
 
       if (normalized.senderUserId !== currentUserId) {
-        fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => null);
+        markAsRead();
       }
     }
 
@@ -183,7 +192,7 @@ export function ChatMessages({
       socket.off("message:reactions-updated", handleReactionsUpdated);
       socket.off("typing:update", handleTypingUpdate);
     };
-  }, [chatId, socket, currentUserId]);
+  }, [chatId, socket, currentUserId, markAsRead]);
 
   const toggleReaction = async (messageId: string, emoji: string) => {
     try {
@@ -199,6 +208,7 @@ export function ChatMessages({
   };
 
   const handleSend = async (body: string) => {
+    if (!body.trim()) return;
     setPending(true);
     try {
       const url = editingMessage ? `/api/messages/${editingMessage.id}` : `/api/chats/${chatId}/messages`;
@@ -211,8 +221,12 @@ export function ChatMessages({
       if (!response.ok) throw new Error("Ошибка");
       const data = await response.json();
       const normalized = normalizeMessage(data.message);
-      if (normalized && !editingMessage) {
-        setMessages(curr => [...curr, normalized]);
+      
+      if (normalized) {
+        setMessages(curr => {
+          if (curr.some(m => m.id === normalized.id)) return curr;
+          return [...curr, normalized];
+        });
       }
       setEditingMessage(null);
       setReplyingToMessage(null);
@@ -250,7 +264,12 @@ export function ChatMessages({
       if (!response.ok) throw new Error("Ошибка");
       const data = await response.json();
       const normalized = normalizeMessage(data.message);
-      if (normalized) setMessages(curr => [...curr, normalized]);
+      if (normalized) {
+        setMessages(curr => {
+          if (curr.some(m => m.id === normalized.id)) return curr;
+          return [...curr, normalized];
+        });
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -262,7 +281,15 @@ export function ChatMessages({
     try {
       isRecordingCancelledRef.current = false;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      
+      const mimeTypes = [
+        "audio/mp4",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+      ];
+      const selectedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || "";
+
+      const recorder = new MediaRecorder(stream, selectedMimeType ? { mimeType: selectedMimeType } : undefined);
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
       recorder.onstop = async () => {
@@ -270,8 +297,9 @@ export function ChatMessages({
           stream.getTracks().forEach(t => t.stop());
           return;
         }
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+        const blob = new Blob(audioChunksRef.current, { type: selectedMimeType || "audio/webm" });
+        const extension = selectedMimeType.includes("mp4") ? "m4a" : "webm";
+        const file = new File([blob], `voice-${Date.now()}.${extension}`, { type: blob.type });
         await handleAttach(file);
         stream.getTracks().forEach(t => t.stop());
       };
@@ -280,8 +308,8 @@ export function ChatMessages({
       setIsRecording(true);
       setRecordingDuration(0);
       recordingTimerRef.current = setInterval(() => setRecordingDuration(p => p + 1), 1000);
-    } catch {
-      console.error("Mic access denied");
+    } catch (err) {
+      console.error("Mic access denied", err);
     }
   };
 
