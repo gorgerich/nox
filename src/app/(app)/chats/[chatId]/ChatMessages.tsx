@@ -6,6 +6,7 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
 import { useChatAppearance, ChatAppearanceSheet, PRESETS } from "./ChatAppearance";
+import { MediaViewer, MediaItem } from "./MediaViewer";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -76,6 +77,7 @@ export function ChatMessages({
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
   const { settings, updateSettings, resetSettings } = useChatAppearance(chatId);
 
@@ -403,6 +405,7 @@ export function ChatMessages({
                   settings={settings}
                   onLongPress={setMenuMessageId}
                   onReaction={toggleReaction}
+                  onMediaClick={setSelectedMedia}
                   isGroupStart={item.isGroupStart}
                   isGroupEnd={item.isGroupEnd}
                   showDisplayName={item.showDisplayName}
@@ -437,6 +440,11 @@ export function ChatMessages({
         settings={settings}
         onUpdate={updateSettings}
         onReset={resetSettings}
+      />
+
+      <MediaViewer 
+        item={selectedMedia}
+        onClose={() => setSelectedMedia(null)}
       />
 
       {/* Message Context Menu Overlay */}

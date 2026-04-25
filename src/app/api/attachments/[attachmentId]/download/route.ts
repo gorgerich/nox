@@ -5,11 +5,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { getObject } from "@/lib/storage";
 
-function getContentDisposition(mimeType: string, fileName: string) {
+function getContentDisposition(mimeType: string, fileName: string, forceDownload: boolean) {
   const safeName = fileName.replace(/["\r\n]/g, "_");
   const encodedName = encodeURIComponent(fileName);
-  const disposition =
-    mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/")
+  
+  const disposition = forceDownload
+    ? "attachment"
+    : mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/")
       ? "inline"
       : "attachment";
 
@@ -27,6 +29,9 @@ export async function GET(
   }
 
   const { attachmentId } = await context.params;
+  const { searchParams } = new URL(request.url);
+  const forceDownload = searchParams.get("download") === "1";
+
   const prisma = getPrisma();
   const attachment = await prisma.attachment.findUnique({
     where: { id: attachmentId },
@@ -68,7 +73,7 @@ export async function GET(
   const rangeHeader = request.headers.get("range");
   const baseHeaders = {
     "Accept-Ranges": "bytes",
-    "Content-Disposition": getContentDisposition(attachment.mimeType, attachment.fileName),
+    "Content-Disposition": getContentDisposition(attachment.mimeType, attachment.fileName, forceDownload),
     "Content-Type": attachment.mimeType,
     "X-Content-Type-Options": "nosniff",
   };

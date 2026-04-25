@@ -3,6 +3,7 @@
 import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
 import { useRef } from "react";
+import { MediaItem } from "./MediaViewer";
 
 export type Message = {
   id: string;
@@ -54,6 +55,7 @@ export function MessageBubble({
   settings,
   onLongPress,
   onReaction,
+  onMediaClick,
   isGroupStart,
   isGroupEnd,
   showDisplayName,
@@ -63,6 +65,7 @@ export function MessageBubble({
   settings: AppearanceSettings;
   onLongPress: (id: string) => void;
   onReaction: (id: string, emoji: string) => void;
+  onMediaClick: (item: MediaItem) => void;
   isGroupStart: boolean;
   isGroupEnd: boolean;
   showDisplayName: boolean;
@@ -116,7 +119,6 @@ export function MessageBubble({
       ? "bg-neutral-900/40 border border-neutral-800"
       : "bg-neutral-900 border border-neutral-800";
 
-  // Group reactions
   const groupedReactions = message.reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, me: false };
     acc[r.emoji].count++;
@@ -142,7 +144,6 @@ export function MessageBubble({
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
       >
-        {/* Reply Preview */}
         {message.replyToMessage && (
           <div className={`mb-2.5 border-l-2 pl-2.5 py-0.5 text-xs opacity-80 ${mine ? "border-white/40" : "border-primary/50"}`}>
             <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
@@ -157,43 +158,78 @@ export function MessageBubble({
         ) : (
           <>
             {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed font-medium break-words">{message.body}</p>}
-            {message.attachments?.map((att) => (
-              <div key={att.id} className="mt-2.5 first:mt-0 overflow-hidden rounded-xl">
-                {message.type === "VOICE" ? (
-                  <VoicePlayer src={`/api/attachments/${att.id}/download`} />
-                ) : att.mimeType?.startsWith("image/") ? (
-                  <div className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={`/api/attachments/${att.id}/download`} 
-                      alt="" 
-                      className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-2xl bg-black/30 p-4 border border-white/5 backdrop-blur-md transition-smooth active:bg-black/40">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80">
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold tracking-tight">{att.fileName}</p>
-                      <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mt-0.5">
-                        {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
-                      </p>
-                    </div>
-                    <a 
-                      href={`/api/attachments/${att.id}/download`} 
-                      className="touch-target text-xs font-black text-white hover:underline uppercase tracking-widest bg-white/10 px-3 py-2 rounded-lg"
+            {message.attachments?.map((att) => {
+              const downloadUrl = `/api/attachments/${att.id}/download`;
+              const isImage = att.mimeType.startsWith("image/");
+              const isVideo = att.mimeType.startsWith("video/");
+
+              return (
+                <div key={att.id} className="mt-2.5 first:mt-0 overflow-hidden rounded-xl">
+                  {message.type === "VOICE" ? (
+                    <VoicePlayer src={downloadUrl} />
+                  ) : isImage ? (
+                    <div 
+                      className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner cursor-pointer active:opacity-90 transition-opacity"
+                      onClick={() => onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName })}
                     >
-                      OK
-                    </a>
-                  </div>
-                )}
-              </div>
-            ))}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={downloadUrl} 
+                        alt="" 
+                        className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : isVideo ? (
+                    <div 
+                      className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center bg-black/20"
+                      onClick={() => onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName })}
+                    >
+                      <video src={downloadUrl} className="max-h-96 w-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
+                          <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-3 rounded-2xl bg-black/30 p-4 border border-white/5 backdrop-blur-md transition-smooth active:bg-black/40 cursor-pointer"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = downloadUrl;
+                        link.target = "_self"; // Stay in PWA
+                        link.click();
+                      }}
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80 shadow-inner">
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-black tracking-tight">{att.fileName}</p>
+                        <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mt-0.5">
+                          {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
+                        </p>
+                      </div>
+                      <a 
+                        href={`${downloadUrl}?download=1`} 
+                        className="touch-target flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 active:scale-90 transition-transform"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Скачать"
+                      >
+                        <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </>
         )}
 
@@ -209,7 +245,6 @@ export function MessageBubble({
         </div>
       </div>
 
-      {/* Reactions Bar */}
       {Object.keys(groupedReactions).length > 0 && (
         <div className={`mt-1.5 flex flex-wrap gap-1 ${mine ? "mr-1" : "ml-1"} animate-in fade-in zoom-in-95 duration-200`}>
           {Object.entries(groupedReactions).map(([emoji, info]) => (
