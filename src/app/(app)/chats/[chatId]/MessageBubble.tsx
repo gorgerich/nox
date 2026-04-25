@@ -121,7 +121,7 @@ export function MessageBubble({
           <p className="text-xs italic opacity-50 font-medium">Сообщение удалено</p>
         ) : (
           <>
-            {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed font-medium">{message.body}</p>}
+            {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed font-medium break-words">{message.body}</p>}
             {message.attachments?.map((att) => (
               <div key={att.id} className="mt-2.5 first:mt-0 overflow-hidden rounded-xl">
                 {message.type === "VOICE" ? (

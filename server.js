@@ -344,10 +344,8 @@ app.prepare().then(() => {
 
   httpServer.listen(port, hostname, () => {
     console.log(`> Server listening on ${hostname}:${port} as ${dev ? "development" : process.env.NODE_ENV}`);
-
-if (dev) {
-  console.log(`> Local URL: http://127.0.0.1:${port}`);
-}
-    console.log(`> Server listening at ${localUrl} as ${dev ? "development" : process.env.NODE_ENV}`);
+    if (dev) {
+      console.log(`> Local URL: http://127.0.0.1:${port}`);
+    }
   });
 });
