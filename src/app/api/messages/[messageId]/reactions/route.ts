@@ -6,7 +6,7 @@ import { getPrisma } from "@/lib/prisma";
 import { emitToChat } from "@/lib/realtime";
 
 const reactionSchema = z.object({
-  emoji: z.enum(["👍", "❤️", "😂", "😮", "👎"]),
+  emoji: z.enum(["👍", "❤️", "😂", "😮", "😢", "👎"]),
 });
 
 export async function POST(

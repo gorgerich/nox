@@ -31,14 +31,12 @@ function normalizeMessage(message: unknown): Message | null {
   if (!m?.id || !m.senderUserId || !m.sender?.id || !m.createdAt) {
     return null;
   }
-  // Ensure receipts exist as an array
   if (!m.receipts) m.receipts = [];
   return m;
 }
 
-const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "👎"];
+const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "👎"];
 
-// Mapping for theme presets to real CSS values
 const THEME_MAP = {
   midnight: { bg: "#000000", header: "rgba(0,0,0,0.6)", composer: "rgba(0,0,0,0.6)", border: "#1a1a1a", incoming: "#171717", text: "#ffffff" },
   graphite: { bg: "#1a1b1e", header: "rgba(26,27,30,0.7)", composer: "rgba(26,27,30,0.7)", border: "#2c2e33", incoming: "#2c2e33", text: "#ffffff" },
@@ -87,11 +85,66 @@ export function ChatMessages({
 
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  const [menuMessageId, setMenuMessageId] = useState<string | null>(null);
+  
+  const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
   const { settings, updateSettings, resetSettings } = useChatAppearance(chatId);
+
+  const handleLongPress = useCallback((id: string, rect: DOMRect) => {
+    if (isSelectionMode) return;
+    setMenuState({ id, rect });
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(40);
+    }
+  }, [isSelectionMode]);
+
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      if (next.size === 0) setIsSelectionMode(false);
+      return next;
+    });
+  }, []);
+
+  const startSelection = useCallback((id: string) => {
+    setIsSelectionMode(true);
+    setSelectedIds(new Set([id]));
+    setMenuState(null);
+  }, []);
+
+  const handleCopy = useCallback((text: string | null) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setMenuState(null);
+  }, []);
+
+  const handleDeleteQuietly = useCallback(async (id: string) => {
+    try {
+      setMessages(curr => curr.filter(m => m.id !== id));
+      await fetch(`/api/messages/${id}`, { method: "DELETE" });
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
+    setMenuState(null);
+  }, []);
+
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    setMessages(curr => curr.filter(m => !selectedIds.has(m.id)));
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
+    for (const id of ids) {
+       fetch(`/api/messages/${id}`, { method: "DELETE" }).catch(() => {});
+    }
+  }, [selectedIds]);
 
   // Voice state
   const [isRecording, setIsRecording] = useState(false);
@@ -108,9 +161,7 @@ export function ChatMessages({
   const markAsRead = useCallback(async () => {
     try {
       await fetch(`/api/chats/${chatId}/read`, { method: "POST" });
-    } catch {
-      // silenced
-    }
+    } catch { /* silenced */ }
   }, [chatId]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -170,7 +221,7 @@ export function ChatMessages({
     }
     function handleDeletedMessage(payload: { chatId: string; messageId: string }) {
       if (payload.chatId !== chatId) return;
-      setMessages((current) => current.map((m) => m.id === payload.messageId ? { ...m, deletedAt: new Date().toISOString() } : m));
+      setMessages((current) => current.filter((m) => m.id !== payload.messageId));
     }
     function handleUpdatedMessage(payload: { chatId: string; message: unknown }) {
       if (payload.chatId !== chatId) return;
@@ -259,7 +310,7 @@ export function ChatMessages({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
-      setMenuMessageId(null);
+      setMenuState(null);
     } catch { /* ignored */ }
   };
 
@@ -278,7 +329,10 @@ export function ChatMessages({
       const data = await response.json();
       const normalized = normalizeMessage(data.message);
       if (normalized) {
-        setMessages(curr => curr.some(m => m.id === normalized.id) ? curr : [...curr, normalized]);
+        setMessages(curr => curr.map(m => m.id === normalized.id ? normalized : m));
+        if (!editingMessage) {
+           setMessages(curr => curr.some(m => m.id === normalized.id) ? curr : [...curr, normalized]);
+        }
       }
       setEditingMessage(null);
       setReplyingToMessage(null);
@@ -392,16 +446,17 @@ export function ChatMessages({
   };
 
   const themeVars = THEME_MAP[settings.preset] || THEME_MAP.midnight;
+  const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
 
   return (
     <div 
-      className="chat-screen transition-all duration-500" 
+      className={`chat-screen transition-all duration-500 ${menuState ? "overflow-hidden" : ""}`} 
       style={{ 
         backgroundColor: themeVars.bg,
         "--chat-header": themeVars.header,
         "--chat-composer": themeVars.composer,
         "--chat-composer-border": themeVars.border,
-        "--chat-input-bg": themeVars.border, // reuse border color for subtle input bg
+        "--chat-input-bg": themeVars.border,
         "--bubble-incoming": themeVars.incoming,
         "--bubble-incoming-text": themeVars.text,
       } as React.CSSProperties}
@@ -438,12 +493,16 @@ export function ChatMessages({
                   message={item.message}
                   mine={item.mine}
                   settings={settings}
-                  onLongPress={setMenuMessageId}
+                  onLongPress={handleLongPress}
                   onReaction={toggleReaction}
                   onMediaClick={setSelectedMedia}
                   isGroupStart={item.isGroupStart}
                   isGroupEnd={item.isGroupEnd}
                   showDisplayName={item.showDisplayName}
+                  selectionMode={isSelectionMode}
+                  isSelected={selectedIds.has(item.message.id)}
+                  onSelect={toggleSelection}
+                  isFocused={menuState?.id === item.message.id}
                 />
               </div>
             );
@@ -452,22 +511,118 @@ export function ChatMessages({
         </div>
       </div>
 
-      <ChatComposer
-        key={editingMessage?.id || replyingToMessage?.id || "composer"}
-        onSend={handleSend}
-        onTyping={handleTyping}
-        onAttach={handleAttach}
-        onVoiceStart={startRecording}
-        onVoiceStop={stopRecording}
-        onVoiceCancel={cancelRecording}
-        isRecording={isRecording}
-        recordingDuration={recordingDuration}
-        isLocked={isLocked && currentRole === "MEMBER"}
-        pending={pending || uploading}
-        replyingTo={replyingToMessage}
-        editingTo={editingMessage}
-        onCancelAction={() => { setEditingMessage(null); setReplyingToMessage(null); }}
-      />
+      {isSelectionMode ? (
+        <div className="glass-composer px-6 py-4 flex items-center justify-between animate-in slide-in-from-bottom-full duration-300">
+           <button 
+             onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }}
+             className="text-sm font-black uppercase tracking-widest text-primary active:scale-95 transition-smooth"
+           >
+             Отмена
+           </button>
+           <div className="flex gap-6">
+              <button 
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0}
+                className="touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-danger/10 text-danger disabled:opacity-30 active:scale-90 transition-smooth shadow-lg shadow-danger/5"
+              >
+                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+              <button 
+                disabled={selectedIds.size === 0}
+                className="touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-primary/10 text-primary disabled:opacity-30 active:scale-90 transition-smooth shadow-lg shadow-primary/5"
+              >
+                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              </button>
+           </div>
+        </div>
+      ) : (
+        <ChatComposer
+          key={editingMessage?.id || replyingToMessage?.id || "composer"}
+          onSend={handleSend}
+          onTyping={handleTyping}
+          onAttach={handleAttach}
+          onVoiceStart={startRecording}
+          onVoiceStop={stopRecording}
+          onVoiceCancel={cancelRecording}
+          isRecording={isRecording}
+          recordingDuration={recordingDuration}
+          isLocked={isLocked && currentRole === "MEMBER"}
+          pending={pending || uploading}
+          replyingTo={replyingToMessage}
+          editingTo={editingMessage}
+          onCancelAction={() => { setEditingMessage(null); setReplyingToMessage(null); }}
+        />
+      )}
+
+      {/* --- Context Menu Overlay --- */}
+      {menuState && focusedMessage && (
+        <>
+          <div className="menu-overlay" onClick={() => setMenuState(null)} />
+          <div 
+            className="menu-content"
+            style={{
+              top: Math.max(20, Math.min(window.innerHeight - 380, menuState.rect.top - 70)),
+              left: focusedMessage.senderUserId === currentUserId ? 'auto' : Math.min(window.innerWidth - 280, Math.max(20, menuState.rect.left)),
+              right: focusedMessage.senderUserId === currentUserId ? Math.min(window.innerWidth - 280, Math.max(20, window.innerWidth - menuState.rect.right)) : 'auto',
+            }}
+          >
+            {/* Reactions Bar */}
+            <div className="reaction-bar self-center mb-2 px-3">
+               {ALLOWED_REACTIONS.map(emoji => (
+                 <button 
+                   key={emoji} 
+                   className={`reaction-btn ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20 scale-125" : ""}`}
+                   onClick={() => toggleReaction(menuState.id, emoji)}
+                 >
+                   {emoji}
+                 </button>
+               ))}
+            </div>
+
+            {/* Actions Menu */}
+            <div className={`action-menu ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}>
+              <button className="action-item" onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}>
+                <span>Ответить</span>
+                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+              </button>
+
+              {focusedMessage.body && (
+                <button className="action-item" onClick={() => handleCopy(focusedMessage.body)}>
+                  <span>Копировать</span>
+                  <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                </button>
+              )}
+
+              <button className="action-item">
+                <span>Закрепить</span>
+                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+              </button>
+
+              {focusedMessage.senderUserId === currentUserId && focusedMessage.type === "TEXT" && (
+                <button className="action-item" onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}>
+                  <span>Изменить</span>
+                  <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </button>
+              )}
+
+              <button className="action-item">
+                <span>Переслать</span>
+                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              </button>
+
+              <button className="action-item" onClick={() => startSelection(focusedMessage.id)}>
+                <span>Выбрать</span>
+                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </button>
+
+              <button className="action-item action-item-destructive" onClick={() => handleDeleteQuietly(focusedMessage.id)}>
+                <span>Удалить</span>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       <ChatAppearanceSheet
         isOpen={isAppearanceOpen}
@@ -477,56 +632,7 @@ export function ChatMessages({
         onReset={resetSettings}
       />
 
-      <MediaViewer 
-        item={selectedMedia}
-        onClose={() => setSelectedMedia(null)}
-      />
-
-      {/* Message Context Menu Overlay */}
-      {menuMessageId && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm p-4 safe-bottom animate-in fade-in duration-200"
-          onClick={() => setMenuMessageId(null)}
-        >
-          <div 
-            className="w-full max-w-sm rounded-[32px] bg-neutral-900 p-2 shadow-2xl animate-in slide-in-from-bottom-4 duration-300" 
-            onClick={e => e.stopPropagation()}
-          >
-             <div className="flex justify-around p-3 border-b border-white/5 mb-2 overflow-x-auto scrollbar-hide">
-                {ALLOWED_REACTIONS.map(emoji => (
-                  <button key={emoji} className="touch-target text-2xl hover:scale-125 active:scale-95 transition-smooth" onClick={() => toggleReaction(menuMessageId, emoji)}>
-                    {emoji}
-                  </button>
-                ))}
-             </div>
-             <div className="space-y-1">
-               <button className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth" onClick={() => { const m = messages.find(msg => msg.id === menuMessageId); if (m) setReplyingToMessage(m); setMenuMessageId(null); }}>
-                  <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                  </svg>
-                  Ответить
-               </button>
-               {messages.find(msg => msg.id === menuMessageId)?.senderUserId === currentUserId && (
-                 <button className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth" onClick={() => { const m = messages.find(msg => msg.id === menuMessageId); if (m) setEditingMessage(m); setMenuMessageId(null); }}>
-                    <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Изменить
-                 </button>
-               )}
-               <button className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-red-500/10 text-red-500 active:scale-[0.98] transition-smooth" onClick={() => { if (confirm("Удалить сообщение?")) { fetch(`/api/messages/${menuMessageId}`, { method: "DELETE" }); } setMenuMessageId(null); }}>
-                  <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Удалить
-               </button>
-             </div>
-             <button className="mt-2 flex w-full items-center justify-center px-6 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest text-muted hover:text-white transition-smooth active:scale-95" onClick={() => setMenuMessageId(null)}>
-                Отмена
-             </button>
-          </div>
-        </div>
-      )}
+      <MediaViewer item={selectedMedia} onClose={() => setSelectedMedia(null)} />
     </div>
   );
 }

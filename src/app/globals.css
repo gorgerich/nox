@@ -159,6 +159,37 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@keyframes animate-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes animate-zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes animate-slide-in-from-bottom {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@utility animate-in {
+  animation-duration: 0.3s;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility fade-in { animation-name: animate-fade-in; }
+@utility zoom-in-95 { animation-name: animate-zoom-in; }
+@utility slide-in-from-bottom-2 { animation-name: animate-slide-in-from-bottom; }
+
+@utility touch-target {
+  @apply flex items-center justify-center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
@@ -236,6 +267,39 @@ body {
     @apply mx-auto w-full max-w-2xl px-4;
     padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  }
+
+  /* --- Context Menu & Native Overlays --- */
+  .menu-overlay {
+    @apply fixed inset-0 z-[200] bg-black/40 backdrop-blur-md animate-in fade-in;
+  }
+
+  .menu-content {
+    @apply fixed z-[210] flex flex-col gap-2 transition-all duration-300 ease-out;
+  }
+
+  .action-menu {
+    @apply w-64 rounded-3xl bg-surface/90 backdrop-blur-2xl shadow-2xl border border-border-subtle/50 overflow-hidden animate-in zoom-in-95;
+  }
+
+  .action-item {
+    @apply flex items-center justify-between px-5 py-3.5 text-sm font-bold transition-smooth active:bg-foreground/5;
+  }
+
+  .action-item-destructive {
+    @apply text-danger active:bg-danger/5;
+  }
+
+  .reaction-bar {
+    @apply flex items-center gap-1.5 p-2 rounded-full bg-surface/90 backdrop-blur-2xl shadow-xl border border-border-subtle/50 animate-in slide-in-from-bottom-2 zoom-in-95;
+  }
+
+  .reaction-btn {
+    @apply touch-target h-10 w-10 flex items-center justify-center text-xl rounded-full transition-smooth active:scale-125 hover:bg-foreground/5;
+  }
+
+  .focused-message {
+    @apply relative z-[220] transition-all duration-300;
   }
 }
 
