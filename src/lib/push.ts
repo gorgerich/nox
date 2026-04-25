@@ -37,8 +37,9 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
           },
           JSON.stringify(payload)
         );
-      } catch (err: any) {
-        if (err.statusCode === 404 || err.statusCode === 410) {
+      } catch (err: unknown) {
+        const error = err as { statusCode?: number };
+        if (error.statusCode === 404 || error.statusCode === 410) {
           // Subscription has expired or is no longer valid
           await prisma.pushSubscription.update({
             where: { endpoint: sub.endpoint },

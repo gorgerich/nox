@@ -187,7 +187,7 @@ export default async function ChatPage({
         chatId={chat.id}
         currentRole={membership.role}
         currentUserId={user.id}
-        initialMessages={rawMessages.reverse().map((m: any) => serializeMessage(m))}
+        initialMessages={rawMessages.reverse().map((m: BaseMessage) => serializeMessage(m))}
         isLocked={chat.isLocked}
         chatInfo={{
           type: chat.type,
