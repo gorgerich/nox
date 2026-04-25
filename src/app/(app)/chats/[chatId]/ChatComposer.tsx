@@ -34,26 +34,28 @@ export function ChatComposer({
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Use a ref to track what we are currently editing to avoid effect loops
   const editingIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (editingTo && editingTo.id !== editingIdRef.current) {
       editingIdRef.current = editingTo.id;
-      setText(editingTo.body || "");
-      if (inputRef.current) {
-        inputRef.current.focus();
-        const el = inputRef.current;
-        setTimeout(() => {
+      // Using a microtask or small timeout to avoid the cascading render warning
+      const targetText = editingTo.body || "";
+      setTimeout(() => {
+        setText(targetText);
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const el = inputRef.current;
           el.style.height = 'auto';
           el.style.height = el.scrollHeight + 'px';
-        }, 0);
-      }
-    } else if (!editingTo && !replyingTo) {
+        }
+      }, 0);
+    } else if (!editingTo && !replyingTo && editingIdRef.current !== null) {
       editingIdRef.current = null;
-      setText("");
-      if (inputRef.current) inputRef.current.style.height = 'auto';
+      setTimeout(() => {
+        setText("");
+        if (inputRef.current) inputRef.current.style.height = 'auto';
+      }, 0);
     }
   }, [editingTo, replyingTo]);
 
@@ -74,7 +76,7 @@ export function ChatComposer({
 
   if (isLocked) {
     return (
-      <div className="p-4" style={{ backgroundColor: "var(--chat-composer-bg)" }}>
+      <div className="glass-composer p-4">
         <div className="rounded-xl bg-foreground/5 p-4 text-center border border-white/5">
           <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Чат закрыт для участников</p>
         </div>
@@ -84,7 +86,7 @@ export function ChatComposer({
 
   return (
     <div 
-      className="sticky bottom-0 z-50 backdrop-blur-xl border-t px-4 py-3 transition-smooth"
+      className="glass-composer px-4 py-3 transition-smooth"
       style={{ backgroundColor: "var(--chat-composer-bg)", borderColor: "var(--chat-composer-border)", color: "var(--chat-composer-fg)" }}
     >
       {(replyingTo || editingTo) && (

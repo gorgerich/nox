@@ -31,9 +31,28 @@ interface RecentChat {
   title: string;
 }
 
+interface ChatMember {
+  userId: string;
+  user: {
+    profile?: {
+      displayName: string;
+    } | null;
+  };
+}
+
+interface ChatApiResponse {
+  chats: {
+    id: string;
+    type: string;
+    title: string | null;
+    members: ChatMember[];
+  }[];
+}
+
 function normalizeMessage(message: unknown): Message | null {
   const m = message as Message;
   if (!m?.id || !m.senderUserId || !m.sender?.id || !m.createdAt) return null;
+  if (m.deletedAt) return null; 
   if (!m.receipts) m.receipts = [];
   return m;
 }
@@ -81,19 +100,13 @@ export function ChatMessages({
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
-  // Pin & Forward State
-  const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    const saved = localStorage.getItem(`nox:pinned:${chatId}`);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [forwardingMessages, setForwardingMessages] = useState<Message[] | null>(null);
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [showForwardPicker, setShowForwardPicker] = useState(false);
 
   const { settings, updateSettings, resetSettings } = useChatAppearance(chatId);
 
-  // Scroll State
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -106,41 +119,54 @@ export function ChatMessages({
     }
   }, []);
 
-  // Bug 5: Initial Scroll Stabilization
   useEffect(() => {
     initialScrollDoneRef.current = false;
+    let frameId: number;
+    
     const stabilize = () => {
        forceScrollBottom("auto");
-       if (!initialScrollDoneRef.current) requestAnimationFrame(stabilize);
+       if (!initialScrollDoneRef.current) frameId = requestAnimationFrame(stabilize);
     };
     stabilize();
+
     const t1 = setTimeout(() => forceScrollBottom("auto"), 100);
     const t2 = setTimeout(() => {
       forceScrollBottom("auto");
       initialScrollDoneRef.current = true;
-    }, 500);
+    }, 600);
     
-    // Mark as read
     fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => {});
 
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => {
+      cancelAnimationFrame(frameId);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [chatId, forceScrollBottom]);
 
-  // Load Recent Chats for Forwarding
   useEffect(() => {
+    const saved = localStorage.getItem(`nox:pinned:${chatId}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setTimeout(() => setPinnedIds(parsed), 0);
+    }
+    
     let active = true;
-    fetch("/api/chats").then(res => res.json()).then(data => {
-      if (active && Array.isArray(data.chats)) {
-        setRecentChats(data.chats.map((c: any) => ({
-          id: c.id,
-          title: c.type === "DIRECT" 
-            ? (c.members.find((m: any) => m.userId !== currentUserId)?.user.profile?.displayName || "Чат") 
-            : (c.title || "Группа")
-        })));
-      }
-    }).catch(() => {});
+    fetch("/api/chats")
+      .then(res => res.json())
+      .then((data: ChatApiResponse) => {
+        if (active && Array.isArray(data.chats)) {
+          setRecentChats(data.chats.map((c) => ({
+            id: c.id,
+            title: c.type === "DIRECT" 
+              ? (c.members.find((m) => m.userId !== currentUserId)?.user.profile?.displayName || "Чат") 
+              : (c.title || "Группа")
+          })));
+        }
+      })
+      .catch(() => {});
     return () => { active = false; };
-  }, [currentUserId]);
+  }, [chatId, currentUserId]);
 
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
@@ -227,12 +253,12 @@ export function ChatMessages({
 
   useEffect(() => {
     if (!socket) return;
-    const handleNewMessage = (p: any) => {
+    const handleNewMessage = (p: { chatId: string; message: unknown }) => {
       if (p.chatId !== chatId) return;
       const m = normalizeMessage(p.message);
       if (m) setMessages(c => c.some(x => x.id === m.id) ? c : [...c, m]);
     };
-    const handleDeletedMessage = (p: any) => {
+    const handleDeletedMessage = (p: { chatId: string; messageId: string }) => {
       if (p.chatId === chatId) setMessages(c => c.filter(x => x.id !== p.messageId));
     };
     socket.emit("chat:join", chatId);
@@ -290,9 +316,11 @@ export function ChatMessages({
     if (!menuState) return null;
     const spaceBelow = window.innerHeight - menuState.rect.bottom;
     const spaceAbove = menuState.rect.top;
-    const showAbove = spaceBelow < 300 && spaceAbove > spaceBelow;
+    const menuHeight = 350;
+    const showAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+    
     return {
-      top: showAbove ? 'auto' : Math.max(80, menuState.rect.top - 60),
+      top: showAbove ? 'auto' : Math.max(20, Math.min(window.innerHeight - menuHeight, menuState.rect.top - 70)),
       bottom: showAbove ? (window.innerHeight - menuState.rect.top + 10) : 'auto',
       left: focusedMessage?.senderUserId === currentUserId ? 'auto' : Math.min(window.innerWidth - 280, Math.max(20, menuState.rect.left)),
       right: focusedMessage?.senderUserId === currentUserId ? Math.min(window.innerWidth - 280, Math.max(20, window.innerWidth - menuState.rect.right)) : 'auto',
@@ -324,10 +352,8 @@ export function ChatMessages({
   };
 
   const currentUserInfo = useMemo(() => {
-    const member = chatInfo.otherMember; // This is actually 'otherMember', we need the one that's NOT 'otherMember'? No, we need current user profile.
-    // Let's get current user from props or calculate:
-    return { displayName: "Я", avatarUrl: null }; // Fallback or passed profile
-  }, [chatInfo]);
+    return { displayName: "Я", avatarUrl: null }; 
+  }, []);
 
   return (
     <div 
@@ -425,7 +451,7 @@ export function ChatMessages({
       {menuState && focusedMessage && (
         <>
           <div className="menu-overlay" onClick={() => setMenuState(null)} />
-          <div className="menu-content" style={menuPosition as any}>
+          <div className="menu-content" style={menuPosition as React.CSSProperties}>
             <div className="reaction-bar self-center mb-2 px-3">
                {ALLOWED_REACTIONS.map(emoji => (
                  <button key={emoji} className={`reaction-btn ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20 scale-125" : ""}`} onClick={() => toggleReaction(menuState.id, emoji)}>{emoji}</button>

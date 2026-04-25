@@ -187,7 +187,7 @@ export function MessageBubble({
         <div
           ref={bubbleRef}
           className={`group relative max-w-[85%] px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] touch-pan-y ${
-            isFocused ? "focused-message scale-[1.05] shadow-2xl" : ""
+            isFocused ? "focused-message" : ""
           } ${
             mine ? "text-white shadow-sm" : "text-[var(--bubble-incoming-text)] shadow-sm"
           } ${mine ? "" : incomingClass}`}
@@ -207,84 +207,80 @@ export function MessageBubble({
             <div className={`mb-2 border-l-2 pl-2.5 py-0.5 text-[11px] leading-tight opacity-90 ${mine ? "border-white/40" : "border-primary/50"}`}>
               <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
               <p className="truncate line-clamp-1 italic opacity-70">
-                {message.replyToMessage.deletedAt ? "Сообщение удалено" : (message.replyToMessage.body || "Вложение")}
+                {message.replyToMessage.deletedAt ? "Недоступное сообщение" : (message.replyToMessage.body || "Вложение")}
               </p>
             </div>
           )}
 
-          {message.deletedAt ? (
-            <p className="text-xs italic opacity-50 font-medium">Сообщение удалено</p>
-          ) : (
-            <>
-              {message.body && <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words">{message.body}</p>}
-              {message.attachments?.map((att) => {
-                const downloadUrl = `/api/attachments/${att.id}/download`;
-                const isImage = att.mimeType.startsWith("image/");
-                const isVideo = att.mimeType.startsWith("video/");
+          <>
+            {message.body && <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words">{message.body}</p>}
+            {message.attachments?.map((att) => {
+              const downloadUrl = `/api/attachments/${att.id}/download`;
+              const isImage = att.mimeType.startsWith("image/");
+              const isVideo = att.mimeType.startsWith("video/");
 
-                return (
-                  <div key={att.id} className="mt-2 first:mt-0 overflow-hidden rounded-lg">
-                    {message.type === "VOICE" ? (
-                      <VoicePlayer 
+              return (
+                <div key={att.id} className="mt-2 first:mt-0 overflow-hidden rounded-lg">
+                  {message.type === "VOICE" ? (
+                    <VoicePlayer 
+                      src={downloadUrl} 
+                      isMine={mine}
+                      cornerRadius={settings.bubbleRadius}
+                    />
+                  ) : isImage ? (
+                    <div 
+                      className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName }); }}
+                    >
+                      <img 
                         src={downloadUrl} 
-                        isMine={mine}
-                        cornerRadius={settings.bubbleRadius}
+                        alt="" 
+                        className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
+                        loading="lazy"
                       />
-                    ) : isImage ? (
-                      <div 
-                        className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
-                        onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName }); }}
-                      >
-                        <img 
-                          src={downloadUrl} 
-                          alt="" 
-                          className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
-                          loading="lazy"
-                        />
-                      </div>
-                    ) : isVideo ? (
-                      <div 
-                        className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center bg-black/10"
-                        onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName }); }}
-                      >
-                        <video src={downloadUrl} className="max-h-96 w-full object-cover" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
-                            <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div 
-                        className="flex items-center gap-3 rounded-xl bg-black/10 p-4 border border-black/5 backdrop-blur-md transition-smooth active:bg-black/40 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const link = document.createElement("a");
-                          link.href = downloadUrl;
-                          link.target = "_self";
-                          link.click();
-                        }}
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white/90 shadow-inner">
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </div>
+                  ) : isVideo ? (
+                    <div 
+                      className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center bg-black/10"
+                      onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName }); }}
+                    >
+                      <video src={downloadUrl} className="max-h-96 w-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
+                          <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
                           </svg>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-black tracking-tight">{att.fileName}</p>
-                          <p className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-0.5">
-                            {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
-                          </p>
-                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          )}
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-3 rounded-xl bg-black/10 p-4 border border-black/5 backdrop-blur-md transition-smooth active:bg-black/40 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const link = document.createElement("a");
+                        link.href = downloadUrl;
+                        link.target = "_self";
+                        link.click();
+                      }}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white/90 shadow-inner">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-black tracking-tight">{att.fileName}</p>
+                        <p className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-0.5">
+                          {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
 
           <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
             <span className={`text-[9px] font-black uppercase tracking-tighter ${mine ? "text-white/70" : "text-[var(--chat-muted)] opacity-60"}`}>

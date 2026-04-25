@@ -247,59 +247,43 @@ body {
   }
 
   .chat-screen {
-    @apply flex h-screen flex-col overflow-hidden;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background-color: var(--chat-background);
   }
   
   /* --- Robust Safe Areas --- */
-  .safe-top { 
+  .safe-top-padding { 
     padding-top: env(safe-area-inset-top, 0px); 
   }
-  .safe-bottom { 
+  .safe-bottom-padding { 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
   }
-  .safe-px { 
-    padding-left: max(16px, env(safe-area-inset-left, 0px)); 
-    padding-right: max(16px, env(safe-area-inset-right, 0px)); 
+
+  .glass-header {
+    @apply sticky top-0 z-[100] backdrop-blur-xl border-b flex-shrink-0;
+    padding-top: env(safe-area-inset-top, 0px);
+    background-color: var(--chat-header-bg);
+    border-color: var(--chat-composer-border);
   }
 
-  .page-container {
-    @apply mx-auto w-full max-w-2xl px-4;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  .glass-composer {
+    @apply sticky bottom-0 z-[100] backdrop-blur-xl border-t flex-shrink-0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--chat-composer-bg);
+    border-color: var(--chat-composer-border);
   }
 
   /* --- Context Menu & Native Overlays --- */
   .menu-overlay {
-    @apply fixed inset-0 z-[200] bg-black/40 backdrop-blur-md animate-in fade-in;
-  }
-
-  .menu-content {
-    @apply fixed z-[210] flex flex-col gap-2 transition-all duration-300 ease-out;
-  }
-
-  .action-menu {
-    @apply w-64 rounded-3xl bg-surface/90 backdrop-blur-2xl shadow-2xl border border-border-subtle/50 overflow-hidden animate-in zoom-in-95;
-  }
-
-  .action-item {
-    @apply flex items-center justify-between px-5 py-3.5 text-sm font-bold transition-smooth active:bg-foreground/5;
-  }
-
-  .action-item-destructive {
-    @apply text-danger active:bg-danger/5;
-  }
-
-  .reaction-bar {
-    @apply flex items-center gap-1.5 p-2 rounded-full bg-surface/90 backdrop-blur-2xl shadow-xl border border-border-subtle/50 animate-in slide-in-from-bottom-2 zoom-in-95;
-  }
-
-  .reaction-btn {
-    @apply touch-target h-10 w-10 flex items-center justify-center text-xl rounded-full transition-smooth active:scale-125 hover:bg-foreground/5;
+    @apply fixed inset-0 z-[150] bg-black/40 backdrop-blur-md animate-in fade-in;
   }
 
   .focused-message {
-    @apply relative z-[220] transition-all duration-300;
+    @apply relative z-[200] scale-[1.03] shadow-2xl transition-all duration-300;
+    filter: none;
   }
 
   .no-select {

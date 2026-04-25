@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
 const { v4: uuidv4 } = require("uuid");
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -62,13 +64,6 @@ app.prepare().then(() => {
     socket.on("call:start", ({ chatId, offer, fromUser }, callback) => {
       const callId = uuidv4();
       
-      // In a real app, we should validate chat membership here via DB
-      // For MVP, we assume the client is correct but route safely
-      
-      // Determine callee (logic should ideally be server-side, for now simple routing)
-      // Note: calleeId should be fetched from DB based on chatId and userId
-      // We expect fromUser to contain current user info for the UI
-      
       activeCalls.set(callId, {
         callId,
         chatId,
@@ -77,7 +72,6 @@ app.prepare().then(() => {
         createdAt: Date.now()
       });
 
-      // Target all other users in the chat (in DIRECT it's only one)
       socket.to(`chat:${chatId}`).emit("call:incoming", {
         callId,
         chatId,
@@ -99,7 +93,6 @@ app.prepare().then(() => {
       call.status = "connecting";
       call.calleeId = userId;
 
-      // Forward answer to the caller
       socket.to(`user:${call.callerId}`).emit("call:answered", {
         callId,
         chatId,
@@ -148,7 +141,6 @@ app.prepare().then(() => {
     });
 
     socket.on("disconnect", () => {
-      // Cleanup any active calls where this user was a participant
       activeCalls.forEach((call, callId) => {
         if (call.callerId === userId || call.calleeId === userId) {
           const targetId = userId === call.callerId ? call.calleeId : call.callerId;

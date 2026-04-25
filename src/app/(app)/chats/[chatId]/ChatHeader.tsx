@@ -31,10 +31,7 @@ export function ChatHeader({
     : null;
 
   return (
-    <header 
-      className="sticky top-0 z-50 backdrop-blur-xl border-b flex items-center justify-between px-4 py-3 transition-smooth"
-      style={{ backgroundColor: "var(--chat-header-bg)", borderColor: "var(--chat-composer-border)", color: "var(--chat-header-fg)" }}
-    >
+    <header className="glass-header flex items-center justify-between px-4 py-3 transition-smooth border-b border-white/5">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <Link 
           href="/chats" 
@@ -61,7 +58,7 @@ export function ChatHeader({
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-black tracking-tight leading-tight">{title}</h1>
+            <h1 className="truncate text-sm font-black tracking-tight leading-tight text-[var(--chat-header-fg)]">{title}</h1>
             <p className="truncate text-[10px] font-black uppercase tracking-widest text-primary">
               {subtitle}
             </p>

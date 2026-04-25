@@ -62,11 +62,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     statusRef.current = status;
   }, [status]);
 
-  const debugCall = (label: string, data: any = {}) => {
+  const debugCall = useCallback((label: string, data: Record<string, unknown> = {}) => {
     if (!DEBUG_CALLS) return;
     console.log(`[CALL DEBUG] ${label}`, {
       status: statusRef.current,
-      role: call?.role,
       pcState: pcRef.current?.connectionState,
       iceState: pcRef.current?.iceConnectionState,
       signalingState: pcRef.current?.signalingState,
@@ -74,10 +73,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       hasRemoteDesc: !!pcRef.current?.remoteDescription,
       ...data
     });
-  };
+  }, []);
 
   const cleanup = useCallback((reason?: string) => {
-    debugCall("Cleanup started", { reason });
+    debugCall("Cleanup started", { reason: reason || "none" });
     
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     
@@ -102,7 +101,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     incomingOfferRef.current = null;
     setIsMuted(false);
     remoteStreamRef.current = null;
-  }, []);
+  }, [debugCall]);
 
   const failCall = useCallback((err: string) => {
     debugCall("Call Failed", { err });
@@ -112,10 +111,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       cleanup();
       setError(null);
     }, 3000);
-  }, [cleanup]);
+  }, [cleanup, debugCall]);
 
   const createPeerConnection = useCallback((role: CallRole, callId: string) => {
-    debugCall("Creating RTCPeerConnection");
+    debugCall("Creating RTCPeerConnection", { role });
     const pc = new RTCPeerConnection(RTC_CONFIG);
 
     pc.onicecandidate = (event) => {
@@ -145,7 +144,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     pcRef.current = pc;
     return pc;
-  }, [socket, cleanup]);
+  }, [socket, cleanup, debugCall]);
 
   const startCall = async (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => {
     if (statusRef.current !== "idle") return;
@@ -163,7 +162,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      socket?.emit("call:start", { chatId, offer, fromUser }, (response: any) => {
+      socket?.emit("call:start", { chatId, offer, fromUser }, (response: { ok: boolean, callId: string }) => {
         if (response.ok) {
           debugCall("Call started successfully", { callId: response.callId });
           setCall({
@@ -185,6 +184,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         }
       });
     } catch (err) {
+      console.error(err);
       failCall("Нет доступа к микрофону");
     }
   };
@@ -207,7 +207,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       while (pendingIceQueue.current.length > 0) {
         const cand = pendingIceQueue.current.shift();
-        if (cand) await pc.addIceCandidate(cand).catch(e => debugCall("ICE add failed", e));
+        if (cand) await pc.addIceCandidate(cand).catch(e => debugCall("ICE add failed", { error: String(e) }));
       }
 
       const answer = await pc.createAnswer();
@@ -218,10 +218,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         callId: call.callId, 
         chatId: call.chatId, 
         answer 
-      }, (res: any) => {
+      }, (res: { ok: boolean }) => {
         if (!res.ok) failCall("Ошибка при ответе на звонок");
       });
     } catch (err) {
+      console.error(err);
       failCall("Ошибка доступа к микрофону");
       socket.emit("call:declined", { callId: call.callId });
     }
@@ -254,7 +255,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!socket) return;
 
-    const onIncoming = ({ callId, chatId, offer, fromUser }: any) => {
+    interface IncomingPayload {
+      callId: string;
+      chatId: string;
+      offer: RTCSessionDescriptionInit;
+      fromUser: { displayName: string, avatarUrl: string | null };
+    }
+
+    const onIncoming = ({ callId, chatId, offer, fromUser }: IncomingPayload) => {
       debugCall("Incoming call received", { callId });
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, reason: "busy" });
@@ -270,7 +278,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setStatus("ringing");
     };
 
-    const onAnswered = async ({ answer }: any) => {
+    const onAnswered = async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
       debugCall("Call answered by remote");
       if (pcRef.current) {
         setStatus("connecting");
@@ -279,22 +287,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         
         while (pendingIceQueue.current.length > 0) {
           const cand = pendingIceQueue.current.shift();
-          if (cand) await pcRef.current.addIceCandidate(cand).catch(e => debugCall("ICE add failed", e));
+          if (cand) await pcRef.current.addIceCandidate(cand).catch(e => debugCall("ICE add failed", { error: String(e) }));
         }
       }
     };
 
-    const onIce = async ({ candidate }: any) => {
+    const onIce = async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
       debugCall("Remote ICE candidate received");
       if (pcRef.current && pcRef.current.remoteDescription) {
-        await pcRef.current.addIceCandidate(candidate).catch(e => debugCall("ICE add failed", e));
+        await pcRef.current.addIceCandidate(candidate).catch(e => debugCall("ICE add failed", { error: String(e) }));
       } else {
         debugCall("Queuing remote ICE candidate");
         pendingIceQueue.current.push(candidate);
       }
     };
 
-    const onEnded = ({ reason }: any) => {
+    const onEnded = ({ reason }: { reason: string }) => {
       debugCall("Call ended by remote", { reason });
       cleanup(`remote ended: ${reason}`);
     };
@@ -317,7 +325,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", onEnded);
       socket.off("call:declined", onDeclined);
     };
-  }, [socket, cleanup]);
+  }, [socket, cleanup, debugCall, createPeerConnection]);
 
   return (
     <CallContext.Provider value={{
