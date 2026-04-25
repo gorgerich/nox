@@ -29,11 +29,14 @@ export function ChatHeader({
     : null;
 
   return (
-    <header className="glass-header flex items-center justify-between px-4 py-3 transition-smooth border-b border-border-subtle/30">
+    <header 
+      className="sticky top-0 z-50 backdrop-blur-xl border-b flex items-center justify-between px-4 py-3 transition-smooth"
+      style={{ backgroundColor: "var(--chat-header-bg)", borderColor: "var(--chat-composer-border)", color: "var(--chat-header-fg)" }}
+    >
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <Link 
           href="/chats" 
-          className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-surface-muted text-foreground transition-smooth active:scale-90 hover:bg-surface-hover shadow-sm border border-border-subtle/50"
+          className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-foreground/10 text-current transition-smooth active:scale-90 hover:bg-foreground/20"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -43,11 +46,11 @@ export function ChatHeader({
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
             {fullAvatarUrl ? (
-              <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border-subtle ring-1 ring-black/5 transition-smooth group-active:scale-95 shadow-sm">
+              <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-white/10 ring-1 ring-black/5 transition-smooth group-active:scale-95 shadow-sm">
                 <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 transition-smooth shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white transition-smooth shadow-sm">
                 <span className="text-sm font-black uppercase tracking-tighter">{title.substring(0, 1)}</span>
               </div>
             )}
@@ -56,9 +59,9 @@ export function ChatHeader({
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-black tracking-tight text-foreground leading-tight">{title}</h1>
+            <h1 className="truncate text-sm font-black tracking-tight leading-tight">{title}</h1>
             <p className="truncate text-[10px] font-black uppercase tracking-widest text-primary">
-              {subtitle || (isConnected ? "в сети" : "подключение...")}
+              {subtitle}
             </p>
           </div>
         </div>
@@ -69,7 +72,7 @@ export function ChatHeader({
           <button
             onClick={() => startCall(chatId)}
             disabled={status !== "idle"}
-            className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 transition-smooth active:scale-90 hover:bg-primary/20 disabled:opacity-30 disabled:grayscale shadow-sm"
+            className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 disabled:opacity-30 disabled:grayscale"
             title="Позвонить"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -80,7 +83,7 @@ export function ChatHeader({
 
         <button
           onClick={onAppearanceClick}
-          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground border border-border-subtle/50 transition-smooth active:scale-90 hover:bg-surface-hover shadow-sm"
+          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-foreground/10 text-current transition-smooth active:scale-90 hover:bg-foreground/20"
           title="Оформление"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

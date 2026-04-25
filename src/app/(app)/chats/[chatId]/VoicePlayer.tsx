@@ -82,7 +82,7 @@ export function VoicePlayer({
 
   const waveColor = isMine ? "rgba(255,255,255,0.4)" : "var(--voice-wave)";
   const activeWaveColor = isMine ? "#ffffff" : "var(--voice-control)";
-  const bgControl = isMine ? "rgba(255,255,255,0.2)" : "var(--voice-surface)";
+  const bgControl = isMine ? "rgba(255,255,255,0.2)" : "rgba(128,128,128,0.1)";
   const radiusClass = cornerRadius === "round" ? "rounded-2xl" : "rounded-xl";
 
   return (
@@ -131,7 +131,7 @@ export function VoicePlayer({
           />
         </div>
         
-        <div className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: isMine ? '#ffffff' : 'var(--foreground)' }}>
+        <div className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: isMine ? '#ffffff' : 'inherit' }}>
           <span>{formatTime(currentTime)}</span>
           <span>{error ? "Ошибка" : isLoaded ? formatTime(totalDuration) : formatTime(totalDuration)}</span>
         </div>

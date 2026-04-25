@@ -96,7 +96,7 @@ export function MessageBubble({
         onLongPress(message.id, bubbleRef.current.getBoundingClientRect());
       }
       timerRef.current = null;
-    }, 500);
+    }, 600);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -117,7 +117,7 @@ export function MessageBubble({
     }
   };
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (selectionMode && onSelect) {
       onSelect(message.id);
     }
@@ -148,10 +148,10 @@ export function MessageBubble({
     : { ...radiusStyle };
 
   const incomingClass = settings.incomingStyle === "glass" 
-    ? "bg-surface/40 backdrop-blur-lg border border-border-subtle/50" 
+    ? "bg-surface/40 backdrop-blur-lg border border-bubble-incoming-border" 
     : settings.incomingStyle === "minimal" 
-      ? "bg-transparent border border-border-subtle/30"
-      : "bg-[var(--bubble-incoming)] border border-border-subtle/50";
+      ? "bg-transparent border border-bubble-incoming-border"
+      : "bg-[var(--bubble-incoming)] border border-bubble-incoming-border";
 
   const groupedReactions = message.reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, me: false };
@@ -164,7 +164,7 @@ export function MessageBubble({
 
   return (
     <div 
-      className={`flex items-center gap-3 w-full mb-1 px-4 transition-smooth ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""}`}
+      className={`flex items-center gap-3 w-full mb-1 px-4 transition-smooth ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""} no-select`}
       onClick={handleClick}
     >
       {selectionMode && (
@@ -179,7 +179,7 @@ export function MessageBubble({
 
       <div className={`flex flex-col flex-1 ${mine ? "items-end" : "items-start"}`}>
         {showDisplayName && !mine && (
-          <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest text-muted/60">
+          <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest text-[var(--chat-muted)]">
             {message.sender.profile?.displayName ?? message.sender.username}
           </span>
         )}
@@ -287,7 +287,7 @@ export function MessageBubble({
           )}
 
           <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-            <span className={`text-[9px] font-black uppercase tracking-tighter ${mine ? "text-white/70" : "text-muted/60"}`}>
+            <span className={`text-[9px] font-black uppercase tracking-tighter ${mine ? "text-white/70" : "text-[var(--chat-muted)] opacity-60"}`}>
               {message.editedAt && "изм. "}{time}
             </span>
             {mine && !message.deletedAt && (
