@@ -58,6 +58,7 @@ export default async function ChatsPage() {
           include: {
             user: {
               select: {
+                id: true,
                 username: true,
                 profile: {
                   select: {
