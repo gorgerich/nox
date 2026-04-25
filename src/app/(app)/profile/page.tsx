@@ -15,9 +15,10 @@ export default async function ProfilePage() {
   if (!dbUser) return null;
 
   return (
-    <div className="mx-auto max-w-2xl py-8 pb-20">
-      <div className="mb-8 px-2">
-        <h1 className="text-2xl font-bold tracking-tight">Профиль</h1>
+    <div className="mx-auto max-w-2xl safe-top transition-smooth px-4 pt-12">
+      <div className="mb-12 px-2">
+        <h1 className="text-4xl font-black tracking-tight text-foreground">Профиль</h1>
+        <p className="mt-2 text-sm text-muted/60 font-medium uppercase tracking-widest">Настройки вашего аккаунта</p>
       </div>
 
       <ProfileContent user={dbUser} />

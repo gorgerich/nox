@@ -107,21 +107,34 @@ export function MessageBubble({
 
   const time = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt));
 
-  const radiusClass = settings.bubbleRadius === "round" 
-    ? (mine 
-        ? (isGroupStart ? "rounded-2xl rounded-tr-xs" : isGroupEnd ? "rounded-2xl rounded-tr-2xl" : "rounded-2xl rounded-tr-xs rounded-br-xs")
-        : (isGroupStart ? "rounded-2xl rounded-tl-xs" : isGroupEnd ? "rounded-2xl rounded-tl-2xl" : "rounded-2xl rounded-tl-xs rounded-bl-xs")
-      )
-    : "rounded-xl";
+  // --- Dynamic Radius Calculation ---
+  const isRound = settings.bubbleRadius === "round";
+  const rBase = isRound ? "var(--radius-2xl)" : "var(--radius-lg)";
+  const rSmall = "var(--radius-xs)";
+  
+  const radiusStyle = mine 
+    ? {
+        borderTopLeftRadius: rBase,
+        borderBottomLeftRadius: rBase,
+        borderTopRightRadius: isGroupStart ? rSmall : rBase,
+        borderBottomRightRadius: isGroupEnd ? rBase : rSmall,
+      }
+    : {
+        borderTopRightRadius: rBase,
+        borderBottomRightRadius: rBase,
+        borderTopLeftRadius: isGroupStart ? rSmall : rBase,
+        borderBottomLeftRadius: isGroupEnd ? rBase : rSmall,
+      };
 
-  const bubbleStyle = mine 
-    ? { backgroundColor: settings.outgoingColor, color: "var(--bubble-outgoing-text)" }
-    : {};
+  // --- Dynamic Style Calculation ---
+  const bubbleStyle: React.CSSProperties = mine 
+    ? { backgroundColor: settings.outgoingColor, color: "var(--bubble-outgoing-text)", ...radiusStyle }
+    : { ...radiusStyle };
 
   const incomingClass = settings.incomingStyle === "glass" 
     ? "bg-surface/40 backdrop-blur-lg border border-border-subtle/50" 
     : settings.incomingStyle === "minimal" 
-      ? "bg-surface-muted/40 border border-border-subtle/30"
+      ? "bg-transparent border border-border-subtle/30"
       : "bg-[var(--bubble-incoming)] border border-border-subtle/50";
 
   const groupedReactions = message.reactions.reduce((acc, r) => {
@@ -142,8 +155,8 @@ export function MessageBubble({
       )}
 
       <div
-        className={`group relative max-w-[85%] px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] touch-pan-y ${radiusClass} ${
-          mine ? "text-white shadow-sm" : "text-[var(--bubble-incoming-text)]"
+        className={`group relative max-w-[85%] px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] touch-pan-y ${
+          mine ? "text-white shadow-sm" : "text-[var(--bubble-incoming-text)] shadow-sm"
         } ${mine ? "" : incomingClass}`}
         style={bubbleStyle}
         onContextMenu={(e) => { e.preventDefault(); onLongPress(message.id); }}
@@ -174,7 +187,11 @@ export function MessageBubble({
               return (
                 <div key={att.id} className="mt-2 first:mt-0 overflow-hidden rounded-lg">
                   {message.type === "VOICE" ? (
-                    <VoicePlayer src={downloadUrl} />
+                    <VoicePlayer 
+                      src={downloadUrl} 
+                      themeColor={mine ? "var(--bubble-outgoing-text)" : "var(--voice-control)"}
+                      isMine={mine}
+                    />
                   ) : isImage ? (
                     <div 
                       className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"

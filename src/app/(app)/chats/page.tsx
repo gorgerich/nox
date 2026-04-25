@@ -5,22 +5,18 @@ import { ChatsRealtimeListener } from "./ChatsRealtimeListener";
 import { IncomingRequestCards } from "./IncomingRequestCards";
 import { ChatSearch } from "./ChatSearch";
 
-function formatChatTime(value: Date) {
+function formatChatTime(date: Date) {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  const diff = now.getTime() - date.getTime();
+  const day = 1000 * 60 * 60 * 24;
 
-  if (date.getTime() === today.getTime()) {
-    return new Intl.DateTimeFormat("ru-RU", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value);
+  if (diff < day && now.getDate() === date.getDate()) {
+    return new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(date);
   }
-
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "short",
-  }).format(value);
+  if (diff < day * 7) {
+    return new Intl.DateTimeFormat("ru-RU", { weekday: "short" }).format(date);
+  }
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" }).format(date);
 }
 
 function getMessagePreview(message: {
@@ -40,14 +36,21 @@ function getMessagePreview(message: {
 
 export default async function ChatsPage() {
   const user = await getCurrentUser();
-  const prisma = getPrisma();
-  
-  if (!user) return null;
 
-  const [rawChats, incomingRequests] = await Promise.all([
+  if (!user) {
+    return null;
+  }
+
+  const prisma = getPrisma();
+  const [chats, incomingRequests] = await Promise.all([
     prisma.chat.findMany({
       where: {
-        members: { some: { userId: user.id, status: "ACTIVE" } },
+        members: {
+          some: {
+            userId: user.id,
+            status: "ACTIVE",
+          },
+        },
       },
       include: {
         members: {
@@ -55,86 +58,89 @@ export default async function ChatsPage() {
           include: {
             user: {
               select: {
-                id: true,
                 username: true,
-                profile: { select: { displayName: true } },
+                profile: {
+                  select: {
+                    displayName: true,
+                  },
+                },
               },
             },
           },
-          orderBy: { joinedAt: "asc" },
         },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: {
-            type: true,
-            body: true,
-            deletedAt: true,
-            createdAt: true,
+          include: {
             attachments: { select: { fileName: true } },
           },
         },
       },
     }),
     prisma.chatRequest.findMany({
-      where: { toUserId: user.id, status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        message: true,
-        createdAt: true,
+      where: {
+        toUserId: user.id,
+        status: "PENDING",
+      },
+      include: {
         fromUser: {
           select: {
             username: true,
-            profile: { select: { displayName: true } },
+            profile: {
+              select: {
+                displayName: true,
+              },
+            },
           },
         },
       },
     }),
   ]);
 
-  const chats = await Promise.all(rawChats.map(async (chat) => {
-    const member = chat.members.find(m => m.userId === user.id);
-    const unreadCount = await prisma.message.count({
-      where: {
-        chatId: chat.id,
-        senderUserId: { not: user.id },
-        deletedAt: null,
-        createdAt: { gt: member?.lastReadAt ?? new Date(0) },
-      },
-    });
-    return { ...chat, unreadCount };
-  }));
+  const chatsWithUnread = await Promise.all(
+    chats.map(async (chat) => {
+      const membership = chat.members.find((m) => m.userId === user.id);
+      const unreadCount = await prisma.message.count({
+        where: {
+          chatId: chat.id,
+          createdAt: { gt: membership?.lastReadAt ?? new Date(0) },
+          senderUserId: { not: user.id },
+          deletedAt: null,
+        },
+      });
+      return { ...chat, unreadCount };
+    }),
+  );
 
-  const sortedChats = chats.sort((a, b) => {
-    const aTime = a.messages[0]?.createdAt ?? a.createdAt;
-    const bTime = b.messages[0]?.createdAt ?? b.createdAt;
-    return bTime.getTime() - aTime.getTime();
+  const sortedChats = chatsWithUnread.sort((a, b) => {
+    const timeA = a.messages[0]?.createdAt ?? a.createdAt;
+    const timeB = b.messages[0]?.createdAt ?? b.createdAt;
+    return timeB.getTime() - timeA.getTime();
   });
 
   return (
-    <div className="mx-auto max-w-2xl py-6 transition-smooth">
+    <div className="mx-auto max-w-2xl safe-top transition-smooth px-4">
       <ChatsRealtimeListener />
       
-      <div className="mb-6 flex items-center justify-between px-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Чаты</h1>
+      <div className="mb-8 flex items-center justify-between pt-8 px-2">
+        <h1 className="text-4xl font-black tracking-tight text-foreground">Чаты</h1>
         <Link
-          className="touch-target h-11 w-11 flex items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20"
+          className="touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 shadow-sm border border-primary/20"
           href="/chats/new"
         >
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
         </Link>
       </div>
 
-      <div className="mb-6 px-2">
+      <div className="mb-8 px-2">
         <ChatSearch />
       </div>
 
       {incomingRequests.length > 0 && (
-        <div className="mb-8 animate-in slide-in-from-top-2 duration-500">
-          <h2 className="px-2 text-[10px] font-bold uppercase tracking-widest text-muted mb-4 opacity-80">Запросы на переписку</h2>
+        <div className="mb-10 animate-in slide-in-from-top-2 duration-500">
+          <h2 className="px-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 mb-5">Запросы на переписку</h2>
           <IncomingRequestCards
             requests={incomingRequests.map((request) => ({
               ...request,
@@ -145,21 +151,21 @@ export default async function ChatsPage() {
       )}
 
       {sortedChats.length === 0 ? (
-        <div className="mt-24 text-center animate-in fade-in zoom-in-95 duration-700">
-          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-surface-hover/30 border border-border-subtle/50 shadow-inner">
+        <div className="mt-24 text-center animate-in fade-in zoom-in-95 duration-700 pb-32">
+          <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[2.5rem] bg-surface-muted border border-border-subtle/50 shadow-inner">
             <span className="text-4xl">💬</span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground/90">Начните общение</h2>
-          <p className="mt-3 text-base text-muted max-w-[240px] mx-auto leading-relaxed">Здесь будут отображаться ваши диалоги с другими пользователями.</p>
+          <h2 className="text-2xl font-black tracking-tight text-foreground/90">Начните общение</h2>
+          <p className="mt-3 text-base text-muted/60 max-w-[240px] mx-auto leading-relaxed font-medium">Здесь будут отображаться ваши диалоги с другими пользователями.</p>
           <Link
-            className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-primary px-10 text-sm font-bold text-neutral-950 transition-smooth active:scale-95 shadow-lg shadow-primary/20"
+            className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-primary px-10 text-sm font-black text-white transition-smooth active:scale-95 shadow-xl shadow-primary/20"
             href="/chats/new"
           >
-            Найти собеседника
+            НАЙТИ СОБЕСЕДНИКА
           </Link>
         </div>
       ) : (
-        <div className="space-y-0.5 animate-in fade-in duration-500">
+        <div className="space-y-1 animate-in fade-in duration-500 pb-32">
           {sortedChats.map((chat) => {
             const otherMember = chat.members.find((member) => member.user.id !== user.id);
             const title = chat.type === "DIRECT"
@@ -173,24 +179,24 @@ export default async function ChatsPage() {
               <Link
                 key={chat.id}
                 href={`/chats/${chat.id}`}
-                className="group relative flex items-center gap-4 rounded-[2rem] p-4 transition-smooth hover:bg-surface-hover active:scale-[0.98] active:bg-surface-hover/70"
+                className="group relative flex items-center gap-4 rounded-[2rem] p-4 transition-smooth hover:bg-surface-hover active:scale-[0.98] active:bg-surface-muted/50 border border-transparent hover:border-border-subtle/50"
               >
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-hover text-xl font-black text-primary transition-smooth group-hover:scale-105 group-hover:bg-primary/10 shadow-sm">
+                <div className="relative flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-2xl font-black text-primary transition-smooth group-hover:scale-105 group-hover:bg-primary/10 shadow-sm border border-border-subtle/30">
                   {title[0].toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 border-b border-border-subtle/20 pb-4 group-last:border-none">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className={`truncate text-base font-bold tracking-tight ${chat.unreadCount > 0 ? "text-foreground" : "text-foreground/80"}`}>{title}</p>
-                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-tighter text-muted/60">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <p className={`truncate text-base font-black tracking-tight ${chat.unreadCount > 0 ? "text-foreground" : "text-foreground/80"}`}>{title}</p>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-tighter text-muted/50">
                       {formatChatTime(lastActivityTime)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`truncate text-sm leading-snug ${chat.unreadCount > 0 ? "text-foreground/70 font-semibold" : "text-muted"}`}>
+                    <p className={`truncate text-sm leading-snug font-medium ${chat.unreadCount > 0 ? "text-foreground/70 font-black" : "text-muted/60"}`}>
                       {preview}
                     </p>
                     {chat.unreadCount > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black text-neutral-950 shadow-sm shadow-primary/30">
+                      <span className="flex h-5.5 min-w-5.5 items-center justify-center rounded-full bg-primary px-2 text-[10px] font-black text-white shadow-lg shadow-primary/30 animate-in zoom-in-50 duration-300">
                         {chat.unreadCount}
                       </span>
                     )}

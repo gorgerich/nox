@@ -2,7 +2,17 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 
-export function VoicePlayer({ src, duration }: { src: string; duration?: number }) {
+export function VoicePlayer({ 
+  src, 
+  duration, 
+  themeColor = "var(--voice-control)",
+  isMine = false
+}: { 
+  src: string; 
+  duration?: number;
+  themeColor?: string;
+  isMine?: boolean;
+}) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -70,6 +80,10 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
     }
   };
 
+  const waveColor = isMine ? "rgba(255,255,255,0.4)" : "var(--voice-wave)";
+  const activeWaveColor = isMine ? "#ffffff" : "var(--voice-control)";
+  const bgControl = isMine ? "rgba(255,255,255,0.2)" : "var(--voice-surface)";
+
   return (
     <div className="flex items-center gap-3 py-1.5 min-w-[200px] transition-smooth">
       <audio ref={audioRef} src={src} preload="metadata" />
@@ -77,10 +91,11 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
       <button
         onClick={togglePlay}
         disabled={error}
-        className="touch-target h-11 w-11 flex shrink-0 items-center justify-center rounded-xl bg-[var(--voice-control)] text-white shadow-sm transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
+        className="touch-target h-11 w-11 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm"
+        style={{ backgroundColor: bgControl, color: isMine ? '#ffffff' : 'var(--voice-control)' }}
       >
         {error ? (
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : isPlaying ? (
@@ -95,14 +110,14 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-end gap-[2px] h-7 mb-1.5 opacity-60">
+        <div className="flex items-end gap-[2px] h-7 mb-1.5 opacity-80">
            {[30, 60, 40, 80, 50, 70, 40, 90, 60, 40, 70, 50, 80, 40, 60].map((h, i) => (
              <div 
                key={i} 
                className="w-[3px] rounded-full transition-colors duration-300"
                style={{ 
                  height: `${h}%`,
-                 backgroundColor: progress > (i / 15) * 100 ? "var(--voice-control)" : "var(--voice-wave)"
+                 backgroundColor: progress > (i / 15) * 100 ? activeWaveColor : waveColor
                }}
              />
            ))}
@@ -110,12 +125,12 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
         
         <div className="relative h-1 w-full overflow-hidden rounded-full bg-black/5">
           <div 
-            className="absolute left-0 top-0 h-full bg-[var(--voice-control)] transition-all duration-100 ease-linear"
-            style={{ width: `${progress}%` }}
+            className="absolute left-0 top-0 h-full transition-all duration-100 ease-linear"
+            style={{ width: `${progress}%`, backgroundColor: activeWaveColor }}
           />
         </div>
         
-        <div className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--voice-surface-text)] opacity-60">
+        <div className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: isMine ? '#ffffff' : 'var(--foreground)' }}>
           <span>{formatTime(currentTime)}</span>
           <span>{error ? "Ошибка" : isLoaded ? formatTime(totalDuration) : formatTime(totalDuration)}</span>
         </div>

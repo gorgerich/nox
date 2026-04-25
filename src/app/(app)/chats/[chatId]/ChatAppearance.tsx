@@ -6,16 +6,16 @@ export type AppearanceSettings = {
   preset: "midnight" | "graphite" | "ocean" | "ice" | "emerald" | "milk";
   bubbleRadius: "soft" | "round";
   outgoingColor: string;
-  incomingStyle: "solid" | "glass" | "minimal";
+  incomingStyle: "filled" | "glass" | "minimal";
   background: string;
   density: "compact" | "comfortable";
 };
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   preset: "midnight",
-  bubbleRadius: "soft",
+  bubbleRadius: "round",
   outgoingColor: "#10b981", // default emerald
-  incomingStyle: "solid",
+  incomingStyle: "glass",
   background: "midnight",
   density: "comfortable",
 };
@@ -23,51 +23,57 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
 export const PRESETS = {
   midnight: {
     name: "Midnight",
-    bg: "chat-bg-midnight",
+    bg: "bg-black",
     bubble: "bg-neutral-900",
     text: "text-white",
   },
   graphite: {
     name: "Graphite",
-    bg: "chat-bg-graphite",
-    bubble: "bg-neutral-800",
+    bg: "bg-[#1a1b1e]",
+    bubble: "bg-[#2c2e33]",
     text: "text-white",
   },
   ocean: {
     name: "Ocean",
-    bg: "chat-bg-ocean",
-    bubble: "bg-blue-900/50",
+    bg: "bg-[#0f172a]",
+    bubble: "bg-[#1e293b]/50",
     text: "text-blue-50",
   },
   ice: {
     name: "Ice",
-    bg: "chat-bg-ice",
-    bubble: "bg-slate-800/50",
-    text: "text-slate-50",
+    bg: "bg-[#f1f3f5]",
+    bubble: "bg-white",
+    text: "text-slate-900",
   },
   emerald: {
     name: "Emerald",
-    bg: "chat-bg-emerald",
-    bubble: "bg-emerald-900/50",
+    bg: "bg-[#064e3b]",
+    bubble: "bg-[#065f46]/50",
     text: "text-emerald-50",
   },
   milk: {
     name: "Milk",
-    bg: "chat-bg-milk",
-    bubble: "bg-white",
+    bg: "bg-[#fdfdfd]",
+    bubble: "bg-[#f1f3f5]",
     text: "text-neutral-900",
   },
 };
 
 export function useChatAppearance(chatId: string) {
-  // Use a initializer function for state to avoid useEffect setState
   const [settings, setSettings] = useState<AppearanceSettings>(() => {
     if (typeof window === "undefined") return DEFAULT_APPEARANCE;
-    const saved = localStorage.getItem(`nox:chat-appearance:${chatId}:v1`) || 
-                  localStorage.getItem(`nox:chat-appearance:global:v1`);
+    const saved = localStorage.getItem(`nox:chat-appearance:${chatId}:v2`) || 
+                  localStorage.getItem(`nox:chat-appearance:global:v2`);
     if (saved) {
       try {
-        return { ...DEFAULT_APPEARANCE, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        // Fallback for missing fields (v1 to v2 migration)
+        return {
+          ...DEFAULT_APPEARANCE,
+          ...parsed,
+          // Ensure naming consistency
+          incomingStyle: parsed.incomingStyle === "solid" ? "filled" : (parsed.incomingStyle || DEFAULT_APPEARANCE.incomingStyle)
+        };
       } catch (e) {
         console.error("Failed to parse appearance settings", e);
       }
@@ -78,9 +84,9 @@ export function useChatAppearance(chatId: string) {
   const updateSettings = (newSettings: Partial<AppearanceSettings>, isGlobal = false) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
-      localStorage.setItem(`nox:chat-appearance:${chatId}:v1`, JSON.stringify(updated));
+      localStorage.setItem(`nox:chat-appearance:${chatId}:v2`, JSON.stringify(updated));
       if (isGlobal) {
-        localStorage.setItem(`nox:chat-appearance:global:v1`, JSON.stringify(updated));
+        localStorage.setItem(`nox:chat-appearance:global:v2`, JSON.stringify(updated));
       }
       return updated;
     });
@@ -88,7 +94,7 @@ export function useChatAppearance(chatId: string) {
 
   const resetSettings = () => {
     setSettings(DEFAULT_APPEARANCE);
-    localStorage.removeItem(`nox:chat-appearance:${chatId}:v1`);
+    localStorage.removeItem(`nox:chat-appearance:${chatId}:v2`);
   };
 
   return { settings, updateSettings, resetSettings };
@@ -112,46 +118,53 @@ export function ChatAppearanceSheet({
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm transition-smooth animate-in fade-in duration-300" onClick={onClose}>
       <div 
-        className="w-full max-w-lg rounded-t-[2.5rem] bg-neutral-950 p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-400 ease-out safe-bottom"
+        className="w-full max-w-lg rounded-t-[2.5rem] bg-surface p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-400 ease-out safe-bottom border-t border-border-subtle"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-8 h-1.5 w-12 rounded-full bg-neutral-800 active:bg-neutral-700 transition-smooth" onClick={onClose} />
+        <div className="mx-auto mb-8 h-1.5 w-12 rounded-full bg-border-subtle active:bg-muted transition-smooth" onClick={onClose} />
         
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-black tracking-tight">Оформление</h2>
+          <h2 className="text-2xl font-black tracking-tight text-foreground">Оформление</h2>
           <button onClick={onReset} className="touch-target text-xs font-black uppercase tracking-widest text-primary hover:opacity-80 transition-smooth active:scale-90">
             Сброс
           </button>
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto space-y-10 pb-8 pr-2 scrollbar-hide overscroll-contain">
+          {/* Presets Grid */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Пресеты</h3>
-            <div className="grid grid-cols-3 gap-3">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 mb-5 ml-1">Пресеты</h3>
+            <div className="grid grid-cols-3 gap-4">
               {(Object.keys(PRESETS) as Array<keyof typeof PRESETS>).map((id) => (
                 <button
                   key={id}
                   onClick={() => onUpdate({ preset: id, background: id })}
-                  className={`relative flex flex-col items-center gap-3 rounded-2xl border-2 p-3 transition-smooth active:scale-95 ${
-                    settings.preset === id ? "border-primary bg-primary/5" : "border-neutral-800 hover:border-neutral-700"
+                  className={`relative group flex flex-col items-center gap-3 rounded-3xl border-2 p-1.5 transition-smooth active:scale-95 ${
+                    settings.preset === id ? "border-primary bg-primary/5" : "border-border-subtle hover:border-muted"
                   }`}
                 >
-                  <div className={`h-10 w-full rounded-xl ${PRESETS[id].bg} border border-white/10 shadow-sm`} />
-                  <span className="text-[10px] font-black uppercase tracking-tighter">{PRESETS[id].name}</span>
+                  <div className={`aspect-[4/5] w-full rounded-2xl ${PRESETS[id].bg} relative overflow-hidden shadow-inner border border-black/5`}>
+                    {/* Mock Bubbles */}
+                    <div className={`absolute top-2 left-2 w-2/3 h-3 rounded-full ${id === 'ice' || id === 'milk' ? 'bg-black/10' : 'bg-white/10'}`} />
+                    <div className="absolute top-7 right-2 w-2/3 h-3 rounded-full bg-primary/40" />
+                    <div className={`absolute top-12 left-2 w-1/2 h-3 rounded-full ${id === 'ice' || id === 'milk' ? 'bg-black/10' : 'bg-white/10'}`} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-tighter text-foreground/80 mb-1">{PRESETS[id].name}</span>
                 </button>
               ))}
             </div>
           </section>
 
+          {/* Outgoing Bubble Color */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Цвет ваших сообщений</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 mb-5 ml-1">Цвет сообщений</h3>
             <div className="flex flex-wrap gap-4 px-1">
-              {["#10b981", "#3b82f6", "#8b5cf6", "#f43f5e", "#737373", "#f97316"].map((color) => (
+              {["#10b981", "#3b82f6", "#8b5cf6", "#f43f5e", "#2c2e33", "#f97316"].map((color) => (
                 <button
                   key={color}
                   onClick={() => onUpdate({ outgoingColor: color })}
                   className={`h-11 w-11 rounded-full border-2 transition-smooth active:scale-75 ${
-                    settings.outgoingColor === color ? "border-white scale-110 shadow-lg shadow-white/10" : "border-transparent"
+                    settings.outgoingColor === color ? "border-foreground scale-110 shadow-lg" : "border-transparent"
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -159,35 +172,44 @@ export function ChatAppearanceSheet({
             </div>
           </section>
 
+          {/* Incoming Bubble Style */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Стиль входящих</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 mb-5 ml-1">Стиль входящих</h3>
             <div className="grid grid-cols-3 gap-3">
-              {(["solid", "glass", "minimal"] as const).map((style) => (
+              {([
+                { id: "filled", label: "Заливка" },
+                { id: "glass", label: "Стекло" },
+                { id: "minimal", label: "Минимал" }
+              ] as const).map((style) => (
                 <button
-                  key={style}
-                  onClick={() => onUpdate({ incomingStyle: style })}
+                  key={style.id}
+                  onClick={() => onUpdate({ incomingStyle: style.id })}
                   className={`touch-target h-12 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
-                    settings.incomingStyle === style ? "border-primary bg-primary/5 text-primary" : "border-neutral-800 text-muted"
+                    settings.incomingStyle === style.id ? "border-primary bg-primary/5 text-primary" : "border-border-subtle text-muted"
                   }`}
                 >
-                  {style === "solid" ? "Заливка" : style === "glass" ? "Стекло" : "Минимал"}
+                  {style.label}
                 </button>
               ))}
             </div>
           </section>
 
+          {/* Bubble Radius */}
           <section>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Радиус углов</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 mb-5 ml-1">Радиус углов</h3>
             <div className="grid grid-cols-2 gap-3">
-              {(["soft", "round"] as const).map((r) => (
+              {([
+                { id: "soft", label: "Мягкий" },
+                { id: "round", label: "Круглый" }
+              ] as const).map((r) => (
                 <button
-                  key={r}
-                  onClick={() => onUpdate({ bubbleRadius: r })}
+                  key={r.id}
+                  onClick={() => onUpdate({ bubbleRadius: r.id })}
                   className={`touch-target h-12 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
-                    settings.bubbleRadius === r ? "border-primary bg-primary/5 text-primary" : "border-neutral-800 text-muted"
+                    settings.bubbleRadius === r.id ? "border-primary bg-primary/5 text-primary" : "border-border-subtle text-muted"
                   }`}
                 >
-                  {r === "soft" ? "Мягкий" : "Круглый"}
+                  {r.label}
                 </button>
               ))}
             </div>
@@ -196,9 +218,9 @@ export function ChatAppearanceSheet({
 
         <button 
           onClick={onClose}
-          className="btn-nox mt-6 w-full bg-white h-14 rounded-[1.25rem] text-sm font-black text-black transition-smooth active:scale-[0.98] shadow-2xl shadow-white/5"
+          className="btn-nox mt-6 w-full bg-foreground h-14 rounded-3xl text-sm font-black text-background transition-smooth active:scale-[0.98] shadow-xl shadow-foreground/5 uppercase tracking-widest"
         >
-          ГОТОВО
+          Готово
         </button>
       </div>
     </div>
