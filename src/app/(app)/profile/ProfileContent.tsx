@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useTheme } from "@/components/ThemeProvider";
 
 type UserWithProfile = {
   id: string;
@@ -27,6 +28,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
   const { status: pushStatus, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+  const { theme, setTheme } = useTheme();
 
   async function handleUpdate(e?: React.FormEvent) {
     e?.preventDefault();
@@ -62,12 +64,38 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             {displayName[0]?.toUpperCase() || username[0]?.toUpperCase()}
           </div>
         </div>
-        <h2 className="text-2xl font-bold tracking-tight">{displayName || username}</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">{displayName || username}</h2>
         <p className="text-sm font-medium text-muted/60 tracking-wider">@{username}</p>
-        <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-muted/40">Фото профиля появится скоро</p>
       </section>
 
       <div className="space-y-10 px-1">
+        {/* Appearance Section */}
+        <section className="space-y-6">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted/60 ml-1">Внешний вид</h3>
+          <div className="card-premium p-1 grid grid-cols-3 gap-1">
+            {(["light", "dark", "system"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTheme(t)}
+                className={`touch-target flex flex-col items-center justify-center rounded-xl py-3 transition-smooth ${
+                  theme === t 
+                    ? "bg-primary text-neutral-950 font-black shadow-lg" 
+                    : "text-muted hover:text-foreground hover:bg-surface-hover"
+                }`}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-widest">
+                  {t === "light" ? "Светлая" : t === "dark" ? "Тёмная" : "Система"}
+                </span>
+              </button>
+            ))}
+          </div>
+          {theme === "system" && (
+            <p className="ml-1 text-[9px] font-bold uppercase tracking-widest text-muted/40 italic">
+              Следует настройкам устройства
+            </p>
+          )}
+        </section>
+
         {/* Notifications Section */}
         <section className="space-y-6">
           <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted/60 ml-1">Уведомления</h3>
@@ -79,7 +107,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 </svg>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-white">Push-уведомления</p>
+                <p className="text-sm font-black text-foreground">Push-уведомления</p>
                 <p className="text-[10px] font-medium text-muted/60 leading-tight mt-0.5">
                   {pushStatus === "unsupported" ? "Не поддерживается в этом браузере" : 
                    pushStatus === "denied" ? "Доступ заблокирован в настройках" :
@@ -135,7 +163,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                     </svg>
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-black uppercase tracking-widest text-white">Панель управления</p>
+                    <p className="text-sm font-black uppercase tracking-widest text-foreground">Панель управления</p>
                     <p className="text-[10px] font-medium text-muted/60">Инвайты, пользователи и система</p>
                   </div>
                 </div>

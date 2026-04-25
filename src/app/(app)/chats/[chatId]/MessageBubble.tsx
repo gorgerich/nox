@@ -119,10 +119,10 @@ export function MessageBubble({
     : {};
 
   const incomingClass = settings.incomingStyle === "glass" 
-    ? "bg-white/10 backdrop-blur-lg border border-white/10" 
+    ? "bg-background/40 backdrop-blur-lg border border-border-subtle/30" 
     : settings.incomingStyle === "minimal" 
-      ? "bg-neutral-900/40 border border-neutral-800"
-      : "bg-neutral-900 border border-neutral-800";
+      ? "bg-surface-hover/40 border border-border-subtle/20"
+      : "bg-[var(--bubble-incoming)] border border-border-subtle/30";
 
   const groupedReactions = message.reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, me: false };
@@ -144,8 +144,8 @@ export function MessageBubble({
 
       <div
         className={`group relative max-w-[82%] px-4 py-3 transition-smooth cursor-default message-shadow active:scale-[0.99] touch-pan-y ${radiusClass} ${
-          mine ? "text-white" : incomingClass
-        }`}
+          mine ? "text-white" : "text-[var(--bubble-incoming-text)]"
+        } ${mine ? "" : incomingClass}`}
         style={bubbleStyle}
         onContextMenu={(e) => { e.preventDefault(); onLongPress(message.id); }}
         onTouchStart={handleTouchStart}
