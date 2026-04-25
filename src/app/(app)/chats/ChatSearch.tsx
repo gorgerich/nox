@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 type SearchResult = {
-  people: { id: string; username: string; displayName: string }[];
-  chats: { id: string; title: string | null; type: string }[];
+  people: { id: string; username: string; displayName: string; profile?: { avatarUrl: string | null } }[];
+  chats: { id: string; title: string | null; type: string; avatarUrl?: string | null }[];
   messages: { id: string; body: string; chatId: string; createdAt: string; senderName: string }[];
 };
 
@@ -54,7 +54,7 @@ export function ChatSearch() {
     <div className="relative" ref={containerRef}>
       <div className="relative group transition-smooth">
         <input
-          className="input-nox h-14 pl-12 bg-surface-muted border-border-subtle/50 focus:bg-surface focus:border-primary/40 transition-smooth"
+          className="input-nox h-14 pl-14 bg-surface-muted border-border-subtle/50 focus:bg-surface focus:border-primary/40 transition-smooth"
           placeholder="Поиск людей, чатов и сообщений"
           value={query}
           onChange={(e) => {
@@ -63,7 +63,7 @@ export function ChatSearch() {
           }}
           onFocus={() => setIsOpen(true)}
         />
-        <svg className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted transition-smooth group-focus-within:text-primary group-focus-within:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted transition-smooth group-focus-within:text-primary group-focus-within:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       </div>
@@ -91,8 +91,12 @@ export function ChatSearch() {
                         onClick={() => setIsOpen(false)}
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-black text-primary transition-smooth group-hover:scale-105 shadow-sm">
-                          {person.displayName[0]}
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105">
+                          {person.profile?.avatarUrl ? (
+                            <img src={person.profile.avatarUrl.startsWith('http') ? person.profile.avatarUrl : `/api/avatars/${person.profile.avatarUrl}`} alt={person.displayName} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-lg font-black text-primary uppercase">{person.displayName[0]}</span>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-foreground tracking-tight">{person.displayName}</p>
@@ -115,8 +119,12 @@ export function ChatSearch() {
                         onClick={() => setIsOpen(false)}
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-lg font-black text-muted border border-border-subtle/50 shadow-sm">
-                          {(chat.title || "C")[0]}
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105">
+                          {chat.avatarUrl ? (
+                            <img src={chat.avatarUrl.startsWith('http') ? chat.avatarUrl : `/api/avatars/${chat.avatarUrl}`} alt={chat.title || "Чат"} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-lg font-black text-primary uppercase">{(chat.title || "C")[0]}</span>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-foreground tracking-tight">{chat.title || "Личный чат"}</p>

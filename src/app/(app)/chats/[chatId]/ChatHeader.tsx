@@ -24,6 +24,10 @@ export function ChatHeader({
   const { startCall, status } = useAudioCall();
   const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
 
+  const fullAvatarUrl = avatarUrl 
+    ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
+    : null;
+
   return (
     <header className="glass-header flex items-center justify-between px-4 py-3 transition-smooth border-b border-border-subtle/30">
       <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -38,9 +42,9 @@ export function ChatHeader({
         
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
-            {avatarUrl ? (
+            {fullAvatarUrl ? (
               <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border-subtle ring-1 ring-black/5 transition-smooth group-active:scale-95 shadow-sm">
-                <Image src={avatarUrl} alt={title} fill className="object-cover" />
+                <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
               </div>
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 transition-smooth shadow-sm">

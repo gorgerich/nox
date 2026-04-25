@@ -39,6 +39,7 @@ export async function GET(request: Request) {
         profile: {
           select: {
             displayName: true,
+            avatarUrl: true,
           },
         },
       },
@@ -87,6 +88,7 @@ export async function GET(request: Request) {
                 profile: {
                   select: {
                     displayName: true,
+                    avatarUrl: true,
                   },
                 },
               },
@@ -136,6 +138,7 @@ export async function GET(request: Request) {
       id: person.id,
       username: person.username,
       displayName: person.profile?.displayName || person.username,
+      profile: person.profile,
     })),
     chats: chats.map((chat) => ({
       id: chat.id,
@@ -144,6 +147,7 @@ export async function GET(request: Request) {
         chat.type === "DIRECT"
           ? (chat.members[0]?.user.profile?.displayName || chat.members[0]?.user.username || "Личный чат")
           : chat.title || "Группа",
+      avatarUrl: chat.type === "DIRECT" ? chat.members[0]?.user.profile?.avatarUrl : null,
     })),
     messages: messages.map((message) => ({
       id: message.id,

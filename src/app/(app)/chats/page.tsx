@@ -63,6 +63,7 @@ export default async function ChatsPage() {
                 profile: {
                   select: {
                     displayName: true,
+                    avatarUrl: true,
                   },
                 },
               },
@@ -90,6 +91,7 @@ export default async function ChatsPage() {
             profile: {
               select: {
                 displayName: true,
+                avatarUrl: true,
               },
             },
           },
@@ -120,10 +122,10 @@ export default async function ChatsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl safe-top transition-smooth px-4">
+    <div className="page-container transition-smooth">
       <ChatsRealtimeListener />
       
-      <div className="mb-8 flex items-center justify-between pt-8 px-2">
+      <div className="mb-10 flex items-center justify-between px-2">
         <h1 className="text-4xl font-black tracking-tight text-foreground">Чаты</h1>
         <Link
           className="touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 shadow-sm border border-primary/20"
@@ -175,6 +177,10 @@ export default async function ChatsPage() {
             const lastMessage = chat.messages[0];
             const preview = lastMessage ? getMessagePreview(lastMessage) : "Нет сообщений";
             const lastActivityTime = lastMessage?.createdAt ?? chat.createdAt;
+            const avatarUrl = otherMember?.user.profile?.avatarUrl;
+            const fullAvatarUrl = avatarUrl 
+              ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
+              : null;
 
             return (
               <Link
@@ -182,8 +188,12 @@ export default async function ChatsPage() {
                 href={`/chats/${chat.id}`}
                 className="group relative flex items-center gap-4 rounded-[2rem] p-4 transition-smooth hover:bg-surface-hover active:scale-[0.98] active:bg-surface-muted/50 border border-transparent hover:border-border-subtle/50"
               >
-                <div className="relative flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-2xl font-black text-primary transition-smooth group-hover:scale-105 group-hover:bg-primary/10 shadow-sm border border-border-subtle/30">
-                  {title[0].toUpperCase()}
+                <div className="relative flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/30 transition-smooth group-hover:scale-105">
+                  {fullAvatarUrl ? (
+                    <img src={fullAvatarUrl} alt={title} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-black text-primary uppercase">{title[0]}</span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1 border-b border-border-subtle/20 pb-4 group-last:border-none">
                   <div className="flex items-center justify-between gap-2 mb-1.5">

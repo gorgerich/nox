@@ -63,8 +63,8 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
 
       <nav className="nav-blur lg:hidden safe-bottom">
         <div className="grid grid-cols-3 items-center">
-          <NavLink href="/chats" icon={<ChatIcon />} label="Чаты" count={incomingRequestCount} />
           <NavLink href="/calls" icon={<CallIcon />} label="Звонки" />
+          <NavLink href="/chats" icon={<ChatIcon />} label="Чаты" count={incomingRequestCount} />
           <NavLink href="/profile" icon={<ProfileIcon />} label="Профиль" />
         </div>
       </nav>

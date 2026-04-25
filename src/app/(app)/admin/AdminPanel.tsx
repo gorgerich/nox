@@ -100,7 +100,7 @@ async function readJson<T>(url: string, init?: RequestInit) {
   return data;
 }
 
-export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
+export function AdminPanel() {
   const [activeSection, setActiveSection] = useState<AdminSection>("users");
   const [users, setUsers] = useState<UserItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
@@ -205,28 +205,37 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="px-2 flex items-center justify-between">
+    <div className="page-container transition-smooth pb-32">
+      <div className="mb-10 px-2 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Управление</h1>
-          <p className="mt-1 text-sm text-muted">Доступ: {getRoleLabel(currentUserRole)}</p>
+          <h1 className="text-4xl font-black tracking-tight text-foreground">Админ</h1>
+          <p className="mt-2 text-sm text-muted/60 font-medium uppercase tracking-widest">Управление системой</p>
         </div>
-        <div className="flex bg-surface p-1 rounded-2xl border border-border-subtle">
-          {sections.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeSection === section.id 
-                  ? "bg-primary text-neutral-950 shadow-sm" 
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {section.label}
-            </button>
-          ))}
-        </div>
+        <button 
+          onClick={loadAdminData}
+          className={`touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-surface-muted border border-border-subtle/50 text-muted transition-smooth active:scale-90 ${loading ? 'animate-spin' : ''}`}
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
       </div>
+
+      <nav className="mb-8 flex gap-1 bg-surface-muted p-1 rounded-2xl border border-border-subtle/50">
+        {sections.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setActiveSection(s.id)}
+            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-smooth ${
+              activeSection === s.id
+                ? "bg-surface text-primary shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
 
       {error && <p className="bg-red-500/10 text-red-400 text-xs font-bold p-3 rounded-xl text-center border border-red-500/20">{error}</p>}
       {loading && <p className="text-center text-xs font-bold uppercase tracking-widest text-muted animate-pulse py-12">Загрузка...</p>}

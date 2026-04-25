@@ -189,7 +189,6 @@ export function MessageBubble({
                   {message.type === "VOICE" ? (
                     <VoicePlayer 
                       src={downloadUrl} 
-                      themeColor={mine ? "var(--bubble-outgoing-text)" : "var(--voice-control)"}
                       isMine={mine}
                       cornerRadius={settings.bubbleRadius}
                     />

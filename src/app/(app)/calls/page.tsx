@@ -9,7 +9,7 @@ export default async function CallsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl safe-top transition-smooth px-4 pt-12">
+    <div className="page-container transition-smooth">
       <div className="mb-12 px-2">
         <h1 className="text-4xl font-black tracking-tight text-foreground">Звонки</h1>
         <p className="mt-2 text-sm text-muted/60 font-medium uppercase tracking-widest">Ваша история аудиовызовов</p>

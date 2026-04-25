@@ -9,7 +9,10 @@ type IncomingRequest = {
   createdAt: string;
   fromUser: {
     username: string;
-    profile: { displayName: string } | null;
+    profile: { 
+      displayName: string;
+      avatarUrl: string | null;
+    } | null;
   };
 };
 
@@ -88,40 +91,55 @@ export function IncomingRequestCards({ requests }: { requests: IncomingRequest[]
 
       {visibleRequests.map((request) => {
         const displayName = request.fromUser.profile?.displayName ?? request.fromUser.username;
+        const avatarUrl = request.fromUser.profile?.avatarUrl;
+        const fullAvatarUrl = avatarUrl 
+          ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
+          : null;
 
         return (
           <article
-            className="card-clean border-primary/20 bg-primary/5 p-4"
+            className="card-premium border-primary/20 bg-primary/5 p-4"
             key={request.id}
           >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Новый запрос</p>
-                <h3 className="truncate font-semibold">{displayName}</h3>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                  {fullAvatarUrl ? (
+                    <img src={fullAvatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-black text-primary">{displayName[0]?.toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70">Новый запрос</p>
+                  <h3 className="truncate font-black tracking-tight text-foreground">{displayName}</h3>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button
-                  className="h-8 rounded-lg bg-primary px-3 text-xs font-bold text-neutral-950 transition active:scale-95 disabled:opacity-50"
+                  className="h-10 rounded-xl bg-primary px-4 text-xs font-black text-neutral-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-primary/20"
                   disabled={pendingAction !== ""}
                   onClick={() => acceptRequest(request.id)}
                   type="button"
                 >
-                  {pendingAction === `accept-${request.id}` ? "..." : "Принять"}
+                  {pendingAction === `accept-${request.id}` ? "..." : "ПРИНЯТЬ"}
                 </button>
                 <button
-                  className="h-8 rounded-lg bg-surface border border-border-subtle px-3 text-xs font-bold transition active:scale-95 disabled:opacity-50"
+                  className="h-10 rounded-xl bg-surface/50 border border-border-subtle px-4 text-xs font-black text-muted transition active:scale-95 disabled:opacity-50 hover:bg-surface"
                   disabled={pendingAction !== ""}
                   onClick={() => declineRequest(request.id)}
                   type="button"
                 >
-                  {pendingAction === `decline-${request.id}` ? "..." : "Пропустить"}
+                  {pendingAction === `decline-${request.id}` ? "..." : "ПРОПУСТИТЬ"}
                 </button>
               </div>
             </div>
             {request.message && (
-              <p className="mt-3 text-sm text-muted line-clamp-2">
-                &ldquo;{request.message}&rdquo;
-              </p>
+              <div className="mt-4 rounded-xl bg-background/50 p-3 border border-border-subtle/30">
+                <p className="text-sm text-muted-foreground leading-relaxed italic">
+                  &ldquo;{request.message}&rdquo;
+                </p>
+              </div>
             )}
           </article>
         );

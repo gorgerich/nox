@@ -5,13 +5,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 export function VoicePlayer({ 
   src, 
   duration, 
-  themeColor = "var(--voice-control)",
   isMine = false,
   cornerRadius = "round"
 }: { 
   src: string; 
   duration?: number;
-  themeColor?: string;
   isMine?: boolean;
   cornerRadius?: "soft" | "round";
 }) {
