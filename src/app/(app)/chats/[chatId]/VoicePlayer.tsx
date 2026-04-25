@@ -6,12 +6,14 @@ export function VoicePlayer({
   src, 
   duration, 
   themeColor = "var(--voice-control)",
-  isMine = false
+  isMine = false,
+  cornerRadius = "round"
 }: { 
   src: string; 
   duration?: number;
   themeColor?: string;
   isMine?: boolean;
+  cornerRadius?: "soft" | "round";
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -83,15 +85,16 @@ export function VoicePlayer({
   const waveColor = isMine ? "rgba(255,255,255,0.4)" : "var(--voice-wave)";
   const activeWaveColor = isMine ? "#ffffff" : "var(--voice-control)";
   const bgControl = isMine ? "rgba(255,255,255,0.2)" : "var(--voice-surface)";
+  const radiusClass = cornerRadius === "round" ? "rounded-2xl" : "rounded-xl";
 
   return (
-    <div className="flex items-center gap-3 py-1.5 min-w-[200px] transition-smooth">
+    <div className={`flex items-center gap-3 py-1.5 min-w-[200px] transition-smooth ${radiusClass}`}>
       <audio ref={audioRef} src={src} preload="metadata" />
       
       <button
         onClick={togglePlay}
         disabled={error}
-        className="touch-target h-11 w-11 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm"
+        className={`touch-target h-11 w-11 flex shrink-0 items-center justify-center transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm ${radiusClass}`}
         style={{ backgroundColor: bgControl, color: isMine ? '#ffffff' : 'var(--voice-control)' }}
       >
         {error ? (

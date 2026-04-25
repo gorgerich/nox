@@ -33,7 +33,7 @@
   --ring: rgba(16, 185, 129, 0.2);
   --shadow-color: rgba(0, 0, 0, 0.05);
 
-  /* Chat Specific Light */
+  /* Chat Specific Defaults (will be overridden by inline styles from settings) */
   --chat-background: #fdfdfd;
   --chat-header: rgba(255, 255, 255, 0.8);
   --chat-composer: rgba(255, 255, 255, 0.8);
@@ -101,7 +101,7 @@
   --ring: rgba(16, 185, 129, 0.3);
   --shadow-color: rgba(0, 0, 0, 0.4);
 
-  /* Chat Specific Dark */
+  /* Chat Specific Dark Defaults */
   --chat-background: #0b0c0d;
   --chat-header: rgba(11, 12, 13, 0.7);
   --chat-composer: rgba(11, 12, 13, 0.7);
@@ -144,6 +144,7 @@
   --color-success: var(--success);
   --color-input: var(--input);
   --color-input-foreground: var(--input-foreground);
+  --color-icon-muted: var(--icon-muted);
   
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
@@ -214,9 +215,16 @@ body {
     background-color: var(--chat-background);
   }
   
-  .safe-top { padding-top: env(safe-area-inset-top); }
-  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-  .safe-px { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .safe-top { 
+    padding-top: max(20px, calc(env(safe-area-inset-top) + 16px)); 
+  }
+  .safe-bottom { 
+    padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px)); 
+  }
+  .safe-px { 
+    padding-left: max(16px, env(safe-area-inset-left)); 
+    padding-right: max(16px, env(safe-area-inset-right)); 
+  }
 }
 
 /* Custom Scrollbar */

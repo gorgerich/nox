@@ -14,7 +14,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePreference>("system");
+  const [theme, setThemeState] = useState<ThemePreference>(() => {
+    if (typeof window === "undefined") return "system";
+    return (localStorage.getItem("nox:theme") as ThemePreference) || "system";
+  });
+  
   const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>("dark");
 
   const applyTheme = useCallback((pref: ThemePreference) => {
@@ -39,13 +43,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("nox:theme") as ThemePreference | null;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-      applyTheme(savedTheme);
-    } else {
-      applyTheme("system");
-    }
+    applyTheme(theme);
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
@@ -57,7 +55,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [applyTheme]);
+  }, [applyTheme, theme]);
 
   const setTheme = (newTheme: ThemePreference) => {
     setThemeState(newTheme);

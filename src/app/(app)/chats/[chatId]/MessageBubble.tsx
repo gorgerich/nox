@@ -191,6 +191,7 @@ export function MessageBubble({
                       src={downloadUrl} 
                       themeColor={mine ? "var(--bubble-outgoing-text)" : "var(--voice-control)"}
                       isMine={mine}
+                      cornerRadius={settings.bubbleRadius}
                     />
                   ) : isImage ? (
                     <div 
@@ -220,7 +221,7 @@ export function MessageBubble({
                     </div>
                   ) : (
                     <div 
-                      className="flex items-center gap-3 rounded-xl bg-black/10 p-4 border border-black/5 backdrop-blur-md transition-smooth active:bg-black/20 cursor-pointer"
+                      className="flex items-center gap-3 rounded-xl bg-black/10 p-4 border border-black/5 backdrop-blur-md transition-smooth active:bg-black/40 cursor-pointer"
                       onClick={() => {
                         const link = document.createElement("a");
                         link.href = downloadUrl;
@@ -287,7 +288,7 @@ export function MessageBubble({
             <button
               key={emoji}
               onClick={() => onReaction(message.id, emoji)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-muted border border-border-subtle text-xs font-black text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-90 shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border-subtle text-xs font-black text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-90 shadow-sm"
             >
               <span>{emoji}</span>
               <span className="text-[10px]">{info.count}</span>

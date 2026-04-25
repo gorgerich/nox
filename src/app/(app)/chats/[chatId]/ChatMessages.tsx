@@ -5,7 +5,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
-import { useChatAppearance, ChatAppearanceSheet, PRESETS } from "./ChatAppearance";
+import { useChatAppearance, ChatAppearanceSheet } from "./ChatAppearance";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
@@ -37,6 +37,16 @@ function normalizeMessage(message: unknown): Message | null {
 }
 
 const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "👎"];
+
+// Mapping for theme presets to real CSS values
+const THEME_MAP = {
+  midnight: { bg: "#000000", header: "rgba(0,0,0,0.6)", composer: "rgba(0,0,0,0.6)", border: "#1a1a1a", incoming: "#171717", text: "#ffffff" },
+  graphite: { bg: "#1a1b1e", header: "rgba(26,27,30,0.7)", composer: "rgba(26,27,30,0.7)", border: "#2c2e33", incoming: "#2c2e33", text: "#ffffff" },
+  ocean: { bg: "#0f172a", header: "rgba(15,23,42,0.7)", composer: "rgba(15,23,42,0.7)", border: "#1e293b", incoming: "rgba(30,41,59,0.5)", text: "#f8fafc" },
+  ice: { bg: "#f1f3f5", header: "rgba(241,243,245,0.8)", composer: "rgba(241,243,245,0.8)", border: "#dee2e6", incoming: "#ffffff", text: "#1a1c1e" },
+  emerald: { bg: "#064e3b", header: "rgba(6,78,59,0.7)", composer: "rgba(6,78,59,0.7)", border: "#065f46", incoming: "rgba(6,95,70,0.5)", text: "#ecfdf5" },
+  milk: { bg: "#fdfdfd", header: "rgba(253,253,253,0.8)", composer: "rgba(253,253,253,0.8)", border: "#f1f3f5", incoming: "#f1f3f5", text: "#1a1c1e" },
+};
 
 export function ChatMessages({
   chatId,
@@ -108,19 +118,15 @@ export function ChatMessages({
     messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
   }, []);
 
-  // Force scroll bottom helper
   const forceScrollBottom = useCallback(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, []);
 
-  // Initial scroll and chatId reset
   useEffect(() => {
     didInitialScrollRef.current = false;
     markAsRead();
-    
-    // Perform multiple scroll attempts for stability
     forceScrollBottom();
     const frame = requestAnimationFrame(forceScrollBottom);
     const t = setTimeout(() => {
@@ -134,66 +140,48 @@ export function ChatMessages({
     };
   }, [chatId, markAsRead, forceScrollBottom]);
 
-  // Handle new messages and auto-scroll
   useEffect(() => {
     if (!didInitialScrollRef.current) return;
-
     const container = scrollContainerRef.current;
     if (container) {
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
       const lastMsg = messages[messages.length - 1];
       const isMyMsg = lastMsg?.senderUserId === currentUserId;
-
       if (isNearBottom || isMyMsg) {
-        // Use auto for heavy media to prevent jump lag, smooth for text
         scrollToBottom("smooth");
       }
     }
   }, [messages, currentUserId, scrollToBottom]);
 
-  // Socket Logic
   useEffect(() => {
     if (!socket) return;
-
     function handleNewMessage(payload: { chatId: string; message: unknown }) {
       if (payload.chatId !== chatId) return;
       const normalized = normalizeMessage(payload.message);
       if (!normalized) return;
-
       setMessages((current) => {
         if (current.some((m) => m.id === normalized.id)) return current;
         return [...current, normalized];
       });
-
       if (normalized.senderUserId !== currentUserId) {
         markAsRead();
         socket.emit("message:delivered", { messageId: normalized.id });
       }
     }
-
     function handleDeletedMessage(payload: { chatId: string; messageId: string }) {
       if (payload.chatId !== chatId) return;
-      setMessages((current) =>
-        current.map((m) =>
-          m.id === payload.messageId ? { ...m, deletedAt: new Date().toISOString() } : m
-        )
-      );
+      setMessages((current) => current.map((m) => m.id === payload.messageId ? { ...m, deletedAt: new Date().toISOString() } : m));
     }
-
     function handleUpdatedMessage(payload: { chatId: string; message: unknown }) {
       if (payload.chatId !== chatId) return;
       const normalized = normalizeMessage(payload.message);
       if (!normalized) return;
       setMessages((current) => current.map((m) => (m.id === normalized.id ? normalized : m)));
     }
-
     function handleReactionsUpdated(payload: { chatId: string; messageId: string; reactions: Message["reactions"] }) {
       if (payload.chatId !== chatId) return;
-      setMessages((current) =>
-        current.map((m) => (m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m))
-      );
+      setMessages((current) => current.map((m) => (m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m)));
     }
-
     function handleReceiptUpdated(payload: { messageId: string; userId: string; deliveredAt: string; readAt: string }) {
       setMessages((current) => current.map((m) => {
         if (m.id !== payload.messageId) return m;
@@ -208,7 +196,6 @@ export function ChatMessages({
         return { ...m, receipts: newReceipts };
       }));
     }
-
     function handleReceiptsUpdated(payload: { chatId: string; userId: string; deliveredAt: string; readAt: string }) {
       if (payload.chatId !== chatId) return;
       setMessages((current) => current.map((m) => {
@@ -224,7 +211,6 @@ export function ChatMessages({
         return { ...m, receipts: newReceipts };
       }));
     }
-
     function handleTypingUpdate(payload: { chatId: string; userId: string; displayName: string; isTyping: boolean }) {
       if (payload.chatId !== chatId || payload.userId === currentUserId) return;
       setTypingUsers((current) => {
@@ -246,7 +232,6 @@ export function ChatMessages({
         return next;
       });
     }
-
     socket.emit("chat:join", chatId);
     socket.on("message:new", handleNewMessage);
     socket.on("message:deleted", handleDeletedMessage);
@@ -255,7 +240,6 @@ export function ChatMessages({
     socket.on("message:receipt-updated", handleReceiptUpdated);
     socket.on("message:receipts-updated", handleReceiptsUpdated);
     socket.on("typing:update", handleTypingUpdate);
-
     return () => {
       socket.emit("chat:leave", chatId);
       socket.off("message:new", handleNewMessage);
@@ -276,9 +260,7 @@ export function ChatMessages({
         body: JSON.stringify({ emoji }),
       });
       setMenuMessageId(null);
-    } catch {
-      // silenced
-    }
+    } catch { /* ignored */ }
   };
 
   const handleSend = async (body: string) => {
@@ -295,20 +277,12 @@ export function ChatMessages({
       if (!response.ok) throw new Error("Ошибка");
       const data = await response.json();
       const normalized = normalizeMessage(data.message);
-      
       if (normalized) {
-        setMessages(curr => {
-          if (curr.some(m => m.id === normalized.id)) return curr;
-          return [...curr, normalized];
-        });
+        setMessages(curr => curr.some(m => m.id === normalized.id) ? curr : [...curr, normalized]);
       }
       setEditingMessage(null);
       setReplyingToMessage(null);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setPending(false);
-    }
+    } catch (e) { console.error(e); } finally { setPending(false); }
   };
 
   const handleTyping = (text: string) => {
@@ -339,16 +313,9 @@ export function ChatMessages({
       const data = await response.json();
       const normalized = normalizeMessage(data.message);
       if (normalized) {
-        setMessages(curr => {
-          if (curr.some(m => m.id === normalized.id)) return curr;
-          return [...curr, normalized];
-        });
+        setMessages(curr => curr.some(m => m.id === normalized.id) ? curr : [...curr, normalized]);
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setUploading(false);
-    }
+    } catch (e) { console.error(e); } finally { setUploading(false); }
   };
 
   const startRecording = async () => {
@@ -356,14 +323,8 @@ export function ChatMessages({
       isRecordingCancelledRef.current = false;
       if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      const mimeTypes = [
-        "audio/mp4",
-        "audio/webm;codecs=opus",
-        "audio/webm",
-      ];
+      const mimeTypes = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"];
       const selectedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || "";
-
       const recorder = new MediaRecorder(stream, selectedMimeType ? { mimeType: selectedMimeType } : undefined);
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
@@ -383,9 +344,7 @@ export function ChatMessages({
       setIsRecording(true);
       setRecordingDuration(0);
       recordingTimerRef.current = setInterval(() => setRecordingDuration(p => p + 1), 1000);
-    } catch (err) {
-      console.error("Mic access denied", err);
-    }
+    } catch (err) { console.error("Mic access denied", err); }
   };
 
   const stopRecording = () => {
@@ -408,31 +367,17 @@ export function ChatMessages({
     return "групповой чат";
   };
 
-  // Grouping logic for clean UI
   const groupedMessages = useMemo(() => {
     const result: GroupedItem[] = [];
     messages.forEach((msg, idx) => {
       const prev = messages[idx - 1];
       const next = messages[idx + 1];
-      
       const date = new Date(msg.createdAt).toDateString();
       const prevDate = prev ? new Date(prev.createdAt).toDateString() : null;
-      
-      if (date !== prevDate) {
-        result.push({ type: "date", date: new Date(msg.createdAt) });
-      }
-
+      if (date !== prevDate) result.push({ type: "date", date: new Date(msg.createdAt) });
       const isGroupStart = !prev || prev.senderUserId !== msg.senderUserId || (new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() > 300000);
       const isGroupEnd = !next || next.senderUserId !== msg.senderUserId || (new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime() > 300000);
-
-      result.push({
-        type: "message",
-        message: msg,
-        mine: msg.senderUserId === currentUserId,
-        isGroupStart,
-        isGroupEnd,
-        showDisplayName: isGroupStart && chatInfo.type === "GROUP",
-      });
+      result.push({ type: "message", message: msg, mine: msg.senderUserId === currentUserId, isGroupStart, isGroupEnd, showDisplayName: isGroupStart && chatInfo.type === "GROUP" });
     });
     return result;
   }, [messages, currentUserId, chatInfo.type]);
@@ -446,10 +391,21 @@ export function ChatMessages({
     return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
   };
 
-  const preset = PRESETS[settings.preset] || PRESETS.midnight;
+  const themeVars = THEME_MAP[settings.preset] || THEME_MAP.midnight;
 
   return (
-    <div className={`chat-screen transition-colors duration-500 ${preset.bg}`}>
+    <div 
+      className="chat-screen transition-all duration-500" 
+      style={{ 
+        backgroundColor: themeVars.bg,
+        "--chat-header": themeVars.header,
+        "--chat-composer": themeVars.composer,
+        "--chat-composer-border": themeVars.border,
+        "--chat-input-bg": themeVars.border, // reuse border color for subtle input bg
+        "--bubble-incoming": themeVars.incoming,
+        "--bubble-incoming-text": themeVars.text,
+      } as React.CSSProperties}
+    >
       <ChatHeader
         chatId={chatId}
         chatType={chatInfo.type}
@@ -538,63 +494,34 @@ export function ChatMessages({
           >
              <div className="flex justify-around p-3 border-b border-white/5 mb-2 overflow-x-auto scrollbar-hide">
                 {ALLOWED_REACTIONS.map(emoji => (
-                  <button 
-                    key={emoji} 
-                    className="touch-target text-2xl hover:scale-125 active:scale-95 transition-smooth" 
-                    onClick={() => toggleReaction(menuMessageId, emoji)}
-                  >
+                  <button key={emoji} className="touch-target text-2xl hover:scale-125 active:scale-95 transition-smooth" onClick={() => toggleReaction(menuMessageId, emoji)}>
                     {emoji}
                   </button>
                 ))}
              </div>
              <div className="space-y-1">
-               <button 
-                className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth"
-                onClick={() => {
-                  const m = messages.find(msg => msg.id === menuMessageId);
-                  if (m) setReplyingToMessage(m);
-                  setMenuMessageId(null);
-                }}
-               >
+               <button className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth" onClick={() => { const m = messages.find(msg => msg.id === menuMessageId); if (m) setReplyingToMessage(m); setMenuMessageId(null); }}>
                   <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
                   Ответить
                </button>
                {messages.find(msg => msg.id === menuMessageId)?.senderUserId === currentUserId && (
-                 <button 
-                  className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth"
-                  onClick={() => {
-                    const m = messages.find(msg => msg.id === menuMessageId);
-                    if (m) setEditingMessage(m);
-                    setMenuMessageId(null);
-                  }}
-                 >
+                 <button className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth" onClick={() => { const m = messages.find(msg => msg.id === menuMessageId); if (m) setEditingMessage(m); setMenuMessageId(null); }}>
                     <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                     Изменить
                  </button>
                )}
-               <button 
-                className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-red-500/10 text-red-500 active:scale-[0.98] transition-smooth"
-                onClick={() => {
-                  if (confirm("Удалить сообщение?")) {
-                    fetch(`/api/messages/${menuMessageId}`, { method: "DELETE" });
-                  }
-                  setMenuMessageId(null);
-                }}
-               >
+               <button className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-red-500/10 text-red-500 active:scale-[0.98] transition-smooth" onClick={() => { if (confirm("Удалить сообщение?")) { fetch(`/api/messages/${menuMessageId}`, { method: "DELETE" }); } setMenuMessageId(null); }}>
                   <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                   Удалить
                </button>
              </div>
-             <button 
-              className="mt-2 flex w-full items-center justify-center px-6 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest text-muted hover:text-white transition-smooth active:scale-95"
-              onClick={() => setMenuMessageId(null)}
-             >
+             <button className="mt-2 flex w-full items-center justify-center px-6 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest text-muted hover:text-white transition-smooth active:scale-95" onClick={() => setMenuMessageId(null)}>
                 Отмена
              </button>
           </div>
