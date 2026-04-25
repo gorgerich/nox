@@ -346,7 +346,7 @@ export function ChatMessages({
   const preset = PRESETS[settings.preset] || PRESETS.midnight;
 
   return (
-    <div className={`flex flex-1 flex-col h-full w-full overflow-hidden transition-colors duration-500 ${preset.bg}`}>
+    <div className={`chat-screen transition-colors duration-500 ${preset.bg}`}>
       <ChatHeader
         title={chatInfo.otherMember?.displayName || chatInfo.title || "Чат"}
         subtitle={getStatusSubtitle()}
@@ -355,33 +355,34 @@ export function ChatMessages({
         isConnected={connected}
       />
 
-      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto py-4 scrollbar-hide">
+      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto px-1 py-4 scrollbar-hide overscroll-contain">
         <div className="mx-auto max-w-3xl">
           {groupedMessages.map((item, idx) => {
             if (item.type === "date") {
               return (
-                <div key={`date-${idx}`} className="flex justify-center py-6">
-                  <span className="rounded-full bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/40 backdrop-blur-md">
+                <div key={`date-${idx}`} className="flex justify-center py-6 animate-in fade-in zoom-in-95 duration-300">
+                  <span className="rounded-full bg-white/5 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white/40 backdrop-blur-md border border-white/5 shadow-sm">
                     {formatDateLabel(item.date)}
                   </span>
                 </div>
               );
             }
             return (
-              <MessageBubble
-                key={item.message.id}
-                message={item.message}
-                mine={item.mine}
-                settings={settings}
-                onLongPress={setMenuMessageId}
-                onReaction={toggleReaction}
-                isGroupStart={item.isGroupStart}
-                isGroupEnd={item.isGroupEnd}
-                showDisplayName={item.showDisplayName}
-              />
+              <div key={item.message.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <MessageBubble
+                  message={item.message}
+                  mine={item.mine}
+                  settings={settings}
+                  onLongPress={setMenuMessageId}
+                  onReaction={toggleReaction}
+                  isGroupStart={item.isGroupStart}
+                  isGroupEnd={item.isGroupEnd}
+                  showDisplayName={item.showDisplayName}
+                />
+              </div>
             );
           })}
-          <div ref={messagesEndRef} className="h-px" />
+          <div ref={messagesEndRef} className="h-4" />
         </div>
       </div>
 
@@ -410,59 +411,73 @@ export function ChatMessages({
         onReset={resetSettings}
       />
 
-      {/* Message Context Menu */}
+      {/* Message Context Menu Overlay */}
       {menuMessageId && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-[2px] p-4 lg:items-center"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm p-4 safe-bottom animate-in fade-in duration-200"
           onClick={() => setMenuMessageId(null)}
         >
-          <div className="w-full max-w-sm rounded-[32px] bg-neutral-950 p-2 shadow-2xl animate-in slide-in-from-bottom-4" onClick={e => e.stopPropagation()}>
-             <div className="flex justify-around p-2 border-b border-white/5 mb-2">
+          <div 
+            className="w-full max-w-sm rounded-[32px] bg-neutral-900 p-2 shadow-2xl animate-in slide-in-from-bottom-4 duration-300" 
+            onClick={e => e.stopPropagation()}
+          >
+             <div className="flex justify-around p-3 border-b border-white/5 mb-2 overflow-x-auto scrollbar-hide">
                 {ALLOWED_REACTIONS.map(emoji => (
                   <button 
                     key={emoji} 
-                    className="p-3 text-2xl hover:scale-125 transition-transform" 
+                    className="touch-target text-2xl hover:scale-125 active:scale-95 transition-smooth" 
                     onClick={() => toggleReaction(menuMessageId, emoji)}
                   >
                     {emoji}
                   </button>
                 ))}
              </div>
-             <button 
-              className="flex w-full items-center gap-3 px-4 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white"
-              onClick={() => {
-                const m = messages.find(msg => msg.id === menuMessageId);
-                if (m) setReplyingToMessage(m);
-                setMenuMessageId(null);
-              }}
-             >
-                Ответить
-             </button>
-             {messages.find(msg => msg.id === menuMessageId)?.senderUserId === currentUserId && (
+             <div className="space-y-1">
                <button 
-                className="flex w-full items-center gap-3 px-4 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white"
+                className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth"
                 onClick={() => {
                   const m = messages.find(msg => msg.id === menuMessageId);
-                  if (m) setEditingMessage(m);
+                  if (m) setReplyingToMessage(m);
                   setMenuMessageId(null);
                 }}
                >
-                  Изменить
+                  <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                  Ответить
                </button>
-             )}
+               {messages.find(msg => msg.id === menuMessageId)?.senderUserId === currentUserId && (
+                 <button 
+                  className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-white/5 text-white active:scale-[0.98] transition-smooth"
+                  onClick={() => {
+                    const m = messages.find(msg => msg.id === menuMessageId);
+                    if (m) setEditingMessage(m);
+                    setMenuMessageId(null);
+                  }}
+                 >
+                    <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Изменить
+                 </button>
+               )}
+               <button 
+                className="flex w-full items-center gap-3 px-6 py-4 rounded-2xl text-sm font-bold hover:bg-red-500/10 text-red-500 active:scale-[0.98] transition-smooth"
+                onClick={() => {
+                  if (confirm("Удалить сообщение?")) {
+                    fetch(`/api/messages/${menuMessageId}`, { method: "DELETE" });
+                  }
+                  setMenuMessageId(null);
+                }}
+               >
+                  <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Удалить
+               </button>
+             </div>
              <button 
-              className="flex w-full items-center gap-3 px-4 py-4 rounded-2xl text-sm font-bold hover:bg-red-500/10 text-red-500"
-              onClick={() => {
-                if (confirm("Удалить сообщение?")) {
-                  fetch(`/api/messages/${menuMessageId}`, { method: "DELETE" });
-                }
-                setMenuMessageId(null);
-              }}
-             >
-                Удалить
-             </button>
-             <button 
-              className="mt-1 flex w-full items-center justify-center px-4 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest text-muted hover:text-white transition-colors"
+              className="mt-2 flex w-full items-center justify-center px-6 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest text-muted hover:text-white transition-smooth active:scale-95"
               onClick={() => setMenuMessageId(null)}
              >
                 Отмена

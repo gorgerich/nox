@@ -42,30 +42,33 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-[100svh] flex-col items-center justify-center bg-background px-6">
-      <div className="w-full max-w-[360px]">
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold tracking-tighter text-foreground">{"\u0412\u0445\u043e\u0434"}</h1>
-          <p className="mt-2 text-sm text-muted">{"\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043f\u0440\u0438\u0432\u0430\u0442\u043d\u044b\u0439 \u043b\u043e\u0433\u0438\u043d."}</p>
+    <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
+      <div className="w-full max-w-[360px] animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="mb-12 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary/10 text-primary shadow-2xl shadow-primary/5 border border-primary/20">
+            <span className="text-3xl font-black">N</span>
+          </div>
+          <h1 className="text-4xl font-black tracking-tight text-foreground">Вход</h1>
+          <p className="mt-3 text-base text-muted font-medium">Введите ваши учетные данные Nox.</p>
         </div>
 
-        <form className="space-y-4" id="login-form" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="space-y-6" id="login-form" onSubmit={handleSubmit}>
+          <div className="space-y-3">
             <input
-              className="input-nox"
+              className="input-nox h-14"
               name="login"
               type="text"
-              placeholder={"\u041b\u043e\u0433\u0438\u043d"}
+              placeholder="Логин"
               autoComplete="username"
               required
               value={login}
               onChange={(e) => setLogin(e.target.value)}
             />
             <input
-              className="input-nox"
+              className="input-nox h-14"
               name="password"
               type="password"
-              placeholder={"\u041f\u0430\u0440\u043e\u043b\u044c"}
+              placeholder="Пароль"
               autoComplete="current-password"
               required
               value={password}
@@ -73,18 +76,24 @@ export default function LoginPage() {
             />
           </div>
 
-          <p className="text-center text-xs text-red-400" id="login-error">
-            {error}
-          </p>
+          {error && (
+            <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95" id="login-error">
+              {error}
+            </p>
+          )}
 
-          <button className="btn-primary w-full" disabled={pending} type="submit">
-            {pending ? "..." : "\u0412\u043e\u0439\u0442\u0438"}
+          <button 
+            className="btn-nox w-full bg-primary h-14 rounded-[1.25rem] text-sm font-black text-neutral-950 shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-30" 
+            disabled={pending} 
+            type="submit"
+          >
+            {pending ? "ПОДОЖДИТЕ..." : "ВОЙТИ В NOX"}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
-          <Link className="text-sm font-medium text-muted transition hover:text-primary" href="/join">
-            {"\u041f\u0440\u0438\u0441\u043e\u0435\u0434\u0438\u043d\u0438\u0442\u044c\u0441\u044f \u043f\u043e \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u044e"}
+        <div className="mt-10 text-center">
+          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95" href="/join">
+            Присоединиться по приглашению
           </Link>
         </div>
       </div>

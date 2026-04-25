@@ -45,6 +45,8 @@ body {
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
   overflow-x: hidden;
+  /* Prevent zoom on double tap on some devices */
+  touch-action: manipulation;
 }
 
 /* Custom Utilities */
@@ -58,16 +60,50 @@ body {
   }
   
   .input-nox {
-    @apply w-full bg-surface border border-border-subtle rounded-2xl px-5 py-4 text-sm transition-all focus:border-primary/50 outline-none;
+    @apply w-full bg-surface border border-border-subtle rounded-2xl px-5 py-4 text-sm transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none;
   }
   
   .btn-nox {
-    @apply flex items-center justify-center font-bold rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50;
+    @apply flex items-center justify-center font-bold rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .nav-blur {
     @apply sticky bottom-0 z-50 bg-background/80 backdrop-blur-2xl border-t border-border-subtle;
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Safe Area Utilities */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-px {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .app-screen {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-screen {
+    height: 100svh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .touch-target {
+    @apply flex items-center justify-center;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -118,4 +154,23 @@ body.hide-bottom-nav main {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.transition-smooth {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Focus States */
+:focus-visible {
+  @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
 }

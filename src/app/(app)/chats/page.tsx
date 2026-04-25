@@ -113,26 +113,28 @@ export default async function ChatsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl py-4 pb-24">
+    <div className="mx-auto max-w-2xl py-6 transition-smooth">
       <ChatsRealtimeListener />
       
       <div className="mb-6 flex items-center justify-between px-2">
-        <h1 className="text-2xl font-bold tracking-tight">Чаты</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Чаты</h1>
         <Link
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition active:scale-90"
+          className="touch-target h-11 w-11 flex items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20"
           href="/chats/new"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
         </Link>
       </div>
 
-      <ChatSearch />
+      <div className="mb-6 px-2">
+        <ChatSearch />
+      </div>
 
       {incomingRequests.length > 0 && (
-        <div className="mb-8">
-          <h2 className="px-2 text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Запросы</h2>
+        <div className="mb-8 animate-in slide-in-from-top-2 duration-500">
+          <h2 className="px-2 text-[10px] font-bold uppercase tracking-widest text-muted mb-4 opacity-80">Запросы на переписку</h2>
           <IncomingRequestCards
             requests={incomingRequests.map((request) => ({
               ...request,
@@ -143,21 +145,21 @@ export default async function ChatsPage() {
       )}
 
       {sortedChats.length === 0 ? (
-        <div className="mt-20 text-center animate-in fade-in duration-700">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-surface-hover/50">
-            <span className="text-3xl opacity-50">💬</span>
+        <div className="mt-24 text-center animate-in fade-in zoom-in-95 duration-700">
+          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-surface-hover/30 border border-border-subtle/50 shadow-inner">
+            <span className="text-4xl">💬</span>
           </div>
-          <h2 className="text-xl font-semibold">Начните общение</h2>
-          <p className="mt-2 text-sm text-muted">Ваш список чатов пока пуст.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground/90">Начните общение</h2>
+          <p className="mt-3 text-base text-muted max-w-[240px] mx-auto leading-relaxed">Здесь будут отображаться ваши диалоги с другими пользователями.</p>
           <Link
-            className="mt-8 inline-flex h-12 items-center rounded-2xl bg-primary px-8 text-sm font-bold text-neutral-950 transition active:scale-95"
+            className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-primary px-10 text-sm font-bold text-neutral-950 transition-smooth active:scale-95 shadow-lg shadow-primary/20"
             href="/chats/new"
           >
-            Найти первого собеседника
+            Найти собеседника
           </Link>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-0.5 animate-in fade-in duration-500">
           {sortedChats.map((chat) => {
             const otherMember = chat.members.find((member) => member.user.id !== user.id);
             const title = chat.type === "DIRECT"
@@ -171,24 +173,24 @@ export default async function ChatsPage() {
               <Link
                 key={chat.id}
                 href={`/chats/${chat.id}`}
-                className="group relative flex items-center gap-4 rounded-3xl p-3 transition-all hover:bg-surface active:scale-[0.98]"
+                className="group relative flex items-center gap-4 rounded-[2rem] p-4 transition-smooth hover:bg-surface-hover active:scale-[0.98] active:bg-surface-hover/70"
               >
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-hover text-xl font-bold text-primary transition-colors group-hover:bg-primary/5">
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-hover text-xl font-black text-primary transition-smooth group-hover:scale-105 group-hover:bg-primary/10 shadow-sm">
                   {title[0].toUpperCase()}
                 </div>
-                <div className="min-w-0 flex-1 border-b border-border-subtle/30 pb-3 group-last:border-none">
-                  <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <p className={`truncate font-bold ${chat.unreadCount > 0 ? "text-foreground" : "text-foreground/90"}`}>{title}</p>
-                    <span className="shrink-0 text-[10px] font-medium text-muted">
+                <div className="min-w-0 flex-1 border-b border-border-subtle/20 pb-4 group-last:border-none">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className={`truncate text-base font-bold tracking-tight ${chat.unreadCount > 0 ? "text-foreground" : "text-foreground/80"}`}>{title}</p>
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-tighter text-muted/60">
                       {formatChatTime(lastActivityTime)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`truncate text-sm ${chat.unreadCount > 0 ? "text-foreground/70 font-medium" : "text-muted"}`}>
+                    <p className={`truncate text-sm leading-snug ${chat.unreadCount > 0 ? "text-foreground/70 font-semibold" : "text-muted"}`}>
                       {preview}
                     </p>
                     {chat.unreadCount > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-neutral-950">
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black text-neutral-950 shadow-sm shadow-primary/30">
                         {chat.unreadCount}
                       </span>
                     )}

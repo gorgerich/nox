@@ -93,15 +93,15 @@ export function MessageBubble({
   }, {} as Record<string, { count: number; me: boolean }>);
 
   return (
-    <div className={`flex flex-col ${mine ? "items-end" : "items-start"} mb-1 px-4`}>
+    <div className={`flex flex-col ${mine ? "items-end" : "items-start"} mb-1.5 px-4 transition-smooth`}>
       {showDisplayName && !mine && (
-        <span className="mb-1 ml-3 text-[10px] font-bold uppercase tracking-tighter text-muted">
+        <span className="mb-1.5 ml-3 text-[10px] font-black uppercase tracking-widest text-muted/60">
           {message.sender.profile?.displayName ?? message.sender.username}
         </span>
       )}
 
       <div
-        className={`group relative max-w-[78%] px-4 py-2.5 transition-all select-none touch-none cursor-default message-shadow ${radiusClass} ${
+        className={`group relative max-w-[82%] px-4 py-3 transition-smooth select-none touch-none cursor-default message-shadow active:scale-[0.99] ${radiusClass} ${
           mine ? "text-white" : incomingClass
         }`}
         style={bubbleStyle}
@@ -109,50 +109,51 @@ export function MessageBubble({
       >
         {/* Reply Preview */}
         {message.replyToMessage && (
-          <div className={`mb-2 border-l-2 pl-2 py-0.5 text-xs opacity-80 ${mine ? "border-white/40" : "border-primary/50"}`}>
-            <p className="font-bold truncate">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
-            <p className="truncate line-clamp-1 italic">
+          <div className={`mb-2.5 border-l-2 pl-2.5 py-0.5 text-xs opacity-80 ${mine ? "border-white/40" : "border-primary/50"}`}>
+            <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
+            <p className="truncate line-clamp-1 italic opacity-70">
               {message.replyToMessage.deletedAt ? "Сообщение удалено" : (message.replyToMessage.body || "Вложение")}
             </p>
           </div>
         )}
 
         {message.deletedAt ? (
-          <p className="text-xs italic opacity-60">Сообщение удалено</p>
+          <p className="text-xs italic opacity-50 font-medium">Сообщение удалено</p>
         ) : (
           <>
-            {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.body}</p>}
+            {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed font-medium">{message.body}</p>}
             {message.attachments?.map((att) => (
-              <div key={att.id} className="mt-2 first:mt-0">
+              <div key={att.id} className="mt-2.5 first:mt-0 overflow-hidden rounded-xl">
                 {message.type === "VOICE" ? (
                   <VoicePlayer src={`/api/attachments/${att.id}/download`} />
                 ) : att.mimeType?.startsWith("image/") ? (
-                  <div className="relative overflow-hidden rounded-lg">
+                  <div className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={`/api/attachments/${att.id}/download`} 
                       alt="" 
-                      className="max-h-80 w-full object-cover transition-transform hover:scale-105" 
+                      className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
+                      loading="lazy"
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 rounded-xl bg-black/20 p-3 border border-white/5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10">
-                      <svg className="h-5 w-5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex items-center gap-3 rounded-2xl bg-black/30 p-4 border border-white/5 backdrop-blur-md transition-smooth active:bg-black/40">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold">{att.fileName}</p>
-                      <p className="text-[10px] font-medium opacity-60 uppercase tracking-tighter">
+                      <p className="truncate text-xs font-bold tracking-tight">{att.fileName}</p>
+                      <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mt-0.5">
                         {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
                       </p>
                     </div>
                     <a 
                       href={`/api/attachments/${att.id}/download`} 
-                      className="text-xs font-bold text-white hover:underline"
+                      className="touch-target text-xs font-black text-white hover:underline uppercase tracking-widest bg-white/10 px-3 py-2 rounded-lg"
                     >
-                      Скачать
+                      OK
                     </a>
                   </div>
                 )}
@@ -161,12 +162,12 @@ export function MessageBubble({
           </>
         )}
 
-        <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-          <span className={`text-[9px] font-bold ${mine ? "text-white/60" : "text-muted"}`}>
+        <div className={`mt-1.5 flex items-center gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+          <span className={`text-[9px] font-black uppercase tracking-tighter opacity-60 ${mine ? "text-white" : "text-muted"}`}>
             {message.editedAt && "изм. "}{time}
           </span>
           {mine && !message.deletedAt && (
-            <svg className="h-3 w-3 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-3.5 w-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
           )}
@@ -175,15 +176,15 @@ export function MessageBubble({
 
       {/* Reactions Bar */}
       {Object.keys(groupedReactions).length > 0 && (
-        <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "mr-1" : "ml-1"}`}>
+        <div className={`mt-1.5 flex flex-wrap gap-1 ${mine ? "mr-1" : "ml-1"} animate-in fade-in zoom-in-95 duration-200`}>
           {Object.entries(groupedReactions).map(([emoji, info]) => (
             <button
               key={emoji}
               onClick={() => onReaction(message.id, emoji)}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-neutral-900 border border-white/10 text-[10px] font-bold text-white/60 transition-all hover:bg-neutral-800"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-900/80 border border-white/10 text-xs font-black text-white/70 transition-smooth hover:bg-neutral-800 active:scale-90 backdrop-blur-sm shadow-sm"
             >
               <span>{emoji}</span>
-              <span>{info.count}</span>
+              <span className="text-[10px]">{info.count}</span>
             </button>
           ))}
         </div>

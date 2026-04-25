@@ -61,10 +61,10 @@ export function ChatComposer({
   }
 
   return (
-    <div className="glass-composer px-4 py-3">
+    <div className="glass-composer safe-bottom px-4 py-3 transition-smooth border-t border-white/5">
       {/* Action Plate (Edit/Reply) */}
       {(replyingTo || editingTo) && (
-        <div className="mb-3 flex items-center justify-between rounded-2xl bg-white/5 p-3 border border-white/5 animate-in slide-in-from-bottom-2">
+        <div className="mb-3 flex items-center justify-between rounded-2xl bg-white/5 p-3 border border-white/5 animate-in slide-in-from-bottom-2 duration-200">
           <div className="min-w-0 flex items-center gap-3">
              <div className="h-8 w-1 bg-primary rounded-full shrink-0" />
              <div className="min-w-0">
@@ -76,8 +76,8 @@ export function ChatComposer({
                 </p>
              </div>
           </div>
-          <button onClick={onCancelAction} className="text-muted hover:text-white transition-colors p-1">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button onClick={onCancelAction} className="touch-target text-muted hover:text-white transition-smooth p-1 active:scale-90">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -87,15 +87,15 @@ export function ChatComposer({
       <div className="flex items-end gap-2">
         <div className="relative flex-1">
           {isRecording ? (
-            <div className="flex h-12 items-center justify-between rounded-2xl bg-red-500/10 px-4 border border-red-500/30 animate-pulse">
+            <div className="flex h-[48px] items-center justify-between rounded-2xl bg-red-500/10 px-4 border border-red-500/30 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
                 <span className="text-xs font-bold uppercase tracking-widest text-red-500">Запись {formatDuration(recordingDuration)}</span>
               </div>
-              <button onClick={onVoiceCancel} className="text-[10px] font-bold uppercase text-muted hover:text-red-400">Отмена</button>
+              <button onClick={onVoiceCancel} className="touch-target text-[10px] font-bold uppercase text-muted hover:text-red-400 active:scale-95 transition-smooth">Отмена</button>
             </div>
           ) : (
-            <div className="relative flex items-end bg-neutral-900/50 rounded-2xl border border-white/5 focus-within:border-primary/30 transition-all">
+            <div className="relative flex items-end bg-neutral-900/50 rounded-2xl border border-white/5 focus-within:border-primary/30 transition-smooth">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -110,7 +110,7 @@ export function ChatComposer({
               />
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-12 w-12 shrink-0 items-center justify-center text-muted hover:text-white transition-colors active:scale-90"
+                className="touch-target h-[48px] w-12 flex shrink-0 items-center justify-center text-muted hover:text-white transition-smooth active:scale-90"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -119,7 +119,7 @@ export function ChatComposer({
               
               <textarea
                 ref={inputRef}
-                className="w-full bg-transparent py-3.5 pr-4 text-sm outline-none resize-none max-h-32 min-h-[48px] placeholder:text-muted"
+                className="w-full bg-transparent py-3.5 pr-4 text-sm outline-none resize-none max-h-32 min-h-[48px] placeholder:text-muted transition-smooth"
                 placeholder="Сообщение..."
                 rows={1}
                 value={text}
@@ -143,7 +143,7 @@ export function ChatComposer({
         <button
           onClick={isRecording ? onVoiceStop : text.trim() ? handleSend : onVoiceStart}
           disabled={pending}
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all active:scale-90 ${
+          className={`touch-target h-[48px] w-12 flex shrink-0 items-center justify-center rounded-2xl transition-smooth active:scale-90 ${
             isRecording ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : text.trim() ? "bg-primary text-neutral-950" : "bg-neutral-900 text-white"
           }`}
         >

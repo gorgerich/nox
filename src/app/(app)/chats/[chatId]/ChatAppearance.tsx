@@ -110,48 +110,48 @@ export function ChatAppearanceSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm transition-smooth animate-in fade-in duration-300" onClick={onClose}>
       <div 
-        className="w-full max-w-lg rounded-t-[32px] bg-neutral-950 p-6 shadow-2xl animate-in slide-in-from-bottom-full duration-300 ease-out"
+        className="w-full max-w-lg rounded-t-[2.5rem] bg-neutral-950 p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-400 ease-out safe-bottom"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-neutral-800" />
+        <div className="mx-auto mb-8 h-1.5 w-12 rounded-full bg-neutral-800 active:bg-neutral-700 transition-smooth" onClick={onClose} />
         
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">Оформление</h2>
-          <button onClick={onReset} className="text-xs font-bold uppercase tracking-widest text-primary hover:opacity-80">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-black tracking-tight">Оформление</h2>
+          <button onClick={onReset} className="touch-target text-xs font-black uppercase tracking-widest text-primary hover:opacity-80 transition-smooth active:scale-90">
             Сброс
           </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto space-y-8 pb-8 pr-2 scrollbar-hide">
+        <div className="max-h-[60vh] overflow-y-auto space-y-10 pb-8 pr-2 scrollbar-hide overscroll-contain">
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Пресеты</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Пресеты</h3>
             <div className="grid grid-cols-3 gap-3">
               {(Object.keys(PRESETS) as Array<keyof typeof PRESETS>).map((id) => (
                 <button
                   key={id}
                   onClick={() => onUpdate({ preset: id, background: id })}
-                  className={`relative flex flex-col items-center gap-2 rounded-2xl border-2 p-3 transition-all ${
+                  className={`relative flex flex-col items-center gap-3 rounded-2xl border-2 p-3 transition-smooth active:scale-95 ${
                     settings.preset === id ? "border-primary bg-primary/5" : "border-neutral-800 hover:border-neutral-700"
                   }`}
                 >
-                  <div className={`h-8 w-full rounded-lg ${PRESETS[id].bg} border border-white/10`} />
-                  <span className="text-[10px] font-bold">{PRESETS[id].name}</span>
+                  <div className={`h-10 w-full rounded-xl ${PRESETS[id].bg} border border-white/10 shadow-sm`} />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">{PRESETS[id].name}</span>
                 </button>
               ))}
             </div>
           </section>
 
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Цвет ваших сообщений</h3>
-            <div className="flex flex-wrap gap-3">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Цвет ваших сообщений</h3>
+            <div className="flex flex-wrap gap-4 px-1">
               {["#10b981", "#3b82f6", "#8b5cf6", "#f43f5e", "#737373", "#f97316"].map((color) => (
                 <button
                   key={color}
                   onClick={() => onUpdate({ outgoingColor: color })}
-                  className={`h-10 w-10 rounded-full border-2 transition-all active:scale-90 ${
-                    settings.outgoingColor === color ? "border-white scale-110 shadow-lg" : "border-transparent"
+                  className={`h-11 w-11 rounded-full border-2 transition-smooth active:scale-75 ${
+                    settings.outgoingColor === color ? "border-white scale-110 shadow-lg shadow-white/10" : "border-transparent"
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -160,13 +160,13 @@ export function ChatAppearanceSheet({
           </section>
 
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Стиль входящих</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Стиль входящих</h3>
             <div className="grid grid-cols-3 gap-3">
               {(["solid", "glass", "minimal"] as const).map((style) => (
                 <button
                   key={style}
                   onClick={() => onUpdate({ incomingStyle: style })}
-                  className={`rounded-xl border-2 py-2 text-xs font-bold transition-all ${
+                  className={`touch-target h-12 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
                     settings.incomingStyle === style ? "border-primary bg-primary/5 text-primary" : "border-neutral-800 text-muted"
                   }`}
                 >
@@ -177,13 +177,13 @@ export function ChatAppearanceSheet({
           </section>
 
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Радиус углов</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted/60 mb-4 ml-1">Радиус углов</h3>
             <div className="grid grid-cols-2 gap-3">
               {(["soft", "round"] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => onUpdate({ bubbleRadius: r })}
-                  className={`rounded-xl border-2 py-2 text-xs font-bold transition-all ${
+                  className={`touch-target h-12 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
                     settings.bubbleRadius === r ? "border-primary bg-primary/5 text-primary" : "border-neutral-800 text-muted"
                   }`}
                 >
@@ -196,9 +196,9 @@ export function ChatAppearanceSheet({
 
         <button 
           onClick={onClose}
-          className="mt-4 w-full rounded-2xl bg-white py-4 text-sm font-bold text-black transition-all active:scale-[0.98]"
+          className="btn-nox mt-6 w-full bg-white h-14 rounded-[1.25rem] text-sm font-black text-black transition-smooth active:scale-[0.98] shadow-2xl shadow-white/5"
         >
-          Закрыть
+          ГОТОВО
         </button>
       </div>
     </div>

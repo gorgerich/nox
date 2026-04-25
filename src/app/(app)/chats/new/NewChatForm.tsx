@@ -170,56 +170,56 @@ export function NewChatForm() {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12 transition-smooth">
       <div className="space-y-4">
         <form className="flex gap-2" onSubmit={searchUser} method="POST">
           <input
-            className="input-nox h-12"
+            className="input-nox h-14"
             maxLength={32}
             onChange={(event) => setUsername(event.target.value)}
             placeholder="Username пользователя"
             value={username}
           />
           <button
-            className="btn-primary h-12 flex items-center justify-center shrink-0"
+            className="btn-nox h-14 px-6 bg-primary text-neutral-950 font-black shrink-0"
             disabled={pendingAction !== ""}
             type="submit"
           >
-            {pendingAction === "search" ? "..." : "Найти"}
+            {pendingAction === "search" ? "..." : "НАЙТИ"}
           </button>
         </form>
 
-        {error ? <p className="text-center text-xs text-red-400 py-2">{error}</p> : null}
-        {notice ? <p className="text-center text-xs text-primary py-2">{notice}</p> : null}
+        {error ? <p className="text-center text-xs font-black text-red-400 py-2 animate-in fade-in">{error}</p> : null}
+        {notice ? <p className="text-center text-xs font-black text-primary py-2 animate-in fade-in">{notice}</p> : null}
 
         {foundUser && (
-          <div className="card-clean animate-in fade-in slide-in-from-top-4 duration-300 p-6">
+          <div className="card-premium animate-in fade-in slide-in-from-top-4 duration-300 p-8 shadow-2xl shadow-primary/5">
             <div className="text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary/10 text-2xl font-black text-primary shadow-inner border border-primary/20">
                 {foundUser.displayName.slice(0, 1).toUpperCase()}
               </div>
-              <h2 className="text-xl font-bold">{foundUser.displayName}</h2>
-              <p className="text-sm text-muted">@{foundUser.username}</p>
+              <h2 className="text-2xl font-black tracking-tight">{foundUser.displayName}</h2>
+              <p className="text-sm font-medium text-muted/60">@{foundUser.username}</p>
             </div>
 
             {foundUser.isSelf ? (
-              <p className="mt-6 text-center text-xs text-red-400">Это вы.</p>
+              <p className="mt-8 text-center text-xs font-black text-red-400">ВЫ НЕ МОЖЕТЕ ПИСАТЬ САМОМУ СЕБЕ</p>
             ) : (
-              <div className="mt-6 space-y-4">
+              <div className="mt-8 space-y-6">
                 <textarea
-                  className="input-nox min-h-24 resize-none py-3"
+                  className="input-nox min-h-24 resize-none py-4 font-medium"
                   maxLength={500}
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Сообщение к запросу (необязательно)"
                   value={message}
                 />
                 <button
-                  className="btn-primary w-full"
+                  className="btn-nox w-full bg-primary h-14 text-sm font-black text-neutral-950 shadow-lg shadow-primary/20 transition-smooth active:scale-95"
                   disabled={pendingAction !== ""}
                   onClick={sendRequest}
                   type="button"
                 >
-                  {pendingAction === "send-request" ? "..." : "Отправить запрос"}
+                  {pendingAction === "send-request" ? "..." : "ОТПРАВИТЬ ЗАПРОС"}
                 </button>
               </div>
             )}
@@ -227,32 +227,32 @@ export function NewChatForm() {
         )}
       </div>
 
-      <div className="grid gap-8 sm:grid-cols-2">
-        <section className="space-y-4">
-          <h2 className="px-2 text-xs font-bold uppercase tracking-widest text-muted">Входящие</h2>
-          <div className="space-y-3">
+      <div className="grid gap-10 sm:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
+        <section className="space-y-6">
+          <h2 className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/50">Входящие запросы</h2>
+          <div className="space-y-4">
             {incoming.length === 0 ? (
-              <p className="px-2 text-sm text-muted italic">Нет запросов.</p>
+              <p className="px-2 text-sm text-muted/40 italic font-medium">Запросов пока нет</p>
             ) : (
               incoming.map((item) => (
                 <RequestCard key={item.id} request={item} user={item.fromUser}>
                   {item.status === "PENDING" && (
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-4 flex gap-3">
                       <button
-                        className="h-8 flex-1 rounded-lg bg-primary text-[10px] font-bold text-neutral-950 transition active:scale-95 disabled:opacity-50"
+                        className="btn-nox h-11 flex-1 rounded-xl bg-primary text-[10px] font-black text-neutral-950 transition-smooth active:scale-95 shadow-sm shadow-primary/20"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "accept")}
                         type="button"
                       >
-                        {pendingAction === `accept-${item.id}` ? "..." : "Принять"}
+                        {pendingAction === `accept-${item.id}` ? "..." : "ПРИНЯТЬ"}
                       </button>
                       <button
-                        className="h-8 flex-1 rounded-lg bg-surface-hover border border-border-subtle text-[10px] font-bold transition active:scale-95 disabled:opacity-50"
+                        className="btn-nox h-11 flex-1 rounded-xl bg-surface-hover border border-border-subtle text-[10px] font-black transition-smooth active:scale-95"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "decline")}
                         type="button"
                       >
-                        {pendingAction === `decline-${item.id}` ? "..." : "Отклонить"}
+                        {pendingAction === `decline-${item.id}` ? "..." : "ОТКЛОНИТЬ"}
                       </button>
                     </div>
                   )}
@@ -262,22 +262,22 @@ export function NewChatForm() {
           </div>
         </section>
 
-        <section className="space-y-4">
-          <h2 className="px-2 text-xs font-bold uppercase tracking-widest text-muted">Исходящие</h2>
-          <div className="space-y-3">
+        <section className="space-y-6">
+          <h2 className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/50">Ваши запросы</h2>
+          <div className="space-y-4">
             {outgoing.length === 0 ? (
-              <p className="px-2 text-sm text-muted italic">Нет запросов.</p>
+              <p className="px-2 text-sm text-muted/40 italic font-medium">Вы не отправляли запросов</p>
             ) : (
               outgoing.map((item) => (
                 <RequestCard key={item.id} request={item} user={item.toUser}>
                   {item.status === "PENDING" && (
                     <button
-                      className="mt-3 h-8 w-full rounded-lg bg-surface-hover border border-border-subtle text-[10px] font-bold transition active:scale-95 disabled:opacity-50"
+                      className="btn-nox mt-4 h-11 w-full rounded-xl bg-surface-hover border border-border-subtle text-[10px] font-black transition-smooth active:scale-95 text-red-400"
                       disabled={pendingAction !== ""}
                       onClick={() => respondToRequest(item.id, "cancel")}
                       type="button"
                     >
-                      {pendingAction === `cancel-${item.id}` ? "..." : "Отменить запрос"}
+                      {pendingAction === `cancel-${item.id}` ? "..." : "ОТМЕНИТЬ ЗАПРОС"}
                     </button>
                   )}
                 </RequestCard>
@@ -300,20 +300,22 @@ function RequestCard({
   user: RequestUser;
 }) {
   return (
-    <article className="card-clean p-4 transition-colors hover:border-primary/20">
-      <div className="flex items-center justify-between gap-2">
+    <article className="card-premium p-5 transition-smooth hover:border-primary/30 group">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold">{displayUser(user)}</h3>
-          <p className="truncate text-xs text-muted">@{user.username}</p>
+          <h3 className="truncate text-base font-black tracking-tight">{displayUser(user)}</h3>
+          <p className="truncate text-xs font-medium text-muted/60 tracking-wider">@{user.username}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${
-          request.status === "PENDING" ? "bg-primary/10 text-primary" : "bg-surface-hover text-muted"
+        <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${
+          request.status === "PENDING" ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-hover text-muted border border-border-subtle/50"
         }`}>
           {statusLabels[request.status]}
         </span>
       </div>
       {request.message && (
-        <p className="mt-2 text-xs text-muted line-clamp-2">&ldquo;{request.message}&rdquo;</p>
+        <div className="mt-4 rounded-xl bg-background/30 p-3 border border-border-subtle/20 italic">
+          <p className="text-xs text-muted/80 leading-relaxed">&ldquo;{request.message}&rdquo;</p>
+        </div>
       )}
       {children}
     </article>

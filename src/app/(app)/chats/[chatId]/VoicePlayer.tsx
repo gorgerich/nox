@@ -71,24 +71,24 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
   };
 
   return (
-    <div className="flex items-center gap-3 py-1 min-w-[180px]">
+    <div className="flex items-center gap-3 py-1.5 min-w-[200px] transition-smooth">
       <audio ref={audioRef} src={src} preload="metadata" />
       
       <button
         onClick={togglePlay}
         disabled={error}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-all active:scale-90 hover:bg-white/30 disabled:opacity-50"
+        className="touch-target h-11 w-11 flex shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-smooth active:scale-90 hover:bg-white/30 disabled:opacity-50 disabled:pointer-events-none"
       >
         {error ? (
-          <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : isPlaying ? (
-          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
             <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
           </svg>
         ) : (
-          <svg className="h-5 w-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="h-6 w-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
           </svg>
         )}
@@ -96,24 +96,24 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
 
       <div className="flex-1 min-w-0">
         {/* Simple simulated waveform bars */}
-        <div className="flex items-end gap-[2px] h-6 mb-1 opacity-40">
+        <div className="flex items-end gap-[2px] h-7 mb-1.5 opacity-40">
            {[30, 60, 40, 80, 50, 70, 40, 90, 60, 40, 70, 50, 80, 40, 60].map((h, i) => (
              <div 
                key={i} 
-               className={`w-[2px] rounded-full transition-colors ${progress > (i / 15) * 100 ? "bg-white" : "bg-white/30"}`}
+               className={`w-[3px] rounded-full transition-colors duration-300 ${progress > (i / 15) * 100 ? "bg-white" : "bg-white/30"}`}
                style={{ height: `${h}%` }}
              />
            ))}
         </div>
         
-        <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div 
             className="absolute left-0 top-0 h-full bg-white transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>
         
-        <div className="mt-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/60">
+        <div className="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/70">
           <span>{formatTime(currentTime)}</span>
           <span>{error ? "Ошибка" : isLoaded ? formatTime(totalDuration) : formatTime(totalDuration)}</span>
         </div>

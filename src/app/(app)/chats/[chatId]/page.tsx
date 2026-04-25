@@ -165,7 +165,7 @@ export default async function ChatPage({
   const otherMember = chat.members.find((member) => member.user.id !== user.id);
   
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="chat-screen bg-background transition-smooth overflow-hidden">
       <ChatMessages
         chatId={chat.id}
         currentRole={membership.role}

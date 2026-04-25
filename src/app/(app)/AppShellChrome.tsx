@@ -30,40 +30,40 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background pb-24 text-foreground lg:pb-0">
-      <header className="hidden lg:sticky lg:top-0 lg:z-40 lg:block lg:border-b lg:border-border-subtle lg:bg-background/80 lg:backdrop-blur-lg">
+    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
+      <header className="hidden lg:sticky lg:top-0 lg:z-40 lg:block lg:border-b lg:border-border-subtle lg:bg-background/80 lg:backdrop-blur-lg transition-smooth">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
-          <Link className="flex items-center gap-2 transition-opacity hover:opacity-80" href="/chats">
+          <Link className="flex items-center gap-2 transition-smooth hover:opacity-80 active:scale-[0.98]" href="/chats">
             <span className="text-2xl font-bold tracking-tighter text-primary">Nox</span>
           </Link>
 
           <nav className="flex items-center gap-6">
-            <Link className="text-sm font-medium text-muted transition hover:text-foreground" href="/chats">Чаты</Link>
-            <Link className="text-sm font-medium text-muted transition hover:text-foreground" href="/calls">Звонки</Link>
+            <Link className="text-sm font-medium text-muted transition-smooth hover:text-foreground active:scale-95" href="/chats">Чаты</Link>
+            <Link className="text-sm font-medium text-muted transition-smooth hover:text-foreground active:scale-95" href="/calls">Звонки</Link>
             {isAdmin && (
-              <Link className="text-sm font-medium text-muted transition hover:text-foreground" href="/admin">Админ</Link>
+              <Link className="text-sm font-medium text-muted transition-smooth hover:text-foreground active:scale-95" href="/admin">Админ</Link>
             )}
-            <Link className="text-sm font-medium text-muted transition hover:text-foreground" href="/profile">Профиль</Link>
+            <Link className="text-sm font-medium text-muted transition-smooth hover:text-foreground active:scale-95" href="/profile">Профиль</Link>
           </nav>
         </div>
       </header>
 
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg lg:hidden">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg lg:hidden safe-top transition-smooth border-b border-border-subtle/50">
         <div className="flex items-center justify-between px-6 py-4">
           <span className="text-xl font-bold tracking-tighter text-primary">Nox</span>
           <div className="flex items-center gap-4">
             {isAdmin && (
-              <Link className="text-xs font-bold uppercase tracking-widest text-muted" href="/admin">Админ</Link>
+              <Link className="text-xs font-bold uppercase tracking-widest text-muted active:scale-95 transition-smooth" href="/admin">Админ</Link>
             )}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 overflow-x-hidden px-4 lg:px-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 overflow-x-hidden safe-px pb-32 lg:pb-8 transition-smooth">
         {children}
       </main>
 
-      <nav className="nav-blur lg:hidden">
+      <nav className="nav-blur lg:hidden safe-bottom">
         <div className="grid grid-cols-3 items-center">
           <NavLink href="/chats" icon={<ChatIcon />} label="Чаты" count={incomingRequestCount} />
           <NavLink href="/calls" icon={<CallIcon />} label="Звонки" />
@@ -78,17 +78,17 @@ function NavLink({ href, icon, label, count }: { href: string; icon: React.React
   return (
     <Link
       href={href}
-      className="flex flex-col items-center justify-center gap-1 py-3 text-muted transition-colors hover:text-foreground"
+      className="flex flex-col items-center justify-center gap-1 py-3 text-muted transition-smooth hover:text-foreground active:scale-90"
     >
-      <div className="relative">
+      <div className="relative touch-target">
         {icon}
         {count && count > 0 ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-neutral-950">
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-neutral-950 ring-2 ring-background">
             {count > 9 ? "9+" : count}
           </span>
         ) : null}
       </div>
-      <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{label}</span>
     </Link>
   );
 }
