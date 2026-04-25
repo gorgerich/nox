@@ -91,6 +91,7 @@ export function ChatMessages({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const didInitialScrollRef = useRef(false);
 
   const markAsRead = useCallback(async () => {
     try {
@@ -101,19 +102,52 @@ export function ChatMessages({
   }, [chatId]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    if (!messagesEndRef.current) return;
+    messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
   }, []);
 
+  // Initial scroll and chatId reset
   useEffect(() => {
+    didInitialScrollRef.current = false;
     markAsRead();
-    scrollToBottom("auto");
-    const t = setTimeout(() => scrollToBottom("auto"), 100);
-    return () => clearTimeout(t);
-  }, [scrollToBottom, markAsRead]);
+    
+    // Mute scroll restoration if possible
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
 
+    const performInitialScroll = () => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        didInitialScrollRef.current = true;
+      }
+    };
+
+    // Use multiple triggers for initial scroll to ensure it works after hydration/render
+    performInitialScroll();
+    requestAnimationFrame(performInitialScroll);
+    const t = setTimeout(performInitialScroll, 100);
+
+    return () => {
+      clearTimeout(t);
+    };
+  }, [chatId, markAsRead]);
+
+  // Handle new messages and auto-scroll
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    if (!didInitialScrollRef.current) return;
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      const lastMsg = messages[messages.length - 1];
+      const isMyMsg = lastMsg?.senderUserId === currentUserId;
+
+      if (isNearBottom || isMyMsg) {
+        scrollToBottom("smooth");
+      }
+    }
+  }, [messages, currentUserId, scrollToBottom]);
 
   // Socket Logic
   useEffect(() => {
@@ -131,7 +165,6 @@ export function ChatMessages({
 
       if (normalized.senderUserId !== currentUserId) {
         markAsRead();
-        // Emit delivered receipt
         socket.emit("message:delivered", { messageId: normalized.id });
       }
     }
@@ -422,7 +455,11 @@ export function ChatMessages({
         isConnected={connected}
       />
 
-      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto px-1 py-4 scrollbar-hide overscroll-contain">
+      <div 
+        ref={scrollContainerRef} 
+        className="min-h-0 flex-1 overflow-y-auto px-1 py-4 scrollbar-hide overscroll-contain"
+        style={{ overflowAnchor: "none" }}
+      >
         <div className="mx-auto max-w-3xl">
           {groupedMessages.map((item, idx) => {
             if (item.type === "date") {
@@ -450,7 +487,7 @@ export function ChatMessages({
               </div>
             );
           })}
-          <div ref={messagesEndRef} className="h-4" />
+          <div ref={messagesEndRef} className="h-4" style={{ overflowAnchor: "auto" }} />
         </div>
       </div>
 
@@ -491,7 +528,7 @@ export function ChatMessages({
           onClick={() => setMenuMessageId(null)}
         >
           <div 
-            className="w-full max-w-sm rounded-[32px] bg-neutral-950 p-2 shadow-2xl animate-in slide-in-from-bottom-4 duration-300" 
+            className="w-full max-w-sm rounded-[32px] bg-neutral-900 p-2 shadow-2xl animate-in slide-in-from-bottom-4 duration-300" 
             onClick={e => e.stopPropagation()}
           >
              <div className="flex justify-around p-3 border-b border-white/5 mb-2 overflow-x-auto scrollbar-hide">

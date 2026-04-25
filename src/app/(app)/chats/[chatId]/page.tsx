@@ -47,6 +47,11 @@ type BaseMessage = {
       profile: { displayName: string } | null;
     };
   } | null;
+  receipts: {
+    userId: string;
+    deliveredAt: Date | null;
+    readAt: Date | null;
+  }[];
 };
 
 function serializeMessage(message: BaseMessage) {
@@ -62,6 +67,11 @@ function serializeMessage(message: BaseMessage) {
           createdAt: message.replyToMessage.createdAt.toISOString(),
         }
       : null,
+    receipts: message.receipts.map(r => ({
+      ...r,
+      deliveredAt: r.deliveredAt?.toISOString() ?? null,
+      readAt: r.readAt?.toISOString() ?? null,
+    })),
   };
 }
 
@@ -154,6 +164,13 @@ export default async function ChatPage({
             },
           },
         },
+        receipts: {
+          select: {
+            userId: true,
+            deliveredAt: true,
+            readAt: true,
+          },
+        },
       },
     }),
   ]);
@@ -170,7 +187,7 @@ export default async function ChatPage({
         chatId={chat.id}
         currentRole={membership.role}
         currentUserId={user.id}
-        initialMessages={rawMessages.reverse().map(serializeMessage)}
+        initialMessages={rawMessages.reverse().map((m: any) => serializeMessage(m))}
         isLocked={chat.isLocked}
         chatInfo={{
           type: chat.type,
