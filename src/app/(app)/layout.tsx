@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { AppShellChrome } from "./AppShellChrome";
+import { CallProvider } from "./calls/CallProvider";
+import { CallOverlay } from "./calls/CallOverlay";
 
 export default async function AppLayout({
   children,
@@ -23,8 +25,11 @@ export default async function AppLayout({
   });
 
   return (
-    <AppShellChrome user={{ role: user.role }} incomingRequestCount={incomingRequestCount}>
-      {children}
-    </AppShellChrome>
+    <CallProvider>
+      <AppShellChrome user={{ role: user.role }} incomingRequestCount={incomingRequestCount}>
+        {children}
+      </AppShellChrome>
+      <CallOverlay />
+    </CallProvider>
   );
 }

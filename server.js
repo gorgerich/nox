@@ -254,6 +254,150 @@ app.prepare().then(() => {
       }
     });
 
+    // --- Audio Calls signaling ---
+
+    socket.on("call:start", async (data) => {
+      if (!data || typeof data.chatId !== "string") return;
+      const { chatId } = data;
+
+      const chat = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: {
+          members: {
+            where: { status: "ACTIVE" },
+            include: { user: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true } } } } }
+          }
+        }
+      });
+
+      if (!chat || chat.type !== "DIRECT") {
+        socket.emit("call:error", { message: "Звонки доступны только в личных чатах" });
+        return;
+      }
+
+      const caller = chat.members.find(m => m.userId === user.id);
+      if (!caller) return;
+
+      const callee = chat.members.find(m => m.userId !== user.id);
+      if (!callee) {
+        socket.emit("call:error", { message: "Собеседник недоступен" });
+        return;
+      }
+
+      const callId = require("node:crypto").randomUUID();
+      
+      // Notify callee
+      socket.to(`user:${callee.userId}`).emit("call:incoming", {
+        callId,
+        chatId,
+        fromUser: {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: caller.user.profile?.avatarUrl
+        }
+      });
+
+      // Confirm to caller
+      socket.emit("call:ringing", { callId, chatId });
+    });
+
+    socket.on("call:offer", async (data) => {
+      if (!data || !data.callId || !data.chatId || !data.offer) return;
+      const { chatId, callId, offer } = data;
+
+      const chat = await prisma.chat.findFirst({
+        where: { id: chatId, members: { some: { userId: user.id, status: "ACTIVE" } } },
+        include: { members: { where: { status: "ACTIVE" } } }
+      });
+
+      if (!chat) return;
+      const callee = chat.members.find(m => m.userId !== user.id);
+      if (!callee) return;
+
+      socket.to(`user:${callee.userId}`).emit("call:offer", { callId, chatId, offer });
+    });
+
+    socket.on("call:answer", async (data) => {
+      if (!data || !data.callId || !data.chatId || !data.answer) return;
+      const { chatId, callId, answer } = data;
+
+      const chat = await prisma.chat.findFirst({
+        where: { id: chatId, members: { some: { userId: user.id, status: "ACTIVE" } } },
+        include: { members: { where: { status: "ACTIVE" } } }
+      });
+
+      if (!chat) return;
+      const caller = chat.members.find(m => m.userId !== user.id);
+      if (!caller) return;
+
+      socket.to(`user:${caller.userId}`).emit("call:answer", { callId, chatId, answer });
+    });
+
+    socket.on("call:ice-candidate", async (data) => {
+      if (!data || !data.callId || !data.chatId || !data.candidate) return;
+      const { chatId, callId, candidate } = data;
+
+      const chat = await prisma.chat.findFirst({
+        where: { id: chatId, members: { some: { userId: user.id, status: "ACTIVE" } } },
+        include: { members: { where: { status: "ACTIVE" } } }
+      });
+
+      if (!chat) return;
+      const target = chat.members.find(m => m.userId !== user.id);
+      if (!target) return;
+
+      socket.to(`user:${target.userId}`).emit("call:ice-candidate", { callId, chatId, candidate });
+    });
+
+    socket.on("call:accepted", async (data) => {
+      if (!data || !data.callId || !data.chatId) return;
+      const { chatId, callId } = data;
+
+      const chat = await prisma.chat.findFirst({
+        where: { id: chatId, members: { some: { userId: user.id, status: "ACTIVE" } } },
+        include: { members: { where: { status: "ACTIVE" } } }
+      });
+
+      if (!chat) return;
+      const caller = chat.members.find(m => m.userId !== user.id);
+      if (!caller) return;
+
+      socket.to(`user:${caller.userId}`).emit("call:accepted", { callId, chatId });
+    });
+
+    socket.on("call:declined", async (data) => {
+      if (!data || !data.callId || !data.chatId) return;
+      const { chatId, callId } = data;
+
+      const chat = await prisma.chat.findFirst({
+        where: { id: chatId, members: { some: { userId: user.id, status: "ACTIVE" } } },
+        include: { members: { where: { status: "ACTIVE" } } }
+      });
+
+      if (!chat) return;
+      const other = chat.members.find(m => m.userId !== user.id);
+      if (!other) return;
+
+      socket.to(`user:${other.userId}`).emit("call:declined", { callId, chatId });
+    });
+
+    socket.on("call:ended", async (data) => {
+      if (!data || !data.callId || !data.chatId) return;
+      const { chatId, callId } = data;
+
+      const chat = await prisma.chat.findFirst({
+        where: { id: chatId, members: { some: { userId: user.id, status: "ACTIVE" } } },
+        include: { members: { where: { status: "ACTIVE" } } }
+      });
+
+      if (!chat) return;
+      const other = chat.members.find(m => m.userId !== user.id);
+      if (!other) return;
+
+      socket.to(`user:${other.userId}`).emit("call:ended", { callId, chatId });
+    });
+
     socket.on("typing:start", async (data) => {
       if (!data || typeof data !== "object") {
         return;

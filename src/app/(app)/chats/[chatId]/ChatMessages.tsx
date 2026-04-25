@@ -378,6 +378,8 @@ export function ChatMessages({
   return (
     <div className={`chat-screen transition-colors duration-500 ${preset.bg}`}>
       <ChatHeader
+        chatId={chatId}
+        chatType={chatInfo.type}
         title={chatInfo.otherMember?.displayName || chatInfo.title || "Чат"}
         subtitle={getStatusSubtitle()}
         avatarUrl={chatInfo.otherMember?.avatarUrl}
