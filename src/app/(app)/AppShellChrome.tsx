@@ -15,6 +15,7 @@ interface AppShellChromeProps {
 export function AppShellChrome({ user, incomingRequestCount, children }: AppShellChromeProps) {
   const pathname = usePathname();
   const isChatRoom = /^\/chats\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
+  const isChatsList = pathname === "/chats";
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
-      <header className="hidden lg:sticky lg:top-0 lg:z-40 lg:block lg:border-b lg:border-border-subtle lg:bg-background/80 lg:backdrop-blur-lg transition-smooth">
+      <header className={`hidden lg:sticky lg:top-0 lg:z-40 lg:block lg:border-b lg:border-border-subtle lg:bg-background/80 lg:backdrop-blur-lg transition-smooth ${isChatsList ? 'lg:hidden' : ''}`}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <Link className="flex items-center gap-2 transition-smooth hover:opacity-80 active:scale-[0.98]" href="/chats">
             <span className="text-2xl font-bold tracking-tighter text-primary">Nox</span>
@@ -48,18 +49,15 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         </div>
       </header>
 
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg lg:hidden safe-top transition-smooth border-b border-border-subtle/50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <span className="text-xl font-bold tracking-tighter text-primary">Nox</span>
-          <div className="flex items-center gap-4">
-            {isAdmin && (
-              <Link className="text-xs font-bold uppercase tracking-widest text-muted active:scale-95 transition-smooth" href="/admin">Админ</Link>
-            )}
+      {!isChatsList && (
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg lg:hidden safe-top transition-smooth border-b border-border-subtle/50">
+          <div className="flex items-center justify-between px-6 py-4">
+            <span className="text-xl font-bold tracking-tighter text-primary">Nox</span>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="mx-auto w-full max-w-5xl flex-1 overflow-x-hidden safe-px pb-32 lg:pb-8 transition-smooth">
+      <main className={`mx-auto w-full max-w-5xl flex-1 overflow-x-hidden safe-px pb-32 lg:pb-8 transition-smooth ${isChatsList ? 'pt-safe' : ''}`}>
         {children}
       </main>
 

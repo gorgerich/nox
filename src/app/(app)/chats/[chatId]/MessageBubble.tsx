@@ -101,7 +101,7 @@ export function MessageBubble({
       )}
 
       <div
-        className={`group relative max-w-[82%] px-4 py-3 transition-smooth select-none touch-none cursor-default message-shadow active:scale-[0.99] ${radiusClass} ${
+        className={`group relative max-w-[82%] px-4 py-3 transition-smooth cursor-default message-shadow active:scale-[0.99] ${radiusClass} ${
           mine ? "text-white" : incomingClass
         }`}
         style={bubbleStyle}
