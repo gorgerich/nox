@@ -40,7 +40,8 @@ const CallContext = createContext<CallContextType | null>(null);
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" }
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" }
   ]
 };
 
@@ -61,7 +62,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const iceCandidatesQueue = useRef<RTCIceCandidateInit[]>([]);
   const callTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Refs for socket handlers to avoid dependency loops
+  const statusRef = useRef(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
   const cleanup = useCallback(() => {
+    console.log("[Call] Cleanup");
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
       pcRef.current.ontrack = null;
@@ -87,16 +93,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const endCall = useCallback(() => {
+    console.log("[Call] End call");
     if (socket && callId && chatId) {
       socket.emit("call:ended", { callId, chatId });
     }
     cleanup();
     setStatus("ended");
-    setTimeout(() => setStatus("idle"), 2000);
+    setTimeout(() => {
+      setStatus(prev => prev === "ended" ? "idle" : prev);
+    }, 2000);
   }, [socket, callId, chatId, cleanup]);
 
   const processIceQueue = useCallback(async () => {
     if (!pcRef.current || !pcRef.current.remoteDescription) return;
+    console.log("[WebRTC] Processing ICE queue", iceCandidatesQueue.current.length);
     while (iceCandidatesQueue.current.length > 0) {
       const candidate = iceCandidatesQueue.current.shift();
       if (candidate) {
@@ -111,7 +121,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const setupPeerConnection = useCallback(() => {
     if (pcRef.current) return pcRef.current;
-
+    console.log("[WebRTC] Creating new RTCPeerConnection");
+    
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
@@ -121,8 +132,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     pc.ontrack = (event) => {
+      console.log("[WebRTC] Received remote track");
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = event.streams[0];
+        remoteAudioRef.current.play().catch(e => console.error("[WebRTC] Remote audio play failed", e));
       }
     };
 
@@ -159,21 +172,24 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     try {
       cleanup();
       setStatus("requesting-permission");
+      console.log("[Call] Starting call for chatId", targetChatId);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setChatId(targetChatId);
       
       if (socket) {
         socket.emit("call:start", { chatId: targetChatId });
+        setStatus("outgoing");
       }
 
       callTimeoutRef.current = setTimeout(() => {
-        if (status !== "active") {
+        if (statusRef.current !== "active") {
           setError("Собеседник не ответил");
           endCall();
         }
       }, 45000);
-    } catch {
+    } catch (err) {
+      console.error("[Call] startCall failed", err);
       setError("Нет доступа к микрофону");
       setStatus("failed");
       setTimeout(() => setStatus("idle"), 3000);
@@ -185,6 +201,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     
     try {
       setStatus("connecting");
+      console.log("[Call] Accepting call", callId);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
 
@@ -192,7 +209,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
       socket.emit("call:accepted", { callId, chatId });
-    } catch {
+    } catch (err) {
+      console.error("[Call] acceptCall failed", err);
       setError("Нет доступа к микрофону");
       socket.emit("call:declined", { callId, chatId });
       setStatus("failed");
@@ -200,13 +218,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const declineCall = () => {
+  const declineCall = useCallback(() => {
+    console.log("[Call] Declining call");
     if (socket && callId && chatId) {
       socket.emit("call:declined", { callId, chatId });
     }
     cleanup();
     setStatus("idle");
-  };
+  }, [socket, callId, chatId, cleanup]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -218,12 +237,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Socket listeners
+  // Socket listeners management
   useEffect(() => {
     if (!socket) return;
 
     const handleIncoming = (data: any) => {
-      if (status !== "idle" && status !== "ended" && status !== "failed") {
+      console.log("[Socket] call:incoming", data.callId);
+      if (statusRef.current !== "idle" && statusRef.current !== "ended" && statusRef.current !== "failed") {
         socket.emit("call:declined", { callId: data.callId, chatId: data.chatId });
         return;
       }
@@ -234,17 +254,21 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleRinging = (data: any) => {
+      console.log("[Socket] call:ringing", data.callId);
       setCallId(data.callId);
       setStatus("ringing");
     };
 
     const handleAccepted = async () => {
-      console.log("[Call] Peer accepted");
+      console.log("[Socket] call:accepted (as caller)");
       setStatus("connecting");
       const pc = setupPeerConnection();
       
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
+        localStreamRef.current.getTracks().forEach(track => {
+          console.log("[WebRTC] Adding local track", track.kind);
+          pc.addTrack(track, localStreamRef.current!);
+        });
       }
       
       const offer = await pc.createOffer();
@@ -253,34 +277,41 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleOffer = async (data: any) => {
-      console.log("[Call] Received offer");
+      console.log("[Socket] call:offer (as callee)");
       const pc = setupPeerConnection();
       
-      // Ensure tracks are added before setting remote description and creating answer
       if (localStreamRef.current && pc.getSenders().length === 0) {
         localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
       }
 
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("call:answer", { callId, chatId, answer });
-
-      await processIceQueue();
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("call:answer", { callId, chatId, answer });
+        await processIceQueue();
+      } catch (e) {
+        console.error("[WebRTC] Offer handling failed", e);
+      }
     };
 
     const handleAnswer = async (data: any) => {
-      console.log("[Call] Received answer");
+      console.log("[Socket] call:answer (as caller)");
       if (pcRef.current) {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-        await processIceQueue();
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          await processIceQueue();
+        } catch (e) {
+          console.error("[WebRTC] Answer handling failed", e);
+        }
       }
     };
 
     const handleIceCandidate = async (data: any) => {
-      if (pcRef.current && pcRef.current.remoteDescription) {
+      const pc = pcRef.current;
+      if (pc && pc.remoteDescription) {
         try {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
         } catch (e) {
           console.error("[WebRTC] Error adding ICE candidate", e);
         }
@@ -290,22 +321,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleDeclined = () => {
+      console.log("[Socket] call:declined");
       setStatus("declined");
       cleanup();
-      setTimeout(() => setStatus("idle"), 2000);
+      setTimeout(() => setStatus(p => p === "declined" ? "idle" : p), 2000);
     };
 
     const handleEnded = () => {
+      console.log("[Socket] call:ended");
       setStatus("ended");
       cleanup();
-      setTimeout(() => setStatus("idle"), 2000);
+      setTimeout(() => setStatus(p => p === "ended" ? "idle" : p), 2000);
     };
 
     const handleError = (data: any) => {
+      console.error("[Socket] call:error", data.message);
       setError(data.message);
       setStatus("failed");
       cleanup();
-      setTimeout(() => setStatus("idle"), 3000);
+      setTimeout(() => setStatus(p => p === "failed" ? "idle" : p), 3000);
     };
 
     socket.on("call:incoming", handleIncoming);
@@ -329,7 +363,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", handleEnded);
       socket.off("call:error", handleError);
     };
-  }, [socket, status, callId, chatId, setupPeerConnection, cleanup, processIceQueue]);
+  }, [socket, callId, chatId, setupPeerConnection, cleanup, processIceQueue]);
 
   return (
     <CallContext.Provider value={{ status, peer, isMuted, duration, error, startCall, acceptCall, declineCall, endCall, toggleMute }}>

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 
 export function ChatsRealtimeListener() {
   const router = useRouter();
+  const pathname = usePathname();
   const { socket } = useSocket();
 
   useEffect(() => {
@@ -13,15 +14,22 @@ export function ChatsRealtimeListener() {
       return;
     }
 
-    function refreshChats() {
+    function refreshChats(payload?: { chatId?: string }) {
+      // If we are currently inside the chat that was updated, 
+      // do NOT router.refresh() because it breaks scroll and local state.
+      // ChatMessages handles its own realtime updates.
+      if (payload?.chatId && pathname === `/chats/${payload.chatId}`) {
+        return;
+      }
+      
       router.refresh();
     }
 
     socket.on("chat:updated", refreshChats);
-    socket.on("chat-request:new", refreshChats);
-    socket.on("chat-request:accepted", refreshChats);
-    socket.on("chat-request:declined", refreshChats);
-    socket.on("chat-request:canceled", refreshChats);
+    socket.on("chat-request:new", () => router.refresh());
+    socket.on("chat-request:accepted", () => router.refresh());
+    socket.on("chat-request:declined", () => router.refresh());
+    socket.on("chat-request:canceled", () => router.refresh());
 
     return () => {
       socket.off("chat:updated");
@@ -30,7 +38,7 @@ export function ChatsRealtimeListener() {
       socket.off("chat-request:declined");
       socket.off("chat-request:canceled");
     };
-  }, [router, socket]);
+  }, [router, socket, pathname]);
 
   return null;
 }

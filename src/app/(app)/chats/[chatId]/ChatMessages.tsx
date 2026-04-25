@@ -31,6 +31,8 @@ function normalizeMessage(message: unknown): Message | null {
   if (!m?.id || !m.senderUserId || !m.sender?.id || !m.createdAt) {
     return null;
   }
+  // Ensure receipts exist as an array
+  if (!m.receipts) m.receipts = [];
   return m;
 }
 
@@ -102,8 +104,15 @@ export function ChatMessages({
   }, [chatId]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    if (!messagesEndRef.current) return;
+    if (typeof window === "undefined" || !messagesEndRef.current) return;
     messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
+  }, []);
+
+  // Force scroll bottom helper
+  const forceScrollBottom = useCallback(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   }, []);
 
   // Initial scroll and chatId reset
@@ -111,27 +120,19 @@ export function ChatMessages({
     didInitialScrollRef.current = false;
     markAsRead();
     
-    // Mute scroll restoration if possible
-    if ("scrollRestoration" in history) {
-      history.scrollRestoration = "manual";
-    }
-
-    const performInitialScroll = () => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        didInitialScrollRef.current = true;
-      }
-    };
-
-    // Use multiple triggers for initial scroll to ensure it works after hydration/render
-    performInitialScroll();
-    requestAnimationFrame(performInitialScroll);
-    const t = setTimeout(performInitialScroll, 100);
+    // Perform multiple scroll attempts for stability
+    forceScrollBottom();
+    const frame = requestAnimationFrame(forceScrollBottom);
+    const t = setTimeout(() => {
+      forceScrollBottom();
+      didInitialScrollRef.current = true;
+    }, 150);
 
     return () => {
+      cancelAnimationFrame(frame);
       clearTimeout(t);
     };
-  }, [chatId, markAsRead]);
+  }, [chatId, markAsRead, forceScrollBottom]);
 
   // Handle new messages and auto-scroll
   useEffect(() => {
@@ -139,11 +140,12 @@ export function ChatMessages({
 
     const container = scrollContainerRef.current;
     if (container) {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
       const lastMsg = messages[messages.length - 1];
       const isMyMsg = lastMsg?.senderUserId === currentUserId;
 
       if (isNearBottom || isMyMsg) {
+        // Use auto for heavy media to prevent jump lag, smooth for text
         scrollToBottom("smooth");
       }
     }
@@ -195,8 +197,9 @@ export function ChatMessages({
     function handleReceiptUpdated(payload: { messageId: string; userId: string; deliveredAt: string; readAt: string }) {
       setMessages((current) => current.map((m) => {
         if (m.id !== payload.messageId) return m;
-        const existingIdx = m.receipts.findIndex(r => r.userId === payload.userId);
-        const newReceipts = [...m.receipts];
+        const receipts = m.receipts || [];
+        const existingIdx = receipts.findIndex(r => r.userId === payload.userId);
+        const newReceipts = [...receipts];
         if (existingIdx > -1) {
           newReceipts[existingIdx] = { ...newReceipts[existingIdx], deliveredAt: payload.deliveredAt, readAt: payload.readAt };
         } else {
@@ -210,8 +213,9 @@ export function ChatMessages({
       if (payload.chatId !== chatId) return;
       setMessages((current) => current.map((m) => {
         if (m.senderUserId === payload.userId) return m;
-        const existingIdx = m.receipts.findIndex(r => r.userId === payload.userId);
-        const newReceipts = [...m.receipts];
+        const receipts = m.receipts || [];
+        const existingIdx = receipts.findIndex(r => r.userId === payload.userId);
+        const newReceipts = [...receipts];
         if (existingIdx > -1) {
           newReceipts[existingIdx] = { ...newReceipts[existingIdx], deliveredAt: payload.deliveredAt, readAt: payload.readAt };
         } else {
@@ -350,6 +354,7 @@ export function ChatMessages({
   const startRecording = async () => {
     try {
       isRecordingCancelledRef.current = false;
+      if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       const mimeTypes = [
