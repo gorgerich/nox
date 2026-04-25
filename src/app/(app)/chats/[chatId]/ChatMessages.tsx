@@ -168,7 +168,7 @@ function AttachmentContent({ attachment, messageType }: { attachment: Attachment
 
   const href = `/api/attachments/${attachment.id}/download`;
 
-  if (attachment.mimeType.startsWith("image/")) {
+  if (attachment.mimeType?.startsWith("image/")) {
     return (
       <a className="mt-2 block overflow-hidden rounded-lg border border-border-subtle" href={href} target="_blank" rel="noreferrer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -181,7 +181,7 @@ function AttachmentContent({ attachment, messageType }: { attachment: Attachment
     );
   }
 
-  if (messageType === "VOICE" || attachment.mimeType.startsWith("audio/")) {
+  if (messageType === "VOICE" || attachment.mimeType?.startsWith("audio/")) {
     if (audioError) {
       return <p className="mt-2 text-xs text-red-400">Не удалось воспроизвести голосовое</p>;
     }
@@ -424,7 +424,6 @@ export function ChatMessages({
         .map((message) => normalizeMessage(message))
         .filter((message): message is Message => Boolean(message)),
     );
-    router.refresh();
   }
 
   async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
@@ -453,6 +452,13 @@ export function ChatMessages({
           const data = await response.json().catch(() => null);
           throw new Error(data?.error || "Не удалось изменить сообщение");
         }
+        const data = await response.json().catch(() => null);
+        const normalizedMessage = normalizeMessage(data?.message);
+        if (normalizedMessage) {
+          setMessages((current) =>
+            current.map((m) => (m.id === normalizedMessage.id ? normalizedMessage : m))
+          );
+        }
         setEditingMessage(null);
         setBody("");
       } else if (selectedFile) {
@@ -470,6 +476,14 @@ export function ChatMessages({
           const data = await response.json().catch(() => null);
           throw new Error(data?.error || "Не удалось отправить сообщение");
         }
+        const data = await response.json().catch(() => null);
+        const normalizedMessage = normalizeMessage(data?.message);
+        if (normalizedMessage) {
+          setMessages((current) => {
+            if (current.some((m) => m.id === normalizedMessage.id)) return current;
+            return [...current, normalizedMessage].slice(-100);
+          });
+        }
         setReplyingToMessage(null);
         setBody("");
       }
@@ -477,7 +491,6 @@ export function ChatMessages({
       if (err instanceof Error) setError(err.message);
     } finally {
       setPending(false);
-      router.refresh();
     }
   }
 
@@ -554,7 +567,11 @@ export function ChatMessages({
   async function deleteMessage(messageId: string) {
     await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
     setPendingDeleteMessage(null);
-    router.refresh();
+    setMessages((current) =>
+      current.map((m) =>
+        m.id === messageId ? { ...m, deletedAt: new Date().toISOString() } : m
+      )
+    );
   }
 
   async function toggleReaction(messageId: string, emoji: string) {
@@ -643,7 +660,8 @@ export function ChatMessages({
         if (audioChunksRef.current.length > 0 && audioBlob.size > 0) {
           const resolvedMimeType = audioBlob.type || selectedMimeType || "audio/webm";
           const extension = getVoiceExtension(resolvedMimeType);
-          const file = new File([audioBlob], `voice-${Date.now()}.${extension}`, { type: resolvedMimeType });
+          const fileName = `voice-${Date.now()}.${extension}`;
+          const file = new File([audioBlob], fileName, { type: resolvedMimeType });
           
           try {
             await uploadAttachment(file);

@@ -67,17 +67,17 @@ export async function GET(
 
   const rangeHeader = request.headers.get("range");
   const baseHeaders = {
-    "accept-ranges": "bytes",
-    "content-disposition": getContentDisposition(attachment.mimeType, attachment.fileName),
-    "content-type": attachment.mimeType,
-    "x-content-type-options": "nosniff",
+    "Accept-Ranges": "bytes",
+    "Content-Disposition": getContentDisposition(attachment.mimeType, attachment.fileName),
+    "Content-Type": attachment.mimeType,
+    "X-Content-Type-Options": "nosniff",
   };
 
   if (!rangeHeader) {
     return new Response(Readable.toWeb(object.stream) as BodyInit, {
       headers: {
         ...baseHeaders,
-        "content-length": String(object.sizeBytes),
+        "Content-Length": String(object.sizeBytes),
       },
     });
   }
@@ -89,7 +89,7 @@ export async function GET(
       status: 416,
       headers: {
         ...baseHeaders,
-        "content-range": `bytes */${object.sizeBytes}`,
+        "Content-Range": `bytes */${object.sizeBytes}`,
       },
     });
   }
@@ -111,7 +111,7 @@ export async function GET(
       status: 416,
       headers: {
         ...baseHeaders,
-        "content-range": `bytes */${object.sizeBytes}`,
+        "Content-Range": `bytes */${object.sizeBytes}`,
       },
     });
   }
@@ -124,8 +124,8 @@ export async function GET(
     status: 206,
     headers: {
       ...baseHeaders,
-      "content-length": String(chunkSize),
-      "content-range": `bytes ${start}-${end}/${object.sizeBytes}`,
+      "Content-Length": String(chunkSize),
+      "Content-Range": `bytes ${start}-${end}/${object.sizeBytes}`,
     },
   });
 }
