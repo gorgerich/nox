@@ -5,7 +5,7 @@ import Link from "next/link";
 
 type SearchResult = {
   people: { id: string; username: string; displayName: string }[];
-  chats: { id: string; title: string; type: string }[];
+  chats: { id: string; title: string | null; type: string }[];
   messages: { id: string; body: string; chatId: string; createdAt: string; senderName: string }[];
 };
 
@@ -19,28 +19,29 @@ export function ChatSearch() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      const trimmedQuery = query.trim();
-
-      if (!trimmedQuery) {
-        setResults(null);
-        return;
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
       }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-      if (trimmedQuery.length < MIN_QUERY_LENGTH) {
-        setLoading(false);
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (query.trim().length < MIN_QUERY_LENGTH) {
         setResults(null);
         return;
       }
 
       setLoading(true);
-
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`);
-        const data = (await res.json()) as SearchResult;
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
         setResults(data);
-      } catch {
-        setResults({ people: [], chats: [], messages: [] });
+      } catch (e) {
+        console.error("Search failed", e);
       } finally {
         setLoading(false);
       }
@@ -49,23 +50,11 @@ export function ChatSearch() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   return (
     <div className="relative" ref={containerRef}>
       <div className="relative group transition-smooth">
         <input
-          className="input-nox h-14 pl-12 bg-surface-hover/30 border-border-subtle/30 focus:bg-surface-hover/50 focus:border-primary/40 transition-smooth"
+          className="input-nox h-14 pl-12 bg-surface-muted border-border-subtle/50 focus:bg-surface focus:border-primary/40 transition-smooth"
           placeholder="Поиск людей, чатов и сообщений"
           value={query}
           onChange={(e) => {
@@ -80,14 +69,14 @@ export function ChatSearch() {
       </div>
 
       {isOpen && (query.trim() || loading) && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-4 max-h-[70vh] overflow-y-auto rounded-[2rem] border border-border-subtle/50 bg-neutral-900 p-3 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 backdrop-blur-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-4 max-h-[70vh] overflow-y-auto rounded-[2rem] border border-border-subtle/50 bg-surface p-3 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 backdrop-blur-xl">
           {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH ? (
             <div className="p-10 text-center">
               <p className="text-sm font-black uppercase tracking-widest text-muted/40">Минимум 3 символа</p>
             </div>
           ) : loading ? (
             <div className="p-10 text-center">
-              <p className="text-xs font-black uppercase tracking-widest text-primary animate-pulse">Ищем в Nox...</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">Ищем в Nox...</p>
             </div>
           ) : results && Object.values(results).some((arr) => arr.length > 0) ? (
             <div className="space-y-6 p-1">
@@ -100,13 +89,13 @@ export function ChatSearch() {
                         key={person.id}
                         href={`/chats/new?u=${person.username}`}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-white/5 active:scale-[0.98]"
+                        className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-black text-primary">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-black text-primary transition-smooth group-hover:scale-105 shadow-sm">
                           {person.displayName[0]}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-white tracking-tight">{person.displayName}</p>
+                          <p className="truncate text-sm font-bold text-foreground tracking-tight">{person.displayName}</p>
                           <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">@{person.username}</p>
                         </div>
                       </Link>
@@ -124,13 +113,13 @@ export function ChatSearch() {
                         key={chat.id}
                         href={`/chats/${chat.id}`}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-white/5 active:scale-[0.98]"
+                        className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-hover text-lg font-black text-muted">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-lg font-black text-muted border border-border-subtle/50 shadow-sm">
                           {(chat.title || "C")[0]}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-white tracking-tight">{chat.title || "Личный чат"}</p>
+                          <p className="truncate text-sm font-bold text-foreground tracking-tight">{chat.title || "Личный чат"}</p>
                           <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">Открыть</p>
                         </div>
                       </Link>
@@ -148,7 +137,7 @@ export function ChatSearch() {
                         key={msg.id}
                         href={`/chats/${msg.chatId}`}
                         onClick={() => setIsOpen(false)}
-                        className="block rounded-2xl p-4 transition-smooth hover:bg-white/5 active:scale-[0.98] border border-transparent hover:border-white/5"
+                        className="block rounded-2xl p-4 transition-smooth hover:bg-surface-muted active:scale-[0.98] border border-transparent hover:border-border-subtle/50"
                       >
                         <div className="mb-1.5 flex items-center justify-between">
                           <p className="truncate text-xs font-black uppercase tracking-widest text-primary">{msg.senderName}</p>

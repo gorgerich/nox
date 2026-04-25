@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 export function VoicePlayer({ src, duration }: { src: string; duration?: number }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -10,6 +10,13 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const formatTime = useCallback((seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -63,13 +70,6 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
     }
   };
 
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   return (
     <div className="flex items-center gap-3 py-1.5 min-w-[200px] transition-smooth">
       <audio ref={audioRef} src={src} preload="metadata" />
@@ -77,11 +77,11 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
       <button
         onClick={togglePlay}
         disabled={error}
-        className="touch-target h-11 w-11 flex shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-smooth active:scale-90 hover:bg-white/30 disabled:opacity-50 disabled:pointer-events-none"
+        className="touch-target h-11 w-11 flex shrink-0 items-center justify-center rounded-xl bg-[var(--voice-control)] text-white shadow-sm transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none"
       >
         {error ? (
-          <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : isPlaying ? (
           <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
@@ -95,25 +95,27 @@ export function VoicePlayer({ src, duration }: { src: string; duration?: number 
       </button>
 
       <div className="flex-1 min-w-0">
-        {/* Simple simulated waveform bars */}
-        <div className="flex items-end gap-[2px] h-7 mb-1.5 opacity-40">
+        <div className="flex items-end gap-[2px] h-7 mb-1.5 opacity-60">
            {[30, 60, 40, 80, 50, 70, 40, 90, 60, 40, 70, 50, 80, 40, 60].map((h, i) => (
              <div 
                key={i} 
-               className={`w-[3px] rounded-full transition-colors duration-300 ${progress > (i / 15) * 100 ? "bg-white" : "bg-white/30"}`}
-               style={{ height: `${h}%` }}
+               className="w-[3px] rounded-full transition-colors duration-300"
+               style={{ 
+                 height: `${h}%`,
+                 backgroundColor: progress > (i / 15) * 100 ? "var(--voice-control)" : "var(--voice-wave)"
+               }}
              />
            ))}
         </div>
         
-        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="relative h-1 w-full overflow-hidden rounded-full bg-black/5">
           <div 
-            className="absolute left-0 top-0 h-full bg-white transition-all duration-100 ease-linear"
+            className="absolute left-0 top-0 h-full bg-[var(--voice-control)] transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>
         
-        <div className="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/70">
+        <div className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--voice-surface-text)] opacity-60">
           <span>{formatTime(currentTime)}</span>
           <span>{error ? "Ошибка" : isLoaded ? formatTime(totalDuration) : formatTime(totalDuration)}</span>
         </div>

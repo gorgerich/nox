@@ -109,20 +109,20 @@ export function MessageBubble({
 
   const radiusClass = settings.bubbleRadius === "round" 
     ? (mine 
-        ? (isGroupStart ? "rounded-3xl rounded-tr-sm" : isGroupEnd ? "rounded-3xl rounded-tr-3xl" : "rounded-3xl rounded-tr-sm rounded-br-sm")
-        : (isGroupStart ? "rounded-3xl rounded-tl-sm" : isGroupEnd ? "rounded-3xl rounded-tl-3xl" : "rounded-3xl rounded-tl-sm rounded-bl-sm")
+        ? (isGroupStart ? "rounded-2xl rounded-tr-xs" : isGroupEnd ? "rounded-2xl rounded-tr-2xl" : "rounded-2xl rounded-tr-xs rounded-br-xs")
+        : (isGroupStart ? "rounded-2xl rounded-tl-xs" : isGroupEnd ? "rounded-2xl rounded-tl-2xl" : "rounded-2xl rounded-tl-xs rounded-bl-xs")
       )
-    : "rounded-2xl";
+    : "rounded-xl";
 
   const bubbleStyle = mine 
-    ? { backgroundColor: settings.outgoingColor, color: "#fff" }
+    ? { backgroundColor: settings.outgoingColor, color: "var(--bubble-outgoing-text)" }
     : {};
 
   const incomingClass = settings.incomingStyle === "glass" 
-    ? "bg-background/40 backdrop-blur-lg border border-border-subtle/30" 
+    ? "bg-surface/40 backdrop-blur-lg border border-border-subtle/50" 
     : settings.incomingStyle === "minimal" 
-      ? "bg-surface-hover/40 border border-border-subtle/20"
-      : "bg-[var(--bubble-incoming)] border border-border-subtle/30";
+      ? "bg-surface-muted/40 border border-border-subtle/30"
+      : "bg-[var(--bubble-incoming)] border border-border-subtle/50";
 
   const groupedReactions = message.reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, me: false };
@@ -130,21 +130,20 @@ export function MessageBubble({
     return acc;
   }, {} as Record<string, { count: number; me: boolean }>);
 
-  // Status calculation
   const isRead = message.receipts?.some(r => r.readAt);
   const isDelivered = message.receipts?.some(r => r.deliveredAt);
 
   return (
-    <div className={`flex flex-col ${mine ? "items-end" : "items-start"} mb-1.5 px-4 transition-smooth`}>
+    <div className={`flex flex-col ${mine ? "items-end" : "items-start"} mb-1 px-4 transition-smooth`}>
       {showDisplayName && !mine && (
-        <span className="mb-1.5 ml-3 text-[10px] font-black uppercase tracking-widest text-muted/60">
+        <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest text-muted/60">
           {message.sender.profile?.displayName ?? message.sender.username}
         </span>
       )}
 
       <div
-        className={`group relative max-w-[82%] px-4 py-3 transition-smooth cursor-default message-shadow active:scale-[0.99] touch-pan-y ${radiusClass} ${
-          mine ? "text-white" : "text-[var(--bubble-incoming-text)]"
+        className={`group relative max-w-[85%] px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] touch-pan-y ${radiusClass} ${
+          mine ? "text-white shadow-sm" : "text-[var(--bubble-incoming-text)]"
         } ${mine ? "" : incomingClass}`}
         style={bubbleStyle}
         onContextMenu={(e) => { e.preventDefault(); onLongPress(message.id); }}
@@ -154,7 +153,7 @@ export function MessageBubble({
         onTouchCancel={handleTouchEnd}
       >
         {message.replyToMessage && (
-          <div className={`mb-2.5 border-l-2 pl-2.5 py-0.5 text-xs opacity-80 ${mine ? "border-white/40" : "border-primary/50"}`}>
+          <div className={`mb-2 border-l-2 pl-2.5 py-0.5 text-[11px] leading-tight opacity-90 ${mine ? "border-white/40" : "border-primary/50"}`}>
             <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
             <p className="truncate line-clamp-1 italic opacity-70">
               {message.replyToMessage.deletedAt ? "Сообщение удалено" : (message.replyToMessage.body || "Вложение")}
@@ -166,19 +165,19 @@ export function MessageBubble({
           <p className="text-xs italic opacity-50 font-medium">Сообщение удалено</p>
         ) : (
           <>
-            {message.body && <p className="whitespace-pre-wrap text-sm leading-relaxed font-medium break-words">{message.body}</p>}
+            {message.body && <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words">{message.body}</p>}
             {message.attachments?.map((att) => {
               const downloadUrl = `/api/attachments/${att.id}/download`;
               const isImage = att.mimeType.startsWith("image/");
               const isVideo = att.mimeType.startsWith("video/");
 
               return (
-                <div key={att.id} className="mt-2.5 first:mt-0 overflow-hidden rounded-xl">
+                <div key={att.id} className="mt-2 first:mt-0 overflow-hidden rounded-lg">
                   {message.type === "VOICE" ? (
                     <VoicePlayer src={downloadUrl} />
                   ) : isImage ? (
                     <div 
-                      className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner cursor-pointer active:opacity-90 transition-opacity"
+                      className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
                       onClick={() => onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName })}
                     >
                       <img 
@@ -190,7 +189,7 @@ export function MessageBubble({
                     </div>
                   ) : isVideo ? (
                     <div 
-                      className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center bg-black/20"
+                      className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center bg-black/10"
                       onClick={() => onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName })}
                     >
                       <video src={downloadUrl} className="max-h-96 w-full object-cover" />
@@ -204,7 +203,7 @@ export function MessageBubble({
                     </div>
                   ) : (
                     <div 
-                      className="flex items-center gap-3 rounded-2xl bg-black/30 p-4 border border-white/5 backdrop-blur-md transition-smooth active:bg-black/40 cursor-pointer"
+                      className="flex items-center gap-3 rounded-xl bg-black/10 p-4 border border-black/5 backdrop-blur-md transition-smooth active:bg-black/20 cursor-pointer"
                       onClick={() => {
                         const link = document.createElement("a");
                         link.href = downloadUrl;
@@ -212,27 +211,17 @@ export function MessageBubble({
                         link.click();
                       }}
                     >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80 shadow-inner">
-                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white/90 shadow-inner">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-black tracking-tight">{att.fileName}</p>
-                        <p className="text-[10px] font-black opacity-50 uppercase tracking-widest mt-0.5">
+                        <p className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-0.5">
                           {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
                         </p>
                       </div>
-                      <a 
-                        href={`${downloadUrl}?download=1`} 
-                        className="touch-target flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 active:scale-90 transition-transform"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Скачать"
-                      >
-                        <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      </a>
                     </div>
                   )}
                 </div>
@@ -241,27 +230,27 @@ export function MessageBubble({
           </>
         )}
 
-        <div className={`mt-1.5 flex items-center gap-2 ${mine ? "justify-end" : "justify-start"}`}>
-          <span className={`text-[9px] font-black uppercase tracking-tighter opacity-60 ${mine ? "text-white" : "text-muted"}`}>
+        <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+          <span className={`text-[9px] font-black uppercase tracking-tighter ${mine ? "text-white/70" : "text-muted/60"}`}>
             {message.editedAt && "изм. "}{time}
           </span>
           {mine && !message.deletedAt && (
             <div className="flex items-center ml-0.5">
               {isRead ? (
                 <div className="flex -space-x-1.5">
-                  <svg className="h-3 w-3 text-primary animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3 text-[var(--bubble-read)] animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
-                  <svg className="h-3 w-3 text-primary animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3 text-[var(--bubble-read)] animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               ) : isDelivered ? (
                 <div className="flex -space-x-1.5">
-                  <svg className="h-3 w-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3 text-[var(--bubble-delivered)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
-                  <svg className="h-3 w-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3 text-[var(--bubble-delivered)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
@@ -276,12 +265,12 @@ export function MessageBubble({
       </div>
 
       {Object.keys(groupedReactions).length > 0 && (
-        <div className={`mt-1.5 flex flex-wrap gap-1 ${mine ? "mr-1" : "ml-1"} animate-in fade-in zoom-in-95 duration-200`}>
+        <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "mr-1" : "ml-1"} animate-in fade-in zoom-in-95 duration-200`}>
           {Object.entries(groupedReactions).map(([emoji, info]) => (
             <button
               key={emoji}
               onClick={() => onReaction(message.id, emoji)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-900/80 border border-white/10 text-xs font-black text-white/70 transition-smooth hover:bg-neutral-800 active:scale-90 backdrop-blur-sm shadow-sm"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-muted border border-border-subtle text-xs font-black text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-90 shadow-sm"
             >
               <span>{emoji}</span>
               <span className="text-[10px]">{info.count}</span>

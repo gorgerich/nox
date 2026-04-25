@@ -1,75 +1,161 @@
 @import "tailwindcss";
 
 :root {
-  /* Light Theme (Default) */
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* --- Light Theme (Premium Off-white) --- */
+  --background: #fdfdfd;
+  --foreground: #1a1c1e;
+  
   --surface: #ffffff;
-  --surface-hover: #f1f5f9;
-  --border: #e2e8f0;
-  --border-subtle: #cbd5e1;
+  --surface-elevated: #ffffff;
+  --surface-muted: #f1f3f5;
+  --surface-hover: #f8f9fa;
+  
+  --border: #e9ecef;
+  --border-subtle: #f1f3f5;
+  
+  --muted: #6c757d;
+  --muted-foreground: #adb5bd;
+  
   --primary: #10b981;
   --primary-hover: #059669;
-  --muted: #64748b;
-  --muted-foreground: #94a3b8;
-  --danger: #ef4444;
+  --primary-foreground: #ffffff;
+  
+  --danger: #fa5252;
   --success: #10b981;
-  --input: #ffffff;
-  --ring: #10b981;
+  
+  --input: #f8f9fa;
+  --input-foreground: #1a1c1e;
+  --placeholder: #adb5bd;
+  
+  --icon: #495057;
+  --icon-muted: #adb5bd;
+  
+  --ring: rgba(16, 185, 129, 0.2);
+  --shadow-color: rgba(0, 0, 0, 0.05);
 
   /* Chat Specific Light */
-  --chat-header: rgba(255, 255, 255, 0.7);
-  --chat-composer: rgba(255, 255, 255, 0.7);
-  --bubble-incoming: #ffffff;
-  --bubble-incoming-text: #0f172a;
+  --chat-background: #fdfdfd;
+  --chat-header: rgba(255, 255, 255, 0.8);
+  --chat-composer: rgba(255, 255, 255, 0.8);
+  --chat-composer-border: #f1f3f5;
+  --chat-input-bg: #f1f3f5;
+  
+  --bubble-incoming: #f1f3f5;
+  --bubble-incoming-text: #1a1c1e;
   --bubble-outgoing: #10b981;
   --bubble-outgoing-text: #ffffff;
+  --bubble-meta: rgba(0, 0, 0, 0.4);
+  
+  --bubble-read: #34d399;
+  --bubble-delivered: #94a3b8;
+  
+  --voice-surface: #e9ecef;
+  --voice-surface-text: #1a1c1e;
+  --voice-control: #10b981;
+  --voice-wave: #adb5bd;
+
+  --nav-background: rgba(255, 255, 255, 0.8);
+  --nav-border: #f1f3f5;
+
+  /* Radius Tokens */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+  --radius-full: 9999px;
 }
 
 [data-theme="dark"] {
-  /* Dark Theme */
-  --background: #000000;
-  --foreground: #ffffff;
-  --surface: #0a0a0a;
-  --surface-hover: #141414;
-  --border: #1a1a1a;
-  --border-subtle: #262626;
-  --muted: #737373;
-  --muted-foreground: #525252;
+  /* --- Dark Theme (Premium Graphite) --- */
+  --background: #0b0c0d;
+  --foreground: #f8f9fa;
+  
+  --surface: #141517;
+  --surface-elevated: #1a1b1e;
+  --surface-muted: #1a1b1e;
+  --surface-hover: #25262b;
+  
+  --border: #2c2e33;
+  --border-subtle: #25262b;
+  
+  --muted: #909296;
+  --muted-foreground: #5c5f66;
+  
   --primary: #10b981;
   --primary-hover: #059669;
-  --danger: #ef4444;
+  --primary-foreground: #ffffff;
+  
+  --danger: #ff6b6b;
   --success: #10b981;
-  --input: #0a0a0a;
-  --ring: #10b981;
+  
+  --input: #1a1b1e;
+  --input-foreground: #f8f9fa;
+  --placeholder: #5c5f66;
+  
+  --icon: #c1c2c5;
+  --icon-muted: #5c5f66;
+  
+  --ring: rgba(16, 185, 129, 0.3);
+  --shadow-color: rgba(0, 0, 0, 0.4);
 
   /* Chat Specific Dark */
-  --chat-header: rgba(0, 0, 0, 0.6);
-  --chat-composer: rgba(0, 0, 0, 0.6);
-  --bubble-incoming: #171717;
-  --bubble-incoming-text: #ffffff;
+  --chat-background: #0b0c0d;
+  --chat-header: rgba(11, 12, 13, 0.7);
+  --chat-composer: rgba(11, 12, 13, 0.7);
+  --chat-composer-border: #1a1b1e;
+  --chat-input-bg: #1a1b1e;
+  
+  --bubble-incoming: #1a1b1e;
+  --bubble-incoming-text: #f8f9fa;
   --bubble-outgoing: #10b981;
   --bubble-outgoing-text: #ffffff;
+  --bubble-meta: rgba(255, 255, 255, 0.5);
+  
+  --bubble-read: #10b981;
+  --bubble-delivered: #5c5f66;
+  
+  --voice-surface: #25262b;
+  --voice-surface-text: #f8f9fa;
+  --voice-control: #10b981;
+  --voice-wave: #5c5f66;
+
+  --nav-background: rgba(11, 12, 13, 0.8);
+  --nav-border: #1a1b1e;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-muted: var(--surface-muted);
   --color-surface-hover: var(--surface-hover);
-  --color-border-subtle: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border: var(--border);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
   --color-input: var(--input);
+  --color-input-foreground: var(--input-foreground);
   
-  --radius-xl: var(--radius);
-  --radius-2xl: calc(var(--radius) + 4px);
-  --radius-3xl: calc(var(--radius) + 8px);
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
 }
 
 @utility transition-smooth {
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
@@ -83,111 +169,57 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Custom Utilities */
+/* --- Base Layout Classes --- */
 @layer utilities {
-  .glass {
-    @apply bg-background/70 backdrop-blur-xl border border-border-subtle;
-  }
-  
-  .card-premium {
-    @apply bg-surface border border-border-subtle rounded-2xl;
-    @apply transition-smooth;
-  }
-  
-  .input-nox {
-    @apply w-full bg-input border border-border-subtle rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/50 outline-none placeholder:text-muted;
-    @apply transition-smooth;
-    color: var(--foreground);
-  }
-  
-  .btn-nox {
-    @apply flex items-center justify-center font-bold rounded-2xl active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none;
-    @apply transition-smooth;
-    min-height: 44px;
-    min-width: 44px;
+  .glass-header {
+    @apply sticky top-0 z-50 backdrop-blur-xl border-b;
+    background-color: var(--chat-header);
+    border-color: var(--border-subtle);
+    padding-top: env(safe-area-inset-top);
   }
 
-  .nav-blur {
-    @apply fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-2xl border-t border-border-subtle;
+  .glass-composer {
+    @apply sticky bottom-0 z-50 backdrop-blur-xl border-t;
+    background-color: var(--chat-composer);
+    border-color: var(--chat-composer-border);
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Safe Area Utilities */
-  .safe-top { padding-top: env(safe-area-inset-top); }
-  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-  .safe-px {
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
+  .nav-blur {
+    @apply fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl border-t;
+    background-color: var(--nav-background);
+    border-color: var(--nav-border);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .app-screen {
-    min-height: 100svh;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--background);
+  .card-premium {
+    @apply bg-surface border border-border-subtle rounded-2xl transition-smooth;
+    box-shadow: 0 4px 12px var(--shadow-color);
+  }
+
+  .input-nox {
+    @apply w-full bg-input border border-border-subtle rounded-xl px-5 py-4 text-sm transition-smooth outline-none;
+    color: var(--input-foreground);
+  }
+  .input-nox::placeholder { color: var(--placeholder); }
+  .input-nox:focus { @apply ring-2 ring-primary/20 border-primary/50; }
+
+  .btn-nox {
+    @apply flex items-center justify-center font-bold rounded-xl transition-smooth active:scale-[0.97] disabled:opacity-50;
+    min-height: 44px;
   }
 
   .chat-screen {
-    height: 100svh;
-    height: 100dvh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--background);
+    @apply flex h-screen flex-col overflow-hidden;
+    background-color: var(--chat-background);
   }
-
-  .touch-target {
-    @apply flex items-center justify-center;
-    min-width: 44px;
-    min-height: 44px;
-  }
+  
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-px { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 }
 
-/* Hide navigation when in chat */
-body.hide-bottom-nav .nav-blur,
-body.hide-bottom-nav header.lg\:hidden {
-  display: none !important;
-}
-
-body.hide-bottom-nav {
-  padding-bottom: 0 !important;
-}
-
-body.hide-bottom-nav main {
-  padding: 0 !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-}
-
-/* Premium Chat Utilities */
-.chat-bg-midnight { background-color: #000000; }
-.chat-bg-graphite { background-color: #121212; }
-.chat-bg-ocean { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); }
-.chat-bg-ice { background: linear-gradient(180deg, #0f172a 0%, #334155 100%); }
-.chat-bg-emerald { background: linear-gradient(180deg, #064e3b 0%, #022c22 100%); }
-.chat-bg-milk { background-color: #f8fafc; }
-
-/* Light Presets Overrides (Optional, for better contrast) */
-[data-theme="light"] .chat-bg-midnight { background-color: #0f172a; }
-[data-theme="light"] .chat-bg-milk { background-color: #ffffff; }
-
-.message-shadow {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.glass-header {
-  @apply sticky top-0 z-50 backdrop-blur-xl border-b border-border-subtle/30;
-  background-color: var(--chat-header);
-  padding-top: env(safe-area-inset-top);
-}
-
-.glass-composer {
-  @apply sticky bottom-0 z-50 backdrop-blur-xl border-t border-border-subtle/30;
-  background-color: var(--chat-composer);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Scrollbar */
+/* Custom Scrollbar */
 ::-webkit-scrollbar { width: 0px; display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -199,9 +231,4 @@ body.hide-bottom-nav main {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* Focus States */
-:focus-visible {
-  @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
 }
