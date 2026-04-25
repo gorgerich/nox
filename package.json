@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "node server.js",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts"
