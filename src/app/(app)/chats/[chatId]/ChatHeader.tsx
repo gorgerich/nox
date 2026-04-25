@@ -12,6 +12,7 @@ export function ChatHeader({
   avatarUrl,
   onAppearanceClick,
   isConnected,
+  currentUser,
 }: {
   chatId: string;
   chatType: string;
@@ -20,6 +21,7 @@ export function ChatHeader({
   avatarUrl?: string | null;
   onAppearanceClick: () => void;
   isConnected: boolean;
+  currentUser: { displayName: string; avatarUrl: string | null };
 }) {
   const { startCall, status } = useAudioCall();
   const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
@@ -70,7 +72,7 @@ export function ChatHeader({
       <div className="flex items-center gap-2">
         {canCall && (
           <button
-            onClick={() => startCall(chatId)}
+            onClick={() => startCall(chatId, currentUser)}
             disabled={status !== "idle"}
             className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 disabled:opacity-30 disabled:grayscale"
             title="Позвонить"

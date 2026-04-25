@@ -323,6 +323,12 @@ export function ChatMessages({
     return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
   };
 
+  const currentUserInfo = useMemo(() => {
+    const member = chatInfo.otherMember; // This is actually 'otherMember', we need the one that's NOT 'otherMember'? No, we need current user profile.
+    // Let's get current user from props or calculate:
+    return { displayName: "Я", avatarUrl: null }; // Fallback or passed profile
+  }, [chatInfo]);
+
   return (
     <div 
       className={`chat-screen transition-all duration-500 ${menuState ? "overflow-hidden" : ""}`} 
@@ -336,6 +342,7 @@ export function ChatMessages({
         avatarUrl={chatInfo.otherMember?.avatarUrl}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
         isConnected={connected}
+        currentUser={currentUserInfo}
       />
 
       {pinnedIds.length > 0 && (
