@@ -22,7 +22,7 @@ const cliPort = readCliArg("port");
 const cliHostname = readCliArg("hostname");
 const port = Number.parseInt(cliPort || process.env.PORT || "3000", 10);
 const dev = process.env.NODE_ENV !== "production";
-const hostname = cliHostname || process.env.HOSTNAME || (dev ? "127.0.0.1" : "0.0.0.0");
+const hostname = cliHostname || "0.0.0.0";
 const devDistDir =
   dev && process.platform === "win32"
     ? path.join(process.env.LOCALAPPDATA || os.tmpdir(), "private-messenger-mvp", "next-dev")
@@ -343,10 +343,11 @@ app.prepare().then(() => {
   }
 
   httpServer.listen(port, hostname, () => {
-    const localUrl = `http://127.0.0.1:${port}`;
-    if (devDistDir) {
-      console.log(`> Dev cache directory: ${devDistDir}`);
-    }
+    console.log(`> Server listening on ${hostname}:${port} as ${dev ? "development" : process.env.NODE_ENV}`);
+
+if (dev) {
+  console.log(`> Local URL: http://127.0.0.1:${port}`);
+}
     console.log(`> Server listening at ${localUrl} as ${dev ? "development" : process.env.NODE_ENV}`);
   });
 });
