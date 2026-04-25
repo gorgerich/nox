@@ -47,6 +47,11 @@ export type Message = {
       profile: { displayName: string } | null;
     };
   } | null;
+  receipts: {
+    userId: string;
+    deliveredAt: string | null;
+    readAt: string | null;
+  }[];
 };
 
 export function MessageBubble({
@@ -125,6 +130,10 @@ export function MessageBubble({
     return acc;
   }, {} as Record<string, { count: number; me: boolean }>);
 
+  // Status calculation
+  const isRead = message.receipts?.some(r => r.readAt);
+  const isDelivered = message.receipts?.some(r => r.deliveredAt);
+
   return (
     <div className={`flex flex-col ${mine ? "items-end" : "items-start"} mb-1.5 px-4 transition-smooth`}>
       {showDisplayName && !mine && (
@@ -172,7 +181,6 @@ export function MessageBubble({
                       className="relative overflow-hidden rounded-xl border border-white/5 shadow-inner cursor-pointer active:opacity-90 transition-opacity"
                       onClick={() => onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName })}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
                         src={downloadUrl} 
                         alt="" 
@@ -200,7 +208,7 @@ export function MessageBubble({
                       onClick={() => {
                         const link = document.createElement("a");
                         link.href = downloadUrl;
-                        link.target = "_self"; // Stay in PWA
+                        link.target = "_self";
                         link.click();
                       }}
                     >
@@ -238,9 +246,31 @@ export function MessageBubble({
             {message.editedAt && "изм. "}{time}
           </span>
           {mine && !message.deletedAt && (
-            <svg className="h-3.5 w-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
+            <div className="flex items-center ml-0.5">
+              {isRead ? (
+                <div className="flex -space-x-1.5">
+                  <svg className="h-3 w-3 text-primary animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg className="h-3 w-3 text-primary animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : isDelivered ? (
+                <div className="flex -space-x-1.5">
+                  <svg className="h-3 w-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg className="h-3 w-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : (
+                <svg className="h-3 w-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
           )}
         </div>
       </div>

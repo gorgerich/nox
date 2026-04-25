@@ -485,6 +485,37 @@ app.prepare().then(() => {
       });
     });
 
+    socket.on("message:delivered", async (data) => {
+      if (!data || typeof data.messageId !== "string") return;
+      const { messageId } = data;
+
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        select: { chatId: true, senderUserId: true }
+      });
+
+      if (!message || message.senderUserId === user.id) return;
+
+      const membership = await prisma.chatMember.findFirst({
+        where: { chatId: message.chatId, userId: user.id, status: "ACTIVE" }
+      });
+
+      if (!membership) return;
+
+      const receipt = await prisma.messageReceipt.update({
+        where: { messageId_userId: { messageId, userId: user.id } },
+        data: { deliveredAt: new Date() }
+      });
+
+      io.to(`chat:${message.chatId}`).emit("message:receipt-updated", {
+        chatId: message.chatId,
+        messageId,
+        userId: user.id,
+        deliveredAt: receipt.deliveredAt,
+        readAt: receipt.readAt
+      });
+    });
+
     socket.on("disconnect", (reason) => {
       if (DEBUG_REALTIME) {
         console.log(`[socket] disconnected userId=${user.id} reason=${reason}`);

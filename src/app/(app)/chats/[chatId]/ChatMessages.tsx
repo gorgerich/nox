@@ -131,6 +131,8 @@ export function ChatMessages({
 
       if (normalized.senderUserId !== currentUserId) {
         markAsRead();
+        // Emit delivered receipt
+        socket.emit("message:delivered", { messageId: normalized.id });
       }
     }
 
@@ -155,6 +157,35 @@ export function ChatMessages({
       setMessages((current) =>
         current.map((m) => (m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m))
       );
+    }
+
+    function handleReceiptUpdated(payload: { messageId: string; userId: string; deliveredAt: string; readAt: string }) {
+      setMessages((current) => current.map((m) => {
+        if (m.id !== payload.messageId) return m;
+        const existingIdx = m.receipts.findIndex(r => r.userId === payload.userId);
+        const newReceipts = [...m.receipts];
+        if (existingIdx > -1) {
+          newReceipts[existingIdx] = { ...newReceipts[existingIdx], deliveredAt: payload.deliveredAt, readAt: payload.readAt };
+        } else {
+          newReceipts.push({ userId: payload.userId, deliveredAt: payload.deliveredAt, readAt: payload.readAt });
+        }
+        return { ...m, receipts: newReceipts };
+      }));
+    }
+
+    function handleReceiptsUpdated(payload: { chatId: string; userId: string; deliveredAt: string; readAt: string }) {
+      if (payload.chatId !== chatId) return;
+      setMessages((current) => current.map((m) => {
+        if (m.senderUserId === payload.userId) return m;
+        const existingIdx = m.receipts.findIndex(r => r.userId === payload.userId);
+        const newReceipts = [...m.receipts];
+        if (existingIdx > -1) {
+          newReceipts[existingIdx] = { ...newReceipts[existingIdx], deliveredAt: payload.deliveredAt, readAt: payload.readAt };
+        } else {
+          newReceipts.push({ userId: payload.userId, deliveredAt: payload.deliveredAt, readAt: payload.readAt });
+        }
+        return { ...m, receipts: newReceipts };
+      }));
     }
 
     function handleTypingUpdate(payload: { chatId: string; userId: string; displayName: string; isTyping: boolean }) {
@@ -184,6 +215,8 @@ export function ChatMessages({
     socket.on("message:deleted", handleDeletedMessage);
     socket.on("message:updated", handleUpdatedMessage);
     socket.on("message:reactions-updated", handleReactionsUpdated);
+    socket.on("message:receipt-updated", handleReceiptUpdated);
+    socket.on("message:receipts-updated", handleReceiptsUpdated);
     socket.on("typing:update", handleTypingUpdate);
 
     return () => {
@@ -192,6 +225,8 @@ export function ChatMessages({
       socket.off("message:deleted", handleDeletedMessage);
       socket.off("message:updated", handleUpdatedMessage);
       socket.off("message:reactions-updated", handleReactionsUpdated);
+      socket.off("message:receipt-updated", handleReceiptUpdated);
+      socket.off("message:receipts-updated", handleReceiptsUpdated);
       socket.off("typing:update", handleTypingUpdate);
     };
   }, [chatId, socket, currentUserId, markAsRead]);
@@ -456,7 +491,7 @@ export function ChatMessages({
           onClick={() => setMenuMessageId(null)}
         >
           <div 
-            className="w-full max-w-sm rounded-[32px] bg-neutral-900 p-2 shadow-2xl animate-in slide-in-from-bottom-4 duration-300" 
+            className="w-full max-w-sm rounded-[32px] bg-neutral-950 p-2 shadow-2xl animate-in slide-in-from-bottom-4 duration-300" 
             onClick={e => e.stopPropagation()}
           >
              <div className="flex justify-around p-3 border-b border-white/5 mb-2 overflow-x-auto scrollbar-hide">

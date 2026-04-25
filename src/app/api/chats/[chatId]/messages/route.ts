@@ -75,6 +75,13 @@ export async function GET(
           },
         },
       },
+      receipts: {
+        select: {
+          userId: true,
+          deliveredAt: true,
+          readAt: true,
+        }
+      }
     },
   });
 
@@ -123,6 +130,16 @@ export async function POST(
     }
   }
 
+  const activeMembers = await prisma.chatMember.findMany({
+    where: {
+      chatId,
+      status: "ACTIVE",
+    },
+    select: {
+      userId: true,
+    },
+  });
+
   const message = await prisma.message.create({
     data: {
       chatId,
@@ -130,6 +147,11 @@ export async function POST(
       type: "TEXT",
       body: parsed.data.body,
       replyToMessageId: parsed.data.replyToMessageId,
+      receipts: {
+        create: activeMembers
+          .filter(m => m.userId !== user.id)
+          .map(m => ({ userId: m.userId }))
+      }
     },
     include: {
       sender: {
@@ -174,22 +196,19 @@ export async function POST(
           },
         },
       },
+      receipts: {
+        select: {
+          userId: true,
+          deliveredAt: true,
+          readAt: true,
+        }
+      }
     },
   });
 
   await prisma.chat.update({
     where: { id: chatId },
     data: { updatedAt: new Date() },
-  });
-
-  const activeMembers = await prisma.chatMember.findMany({
-    where: {
-      chatId,
-      status: "ACTIVE",
-    },
-    select: {
-      userId: true,
-    },
   });
 
   emitToChat(chatId, "message:new", { chatId, message });
