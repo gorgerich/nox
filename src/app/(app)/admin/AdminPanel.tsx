@@ -280,7 +280,7 @@ export function AdminPanel({ currentUserRole }: { currentUserRole: string }) {
 
           {activeSection === "invites" && (
             <div className="space-y-6">
-              <form className="card-clean p-6 space-y-4" onSubmit={createInvite}>
+              <form className="card-clean p-6 space-y-4" onSubmit={createInvite} method="POST">
                 <h2 className="text-sm font-bold uppercase tracking-widest">Создать код</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input

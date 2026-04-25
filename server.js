@@ -135,12 +135,18 @@ app.prepare().then(() => {
       const user = await getSocketUser(socket);
 
       if (!user) {
-        if (DEBUG_REALTIME) console.warn(`[socket auth] Denied: No user found for socket ${socket.id}`);
+        if (DEBUG_REALTIME) {
+          console.warn(`[socket auth] Denied: No user found for socket ${socket.id}`);
+        }
+
         nextSocket(new Error("Нет доступа."));
         return;
       }
 
-      if (DEBUG_REALTIME) console.log(`[socket auth] Success: userId=${user.id} for socket ${socket.id}`);
+      if (DEBUG_REALTIME) {
+        console.log(`[socket auth] Success: userId=${user.id} for socket ${socket.id}`);
+      }
+
       socket.data.user = user;
       nextSocket();
     } catch (error) {
@@ -151,10 +157,16 @@ app.prepare().then(() => {
 
   io.on("connection", async (socket) => {
     const user = socket.data.user;
-    if (DEBUG_REALTIME) console.log(`[socket] connected userId=${user.id} socketId=${socket.id}`);
+
+    if (DEBUG_REALTIME) {
+      console.log(`[socket] connected userId=${user.id} socketId=${socket.id}`);
+    }
 
     socket.join(`user:${user.id}`);
-    if (DEBUG_REALTIME) console.log(`[socket] joined user room user:${user.id}`);
+
+    if (DEBUG_REALTIME) {
+      console.log(`[socket] joined user room user:${user.id}`);
+    }
 
     const memberships = await prisma.chatMember.findMany({
       where: {
@@ -168,7 +180,10 @@ app.prepare().then(() => {
 
     memberships.forEach((membership) => {
       socket.join(`chat:${membership.chatId}`);
-      if (DEBUG_REALTIME) console.log(`[socket] joined chat room chat:${membership.chatId} for userId=${user.id}`);
+
+      if (DEBUG_REALTIME) {
+        console.log(`[socket] joined chat room chat:${membership.chatId} for userId=${user.id}`);
+      }
     });
 
     socket.on("chat:join", async (chatId) => {
@@ -189,20 +204,33 @@ app.prepare().then(() => {
 
       if (membership) {
         socket.join(`chat:${chatId}`);
-        if (DEBUG_REALTIME) console.log(`[socket] joined chat room chat:${chatId} via chat:join for userId=${user.id}`);
+
+        if (DEBUG_REALTIME) {
+          console.log(`[socket] joined chat room chat:${chatId} via chat:join for userId=${user.id}`);
+        }
       }
     });
 
     socket.on("chat:leave", (chatId) => {
       if (typeof chatId === "string") {
         socket.leave(`chat:${chatId}`);
-        if (DEBUG_REALTIME) console.log(`[socket] left chat room chat:${chatId} for userId=${user.id}`);
+
+        if (DEBUG_REALTIME) {
+          console.log(`[socket] left chat room chat:${chatId} for userId=${user.id}`);
+        }
       }
     });
 
     socket.on("typing:start", async (data) => {
+      if (!data || typeof data !== "object") {
+        return;
+      }
+
       const { chatId } = data;
-      if (typeof chatId !== "string") return;
+
+      if (typeof chatId !== "string") {
+        return;
+      }
 
       const membership = await prisma.chatMember.findFirst({
         where: {
@@ -210,23 +238,49 @@ app.prepare().then(() => {
           userId: user.id,
           status: "ACTIVE",
         },
-        select: { id: true },
+        select: {
+          id: true,
+        },
       });
 
-      if (membership) {
-        socket.to(`chat:${chatId}`).emit("typing:update", {
-          chatId,
-          userId: user.id,
-          username: user.username,
-          displayName: user.displayName,
-          isTyping: true,
-        });
+      if (!membership) {
+        return;
       }
+
+      socket.to(`chat:${chatId}`).emit("typing:update", {
+        chatId,
+        userId: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        isTyping: true,
+      });
     });
 
     socket.on("typing:stop", async (data) => {
+      if (!data || typeof data !== "object") {
+        return;
+      }
+
       const { chatId } = data;
-      if (typeof chatId !== "string") return;
+
+      if (typeof chatId !== "string") {
+        return;
+      }
+
+      const membership = await prisma.chatMember.findFirst({
+        where: {
+          chatId,
+          userId: user.id,
+          status: "ACTIVE",
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!membership) {
+        return;
+      }
 
       socket.to(`chat:${chatId}`).emit("typing:update", {
         chatId,
@@ -238,7 +292,9 @@ app.prepare().then(() => {
     });
 
     socket.on("disconnect", (reason) => {
-      if (DEBUG_REALTIME) console.log(`[socket] disconnected userId=${user.id} reason=${reason}`);
+      if (DEBUG_REALTIME) {
+        console.log(`[socket] disconnected userId=${user.id} reason=${reason}`);
+      }
     });
 
     socket.on("error", (error) => {
@@ -246,13 +302,17 @@ app.prepare().then(() => {
     });
   });
 
-  // Heartbeat to test connectivity
-  setInterval(() => {
-    io.emit("server:heartbeat", { time: new Date().toISOString() });
-    if (DEBUG_REALTIME) console.log(`[socket] heartbeat sent at ${new Date().toISOString()}`);
-  }, 30000);
+  if (DEBUG_REALTIME) {
+    setInterval(() => {
+      io.emit("server:heartbeat", { time: new Date().toISOString() });
+      console.log(`[socket] heartbeat sent at ${new Date().toISOString()}`);
+    }, 30000);
+  }
 
-  httpServer.listen(port, () => {
-    console.log(`> Server listening at http://localhost:${port} as ${dev ? "development" : process.env.NODE_ENV}`);
+  const hostname = "0.0.0.0";
+
+  httpServer.listen(port, hostname, () => {
+    const localUrl = `http://127.0.0.1:${port}`;
+    console.log(`> Server listening at ${localUrl} as ${dev ? "development" : process.env.NODE_ENV}`);
   });
 });

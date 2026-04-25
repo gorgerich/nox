@@ -185,6 +185,7 @@ export function ChatMessages({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRecordingCancelledRef = useRef(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -373,7 +374,7 @@ export function ChatMessages({
         setBody("");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка");
+      if (err instanceof Error) setError(err.message);
     } finally {
       setPending(false);
       router.refresh();
@@ -417,19 +418,24 @@ export function ChatMessages({
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`/api/chats/${chatId}/attachments`, {
-      method: "POST",
-      body: formData,
-    });
-    setUploading(false);
+    try {
+      const response = await fetch(`/api/chats/${chatId}/attachments`, {
+        method: "POST",
+        body: formData,
+      });
+      setUploading(false);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error(getUiErrorMessage(data?.error));
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(getUiErrorMessage(data?.error));
+      }
+
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      setUploading(false);
+      throw err;
     }
-
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function deleteMessage(messageId: string) {
@@ -446,8 +452,8 @@ export function ChatMessages({
         body: JSON.stringify({ emoji }),
       });
       setMenuMessageId(null);
-    } catch (err) {
-      console.error("Failed to toggle reaction", err);
+    } catch {
+      // silenced
     }
   }
 
@@ -498,8 +504,13 @@ export function ChatMessages({
   // Recording Logic
   async function startRecording() {
     try {
+      isRecordingCancelledRef.current = false;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg", ""]
+        .find(type => type === "" || MediaRecorder.isTypeSupported(type));
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       audioChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -507,11 +518,26 @@ export function ChatMessages({
       };
 
       recorder.onstop = async () => {
+        if (isRecordingCancelledRef.current) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
         const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
-        if (audioChunksRef.current.length > 0) {
-          const file = new File([audioBlob], `voice-${Date.now()}.webm`, { type: recorder.mimeType });
-          await uploadAttachment(file);
-          router.refresh();
+        if (audioChunksRef.current.length > 0 && audioBlob.size > 0) {
+          const extension = recorder.mimeType.includes("mp4") ? "mp4" : "webm";
+          const file = new File([audioBlob], `voice-${Date.now()}.${extension}`, { type: audioBlob.type || "audio/webm" });
+          
+          try {
+            await uploadAttachment(file);
+            router.refresh();
+          } catch (err) {
+            console.error("[voice] upload failed", err);
+            setError("Не удалось отправить голосовое");
+          }
+        } else {
+          console.warn("[voice] recording is empty");
+          setError("Не удалось записать голосовое");
         }
         stream.getTracks().forEach(track => track.stop());
       };
@@ -524,7 +550,7 @@ export function ChatMessages({
         setRecordingDuration(prev => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error("Microphone access denied", err);
+      console.error("[voice] recording start failed", err);
       setError("Не удалось получить доступ к микрофону");
     }
   }
@@ -538,6 +564,7 @@ export function ChatMessages({
   }
 
   function cancelRecording() {
+    isRecordingCancelledRef.current = true;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       audioChunksRef.current = [];
@@ -803,7 +830,7 @@ export function ChatMessages({
       )}
 
       {/* Composer */}
-      <div className="p-4 bg-background">
+      <div className="bg-background p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
         {memberLocked ? (
           <div className="rounded-xl bg-surface p-3 text-center border border-border-subtle">
             <p className="text-xs font-bold uppercase tracking-widest text-muted">Чат закрыт для участников</p>

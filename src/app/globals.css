@@ -1,15 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
-  --foreground: #f5f5f5;
+  --background: #000000;
+  --foreground: #ffffff;
   --surface: #0a0a0a;
-  --surface-hover: #111111;
+  --surface-hover: #141414;
   --border: #1a1a1a;
   --primary: #10b981;
   --primary-hover: #059669;
-  --text-muted: #888888;
-  --radius: 16px;
+  --muted: #737373;
+  --radius: 20px;
+}
+
+.light {
+  --background: #ffffff;
+  --foreground: #000000;
+  --surface: #f5f5f5;
+  --surface-hover: #ebebeb;
+  --border: #e5e5e5;
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --muted: #737373;
 }
 
 @theme inline {
@@ -20,10 +31,11 @@
   --color-border-subtle: var(--border);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
-  --color-muted: var(--text-muted);
+  --color-muted: var(--muted);
   
   --radius-xl: var(--radius);
   --radius-2xl: calc(var(--radius) + 4px);
+  --radius-3xl: calc(var(--radius) + 8px);
 }
 
 body {
@@ -31,48 +43,41 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  overflow-x: hidden;
 }
 
 /* Custom Utilities */
 @layer utilities {
   .glass {
-    @apply bg-surface/80 backdrop-blur-md border border-border-subtle;
+    @apply bg-background/70 backdrop-blur-xl border border-border-subtle;
   }
   
-  .card-clean {
-    @apply bg-surface border border-border-subtle rounded-xl overflow-hidden;
+  .card-premium {
+    @apply bg-surface border border-border-subtle rounded-2xl transition-all duration-300;
   }
   
   .input-nox {
-    @apply w-full bg-surface-hover border border-border-subtle rounded-xl px-4 py-3 text-sm transition-all focus:border-primary outline-none focus:ring-1 focus:ring-primary/20;
+    @apply w-full bg-surface border border-border-subtle rounded-2xl px-5 py-4 text-sm transition-all focus:border-primary/50 outline-none;
   }
   
-  .btn-primary {
-    @apply bg-primary hover:bg-primary-hover text-neutral-950 font-semibold px-5 py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
-  }
-  
-  .btn-secondary {
-    @apply bg-surface hover:bg-surface-hover border border-border-subtle text-foreground px-5 py-3 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50;
+  .btn-nox {
+    @apply flex items-center justify-center font-bold rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50;
   }
 
-  .text-balance {
-    text-wrap: balance;
+  .nav-blur {
+    @apply sticky bottom-0 z-50 bg-background/80 backdrop-blur-2xl border-t border-border-subtle;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 0px;
+  display: none;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-white/20;
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

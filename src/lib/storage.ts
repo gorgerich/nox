@@ -40,7 +40,8 @@ export const attachmentRules: Record<
 };
 
 export function getAttachmentRule(mimeType: string) {
-  return attachmentRules[mimeType as AllowedAttachmentMimeType] ?? null;
+  const baseMime = mimeType.split(";")[0].toLowerCase().trim();
+  return attachmentRules[baseMime as AllowedAttachmentMimeType] ?? null;
 }
 
 function getUploadRoot() {

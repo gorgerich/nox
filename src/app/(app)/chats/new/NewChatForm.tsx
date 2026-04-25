@@ -172,7 +172,7 @@ export function NewChatForm() {
   return (
     <div className="space-y-10">
       <div className="space-y-4">
-        <form className="flex gap-2" onSubmit={searchUser}>
+        <form className="flex gap-2" onSubmit={searchUser} method="POST">
           <input
             className="input-nox h-12"
             maxLength={32}
