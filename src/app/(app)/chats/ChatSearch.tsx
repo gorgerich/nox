@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 type SearchResult = {
   people: { id: string; username: string; displayName: string; profile?: { avatarUrl: string | null } }[];
@@ -91,9 +92,9 @@ export function ChatSearch() {
                         onClick={() => setIsOpen(false)}
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105 relative">
                           {person.profile?.avatarUrl ? (
-                            <img src={person.profile.avatarUrl.startsWith('http') ? person.profile.avatarUrl : `/api/avatars/${person.profile.avatarUrl}`} alt={person.displayName} className="h-full w-full object-cover" />
+                            <Image src={person.profile.avatarUrl.startsWith('http') ? person.profile.avatarUrl : `/api/avatars/${person.profile.avatarUrl}`} alt={person.displayName} fill className="object-cover" />
                           ) : (
                             <span className="text-lg font-black text-primary uppercase">{person.displayName[0]}</span>
                           )}
@@ -119,9 +120,9 @@ export function ChatSearch() {
                         onClick={() => setIsOpen(false)}
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105 relative">
                           {chat.avatarUrl ? (
-                            <img src={chat.avatarUrl.startsWith('http') ? chat.avatarUrl : `/api/avatars/${chat.avatarUrl}`} alt={chat.title || "Чат"} className="h-full w-full object-cover" />
+                            <Image src={chat.avatarUrl.startsWith('http') ? chat.avatarUrl : `/api/avatars/${chat.avatarUrl}`} alt={chat.title || "Чат"} fill className="object-cover" />
                           ) : (
                             <span className="text-lg font-black text-primary uppercase">{(chat.title || "C")[0]}</span>
                           )}

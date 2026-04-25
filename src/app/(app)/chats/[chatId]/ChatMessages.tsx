@@ -7,6 +7,7 @@ import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
 import { useChatAppearance, ChatAppearanceSheet, PRESETS } from "./ChatAppearance";
 import { MediaViewer, MediaItem } from "./MediaViewer";
+import { useSearchParams } from "next/navigation";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -49,6 +50,13 @@ interface ChatApiResponse {
   }[];
 }
 
+interface SearchResultMessage {
+  id: string;
+  body: string;
+  createdAt: string;
+  senderName: string;
+}
+
 function normalizeMessage(message: unknown): Message | null {
   const m = message as Message;
   if (!m?.id || !m.senderUserId || !m.sender?.id || !m.createdAt) return null;
@@ -84,26 +92,31 @@ export function ChatMessages({
   };
 }) {
   const { socket, connected } = useSocket();
+  const searchParams = useSearchParams();
+  
   const [messages, setMessages] = useState<Message[]>(() =>
     initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
   );
   
   const [pending, setPending] = useState(false);
-
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  
   const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
-
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [forwardingMessages, setForwardingMessages] = useState<Message[] | null>(null);
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [showForwardPicker, setShowForwardPicker] = useState(false);
+
+  // Message Search State
+  const [isSearchOpen, setIsSearchOpen] = useState(() => searchParams.get("search") === "true");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResultMessage[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   const { settings, updateSettings, resetSettings } = useChatAppearance(chatId);
 
@@ -111,6 +124,7 @@ export function ChatMessages({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const initialScrollDoneRef = useRef(false);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     if (scrollContainerRef.current) {
@@ -119,29 +133,56 @@ export function ChatMessages({
     }
   }, []);
 
+  const jumpToMessage = useCallback((id: string) => {
+    const el = messageRefs.current[id];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedId(id);
+      setTimeout(() => setHighlightedId(null), 2500);
+      setIsSearchOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const isSearchParam = searchParams.get("search") === "true";
+    if (isSearchParam && !isSearchOpen) {
+      setTimeout(() => setIsSearchOpen(true), 0);
+    }
+  }, [searchParams, isSearchOpen]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      if (searchResults.length > 0) {
+        setTimeout(() => setSearchResults([]), 0);
+      }
+      return;
+    }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/chats/${chatId}/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(data.messages || []);
+      } catch {} finally { setSearching(false); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchQuery, chatId, searchResults.length]);
+
   useEffect(() => {
     initialScrollDoneRef.current = false;
     let frameId: number;
-    
     const stabilize = () => {
        forceScrollBottom("auto");
        if (!initialScrollDoneRef.current) frameId = requestAnimationFrame(stabilize);
     };
     stabilize();
-
     const t1 = setTimeout(() => forceScrollBottom("auto"), 100);
     const t2 = setTimeout(() => {
       forceScrollBottom("auto");
       initialScrollDoneRef.current = true;
     }, 600);
-    
     fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => {});
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    return () => { cancelAnimationFrame(frameId); clearTimeout(t1); clearTimeout(t2); };
   }, [chatId, forceScrollBottom]);
 
   useEffect(() => {
@@ -150,21 +191,15 @@ export function ChatMessages({
       const parsed = JSON.parse(saved);
       setTimeout(() => setPinnedIds(parsed), 0);
     }
-    
     let active = true;
-    fetch("/api/chats")
-      .then(res => res.json())
-      .then((data: ChatApiResponse) => {
-        if (active && Array.isArray(data.chats)) {
-          setRecentChats(data.chats.map((c) => ({
-            id: c.id,
-            title: c.type === "DIRECT" 
-              ? (c.members.find((m) => m.userId !== currentUserId)?.user.profile?.displayName || "Чат") 
-              : (c.title || "Группа")
-          })));
-        }
-      })
-      .catch(() => {});
+    fetch("/api/chats").then(res => res.json()).then((data: ChatApiResponse) => {
+      if (active && Array.isArray(data.chats)) {
+        setRecentChats(data.chats.map((c) => ({
+          id: c.id,
+          title: c.type === "DIRECT" ? (c.members.find((m) => m.userId !== currentUserId)?.user.profile?.displayName || "Чат") : (c.title || "Группа")
+        })));
+      }
+    }).catch(() => {});
     return () => { active = false; };
   }, [chatId, currentUserId]);
 
@@ -351,9 +386,7 @@ export function ChatMessages({
     return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
   };
 
-  const currentUserInfo = useMemo(() => {
-    return { displayName: "Я", avatarUrl: null }; 
-  }, []);
+  const currentUserInfo = useMemo(() => { return { displayName: "Я", avatarUrl: null }; }, []);
 
   return (
     <div 
@@ -369,13 +402,49 @@ export function ChatMessages({
         onAppearanceClick={() => setIsAppearanceOpen(true)}
         isConnected={connected}
         currentUser={currentUserInfo}
+        partnerId={chatInfo.otherMember?.id}
       />
+
+      {isSearchOpen && (
+        <div className="sticky top-0 z-[150] glass-header px-4 py-3 animate-in slide-in-from-top-full duration-300 shadow-xl">
+           <div className="relative flex items-center gap-3">
+              <div className="relative flex-1">
+                 <input 
+                   className="input-nox h-12 pl-12 pr-4 bg-foreground/5 border-none focus:ring-primary/20" 
+                   placeholder="Поиск сообщений..." 
+                   value={searchQuery}
+                   onChange={e => setSearchQuery(e.target.value)}
+                   autoFocus
+                 />
+                 <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+              <button onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }} className="text-sm font-black uppercase text-primary">Отмена</button>
+           </div>
+           
+           {searchResults.length > 0 && (
+             <div className="mt-4 max-h-60 overflow-y-auto space-y-2 pb-2">
+                {searchResults.map(m => (
+                  <button key={m.id} onClick={() => jumpToMessage(m.id)} className="w-full text-left p-3 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.98]">
+                     <div className="flex justify-between mb-1">
+                        <span className="text-[10px] font-black uppercase text-primary">{m.senderName}</span>
+                        <span className="text-[9px] font-bold text-muted">{new Date(m.createdAt).toLocaleDateString()}</span>
+                     </div>
+                     <p className="text-xs truncate text-foreground/80">{m.body}</p>
+                  </button>
+                ))}
+             </div>
+           )}
+           {searchQuery && !searching && searchResults.length === 0 && (
+             <p className="mt-4 text-center text-[10px] font-black uppercase text-muted py-4">Ничего не найдено</p>
+           )}
+        </div>
+      )}
 
       {pinnedIds.length > 0 && (
         <div className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-border-subtle/30 px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2">
            <div className="flex items-center gap-3 min-w-0">
               <div className="h-8 w-1 bg-primary rounded-full" />
-              <div className="min-w-0">
+              <div className="min-w-0 cursor-pointer" onClick={() => jumpToMessage(pinnedIds[pinnedIds.length-1])}>
                  <p className="text-[10px] font-black uppercase text-primary">Закреплённое сообщение</p>
                  <p className="text-xs truncate text-foreground/60">{messages.find(m => m.id === pinnedIds[pinnedIds.length-1])?.body || "Вложение"}</p>
               </div>
@@ -399,7 +468,11 @@ export function ChatMessages({
                 </span>
               </div>
             ) : (
-              <div key={item.message.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div 
+                key={item.message.id} 
+                ref={el => { messageRefs.current[item.message.id] = el; }}
+                className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-500" : ""}`}
+              >
                 <MessageBubble
                   message={item.message}
                   mine={item.mine}

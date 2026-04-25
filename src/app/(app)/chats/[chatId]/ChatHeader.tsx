@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
+import { useSocket } from "@/hooks/useSocket";
 
 export function ChatHeader({
   chatId,
@@ -13,6 +16,7 @@ export function ChatHeader({
   onAppearanceClick,
   isConnected,
   currentUser,
+  partnerId,
 }: {
   chatId: string;
   chatType: string;
@@ -22,13 +26,31 @@ export function ChatHeader({
   onAppearanceClick: () => void;
   isConnected: boolean;
   currentUser: { displayName: string; avatarUrl: string | null };
+  partnerId?: string;
 }) {
+  const router = useRouter();
   const { startCall, status } = useAudioCall();
+  const { socket } = useSocket();
+  const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
   const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
+
+  useEffect(() => {
+    if (!socket || !partnerId || chatType !== "DIRECT") return;
+
+    const handlePresence = ({ userId, status }: { userId: string, status: string }) => {
+      if (userId === partnerId) {
+        setOnlineStatus(status === "online" ? "в сети" : "был(а) недавно");
+      }
+    };
+    socket.on("presence:update", handlePresence);
+    return () => { socket.off("presence:update", handlePresence); };
+  }, [socket, partnerId, chatType]);
 
   const fullAvatarUrl = avatarUrl 
     ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
     : null;
+
+  const displaySubtitle = onlineStatus || subtitle || (isConnected ? "в сети" : "подключение...");
 
   return (
     <header className="glass-header flex items-center justify-between px-4 py-3 transition-smooth border-b border-white/5">
@@ -42,7 +64,10 @@ export function ChatHeader({
           </svg>
         </Link>
         
-        <div className="flex items-center gap-3 min-w-0">
+        <div 
+          className="flex items-center gap-3 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
+          onClick={() => chatType === "DIRECT" && router.push(`/chats/${chatId}/profile`)}
+        >
           <div className="relative shrink-0">
             {fullAvatarUrl ? (
               <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-white/10 ring-1 ring-black/5 transition-smooth group-active:scale-95 shadow-sm">
@@ -59,8 +84,8 @@ export function ChatHeader({
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-sm font-black tracking-tight leading-tight text-[var(--chat-header-fg)]">{title}</h1>
-            <p className="truncate text-[10px] font-black uppercase tracking-widest text-primary">
-              {subtitle}
+            <p className={`truncate text-[10px] font-black uppercase tracking-widest ${displaySubtitle === "в сети" ? "text-primary" : "opacity-60"}`}>
+              {displaySubtitle}
             </p>
           </div>
         </div>

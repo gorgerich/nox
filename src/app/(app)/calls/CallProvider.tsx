@@ -41,6 +41,25 @@ const RTC_CONFIG: RTCConfiguration = {
   ],
 };
 
+interface IncomingPayload {
+  callId: string;
+  chatId: string;
+  offer: RTCSessionDescriptionInit;
+  fromUser: { displayName: string, avatarUrl: string | null };
+}
+
+interface AnsweredPayload {
+  answer: RTCSessionDescriptionInit;
+}
+
+interface IcePayload {
+  candidate: RTCIceCandidateInit;
+}
+
+interface EndedPayload {
+  reason: string;
+}
+
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { socket } = useSocket();
   const [call, setCall] = useState<CallMetadata | null>(null);
@@ -78,7 +97,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const cleanup = useCallback((reason?: string) => {
     debugCall("Cleanup started", { reason: reason || "none" });
     
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -146,7 +168,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     return pc;
   }, [socket, cleanup, debugCall]);
 
-  const startCall = async (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => {
+  const startCall = useCallback(async (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => {
     if (statusRef.current !== "idle") return;
     debugCall("Starting outgoing call", { chatId });
     setStatus("ringing");
@@ -187,9 +209,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       console.error(err);
       failCall("Нет доступа к микрофону");
     }
-  };
+  }, [socket, createPeerConnection, cleanup, debugCall, failCall]);
 
-  const acceptCall = async () => {
+  const acceptCall = useCallback(async () => {
     if (!call || !incomingOfferRef.current || !socket) return;
     debugCall("Accepting incoming call");
     setStatus("connecting");
@@ -226,23 +248,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       failCall("Ошибка доступа к микрофону");
       socket.emit("call:declined", { callId: call.callId });
     }
-  };
+  }, [call, socket, createPeerConnection, debugCall, failCall]);
 
-  const declineCall = () => {
+  const declineCall = useCallback(() => {
     if (call && socket) {
       socket.emit("call:declined", { callId: call.callId });
     }
     cleanup("declined");
-  };
+  }, [call, socket, cleanup]);
 
-  const endCall = () => {
+  const endCall = useCallback(() => {
     if (call && socket) {
       socket.emit("call:ended", { callId: call.callId, reason: "user_ended" });
     }
     cleanup("ended by user");
-  };
+  }, [call, socket, cleanup]);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
@@ -250,17 +272,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         setIsMuted(!audioTrack.enabled);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
-
-    interface IncomingPayload {
-      callId: string;
-      chatId: string;
-      offer: RTCSessionDescriptionInit;
-      fromUser: { displayName: string, avatarUrl: string | null };
-    }
 
     const onIncoming = ({ callId, chatId, offer, fromUser }: IncomingPayload) => {
       debugCall("Incoming call received", { callId });
@@ -278,7 +293,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setStatus("ringing");
     };
 
-    const onAnswered = async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
+    const onAnswered = async ({ answer }: AnsweredPayload) => {
       debugCall("Call answered by remote");
       if (pcRef.current) {
         setStatus("connecting");
@@ -292,7 +307,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const onIce = async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
+    const onIce = async ({ candidate }: IcePayload) => {
       debugCall("Remote ICE candidate received");
       if (pcRef.current && pcRef.current.remoteDescription) {
         await pcRef.current.addIceCandidate(candidate).catch(e => debugCall("ICE add failed", { error: String(e) }));
@@ -302,7 +317,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const onEnded = ({ reason }: { reason: string }) => {
+    const onEnded = ({ reason }: EndedPayload) => {
       debugCall("Call ended by remote", { reason });
       cleanup(`remote ended: ${reason}`);
     };
@@ -325,7 +340,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", onEnded);
       socket.off("call:declined", onDeclined);
     };
-  }, [socket, cleanup, debugCall, createPeerConnection]);
+  }, [socket, cleanup, debugCall]);
 
   return (
     <CallContext.Provider value={{

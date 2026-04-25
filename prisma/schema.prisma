@@ -104,8 +104,28 @@ model User {
   pushSubscriptions    PushSubscription[]
   messageReceipts      MessageReceipt[]
 
+  contactSettingsOwned       ContactSettings[] @relation("ContactSettingsOwner")
+  contactSettingsTargetingMe ContactSettings[] @relation("ContactSettingsTarget")
+
   @@index([status])
   @@index([role])
+}
+
+model ContactSettings {
+  id           String   @id @default(uuid())
+  ownerId      String
+  targetUserId String
+  nickname     String?
+  isBlocked    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner      User @relation("ContactSettingsOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetUser User @relation("ContactSettingsTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, targetUserId])
+  @@index([ownerId])
+  @@index([targetUserId])
 }
 
 model PushSubscription {
@@ -203,6 +223,7 @@ model ChatMember {
   joinedAt          DateTime         @default(now())
   lastReadAt        DateTime?
   lastReadMessageId String?
+  mutedUntil        DateTime?
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

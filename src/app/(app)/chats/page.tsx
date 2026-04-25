@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/prisma";
 import { ChatsRealtimeListener } from "./ChatsRealtimeListener";
 import { IncomingRequestCards } from "./IncomingRequestCards";
 import { ChatSearch } from "./ChatSearch";
+import Image from "next/image";
 
 function formatChatTime(date: Date) {
   const now = new Date();
@@ -190,7 +191,7 @@ export default async function ChatsPage() {
               >
                 <div className="relative flex h-15 w-15 shrink-0 items-center justify-center rounded-2xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/30 transition-smooth group-hover:scale-105">
                   {fullAvatarUrl ? (
-                    <img src={fullAvatarUrl} alt={title} className="h-full w-full object-cover" />
+                    <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
                   ) : (
                     <span className="text-2xl font-black text-primary uppercase">{title[0]}</span>
                   )}

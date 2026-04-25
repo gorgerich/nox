@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 type IncomingRequest = {
   id: string;
@@ -19,76 +20,45 @@ type IncomingRequest = {
 async function readJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, init);
   const data = (await response.json().catch(() => null)) as T & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data?.error ?? "Не удалось выполнить действие.");
-  }
-
+  if (!response.ok) throw new Error(data?.error ?? "Ошибка.");
   return data;
 }
 
 export function IncomingRequestCards({ requests }: { requests: IncomingRequest[] }) {
   const router = useRouter();
-  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [visibleRequests, setVisibleRequests] = useState(requests);
   const [pendingAction, setPendingAction] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const visibleRequests = requests.filter((request) => !hiddenIds.includes(request.id));
 
-  async function acceptRequest(requestId: string) {
-    setError("");
-    setNotice("");
-    setPendingAction(`accept-${requestId}`);
-
+  async function acceptRequest(id: string) {
+    setPendingAction(`accept-${id}`);
     try {
-      const data = await readJson<{ chat: { id: string } }>(`/api/chat-requests/${requestId}/accept`, {
-        method: "POST",
-      });
-
-      setHiddenIds((current) => [...current, requestId]);
-      setNotice("Запрос принят.");
-      router.push(`/chats/${data.chat.id}`);
+      await readJson(`/api/chat-requests/${id}/accept`, { method: "POST" });
+      setVisibleRequests((curr) => curr.filter((r) => r.id !== id));
       router.refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось принять запрос.");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Не удалось принять запрос");
     } finally {
       setPendingAction("");
     }
   }
 
-  async function declineRequest(requestId: string) {
-    setError("");
-    setNotice("");
-    setPendingAction(`decline-${requestId}`);
-
+  async function declineRequest(id: string) {
+    setPendingAction(`decline-${id}`);
     try {
-      await readJson(`/api/chat-requests/${requestId}/decline`, {
-        method: "POST",
-      });
-
-      setHiddenIds((current) => [...current, requestId]);
-      setNotice("Запрос отклонён.");
+      await readJson(`/api/chat-requests/${id}/decline`, { method: "POST" });
+      setVisibleRequests((curr) => curr.filter((r) => r.id !== id));
       router.refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось отклонить запрос.");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Не удалось отклонить запрос");
     } finally {
       setPendingAction("");
     }
   }
 
-  if (visibleRequests.length === 0 && !notice && !error) {
-    return null;
-  }
+  if (visibleRequests.length === 0) return null;
 
   return (
-    <div className="mb-8 space-y-4">
-      {error ? <p className="text-center text-xs text-red-400 bg-red-400/10 py-2 rounded-lg">{error}</p> : null}
-      {notice ? (
-        <p className="text-center text-xs text-primary bg-primary/10 py-2 rounded-lg">
-          {notice}
-        </p>
-      ) : null}
-
+    <div className="space-y-4">
       {visibleRequests.map((request) => {
         const displayName = request.fromUser.profile?.displayName ?? request.fromUser.username;
         const avatarUrl = request.fromUser.profile?.avatarUrl;
@@ -103,9 +73,9 @@ export function IncomingRequestCards({ requests }: { requests: IncomingRequest[]
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20 relative">
                   {fullAvatarUrl ? (
-                    <img src={fullAvatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                    <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
                   ) : (
                     <span className="text-lg font-black text-primary">{displayName[0]?.toUpperCase()}</span>
                   )}

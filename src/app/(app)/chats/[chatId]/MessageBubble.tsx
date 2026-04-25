@@ -4,6 +4,7 @@ import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
 import { useRef } from "react";
 import { MediaItem } from "./MediaViewer";
+import Image from "next/image";
 
 export type Message = {
   id: string;
@@ -117,7 +118,7 @@ export function MessageBubble({
     }
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     if (selectionMode && onSelect) {
       onSelect(message.id);
     }
@@ -232,11 +233,12 @@ export function MessageBubble({
                       className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
                       onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName }); }}
                     >
-                      <img 
+                      <Image 
                         src={downloadUrl} 
                         alt="" 
+                        width={400}
+                        height={400}
                         className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
-                        loading="lazy"
                       />
                     </div>
                   ) : isVideo ? (

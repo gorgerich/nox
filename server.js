@@ -4,15 +4,19 @@ const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
 const { v4: uuidv4 } = require("uuid");
-/* eslint-enable @typescript-eslint/no-require-imports */
+const { PrismaClient } = require("@prisma/client");
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+const prisma = new PrismaClient();
+
 // In-memory registry for active calls
-// Map<callId, { chatId, callerId, calleeId, status, createdAt }>
 const activeCalls = new Map();
+
+// Presence Registry: Map<userId, Set<socketId>>
+const onlineUsers = new Map();
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
@@ -27,11 +31,19 @@ app.prepare().then(() => {
     },
   });
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     const userId = socket.handshake.query.userId;
     if (!userId) return;
 
     socket.join(`user:${userId}`);
+
+    // Track online status
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+      // First device online
+      io.emit("presence:update", { userId, status: "online" });
+    }
+    onlineUsers.get(userId).add(socket.id);
 
     // --- CHAT EVENTS ---
     socket.on("chat:join", (chatId) => {
@@ -58,12 +70,9 @@ app.prepare().then(() => {
       });
     });
 
-    // --- CALL EVENTS (Offer-first flow) ---
-    
-    // 1. Caller starts the call
+    // --- CALL EVENTS ---
     socket.on("call:start", ({ chatId, offer, fromUser }, callback) => {
       const callId = uuidv4();
-      
       activeCalls.set(callId, {
         callId,
         chatId,
@@ -82,31 +91,25 @@ app.prepare().then(() => {
       if (callback) callback({ ok: true, callId });
     });
 
-    // 2. Callee provides WebRTC Answer
     socket.on("call:answer", ({ callId, chatId, answer }, callback) => {
       const call = activeCalls.get(callId);
       if (!call) {
         if (callback) callback({ ok: false, error: "Call not found" });
         return;
       }
-
       call.status = "connecting";
       call.calleeId = userId;
-
       socket.to(`user:${call.callerId}`).emit("call:answered", {
         callId,
         chatId,
         answer
       });
-
       if (callback) callback({ ok: true });
     });
 
-    // 3. Exchange ICE Candidates
     socket.on("call:ice-candidate", ({ callId, candidate }, callback) => {
       const call = activeCalls.get(callId);
       if (!call) return;
-
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       if (targetId) {
         socket.to(`user:${targetId}`).emit("call:ice-candidate", {
@@ -114,11 +117,9 @@ app.prepare().then(() => {
           candidate
         });
       }
-
       if (callback) callback({ ok: true });
     });
 
-    // 4. Handle End/Decline
     socket.on("call:ended", ({ callId, reason }, callback) => {
       const call = activeCalls.get(callId);
       if (call) {
@@ -140,7 +141,30 @@ app.prepare().then(() => {
       if (callback) callback({ ok: true });
     });
 
-    socket.on("disconnect", () => {
+    // --- DISCONNECT ---
+    socket.on("disconnect", async () => {
+      const userSockets = onlineUsers.get(userId);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          onlineUsers.delete(userId);
+          const lastSeenAt = new Date();
+          
+          // Update DB
+          try {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { lastSeenAt }
+            });
+          } catch (e) {
+            console.error("Failed to update lastSeenAt", e);
+          }
+          
+          // Emit offline status
+          io.emit("presence:update", { userId, status: "offline", lastSeenAt });
+        }
+      }
+
       activeCalls.forEach((call, callId) => {
         if (call.callerId === userId || call.calleeId === userId) {
           const targetId = userId === call.callerId ? call.calleeId : call.callerId;

@@ -24,6 +24,10 @@ export function CallOverlay() {
   const isConnecting = status === "connecting";
   const isActive = status === "active";
 
+  const fullAvatarUrl = call.user.avatarUrl 
+    ? (call.user.avatarUrl.startsWith('http') ? call.user.avatarUrl : `/api/avatars/${call.user.avatarUrl}`)
+    : null;
+
   return (
     <div className="fixed inset-0 z-[500] flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-16 backdrop-blur-2xl animate-in fade-in duration-500">
       <audio ref={audioRef} autoPlay playsInline />
@@ -33,8 +37,8 @@ export function CallOverlay() {
         <div className="relative mb-6 h-32 w-32">
           <div className={`absolute inset-0 rounded-[3rem] bg-primary/20 ${status === 'ringing' ? 'animate-ping' : ''}`} />
           <div className="relative flex h-full w-full items-center justify-center rounded-[3rem] border-4 border-white/10 bg-neutral-900 overflow-hidden shadow-2xl">
-            {call.user.avatarUrl ? (
-              <img src={call.user.avatarUrl} alt="" className="h-full w-full object-cover" />
+            {fullAvatarUrl ? (
+              <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
               <span className="text-5xl font-black text-primary">{call.user.displayName[0]}</span>
             )}
@@ -92,15 +96,9 @@ export function CallOverlay() {
                   isMuted ? "bg-white text-black border-white" : "bg-white/5 text-white border-white/10"
                 }`}
               >
-                {isMuted ? (
-                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                ) : (
-                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                )}
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
               </button>
               
               <button
