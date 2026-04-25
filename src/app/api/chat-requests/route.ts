@@ -130,5 +130,21 @@ export async function POST(request: Request) {
 
   emitToUser(targetUser.id, "chat-request:new", { request: chatRequest });
 
+  // Send Push Notification (non-blocking)
+  (async () => {
+    try {
+      const { sendPushToUser } = await import("@/lib/push");
+      const senderName = user.profile?.displayName || user.username;
+      await sendPushToUser(targetUser.id, {
+        title: "Новый запрос",
+        body: `${senderName} хочет начать чат`,
+        url: "/chats",
+        type: "request",
+      });
+    } catch (err) {
+      console.error("Request push failed:", err);
+    }
+  })();
+
   return NextResponse.json({ request: chatRequest }, { status: 201 });
 }

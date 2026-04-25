@@ -199,5 +199,27 @@ export async function POST(
     { chatId },
   );
 
+  // Send Push Notifications (non-blocking)
+  const recipients = activeMembers
+    .map((m) => m.userId)
+    .filter((id) => id !== user.id);
+
+  if (recipients.length > 0) {
+    const { sendPushToUsers } = await import("@/lib/push");
+    const senderName = message.sender.profile?.displayName || message.sender.username;
+    const bodyPreview = (message.body || "").length > 100 
+      ? (message.body || "").substring(0, 97) + "..." 
+      : (message.body || "");
+
+    sendPushToUsers(recipients, {
+      title: senderName,
+      body: bodyPreview,
+      url: `/chats/${chatId}`,
+      type: "message",
+      chatId,
+      tag: `chat:${chatId}`,
+    }).catch(err => console.error("Push failed:", err));
+  }
+
   return NextResponse.json({ message }, { status: 201 });
 }

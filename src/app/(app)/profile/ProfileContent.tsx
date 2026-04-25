@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 type UserWithProfile = {
   id: string;
@@ -25,6 +26,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   const [message, setMessage] = useState("");
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
+  const { status: pushStatus, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
 
   async function handleUpdate(e?: React.FormEvent) {
     e?.preventDefault();
@@ -66,6 +68,57 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       </section>
 
       <div className="space-y-10 px-1">
+        {/* Notifications Section */}
+        <section className="space-y-6">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted/60 ml-1">Уведомления</h3>
+          <div className="card-premium p-6 space-y-4 shadow-primary/5">
+            <div className="flex items-center gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-colors ${isSubscribed ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-surface-hover border-border-subtle text-muted'}`}>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-white">Push-уведомления</p>
+                <p className="text-[10px] font-medium text-muted/60 leading-tight mt-0.5">
+                  {pushStatus === "unsupported" ? "Не поддерживается в этом браузере" : 
+                   pushStatus === "denied" ? "Доступ заблокирован в настройках" :
+                   isSubscribed ? "Уведомления включены" : "Получайте сообщения и звонки"}
+                </p>
+              </div>
+            </div>
+
+            {pushStatus === "unsupported" ? (
+              <div className="rounded-xl bg-surface-hover/50 p-4 border border-border-subtle/50">
+                <p className="text-[10px] font-medium text-muted/80 leading-relaxed italic">
+                  На iPhone необходимо установить Nox на экран &laquo;Домой&raquo; для работы уведомлений.
+                </p>
+              </div>
+            ) : pushStatus === "denied" ? (
+              <div className="rounded-xl bg-red-500/5 p-4 border border-red-500/10">
+                <p className="text-[10px] font-medium text-red-400/80 leading-relaxed">
+                  Вы запретили уведомления. Разрешите их в настройках браузера или системы, чтобы Nox мог присылать сообщения.
+                </p>
+              </div>
+            ) : isSubscribed ? (
+              <button 
+                onClick={unsubscribe}
+                className="btn-nox w-full border border-border-subtle bg-surface-hover/30 text-xs font-black uppercase tracking-widest text-muted transition-smooth active:scale-95"
+              >
+                ОТКЛЮЧИТЬ УВЕДОМЛЕНИЯ
+              </button>
+            ) : (
+              <button 
+                onClick={subscribe}
+                disabled={pushStatus === "loading"}
+                className="btn-nox w-full bg-primary text-neutral-950 text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/10 transition-smooth active:scale-95"
+              >
+                {pushStatus === "loading" ? "НАСТРОЙКА..." : "ВКЛЮЧИТЬ УВЕДОМЛЕНИЯ"}
+              </button>
+            )}
+          </div>
+        </section>
+
         {isAdmin && (
           <section className="space-y-6">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted/60 ml-1">Управление</h3>

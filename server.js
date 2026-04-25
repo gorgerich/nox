@@ -298,6 +298,23 @@ app.prepare().then(() => {
         }
       });
 
+      // Send Push Notification (non-blocking)
+      (async () => {
+        try {
+          const { sendPushToUser } = await import("./src/lib/push.ts");
+          await sendPushToUser(callee.userId, {
+            title: "Входящий звонок",
+            body: `${user.displayName} звонит вам`,
+            url: `/chats/${chatId}`,
+            type: "call",
+            chatId,
+            tag: `call:${chatId}`,
+          });
+        } catch (err) {
+          console.error("Call push failed:", err.message);
+        }
+      })();
+
       // Confirm to caller
       socket.emit("call:ringing", { callId, chatId });
     });

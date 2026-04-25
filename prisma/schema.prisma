@@ -101,9 +101,27 @@ model User {
   callSessions  CallSession[] @relation("CallCreator")
   sentChatRequests ChatRequest[] @relation("SentChatRequests")
   receivedChatRequests ChatRequest[] @relation("ReceivedChatRequests")
+  pushSubscriptions PushSubscription[]
 
   @@index([status])
   @@index([role])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastSeenAt DateTime?
+  disabledAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Profile {
