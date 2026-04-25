@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
 import { emitToChat, emitToUsers } from "@/lib/realtime";
-import { getAttachmentRule, saveObject } from "@/lib/storage";
+import { getAttachmentRule, normalizeAttachmentMimeType, saveObject } from "@/lib/storage";
 
 export async function POST(
   request: Request,
@@ -34,6 +34,7 @@ export async function POST(
   }
 
   const rule = getAttachmentRule(file.type);
+  const normalizedMimeType = normalizeAttachmentMimeType(file.type);
 
   if (!rule) {
     return NextResponse.json({ error: "Тип файла не разрешён." }, { status: 400 });
@@ -46,6 +47,7 @@ export async function POST(
   const fileBuffer = Buffer.from(await file.arrayBuffer());
   const { storageKey } = await saveObject(fileBuffer);
   const prisma = getPrisma();
+
   const message = await prisma.$transaction(async (tx) => {
     const createdMessage = await tx.message.create({
       data: {
@@ -56,8 +58,8 @@ export async function POST(
           create: {
             uploaderUserId: user.id,
             storageKey,
-            fileName: file.name || "файл",
-            mimeType: file.type,
+            fileName: file.name || "file",
+            mimeType: normalizedMimeType,
             sizeBytes: file.size,
           },
         },
@@ -75,7 +77,36 @@ export async function POST(
             },
           },
         },
-        attachments: true,
+        attachments: {
+          select: {
+            id: true,
+            fileName: true,
+            mimeType: true,
+            sizeBytes: true,
+          },
+        },
+        replyToMessage: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                profile: { select: { displayName: true } },
+              },
+            },
+          },
+        },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                profile: { select: { displayName: true } },
+              },
+            },
+          },
+        },
       },
     });
 

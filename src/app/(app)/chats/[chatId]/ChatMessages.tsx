@@ -57,6 +57,83 @@ type Attachment = {
   sizeBytes: number;
 };
 
+function normalizeAttachment(attachment: Partial<Attachment> | null | undefined): Attachment | null {
+  if (!attachment?.id) {
+    return null;
+  }
+
+  return {
+    id: attachment.id,
+    fileName: attachment.fileName || "Файл",
+    mimeType: attachment.mimeType || "application/octet-stream",
+    sizeBytes: typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : 0,
+  };
+}
+
+function normalizeMessage(message: Partial<Message> | null | undefined): Message | null {
+  if (!message?.id || !message.senderUserId || !message.sender?.id || !message.sender?.username || !message.createdAt) {
+    return null;
+  }
+
+  return {
+    id: message.id,
+    body: typeof message.body === "string" ? message.body : null,
+    type: message.type || "FILE",
+    senderUserId: message.senderUserId,
+    deletedAt: message.deletedAt || null,
+    editedAt: message.editedAt || null,
+    replyToMessageId: message.replyToMessageId || null,
+    createdAt: message.createdAt,
+    sender: {
+      id: message.sender.id,
+      username: message.sender.username,
+      profile: message.sender.profile || null,
+    },
+    attachments: Array.isArray(message.attachments)
+      ? message.attachments
+          .map((attachment) => normalizeAttachment(attachment))
+          .filter((attachment): attachment is Attachment => Boolean(attachment))
+      : [],
+    reactions: Array.isArray(message.reactions) ? message.reactions : [],
+    replyToMessage: message.replyToMessage || null,
+  };
+}
+
+function getVoiceMimeCandidates() {
+  const candidates = [
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "",
+  ];
+
+  if (typeof window === "undefined" || typeof window.MediaRecorder === "undefined") {
+    return [""];
+  }
+
+  return candidates.filter((mimeType) => mimeType === "" || window.MediaRecorder.isTypeSupported(mimeType));
+}
+
+function getVoiceExtension(mimeType: string) {
+  const baseMimeType = mimeType.split(";")[0].toLowerCase().trim();
+
+  switch (baseMimeType) {
+    case "audio/mp4":
+    case "audio/x-m4a":
+      return "m4a";
+    case "audio/mpeg":
+      return "mp3";
+    case "audio/ogg":
+      return "ogg";
+    case "audio/wav":
+      return "wav";
+    case "audio/webm":
+    default:
+      return "webm";
+  }
+}
+
 const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "👎"];
 
 function canDeleteMessage(message: Message, currentUserId: string, currentRole: ChatRole) {
@@ -82,7 +159,13 @@ function formatDuration(seconds: number) {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-function AttachmentContent({ attachment, messageType }: { attachment: Attachment, messageType?: string }) {
+function AttachmentContent({ attachment, messageType }: { attachment: Attachment | null, messageType?: string }) {
+  const [audioError, setAudioError] = useState(false);
+
+  if (!attachment?.id) {
+    return null;
+  }
+
   const href = `/api/attachments/${attachment.id}/download`;
 
   if (attachment.mimeType.startsWith("image/")) {
@@ -99,10 +182,13 @@ function AttachmentContent({ attachment, messageType }: { attachment: Attachment
   }
 
   if (messageType === "VOICE" || attachment.mimeType.startsWith("audio/")) {
+    if (audioError) {
+      return <p className="mt-2 text-xs text-red-400">Не удалось воспроизвести голосовое</p>;
+    }
+
     return (
       <div className="mt-2 min-w-[200px]">
-        <audio controls className="h-10 w-full accent-primary">
-          <source src={href} type={attachment.mimeType} />
+        <audio controls preload="metadata" className="h-10 w-full accent-primary" src={href} onError={() => setAudioError(true)}>
           Ваш браузер не поддерживает аудио.
         </audio>
       </div>
@@ -160,7 +246,11 @@ export function ChatMessages({
 }) {
   const router = useRouter();
   const { socket, connected } = useSocket();
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState(() =>
+    initialMessages
+      .map((message) => normalizeMessage(message))
+      .filter((message): message is Message => Boolean(message)),
+  );
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -225,12 +315,15 @@ export function ChatMessages({
 
     function handleNewMessage(payload: { chatId: string; message: Message }) {
       if (payload.chatId !== chatId) return;
+      const normalizedMessage = normalizeMessage(payload.message);
+      if (!normalizedMessage) return;
+
       setMessages((current) => {
-        if (current.some((m) => m.id === payload.message.id)) return current;
-        return [...current, payload.message].slice(-100);
+        if (current.some((m) => m.id === normalizedMessage.id)) return current;
+        return [...current, normalizedMessage].slice(-100);
       });
 
-      if (payload.message.senderUserId !== currentUserId) {
+      if (normalizedMessage.senderUserId !== currentUserId) {
         fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => null);
       }
     }
@@ -248,8 +341,11 @@ export function ChatMessages({
 
     function handleUpdatedMessage(payload: { chatId: string; message: Message }) {
       if (payload.chatId !== chatId) return;
+      const normalizedMessage = normalizeMessage(payload.message);
+      if (!normalizedMessage) return;
+
       setMessages((current) =>
-        current.map((m) => (m.id === payload.message.id ? payload.message : m)),
+        current.map((m) => (m.id === normalizedMessage.id ? normalizedMessage : m)),
       );
     }
 
@@ -323,7 +419,11 @@ export function ChatMessages({
     const response = await fetch(`/api/chats/${chatId}/messages`);
     if (!response.ok) return;
     const data = (await response.json()) as { messages: Message[] };
-    setMessages(data.messages);
+    setMessages(
+      data.messages
+        .map((message) => normalizeMessage(message))
+        .filter((message): message is Message => Boolean(message)),
+    );
     router.refresh();
   }
 
@@ -423,18 +523,31 @@ export function ChatMessages({
         method: "POST",
         body: formData,
       });
-      setUploading(false);
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(getUiErrorMessage(data?.error));
       }
 
+      const data = (await response.json().catch(() => null)) as { message?: Message } | null;
+      const normalizedMessage = normalizeMessage(data?.message);
+
+      if (normalizedMessage) {
+        setMessages((current) => {
+          if (current.some((message) => message.id === normalizedMessage.id)) {
+            return current;
+          }
+
+          return [...current, normalizedMessage].slice(-100);
+        });
+      }
+
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      setUploading(false);
       throw err;
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -507,10 +620,8 @@ export function ChatMessages({
       isRecordingCancelledRef.current = false;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg", ""]
-        .find(type => type === "" || MediaRecorder.isTypeSupported(type));
-
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const selectedMimeType = getVoiceMimeCandidates()[0] || "";
+      const recorder = new MediaRecorder(stream, selectedMimeType ? { mimeType: selectedMimeType } : undefined);
       audioChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -523,16 +634,23 @@ export function ChatMessages({
           return;
         }
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
+        const blobMimeType =
+          audioChunksRef.current.find((chunk) => chunk.type)?.type ||
+          recorder.mimeType ||
+          selectedMimeType ||
+          "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: blobMimeType });
         if (audioChunksRef.current.length > 0 && audioBlob.size > 0) {
-          const extension = recorder.mimeType.includes("mp4") ? "mp4" : "webm";
-          const file = new File([audioBlob], `voice-${Date.now()}.${extension}`, { type: audioBlob.type || "audio/webm" });
+          const resolvedMimeType = audioBlob.type || selectedMimeType || "audio/webm";
+          const extension = getVoiceExtension(resolvedMimeType);
+          const file = new File([audioBlob], `voice-${Date.now()}.${extension}`, { type: resolvedMimeType });
           
           try {
             await uploadAttachment(file);
-            router.refresh();
           } catch (err) {
-            console.error("[voice] upload failed", err);
+            if (process.env.NODE_ENV !== "production") {
+              console.error("[voice] upload failed", err);
+            }
             setError("Не удалось отправить голосовое");
           }
         } else {

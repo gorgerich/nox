@@ -1,3 +1,4 @@
+import { createReadStream } from "fs";
 import { Readable } from "stream";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
@@ -7,13 +8,16 @@ import { getObject } from "@/lib/storage";
 function getContentDisposition(mimeType: string, fileName: string) {
   const safeName = fileName.replace(/["\r\n]/g, "_");
   const encodedName = encodeURIComponent(fileName);
-  const disposition = mimeType.startsWith("image/") ? "inline" : "attachment";
+  const disposition =
+    mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType.startsWith("audio/")
+      ? "inline"
+      : "attachment";
 
   return `${disposition}; filename="${safeName}"; filename*=UTF-8''${encodedName}`;
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ attachmentId: string }> },
 ) {
   const user = await getCurrentUser();
@@ -61,12 +65,67 @@ export async function GET(
     return NextResponse.json({ error: "Файл не найден." }, { status: 404 });
   }
 
-  return new Response(Readable.toWeb(object.stream) as BodyInit, {
+  const rangeHeader = request.headers.get("range");
+  const baseHeaders = {
+    "accept-ranges": "bytes",
+    "content-disposition": getContentDisposition(attachment.mimeType, attachment.fileName),
+    "content-type": attachment.mimeType,
+    "x-content-type-options": "nosniff",
+  };
+
+  if (!rangeHeader) {
+    return new Response(Readable.toWeb(object.stream) as BodyInit, {
+      headers: {
+        ...baseHeaders,
+        "content-length": String(object.sizeBytes),
+      },
+    });
+  }
+
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim());
+
+  if (!match) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        "content-range": `bytes */${object.sizeBytes}`,
+      },
+    });
+  }
+
+  const [, startText, endText] = match;
+  const parsedStart = startText ? Number.parseInt(startText, 10) : Number.NaN;
+  const parsedEnd = endText ? Number.parseInt(endText, 10) : Number.NaN;
+
+  let start = Number.isFinite(parsedStart) ? parsedStart : 0;
+  let end = Number.isFinite(parsedEnd) ? parsedEnd : object.sizeBytes - 1;
+
+  if (!startText && Number.isFinite(parsedEnd)) {
+    start = Math.max(object.sizeBytes - parsedEnd, 0);
+    end = object.sizeBytes - 1;
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || start >= object.sizeBytes) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        "content-range": `bytes */${object.sizeBytes}`,
+      },
+    });
+  }
+
+  end = Math.min(end, object.sizeBytes - 1);
+  const chunkSize = end - start + 1;
+  const rangeStream = createReadStream(object.path, { start, end });
+
+  return new Response(Readable.toWeb(rangeStream) as BodyInit, {
+    status: 206,
     headers: {
-      "content-disposition": getContentDisposition(attachment.mimeType, attachment.fileName),
-      "content-length": String(object.sizeBytes),
-      "content-type": attachment.mimeType,
-      "x-content-type-options": "nosniff",
+      ...baseHeaders,
+      "content-length": String(chunkSize),
+      "content-range": `bytes ${start}-${end}/${object.sizeBytes}`,
     },
   });
 }

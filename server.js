@@ -1,14 +1,47 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 
+const fs = require("node:fs");
 const { createServer } = require("node:http");
+const os = require("node:os");
+const path = require("node:path");
 const next = require("next");
 const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 
-const port = Number.parseInt(process.env.PORT || "3000", 10);
+function readCliArg(name) {
+  const index = process.argv.indexOf(`--${name}`);
+  if (index === -1) {
+    return undefined;
+  }
+
+  return process.argv[index + 1];
+}
+
+const cliPort = readCliArg("port");
+const cliHostname = readCliArg("hostname");
+const port = Number.parseInt(cliPort || process.env.PORT || "3000", 10);
 const dev = process.env.NODE_ENV !== "production";
-const app = next({ dev });
+const hostname = cliHostname || process.env.HOSTNAME || (dev ? "127.0.0.1" : "0.0.0.0");
+const devDistDir =
+  dev && process.platform === "win32"
+    ? path.join(process.env.LOCALAPPDATA || os.tmpdir(), "private-messenger-mvp", "next-dev")
+    : undefined;
+
+if (devDistDir) {
+  fs.mkdirSync(devDistDir, { recursive: true });
+}
+
+const app = next({
+  dev,
+  hostname,
+  port,
+  conf: devDistDir
+    ? {
+        distDir: devDistDir,
+      }
+    : undefined,
+});
 const handle = app.getRequestHandler();
 
 const prisma = new PrismaClient({
@@ -309,10 +342,11 @@ app.prepare().then(() => {
     }, 30000);
   }
 
-  const hostname = "0.0.0.0";
-
   httpServer.listen(port, hostname, () => {
     const localUrl = `http://127.0.0.1:${port}`;
+    if (devDistDir) {
+      console.log(`> Dev cache directory: ${devDistDir}`);
+    }
     console.log(`> Server listening at ${localUrl} as ${dev ? "development" : process.env.NODE_ENV}`);
   });
 });

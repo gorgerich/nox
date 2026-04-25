@@ -15,7 +15,8 @@ export type AllowedAttachmentMimeType =
   | "audio/mpeg"
   | "audio/mp4"
   | "audio/wav"
-  | "audio/ogg";
+  | "audio/ogg"
+  | "audio/x-m4a";
 
 export type AttachmentKind = "IMAGE" | "VIDEO" | "FILE" | "VOICE";
 
@@ -37,11 +38,22 @@ export const attachmentRules: Record<
   "audio/mp4": { maxSizeBytes: 25 * MB, kind: "VOICE" },
   "audio/wav": { maxSizeBytes: 25 * MB, kind: "VOICE" },
   "audio/ogg": { maxSizeBytes: 25 * MB, kind: "VOICE" },
+  "audio/x-m4a": { maxSizeBytes: 25 * MB, kind: "VOICE" },
 };
 
-export function getAttachmentRule(mimeType: string) {
+export function normalizeAttachmentMimeType(mimeType: string) {
   const baseMime = mimeType.split(";")[0].toLowerCase().trim();
-  return attachmentRules[baseMime as AllowedAttachmentMimeType] ?? null;
+
+  if (baseMime === "audio/x-m4a") {
+    return "audio/mp4";
+  }
+
+  return baseMime;
+}
+
+export function getAttachmentRule(mimeType: string) {
+  const normalizedMimeType = normalizeAttachmentMimeType(mimeType);
+  return attachmentRules[normalizedMimeType as AllowedAttachmentMimeType] ?? null;
 }
 
 function getUploadRoot() {
