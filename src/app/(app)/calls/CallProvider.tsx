@@ -34,11 +34,23 @@ interface CallContextType {
 
 const CallContext = createContext<CallContextType | null>(null);
 
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ],
+const getRtcConfig = (): RTCConfiguration => {
+  const config: RTCConfiguration = {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+    ],
+  };
+
+  if (process.env.NEXT_PUBLIC_TURN_URL) {
+    config.iceServers!.push({
+      urls: process.env.NEXT_PUBLIC_TURN_URL,
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+      credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+    });
+  }
+
+  return config;
 };
 
 interface IncomingPayload {
@@ -138,6 +150,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       pcRef.current.onicecandidate = null;
       pcRef.current.ontrack = null;
       pcRef.current.onconnectionstatechange = null;
+      pcRef.current.oniceconnectionstatechange = null;
+      pcRef.current.onicegatheringstatechange = null;
+      pcRef.current.onsignalingstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }
@@ -216,7 +231,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const createPeerConnection = useCallback((role: CallRole) => {
     debugCall("peer connection created", { role });
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const pc = new RTCPeerConnection(getRtcConfig());
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) {
@@ -248,51 +263,30 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let targetStream = event.streams[0] ?? remoteStreamRef.current;
-      if (!targetStream) {
-        targetStream = new MediaStream();
-      }
-
-      const hasTrack = targetStream.getAudioTracks().some((track) => track.id === event.track.id);
-      if (!hasTrack) {
-        targetStream.addTrack(event.track);
-      }
-
-      remoteStreamRef.current = targetStream;
-      setRemoteStream(targetStream);
+      const stream = event.streams[0] || new MediaStream([event.track]);
+      remoteStreamRef.current = stream;
+      setRemoteStream(stream);
 
       debugCall("ontrack audio received", {
         trackReadyState: event.track.readyState,
-        streamsLength: event.streams.length,
-      });
-      debugCall("remoteStream audio tracks count", {
-        count: targetStream.getAudioTracks().length,
+        streamId: stream.id,
+        tracksCount: stream.getAudioTracks().length
       });
 
       if (!hasRemoteAudioRef.current) {
         hasRemoteAudioRef.current = true;
         setStatusActiveFromSignal("remote-audio-track");
       }
-
-      event.track.onmute = () => {
-        debugCall("remote track muted", { trackId: event.track.id, readyState: event.track.readyState });
-      };
-
-      event.track.onunmute = () => {
-        debugCall("remote track unmuted", { trackId: event.track.id, readyState: event.track.readyState });
-      };
-
-      event.track.onended = () => {
-        debugCall("remote track ended", { trackId: event.track.id, readyState: event.track.readyState });
-      };
     };
 
     pc.onconnectionstatechange = () => {
       debugCall("connectionState", { state: pc.connectionState });
       if (pc.connectionState === "connected") {
         setStatusActiveFromSignal("connectionState-connected");
-      } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-        cleanup("connection failed");
+      } else if (pc.connectionState === "failed") {
+        failCall("Сбой соединения");
+      } else if (pc.connectionState === "closed") {
+        cleanup("connection closed");
       }
     };
 
@@ -300,12 +294,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       debugCall("iceConnectionState", { state: pc.iceConnectionState });
       if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
         setStatusActiveFromSignal(`iceConnectionState-${pc.iceConnectionState}`);
+      } else if (pc.iceConnectionState === "failed") {
+        failCall("Сбой ICE-соединения");
       }
+    };
+
+    pc.onicegatheringstatechange = () => {
+      debugCall("iceGatheringState", { state: pc.iceGatheringState });
+    };
+
+    pc.onsignalingstatechange = () => {
+      debugCall("signalingState", { state: pc.signalingState });
     };
 
     pcRef.current = pc;
     return pc;
-  }, [socket, cleanup, debugCall, setStatusActiveFromSignal]);
+  }, [socket, cleanup, debugCall, setStatusActiveFromSignal, failCall]);
 
   const debugLocalAudioTrack = useCallback((track: MediaStreamTrack | undefined, source: "startCall" | "acceptCall") => {
     if (!track) {
@@ -508,14 +512,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const onIncoming = ({ callId, chatId, offer, fromUser, expiresAt, timeoutMs }: IncomingPayload) => {
       debugCall("incoming received", { callId, chatId, status: statusRef.current });
-      if (callIdRef.current === callId && statusRef.current !== "idle") {
-        debugCall("incoming duplicate ignored", { callId, chatId, status: statusRef.current });
-        return;
-      }
-      if (statusRef.current !== "idle") {
+      
+      // If we're currently in a call that's not idle, ended or failed, we're busy
+      if (statusRef.current !== "idle" && statusRef.current !== "ended" && statusRef.current !== "failed") {
+        if (callIdRef.current === callId) {
+          debugCall("incoming duplicate ignored", { callId, chatId });
+          return;
+        }
+        debugCall("decline as busy", { callId, currentStatus: statusRef.current });
         socket.emit("call:declined", { callId, reason: "busy" });
         return;
       }
+
+      // Cleanup any previous stale state before accepting new incoming
+      if (statusRef.current === "ended" || statusRef.current === "failed") {
+        cleanup("preparing for new incoming call");
+      }
+
       setCall({
         callId,
         chatId,
@@ -536,7 +549,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
       const ringTimeoutMs = timeoutMs ?? (expiresAt ? Math.max(1000, expiresAt - Date.now()) : 45000);
       timeoutRef.current = setTimeout(() => {
-        if (statusRef.current === "ringing") {
+        if (statusRef.current === "ringing" && callIdRef.current === callId) {
           debugCall("call expired before answer", { callId });
           failCall("Вызов пропущен");
         }
@@ -544,25 +557,34 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onAnswered = async ({ answer, callId }: AnsweredPayload) => {
+      const effectiveCallId = callId || callIdRef.current;
       if (callId && callIdRef.current && callId !== callIdRef.current) {
         debugCall("answer ignored for stale call", { callId, currentCallId: callIdRef.current });
         return;
       }
 
-      debugCall("answer received by caller", { callId: callId ?? callIdRef.current });
+      debugCall("answer received by caller", { callId: effectiveCallId });
       if (pcRef.current) {
+        if (pcRef.current.signalingState !== "have-local-offer") {
+          debugCall("answer ignored: unexpected signalingState", { state: pcRef.current.signalingState });
+          return;
+        }
+
         setStatus("connecting");
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
         }
-        if (callId) {
-          callIdRef.current = callId;
+        
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+          debugCall("setRemoteDescription success", { side: "caller", type: "answer" });
+          await flushPendingRemoteIce(pcRef.current, "after answer remoteDescription");
+          flushPendingLocalIce("after answer received");
+        } catch (err) {
+          debugCall("setRemoteDescription failed", { error: String(err) });
+          failCall("Ошибка при установке соединения");
         }
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-        debugCall("setRemoteDescription success", { side: "caller", type: "answer" });
-        await flushPendingRemoteIce(pcRef.current, "after answer remoteDescription");
-        flushPendingLocalIce("after answer received");
       }
     };
 

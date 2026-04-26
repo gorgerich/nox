@@ -38,7 +38,7 @@ export default function ContactsPage() {
 
         if (chatsData.chats) {
           const directChats = chatsData.chats.filter((c: { type: string, otherMember?: Contact | null }) => c.type === "DIRECT");
-          const users = directChats.map((c: { otherMember: any }) => {
+          const users = directChats.map((c: { otherMember: { id: string; username: string; displayName: string; avatarUrl: string | null } | null }) => {
             if (c.otherMember) {
               return {
                 id: c.otherMember.id,

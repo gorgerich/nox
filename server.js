@@ -66,7 +66,8 @@ function getUserRoomSize(io, userId) {
 }
 
 function isCallExpired(call) {
-  return !call || Date.now() > call.expiresAt;
+  // Only ringing calls should expire based on expiresAt
+  return !call || (call.status === "ringing" && Date.now() > call.expiresAt);
 }
 
 function clearCallExpiryTimer(callId) {
@@ -772,6 +773,17 @@ app.prepare().then(() => {
       if (userStillOnline) {
         return;
       }
+
+      // Cleanup active calls when user is fully offline
+      for (const [callId, call] of activeCalls.entries()) {
+        if (call.callerId === userId || call.calleeId === userId) {
+          const targetId = userId === call.callerId ? call.calleeId : call.callerId;
+          io.to(`user:${targetId}`).emit("call:ended", { callId, reason: "peer_disconnected" });
+          deleteCall(callId);
+          logCall("call ended due to disconnect", { callId, userId });
+        }
+      }
+
       activeChatsByUser.delete(userId);
     });
   });
