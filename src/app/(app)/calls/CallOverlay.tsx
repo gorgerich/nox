@@ -1,74 +1,108 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useAudioCall } from "./CallProvider";
 
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
+const RINGBACK_INTERVAL_MS = 4000;
+const RINGBACK_TONE_MS = 1200;
+
+type SinkAudioElement = HTMLAudioElement & {
+  setSinkId?: (sinkId: string) => Promise<void>;
+  sinkId?: string;
+};
+
+type WindowWithWebkitAudioContext = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
 
 export function CallOverlay() {
-  const {
-    call,
-    status,
-    remoteStream,
-    needsTapToPlay,
-    isMuted,
-    error,
-    registerRemoteAudioElement,
-    enableRemoteAudioPlayback,
-    acceptCall,
-    declineCall,
-    endCall,
-    toggleMute,
-  } = useAudioCall();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [mounted] = useState(() => typeof window !== "undefined");
-  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
+  const { call, status, remoteStream, isMuted, error, acceptCall, declineCall, endCall, toggleMute } = useAudioCall();
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const ringbackContextRef = useRef<AudioContext | null>(null);
+  const ringbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [speakerHint, setSpeakerHint] = useState<string | null>(null);
+  const [speakerMode, setSpeakerMode] = useState<"default" | "alternate">("default");
+
+  const debugCall = useCallback((label: string, data: Record<string, unknown> = {}) => {
+    if (!DEBUG_CALLS) {
+      return;
+    }
+
+    console.log(`[call-debug] ${label}`, data);
+  }, []);
+
+  const logAudioElementState = useCallback((label: string, audio: HTMLAudioElement) => {
+    debugCall(label, {
+      hasSrcObject: Boolean(audio.srcObject),
+      paused: audio.paused,
+      muted: audio.muted,
+      volume: audio.volume,
+      readyState: audio.readyState,
+    });
+  }, [debugCall]);
+
+  const attachRemoteAudioStream = useCallback((source: string) => {
+    const audio = remoteAudioRef.current;
+    if (!audio || !remoteStream) {
+      return null;
+    }
+
+    audio.srcObject = remoteStream;
+    audio.autoplay = true;
+    audio.setAttribute("playsinline", "true");
+    audio.muted = false;
+    audio.volume = 1;
+
+    debugCall("audio element srcObject assigned", {
+      source,
+      hasSrcObject: Boolean(audio.srcObject),
+    });
+    logAudioElementState("audio element state", audio);
+    return audio;
+  }, [remoteStream, debugCall, logAudioElementState]);
+
+  const stopRingback = useCallback((reason: string) => {
+    if (ringbackIntervalRef.current) {
+      clearInterval(ringbackIntervalRef.current);
+      ringbackIntervalRef.current = null;
+    }
+
+    if (ringbackContextRef.current) {
+      void ringbackContextRef.current.close().catch(() => undefined);
+      ringbackContextRef.current = null;
+    }
+
+    debugCall("ringback stopped", { reason });
+  }, [debugCall]);
 
   useEffect(() => {
-    registerRemoteAudioElement(audioRef.current);
-    return () => registerRemoteAudioElement(null);
-  }, [registerRemoteAudioElement]);
-
-  const handleEnableAudio = () => {
-    void enableRemoteAudioPlayback();
-  };
-
-  const handleToggleSpeaker = async () => {
-    const mediaEl = audioRef.current as (HTMLAudioElement & { setSinkId?: (sinkId: string) => Promise<void> }) | null;
-    if (!mediaEl) {
+    if (!remoteStream) {
+      const audio = remoteAudioRef.current;
+      if (audio) {
+        audio.srcObject = null;
+      }
       return;
     }
 
-    if (typeof mediaEl.setSinkId !== "function" || typeof navigator === "undefined" || !navigator.mediaDevices) {
-      setSpeakerHint("Громкая связь управляется системой устройства.");
+    const audio = attachRemoteAudioStream("remoteStream effect");
+    if (!audio) {
       return;
     }
 
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const outputs = devices.filter((device) => device.kind === "audiooutput");
-      if (outputs.length === 0) {
-        setSpeakerHint("Не найдено доступных аудиовыходов.");
-        return;
-      }
-
-      let nextSink = "default";
-      if (!isSpeakerOn) {
-        const preferred = outputs.find((device) => /speaker|динам/i.test(device.label)) ?? outputs[0];
-        nextSink = preferred.deviceId;
-      }
-
-      await mediaEl.setSinkId(nextSink);
-      setIsSpeakerOn((prev) => !prev);
-      setSpeakerHint(null);
-    } catch (err) {
-      console.warn("[CALL] Speaker switch failed", err);
-      setSpeakerHint("Не удалось переключить аудиовыход.");
-    }
-  };
+    audio.play().then(() => {
+      setNeedsTapToPlay(false);
+      debugCall("audio.play success", { source: "remoteStream effect" });
+      logAudioElementState("audio element after play success", audio);
+    }).catch((playError) => {
+      setNeedsTapToPlay(true);
+      debugCall("audio.play fail", { source: "remoteStream effect", error: String(playError) });
+      logAudioElementState("audio element after play fail", audio);
+    });
+  }, [remoteStream, attachRemoteAudioStream, debugCall, logAudioElementState]);
 
   useEffect(() => {
     if (!DEBUG_CALLS) {
@@ -79,11 +113,131 @@ export function CallOverlay() {
       status,
       isOverlayVisible: status !== "idle",
       hasCall: Boolean(call),
-      needsTapToPlay,
+      hasRemoteStream: Boolean(remoteStream),
     });
-  }, [call, needsTapToPlay, status]);
+  }, [call, status, remoteStream]);
 
-  if (!mounted || status === "idle") {
+  useEffect(() => {
+    if (!speakerHint) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setSpeakerHint(null);
+    }, 2500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [speakerHint]);
+
+  const isOutgoingRinging = call?.role === "caller" && status === "ringing";
+
+  useEffect(() => {
+    if (!isOutgoingRinging) {
+      stopRingback("not-outgoing-ringing");
+      return;
+    }
+
+    const AudioContextCtor = window.AudioContext || (window as WindowWithWebkitAudioContext).webkitAudioContext;
+    if (!AudioContextCtor) {
+      debugCall("ringback unavailable", { reason: "AudioContext unsupported" });
+      return;
+    }
+
+    stopRingback("restart");
+    const context = new AudioContextCtor();
+    ringbackContextRef.current = context;
+
+    const playRingTone = () => {
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 425;
+      gainNode.gain.value = 0.0001;
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      const now = context.currentTime;
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.08, now + 0.06);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + RINGBACK_TONE_MS / 1000);
+      oscillator.start(now);
+      oscillator.stop(now + RINGBACK_TONE_MS / 1000);
+    };
+
+    void context.resume().then(() => {
+      playRingTone();
+      ringbackIntervalRef.current = setInterval(playRingTone, RINGBACK_INTERVAL_MS);
+      debugCall("ringback started");
+    }).catch((ringError) => {
+      debugCall("ringback start blocked", { error: String(ringError) });
+    });
+
+    return () => {
+      stopRingback("ringback effect cleanup");
+    };
+  }, [isOutgoingRinging, stopRingback, debugCall]);
+
+  const handleTapToPlay = useCallback(() => {
+    const audio = attachRemoteAudioStream("manual tap");
+    if (!audio) {
+      return;
+    }
+
+    void audio.play().then(() => {
+      setNeedsTapToPlay(false);
+      debugCall("audio.play success", { source: "manual tap" });
+      logAudioElementState("audio element after play success", audio);
+    }).catch((playError) => {
+      setNeedsTapToPlay(true);
+      debugCall("audio.play fail", { source: "manual tap", error: String(playError) });
+      logAudioElementState("audio element after play fail", audio);
+    });
+  }, [attachRemoteAudioStream, debugCall, logAudioElementState]);
+
+  const handleSpeakerToggle = useCallback(async () => {
+    const audio = remoteAudioRef.current as SinkAudioElement | null;
+    if (!audio) {
+      return;
+    }
+
+    if (typeof audio.setSinkId !== "function") {
+      setSpeakerHint("Громкая связь управляется системой устройства");
+      debugCall("speaker fallback", { reason: "setSinkId unsupported" });
+      return;
+    }
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter((device) => device.kind === "audiooutput");
+      if (outputs.length === 0) {
+        setSpeakerHint("Громкая связь управляется системой устройства");
+        debugCall("speaker fallback", { reason: "no-audiooutput-devices" });
+        return;
+      }
+
+      if (speakerMode === "default") {
+        const currentSinkId = audio.sinkId ?? "default";
+        const nextOutput = outputs.find((device) => device.deviceId !== currentSinkId) ?? outputs[0];
+        await audio.setSinkId(nextOutput.deviceId);
+        setSpeakerMode("alternate");
+        setSpeakerHint(nextOutput.label ? `Вывод: ${nextOutput.label}` : "Устройство вывода переключено");
+        debugCall("speaker toggled", { mode: "alternate", usedSinkId: true });
+      } else {
+        await audio.setSinkId("default");
+        setSpeakerMode("default");
+        setSpeakerHint("Вывод: системный по умолчанию");
+        debugCall("speaker toggled", { mode: "default", usedSinkId: true });
+      }
+    } catch (speakerError) {
+      setSpeakerHint("Громкая связь управляется системой устройства");
+      debugCall("speaker fallback", { reason: "setSinkId failed", error: String(speakerError) });
+    }
+  }, [speakerMode, debugCall]);
+
+  if (typeof document === "undefined" || status === "idle") {
     return null;
   }
 
@@ -99,7 +253,7 @@ export function CallOverlay() {
 
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-16 backdrop-blur-2xl animate-in fade-in duration-500 pointer-events-auto">
-      <audio ref={audioRef} autoPlay playsInline />
+      <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="mt-20 flex flex-col items-center text-center">
         <div className="relative mb-6 h-32 w-32">
@@ -134,15 +288,15 @@ export function CallOverlay() {
         ) : null}
 
         {speakerHint ? (
-          <p className="mt-3 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80">
+          <p className="mt-3 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
             {speakerHint}
           </p>
         ) : null}
 
         {needsTapToPlay && remoteStream ? (
           <button
-            onClick={handleEnableAudio}
-            className="mt-4 rounded-xl border border-primary/40 bg-primary/20 px-4 py-2 text-xs font-black uppercase tracking-wider text-primary transition-smooth active:scale-95"
+            onClick={handleTapToPlay}
+            className="mt-4 rounded-2xl border border-primary/40 bg-primary/20 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-primary"
           >
             Включить звук
           </button>
@@ -179,9 +333,9 @@ export function CallOverlay() {
               </button>
 
               <button
-                onClick={handleToggleSpeaker}
+                onClick={handleSpeakerToggle}
                 className={`flex h-16 w-16 items-center justify-center rounded-3xl border-2 transition-smooth active:scale-90 ${
-                  isSpeakerOn ? "border-primary bg-primary text-white" : "border-white/10 bg-white/5 text-white"
+                  speakerMode === "alternate" ? "border-primary/80 bg-primary/20 text-primary" : "border-white/10 bg-white/5 text-white"
                 }`}
               >
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
