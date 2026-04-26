@@ -17,27 +17,62 @@ type Contact = {
 export default function ContactsPage() {
   const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [me, setMe] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/chats")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.chats) {
-          const directChats = data.chats.filter((c: { type: string, otherMember?: Contact }) => c.type === "DIRECT" && c.otherMember);
-          const users = directChats.map((c: { otherMember: { id: string, username: string, displayName: string, avatarUrl: string | null } }) => ({
-            id: c.otherMember.id,
-            username: c.otherMember.username,
-            profile: {
-              displayName: c.otherMember.displayName,
-              avatarUrl: c.otherMember.avatarUrl,
+    Promise.all([
+      fetch("/api/me").then(res => res.json()),
+      fetch("/api/chats").then(res => res.json())
+    ])
+      .then(([meData, chatsData]) => {
+        if (meData.user) {
+          const meContact = {
+            id: meData.user.id,
+            username: meData.user.username,
+            profile: meData.user.profile || { displayName: meData.user.username, avatarUrl: null }
+          };
+          setMe(meContact);
+        }
+
+        if (chatsData.chats) {
+          const directChats = chatsData.chats.filter((c: { type: string, otherMember?: Contact | null }) => c.type === "DIRECT");
+          const users = directChats.map((c: { otherMember: any }) => {
+            if (c.otherMember) {
+              return {
+                id: c.otherMember.id,
+                username: c.otherMember.username,
+                profile: {
+                  displayName: c.otherMember.displayName,
+                  avatarUrl: c.otherMember.avatarUrl,
+                }
+              };
             }
-          }));
+            // Self chat case
+            return null;
+          }).filter(Boolean) as Contact[];
           
-          const uniqueUsers = Array.from(new Map(users.map((u: Contact) => [u.id, u])).values()) as Contact[];
+          const allContacts = [...users];
+          if (meData.user) {
+            const meContact = {
+              id: meData.user.id,
+              username: meData.user.username,
+              profile: meData.user.profile || { displayName: meData.user.username, avatarUrl: null }
+            };
+            // Add me to contacts if not already there
+            if (!allContacts.some(u => u.id === meContact.id)) {
+              allContacts.push(meContact);
+            }
+          }
+
+          const uniqueUsers = Array.from(new Map(allContacts.map((u: Contact) => [u.id, u])).values()) as Contact[];
           
           uniqueUsers.sort((a, b) => {
+            // Put 'Me' at top
+            if (meData.user && a.id === meData.user.id) return -1;
+            if (meData.user && b.id === meData.user.id) return 1;
+            
             const nameA = a.profile?.displayName || a.username;
             const nameB = b.profile?.displayName || b.username;
             return nameA.localeCompare(nameB);
@@ -116,6 +151,8 @@ export default function ContactsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {contacts.map((contact) => {
+            const isMe = me && contact!.id === me.id;
+            const displayName = isMe ? "Избранное" : (contact!.profile?.displayName || contact!.username);
             const avatarUrl = contact!.profile?.avatarUrl;
             const fullAvatarUrl = avatarUrl 
               ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
@@ -123,7 +160,7 @@ export default function ContactsPage() {
             return (
               <Link 
                 key={contact!.id} 
-                href={`/users/${contact!.id}`}
+                href={isMe ? "/profile" : `/users/${contact!.id}`}
                 className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-smooth hover:bg-surface-elevated hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md fast-tap"
               >
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
@@ -131,16 +168,16 @@ export default function ContactsPage() {
                     <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-xl font-black">
-                      {(contact!.profile?.displayName || contact!.username)[0].toUpperCase()}
+                      {displayName[0].toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[17px] font-bold text-foreground group-hover:text-primary transition-colors">
-                    {contact!.profile?.displayName || contact!.username}
+                    {displayName}
                   </p>
                   <p className="truncate text-sm font-medium text-muted-foreground">
-                    @{contact!.username}
+                    {isMe ? `@${contact!.username} (вы)` : `@${contact!.username}`}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center">
@@ -149,7 +186,7 @@ export default function ContactsPage() {
                     disabled={actionPending === contact!.id}
                     className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap disabled:opacity-50"
                   >
-                    {actionPending === contact!.id ? "..." : "Написать"}
+                    {actionPending === contact!.id ? "..." : (isMe ? "Чат" : "Написать")}
                   </button>
                 </div>
               </Link>

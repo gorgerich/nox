@@ -542,8 +542,8 @@ body::before {
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
     transition:
-      color 280ms cubic-bezier(0.22, 1, 0.36, 1),
-      transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .liquid-dock-item:active {
@@ -566,10 +566,10 @@ body::before {
     gap: 3px;
     padding: 7px 8px 6px;
     transition:
-      background-color 280ms cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 280ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 240ms cubic-bezier(0.22, 1, 0.36, 1);
+      background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .liquid-dock-item:hover .liquid-dock-pill {

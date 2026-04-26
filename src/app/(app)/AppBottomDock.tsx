@@ -18,20 +18,24 @@ const tabs = [
 
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
-  const [optimisticPath, setOptimisticPath] = useState(pathname);
-  const [prevPathname, setPrevPathname] = useState(pathname);
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(pathname);
+  const [prevPathname, setPrevPathname] = useState<string | null>(pathname);
 
   if (pathname !== prevPathname) {
     setOptimisticPath(pathname);
     setPrevPathname(pathname);
   }
 
-  const isOpenChat = /^\/chats\/[^/]+/.test(pathname);
+  const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new");
   const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
 
-  if (isOpenChat || !isMainAppScreen) {
+  // Requirement: hidden inside /chats/[chatId], visible on main tabs.
+  // We also show it on main app screens to ensure it's there when needed.
+  if (isChatRoom || !isMainAppScreen) {
     return null;
   }
+
+  const currentPath = optimisticPath || pathname;
 
   return (
     <nav className="app-bottom-dock-shell lg:hidden" aria-label="Нижняя навигация">
@@ -61,7 +65,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <div className="app-bottom-dock" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = optimisticPath === tab.href;
+            const isActive = currentPath === tab.href;
             const isChatsTab = tab.href === "/chats";
             const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
 

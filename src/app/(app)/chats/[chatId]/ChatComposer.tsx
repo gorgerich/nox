@@ -83,15 +83,21 @@ export function ChatComposer({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (text.trim() || selectedFile) {
-      onSend(text, selectedFile || undefined);
-      setText("");
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      editingIdRef.current = null;
-      if (inputRef.current) inputRef.current.style.height = 'auto';
+      try {
+        await onSend(text, selectedFile || undefined);
+        // Clear only on success
+        setText("");
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        editingIdRef.current = null;
+        if (inputRef.current) inputRef.current.style.height = "auto";
+      } catch (error) {
+        // Keep text and file if it failed
+        console.error("Failed to send message:", error);
+      }
     }
   }, [text, selectedFile, onSend]);
 

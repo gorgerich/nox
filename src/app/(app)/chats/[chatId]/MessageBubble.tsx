@@ -287,59 +287,57 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <div 
       ref={rowRef}
-      className={`flex items-center gap-3 w-full mb-1 px-4 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""} touch-pan-y`}
+      className={`relative flex items-center w-full mb-1 transition-colors duration-200 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "bg-primary/5" : ""} touch-pan-y no-select`}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
     >
-      {selectionMode && (
-        <div className={`flex shrink-0 items-center justify-center h-6 w-6 rounded-full border-2 transition-smooth ${isSelected ? "bg-primary border-primary shadow-lg shadow-primary/20 scale-110" : "border-muted/30"}`}>
-          {isSelected && (
-            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </div>
-      )}
-
-      <div className={`flex flex-col flex-1 ${mine ? "items-end" : "items-start"}`}>
-        {showDisplayName && !mine && (
-          <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--bubble-incoming-muted)" }}>
-            {message.sender.profile?.displayName ?? message.sender.username}
-          </span>
+      <div className={`flex items-center gap-3 w-full px-4 ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""}`}>
+        {selectionMode && (
+          <div className={`flex shrink-0 items-center justify-center h-6 w-6 rounded-full border-2 transition-smooth ${isSelected ? "bg-primary border-primary shadow-lg shadow-primary/20 scale-110" : "border-muted/30"}`}>
+            {isSelected && (
+              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
         )}
 
-        <div className="relative max-w-[85%]">
-          {canSwipeReply ? (
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center">
-              <div
+        <div className={`flex flex-col flex-1 ${mine ? "items-end" : "items-start"}`}>
+          {showDisplayName && !mine && (
+            <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--bubble-incoming-muted)" }}>
+              {message.sender.profile?.displayName ?? message.sender.username}
+            </span>
+          )}
+
+          <div className="relative max-w-[85%]">
+            {canSwipeReply ? (
+              <div 
                 ref={replyIconRef}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle/50 bg-surface/80 text-primary shadow-sm"
-                style={{ opacity: 0 }}
+                className="absolute right-full mr-4 flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle/50 bg-surface/80 text-primary shadow-sm transition-opacity duration-150"
+                style={{ opacity: 0, top: '50%', transform: 'translateY(-50%)' }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                 </svg>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          <div
-            ref={bubbleRef}
-            className={`group relative px-4 py-2.5 cursor-default active:scale-[0.99] no-select ${
-              isFocused ? "focused-message" : ""
-            } shadow-sm ${mine ? "" : incomingClass}`}
-            style={{
-              ...bubbleStyle,
-              willChange: "transform",
-            }}
-
-            onContextMenu={(e) => { 
-              e.preventDefault(); 
-            }}
-          >
+            <div
+              ref={bubbleRef}
+              className={`group relative px-4 py-2.5 cursor-default active:scale-[0.99] no-select ${
+                isFocused ? "focused-message" : ""
+              } shadow-sm ${mine ? "" : incomingClass}`}
+              style={{
+                ...bubbleStyle,
+                willChange: "transform",
+              }}
+              onContextMenu={(e) => { 
+                e.preventDefault(); 
+              }}
+            >
           {message.replyToMessage && (
             <div
               className={`mb-2 border-l-2 py-0.5 pl-2.5 text-[11px] leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
@@ -495,5 +493,6 @@ export const MessageBubble = memo(function MessageBubble({
         )}
       </div>
     </div>
+  </div>
   );
 });

@@ -693,6 +693,7 @@ export function ChatMessages({
       setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
       setComposerError(reason);
       URL.revokeObjectURL(tempUrl);
+      throw error; // Re-throw to inform composer
     } finally {
       setUploading(false);
     }
@@ -750,6 +751,7 @@ export function ChatMessages({
       } catch (error) {
         setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
         setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
+        throw error;
       } finally {
         setPending(false);
       }
@@ -784,6 +786,7 @@ export function ChatMessages({
       setReplyingToMessage(null);
     } catch (error) {
       setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
+      throw error;
     } finally { setPending(false); }
   }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach]);
 
