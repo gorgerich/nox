@@ -31,35 +31,38 @@ export function IncomingRequestCards({
   onChange?: () => void;
 }) {
   const [hiddenRequestIds, setHiddenRequestIds] = useState<Set<string>>(new Set());
-  const [pendingAction, setPendingAction] = useState("");
   const visibleRequests = useMemo(
     () => requests.filter((request) => !hiddenRequestIds.has(request.id)),
     [hiddenRequestIds, requests],
   );
 
   async function acceptRequest(id: string) {
-    setPendingAction(`accept-${id}`);
+    setHiddenRequestIds((current) => new Set(current).add(id));
     try {
       await readJson(`/api/chat-requests/${id}/accept`, { method: "POST" });
-      setHiddenRequestIds((current) => new Set(current).add(id));
       onChange?.();
     } catch (e) {
+      setHiddenRequestIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
       alert(e instanceof Error ? e.message : "Не удалось принять запрос");
-    } finally {
-      setPendingAction("");
     }
   }
 
   async function declineRequest(id: string) {
-    setPendingAction(`decline-${id}`);
+    setHiddenRequestIds((current) => new Set(current).add(id));
     try {
       await readJson(`/api/chat-requests/${id}/decline`, { method: "POST" });
-      setHiddenRequestIds((current) => new Set(current).add(id));
       onChange?.();
     } catch (e) {
+      setHiddenRequestIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
       alert(e instanceof Error ? e.message : "Не удалось отклонить запрос");
-    } finally {
-      setPendingAction("");
     }
   }
 
@@ -76,7 +79,7 @@ export function IncomingRequestCards({
 
         return (
           <article
-            className="card-premium border-primary/20 bg-primary/5 p-4"
+            className="card-premium border-primary/20 bg-primary/5 p-4 transition-smooth"
             key={request.id}
           >
             <div className="flex items-center justify-between gap-4">
@@ -95,20 +98,18 @@ export function IncomingRequestCards({
               </div>
               <div className="flex gap-2">
                 <button
-                  className="h-10 rounded-xl bg-primary px-4 text-xs font-black text-neutral-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-primary/20"
-                  disabled={pendingAction !== ""}
+                  className="h-10 rounded-xl bg-primary px-4 text-xs font-black text-neutral-950 transition-smooth active:scale-[0.97] shadow-lg shadow-primary/20"
                   onClick={() => acceptRequest(request.id)}
                   type="button"
                 >
-                  {pendingAction === `accept-${request.id}` ? "..." : "ПРИНЯТЬ"}
+                  ПРИНЯТЬ
                 </button>
                 <button
-                  className="h-10 rounded-xl bg-surface/50 border border-border-subtle px-4 text-xs font-black text-muted transition active:scale-95 disabled:opacity-50 hover:bg-surface"
-                  disabled={pendingAction !== ""}
+                  className="h-10 rounded-xl bg-surface/50 border border-border-subtle px-4 text-xs font-black text-muted transition-smooth active:scale-[0.97] hover:bg-surface"
                   onClick={() => declineRequest(request.id)}
                   type="button"
                 >
-                  {pendingAction === `decline-${request.id}` ? "..." : "ПРОПУСТИТЬ"}
+                  ПРОПУСТИТЬ
                 </button>
               </div>
             </div>

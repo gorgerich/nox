@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 
@@ -8,35 +8,42 @@ export function ChatsRealtimeListener() {
   const router = useRouter();
   const pathname = usePathname();
   const { socket } = useSocket();
+  const lastRefreshRef = useRef<number>(0);
 
   useEffect(() => {
     if (!socket) {
       return;
     }
 
-    function refreshChats(payload?: { chatId?: string }) {
-      // If we are currently inside the chat that was updated, 
-      // do NOT router.refresh() because it breaks scroll and local state.
-      // ChatMessages handles its own realtime updates.
-      if (payload?.chatId && pathname === `/chats/${payload.chatId}`) {
+    function triggerRefresh() {
+      // Only refresh if we are on the main chats list to avoid jank in active chats/other tabs
+      if (pathname !== "/chats") {
         return;
       }
       
-      router.refresh();
+      const now = Date.now();
+      if (now - lastRefreshRef.current > 500) {
+        lastRefreshRef.current = now;
+        router.refresh();
+      }
+    }
+
+    function refreshChats() {
+      triggerRefresh();
     }
 
     socket.on("chat:updated", refreshChats);
-    socket.on("chat-request:new", () => router.refresh());
-    socket.on("chat-request:accepted", () => router.refresh());
-    socket.on("chat-request:declined", () => router.refresh());
-    socket.on("chat-request:canceled", () => router.refresh());
+    socket.on("chat-request:new", triggerRefresh);
+    socket.on("chat-request:accepted", triggerRefresh);
+    socket.on("chat-request:declined", triggerRefresh);
+    socket.on("chat-request:canceled", triggerRefresh);
 
     return () => {
-      socket.off("chat:updated");
-      socket.off("chat-request:new");
-      socket.off("chat-request:accepted");
-      socket.off("chat-request:declined");
-      socket.off("chat-request:canceled");
+      socket.off("chat:updated", refreshChats);
+      socket.off("chat-request:new", triggerRefresh);
+      socket.off("chat-request:accepted", triggerRefresh);
+      socket.off("chat-request:declined", triggerRefresh);
+      socket.off("chat-request:canceled", triggerRefresh);
     };
   }, [router, socket, pathname]);
 

@@ -3,12 +3,14 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageCircle, Phone, UserRound } from "lucide-react";
+import { useState } from "react";
+import { MessageCircle, Phone, UserRound, Contact2 } from "lucide-react";
 
 const LIQUID_FILTER_ID = "nox-liquid-glass-distortion";
-const MAIN_DOCK_PATHS = new Set(["/calls", "/chats", "/profile"]);
+const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/profile"]);
 
 const tabs = [
+  { href: "/contacts", label: "Контакты", icon: Contact2 },
   { href: "/calls", label: "Звонки", icon: Phone },
   { href: "/chats", label: "Чаты", icon: MessageCircle },
   { href: "/profile", label: "Профиль", icon: UserRound },
@@ -16,6 +18,14 @@ const tabs = [
 
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
+  const [optimisticPath, setOptimisticPath] = useState(pathname);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+
+  if (pathname !== prevPathname) {
+    setOptimisticPath(pathname);
+    setPrevPathname(pathname);
+  }
+
   const isOpenChat = /^\/chats\/[^/]+/.test(pathname);
   const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
 
@@ -48,10 +58,10 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <div className="liquid-dock-distortion" aria-hidden="true" />
         <div className="liquid-dock-highlight" aria-hidden="true" />
 
-        <div className="app-bottom-dock">
+        <div className="app-bottom-dock" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = pathname === tab.href;
+            const isActive = optimisticPath === tab.href;
             const isChatsTab = tab.href === "/chats";
             const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
 
@@ -62,6 +72,9 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 className="liquid-dock-item"
                 data-active={isActive ? "true" : "false"}
                 href={tab.href}
+                prefetch={true}
+                onClick={() => setOptimisticPath(tab.href)}
+                onPointerDown={() => setOptimisticPath(tab.href)}
               >
                 <span className="liquid-dock-pill">
                   <span className="relative">

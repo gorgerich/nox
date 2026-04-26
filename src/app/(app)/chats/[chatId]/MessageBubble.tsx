@@ -2,7 +2,7 @@
 
 import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useRef } from "react";
 import { MediaItem } from "./MediaViewer";
 
 const SWIPE_REPLY_THRESHOLD = 64;
@@ -91,13 +91,16 @@ export const MessageBubble = memo(function MessageBubble({
   onSelect?: (id: string) => void;
   isFocused?: boolean;
 }) {
+  const rowRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const replyIconRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const directionRef = useRef<"horizontal" | "vertical" | null>(null);
   const swipeTriggeredRef = useRef(false);
-  const [swipeOffset, setSwipeOffset] = useState(0);
+  const swipeOffsetRef = useRef(0);
+  const rafIdRef = useRef<number | null>(null);
 
   const canSwipeReply = Boolean(onSwipeReply && !selectionMode && !message.deletedAt && message.type !== "SYSTEM");
 
@@ -108,13 +111,27 @@ export const MessageBubble = memo(function MessageBubble({
     }
   }, []);
 
+  const updateDOM = useCallback((offset: number) => {
+    if (bubbleRef.current) {
+      bubbleRef.current.style.transform = `translate3d(${offset}px, 0, 0)`;
+    }
+    if (replyIconRef.current) {
+      replyIconRef.current.style.opacity = String(Math.min(1, offset / SWIPE_REPLY_THRESHOLD));
+    }
+  }, []);
+
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (selectionMode || !event.isPrimary) return;
+    if (rowRef.current) {
+      rowRef.current.setPointerCapture(event.pointerId);
+    }
     pointerIdRef.current = event.pointerId;
     const point = { x: event.clientX, y: event.clientY };
     startPosRef.current = point;
     directionRef.current = null;
     swipeTriggeredRef.current = false;
+    swipeOffsetRef.current = 0;
+    
     timerRef.current = setTimeout(() => {
       if (bubbleRef.current) {
         onLongPress(message.id, bubbleRef.current.getBoundingClientRect());
@@ -131,12 +148,12 @@ export const MessageBubble = memo(function MessageBubble({
     const dy = Math.abs(rawDy);
 
     if (!directionRef.current) {
-      if (dy > 10 && dy > dx) {
+      if (dy > 6 && dy > dx) {
         directionRef.current = "vertical";
         clearLongPress();
         return;
       }
-      if (dx > 10 && dx > dy) {
+      if (dx > 8 && dx > dy * 1.2) {
         directionRef.current = "horizontal";
         clearLongPress();
       } else {
@@ -152,16 +169,49 @@ export const MessageBubble = memo(function MessageBubble({
       return;
     }
 
+    // prevent default to stop scroll or selection when swiping horizontally
+    event.preventDefault();
+
     const clamped = Math.max(0, Math.min(SWIPE_REPLY_MAX, rawDx));
-    setSwipeOffset(clamped);
-  }, [canSwipeReply, clearLongPress]);
+    swipeOffsetRef.current = clamped;
+    
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        updateDOM(swipeOffsetRef.current);
+        rafIdRef.current = null;
+      });
+    }
+  }, [canSwipeReply, clearLongPress, updateDOM]);
 
   const resetGesture = useCallback(() => {
+    if (rowRef.current && pointerIdRef.current !== null) {
+      rowRef.current.releasePointerCapture(pointerIdRef.current);
+    }
     pointerIdRef.current = null;
     startPosRef.current = null;
     directionRef.current = null;
     swipeTriggeredRef.current = false;
+    swipeOffsetRef.current = 0;
     clearLongPress();
+    
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    
+    if (bubbleRef.current) {
+      bubbleRef.current.style.transition = "transform 250ms cubic-bezier(0.4, 0, 0.2, 1)";
+      bubbleRef.current.style.transform = "translate3d(0, 0, 0)";
+    }
+    if (replyIconRef.current) {
+      replyIconRef.current.style.transition = "opacity 250ms ease";
+      replyIconRef.current.style.opacity = "0";
+    }
+    
+    setTimeout(() => {
+      if (bubbleRef.current) bubbleRef.current.style.transition = "";
+      if (replyIconRef.current) replyIconRef.current.style.transition = "";
+    }, 250);
   }, [clearLongPress]);
 
   const handlePointerEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -169,7 +219,7 @@ export const MessageBubble = memo(function MessageBubble({
       return;
     }
 
-    if (canSwipeReply && swipeOffset >= SWIPE_REPLY_THRESHOLD && !swipeTriggeredRef.current) {
+    if (canSwipeReply && swipeOffsetRef.current >= SWIPE_REPLY_THRESHOLD && !swipeTriggeredRef.current) {
       swipeTriggeredRef.current = true;
       onSwipeReply?.(message);
       if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -177,9 +227,8 @@ export const MessageBubble = memo(function MessageBubble({
       }
     }
 
-    setSwipeOffset(0);
     resetGesture();
-  }, [canSwipeReply, message, onSwipeReply, resetGesture, swipeOffset]);
+  }, [canSwipeReply, message, onSwipeReply, resetGesture]);
 
   const handleClick = () => {
     if (selectionMode && onSelect) {
@@ -221,7 +270,7 @@ export const MessageBubble = memo(function MessageBubble({
       };
 
   const incomingClass = settings.incomingStyle === "glass"
-    ? "backdrop-blur-lg"
+    ? "bg-surface-elevated"
     : settings.incomingStyle === "minimal"
       ? "bg-transparent"
       : "";
@@ -237,13 +286,13 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <div 
-      className={`flex items-center gap-3 w-full mb-1 px-4 transition-smooth ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""} no-select`}
+      ref={rowRef}
+      className={`flex items-center gap-3 w-full mb-1 px-4 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""} touch-pan-y`}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
-      style={{ touchAction: "pan-y" }}
     >
       {selectionMode && (
         <div className={`flex shrink-0 items-center justify-center h-6 w-6 rounded-full border-2 transition-smooth ${isSelected ? "bg-primary border-primary shadow-lg shadow-primary/20 scale-110" : "border-muted/30"}`}>
@@ -266,8 +315,9 @@ export const MessageBubble = memo(function MessageBubble({
           {canSwipeReply ? (
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center">
               <div
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle/50 bg-surface/80 text-primary shadow-sm transition-opacity duration-150"
-                style={{ opacity: Math.min(1, swipeOffset / SWIPE_REPLY_THRESHOLD) }}
+                ref={replyIconRef}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle/50 bg-surface/80 text-primary shadow-sm"
+                style={{ opacity: 0 }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -278,13 +328,14 @@ export const MessageBubble = memo(function MessageBubble({
 
           <div
             ref={bubbleRef}
-            className={`group relative px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] ${
+            className={`group relative px-4 py-2.5 cursor-default active:scale-[0.99] ${
               isFocused ? "focused-message" : ""
             } shadow-sm ${mine ? "" : incomingClass}`}
             style={{
               ...bubbleStyle,
-              transform: `translate3d(${swipeOffset}px, 0, 0)`,
+              willChange: "transform",
             }}
+
             onContextMenu={(e) => { 
               e.preventDefault(); 
               if (!selectionMode && bubbleRef.current) {

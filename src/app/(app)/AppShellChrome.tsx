@@ -18,10 +18,11 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
   const router = useRouter();
   const isChatRoom = /^\/chats\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
   const isChatsList = pathname === "/chats";
-  const isMainDockScreen = pathname === "/chats" || pathname === "/calls" || pathname === "/profile";
+  const isMainDockScreen = pathname === "/chats" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
 
   useEffect(() => {
+    router.prefetch("/contacts");
     router.prefetch("/chats");
     router.prefetch("/calls");
     router.prefetch("/profile");
@@ -41,6 +42,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
           </Link>
 
           <nav className="flex items-center gap-6">
+            <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/contacts">Контакты</Link>
             <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/chats">Чаты</Link>
             <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/calls">Звонки</Link>
             {isAdmin && (
@@ -52,7 +54,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
       </header>
 
       {/* Mobile Top Header - ONLY for subpages, not for main tabs with large titles */}
-      {!isChatsList && pathname !== "/calls" && pathname !== "/profile" && (
+      {!isChatsList && pathname !== "/calls" && pathname !== "/profile" && pathname !== "/contacts" && (
         <header className="liquid-top-chrome sticky top-0 z-40 lg:hidden safe-top transition-smooth border-b">
           <div className="flex items-center justify-between px-6 py-4">
             <span className="text-xl font-black tracking-tighter text-primary">Nox</span>
