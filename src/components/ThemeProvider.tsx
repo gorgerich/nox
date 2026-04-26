@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
 
 type ThemePreference = "dark" | "light" | "system";
 type EffectiveTheme = "dark" | "light";
+const THEME_STORAGE_KEY = "nox:theme";
 
 interface ThemeContextType {
   theme: ThemePreference;
@@ -13,58 +14,71 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
+function resolveEffectiveTheme(preference: ThemePreference): EffectiveTheme {
+  if (preference === "system") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  return preference;
+}
+
+function applyRootTheme(preference: ThemePreference) {
+  const effectiveTheme = resolveEffectiveTheme(preference);
+  const root = document.documentElement;
+
+  root.dataset.theme = effectiveTheme;
+  root.dataset.themeMode = preference;
+  root.classList.toggle("dark", effectiveTheme === "dark");
+  root.classList.remove("light");
+  root.style.colorScheme = effectiveTheme;
+
+  return effectiveTheme;
+}
+
+function subscribeToSystemTheme(callback: () => void) {
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  mediaQuery.addEventListener("change", callback);
+  return () => {
+    mediaQuery.removeEventListener("change", callback);
+  };
+}
+
+function getSystemThemeSnapshot() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") return "system";
-    return (localStorage.getItem("nox:theme") as ThemePreference) || "system";
-  });
-  
-  const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>("dark");
-
-  const applyTheme = useCallback((pref: ThemePreference) => {
-    const root = document.documentElement;
-    let targetTheme: EffectiveTheme = "dark";
-
-    if (pref === "system") {
-      targetTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    } else {
-      targetTheme = pref;
+    if (typeof document === "undefined") {
+      return "system";
     }
 
-    root.dataset.theme = targetTheme;
-    root.classList.toggle("dark", targetTheme === "dark");
-    
-    // We update state inside an effect usually, but applyTheme is called from effect.
-    // To avoid cascading, we can use a ref or just ignore if it's necessary.
-    // Better: update effectiveTheme in the same effect.
-    return targetTheme;
-  }, []);
+    const rootThemeMode = document.documentElement.dataset.themeMode;
+    if (rootThemeMode === "light" || rootThemeMode === "dark" || rootThemeMode === "system") {
+      return rootThemeMode;
+    }
+
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    return storedTheme === "light" || storedTheme === "dark" || storedTheme === "system"
+      ? storedTheme
+      : "system";
+  });
+  const systemPrefersDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemThemeSnapshot,
+    () => false,
+  );
+  const effectiveTheme: EffectiveTheme = theme === "system"
+    ? (systemPrefersDark ? "dark" : "light")
+    : theme;
 
   useEffect(() => {
-    const target = applyTheme(theme);
-    // Use a small timeout to avoid cascading render warning in some environments
-    const timeoutId = setTimeout(() => setEffectiveTheme(target), 0);
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      const currentTheme = localStorage.getItem("nox:theme") as ThemePreference | null;
-      if (!currentTheme || currentTheme === "system") {
-        const t = applyTheme("system");
-        setEffectiveTheme(t);
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => {
-      clearTimeout(timeoutId);
-      mediaQuery.removeEventListener("change", handleChange);
-    };
-  }, [applyTheme, theme]);
+    applyRootTheme(theme);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme, effectiveTheme]);
 
   const setTheme = (newTheme: ThemePreference) => {
     setThemeState(newTheme);
-    localStorage.setItem("nox:theme", newTheme);
-    applyTheme(newTheme);
   };
 
   return (

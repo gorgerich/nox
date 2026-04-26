@@ -51,15 +51,18 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                let theme = localStorage.getItem('nox:theme');
-                let effectiveTheme = 'dark';
-                if (theme === 'dark' || theme === 'light') {
-                  effectiveTheme = theme;
-                } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-                  effectiveTheme = 'light';
-                }
+                const storedTheme = localStorage.getItem('nox:theme');
+                const theme = storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system'
+                  ? storedTheme
+                  : 'system';
+                const effectiveTheme = theme === 'system'
+                  ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                  : theme;
                 document.documentElement.dataset.theme = effectiveTheme;
-                document.documentElement.classList.add(effectiveTheme);
+                document.documentElement.dataset.themeMode = theme;
+                document.documentElement.classList.toggle('dark', effectiveTheme === 'dark');
+                document.documentElement.classList.remove('light');
+                document.documentElement.style.colorScheme = effectiveTheme;
               } catch (e) {}
             `,
           }}

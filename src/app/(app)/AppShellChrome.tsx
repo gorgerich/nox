@@ -16,6 +16,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
   const pathname = usePathname();
   const isChatRoom = /^\/chats\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
   const isChatsList = pathname === "/chats";
+  const isMainDockScreen = pathname === "/chats" || pathname === "/calls" || pathname === "/profile";
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
 
   if (isChatRoom) {
@@ -51,7 +52,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         </header>
       )}
 
-      <main className="flex-1 w-full">
+      <main className={isMainDockScreen ? "main-app-content flex-1 w-full" : "flex-1 w-full"}>
         {children}
       </main>
 
