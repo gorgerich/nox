@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --app-safe-bottom: 0px;
   /* --- Light Theme (Premium Off-white) --- */
   --background: #fdfdfd;
   --foreground: #1a1c1e;
@@ -272,7 +273,7 @@ body {
     padding-left: 20px;
     padding-right: 20px;
     padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 120px);
+    padding-bottom: calc(var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)) + 120px);
   }
 
   .app-section-header {
@@ -301,7 +302,7 @@ body {
     pointer-events: none;
     padding-left: 16px;
     padding-right: 16px;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding-bottom: calc(var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)) + 8px);
   }
 
   .app-bottom-dock {

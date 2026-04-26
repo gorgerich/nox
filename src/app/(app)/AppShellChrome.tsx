@@ -26,6 +26,36 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     }
   }, [isChatRoom]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const root = document.documentElement;
+
+    const syncSafeArea = () => {
+      const visualViewport = window.visualViewport;
+      const inset = visualViewport
+        ? Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop)
+        : 0;
+
+      root.style.setProperty("--app-safe-bottom", `${Math.round(inset)}px`);
+    };
+
+    syncSafeArea();
+    window.addEventListener("orientationchange", syncSafeArea);
+    window.addEventListener("resize", syncSafeArea);
+    window.visualViewport?.addEventListener("resize", syncSafeArea);
+    window.visualViewport?.addEventListener("scroll", syncSafeArea);
+
+    return () => {
+      window.removeEventListener("orientationchange", syncSafeArea);
+      window.removeEventListener("resize", syncSafeArea);
+      window.visualViewport?.removeEventListener("resize", syncSafeArea);
+      window.visualViewport?.removeEventListener("scroll", syncSafeArea);
+    };
+  }, []);
+
   if (isChatRoom) {
     return <>{children}</>;
   }

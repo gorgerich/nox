@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
 
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
@@ -25,7 +25,7 @@ interface CallContextType {
   remoteStream: MediaStream | null;
   isMuted: boolean;
   error: string | null;
-  startCall: (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => Promise<void>;
+  startCall: (chatId: string, fromUser?: { displayName: string; avatarUrl: string | null }) => Promise<void>;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
   endCall: () => void;
@@ -34,30 +34,69 @@ interface CallContextType {
 
 const CallContext = createContext<CallContextType | null>(null);
 
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ],
+type SocketAck = {
+  ok: boolean;
+  error?: string;
 };
 
-interface IncomingPayload {
+type StartCallAck = SocketAck & {
+  callId?: string;
+  callee?: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+};
+
+type IncomingCallPayload = {
   callId: string;
   chatId: string;
   offer: RTCSessionDescriptionInit;
-  fromUser: { displayName: string, avatarUrl: string | null };
-}
+  fromUser?: {
+    displayName: string;
+    avatarUrl: string | null;
+  };
+};
 
-interface AnsweredPayload {
+type AnsweredCallPayload = {
+  callId: string;
+  chatId: string;
   answer: RTCSessionDescriptionInit;
-}
+};
 
-interface IcePayload {
+type IceCandidatePayload = {
+  callId: string;
+  chatId: string;
   candidate: RTCIceCandidateInit;
-}
+};
 
-interface EndedPayload {
-  reason: string;
+type CallEndedPayload = {
+  reason?: string;
+};
+
+type CallDeclinedPayload = {
+  reason?: string;
+};
+
+function buildRtcConfig(): RTCConfiguration {
+  const iceServers: RTCIceServer[] = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ];
+
+  if (
+    process.env.NEXT_PUBLIC_TURN_URL &&
+    process.env.NEXT_PUBLIC_TURN_USERNAME &&
+    process.env.NEXT_PUBLIC_TURN_CREDENTIAL
+  ) {
+    iceServers.push({
+      urls: process.env.NEXT_PUBLIC_TURN_URL,
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+      credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+    });
+  }
+
+  return { iceServers };
 }
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
@@ -70,293 +109,510 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const callRef = useRef<CallMetadata | null>(null);
+  const statusRef = useRef<CallStatus>("idle");
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
-  const pendingIceQueue = useRef<RTCIceCandidateInit[]>([]);
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const statusRef = useRef<CallStatus>("idle");
+  const pendingRemoteIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingLocalIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const disconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ringingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    callRef.current = call;
+  }, [call]);
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
 
-  const debugCall = useCallback((label: string, data: Record<string, unknown> = {}) => {
-    if (!DEBUG_CALLS) return;
-    console.log(`[CALL DEBUG] ${label}`, {
-      status: statusRef.current,
-      pcState: pcRef.current?.connectionState,
-      iceState: pcRef.current?.iceConnectionState,
-      signalingState: pcRef.current?.signalingState,
-      hasLocalDesc: !!pcRef.current?.localDescription,
-      hasRemoteDesc: !!pcRef.current?.remoteDescription,
-      ...data
+  const debugCall = useCallback((event: string, data: Record<string, unknown> = {}) => {
+    if (!DEBUG_CALLS) {
+      return;
+    }
+
+    console.log("[call-debug]", {
+      event,
+      callId: callRef.current?.callId ?? null,
+      chatId: callRef.current?.chatId ?? null,
+      role: callRef.current?.role ?? null,
+      callState: statusRef.current,
+      signalingState: pcRef.current?.signalingState ?? null,
+      iceConnectionState: pcRef.current?.iceConnectionState ?? null,
+      connectionState: pcRef.current?.connectionState ?? null,
+      hasLocalDescription: Boolean(pcRef.current?.localDescription),
+      hasRemoteDescription: Boolean(pcRef.current?.remoteDescription),
+      localTracksCount: localStreamRef.current?.getTracks().length ?? 0,
+      remoteTracksCount: remoteStreamRef.current?.getTracks().length ?? 0,
+      pendingIceCount: pendingRemoteIceRef.current.length,
+      ...data,
     });
   }, []);
 
-  const cleanup = useCallback((reason?: string) => {
-    debugCall("Cleanup started", { reason: reason || "none" });
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const clearCallTimers = useCallback(() => {
+    if (disconnectTimeoutRef.current) {
+      clearTimeout(disconnectTimeoutRef.current);
+      disconnectTimeoutRef.current = null;
     }
-    
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
+    if (ringingTimeoutRef.current) {
+      clearTimeout(ringingTimeoutRef.current);
+      ringingTimeoutRef.current = null;
     }
-    
+    if (connectingTimeoutRef.current) {
+      clearTimeout(connectingTimeoutRef.current);
+      connectingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const setCallState = useCallback((nextCall: CallMetadata | null, nextStatus: CallStatus) => {
+    callRef.current = nextCall;
+    statusRef.current = nextStatus;
+    setCall(nextCall);
+    setStatus(nextStatus);
+  }, []);
+
+  const cleanup = useCallback((reason = "cleanup") => {
+    debugCall("call:cleanup", { reason });
+    clearCallTimers();
+
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
       pcRef.current.ontrack = null;
       pcRef.current.onconnectionstatechange = null;
+      pcRef.current.oniceconnectionstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }
 
-    setCall(null);
-    setStatus("idle");
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    remoteStreamRef.current = null;
+    incomingOfferRef.current = null;
+    pendingRemoteIceRef.current = [];
+    pendingLocalIceRef.current = [];
     setLocalStream(null);
     setRemoteStream(null);
-    pendingIceQueue.current = [];
-    incomingOfferRef.current = null;
     setIsMuted(false);
-    remoteStreamRef.current = null;
-  }, [debugCall]);
+    setCallState(null, "idle");
+  }, [clearCallTimers, debugCall, setCallState]);
 
-  const failCall = useCallback((err: string) => {
-    debugCall("Call Failed", { err });
-    setError(err);
+  const setFailed = useCallback((message: string) => {
+    debugCall("call:failed", { message });
+    setError(message);
+    statusRef.current = "failed";
     setStatus("failed");
-    setTimeout(() => {
-      cleanup();
+    clearCallTimers();
+    window.setTimeout(() => {
+      cleanup("failed");
       setError(null);
     }, 3000);
-  }, [cleanup, debugCall]);
+  }, [clearCallTimers, cleanup, debugCall]);
 
-  const createPeerConnection = useCallback((role: CallRole, callId: string) => {
-    debugCall("Creating RTCPeerConnection", { role });
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+  const flushRemoteIce = useCallback(async () => {
+    if (!pcRef.current || !pcRef.current.remoteDescription) {
+      return;
+    }
+
+    while (pendingRemoteIceRef.current.length > 0) {
+      const candidate = pendingRemoteIceRef.current.shift();
+      if (!candidate) {
+        continue;
+      }
+
+      try {
+        await pcRef.current.addIceCandidate(candidate);
+      } catch (error) {
+        debugCall("call:remote-ice:add-failed", { error: String(error) });
+      }
+    }
+  }, [debugCall]);
+
+  function emitPendingLocalIce() {
+    if (!socket || !callRef.current?.callId || !callRef.current?.chatId) {
+      return;
+    }
+
+    const queued = [...pendingLocalIceRef.current];
+    pendingLocalIceRef.current = [];
+
+    queued.forEach((candidate) => {
+      socket.emit(
+        "call:ice-candidate",
+        {
+          callId: callRef.current?.callId,
+          chatId: callRef.current?.chatId,
+          candidate,
+        },
+        (response: SocketAck) => {
+          if (!response?.ok) {
+            debugCall("call:ice-candidate:ack-failed", { error: response?.error ?? "unknown" });
+          }
+        },
+      );
+    });
+  }
+
+  const scheduleConnectingTimeout = useCallback(() => {
+    if (connectingTimeoutRef.current) {
+      clearTimeout(connectingTimeoutRef.current);
+    }
+
+    connectingTimeoutRef.current = setTimeout(() => {
+      if (statusRef.current === "connecting") {
+        setFailed("Не удалось установить соединение");
+        if (callRef.current?.callId) {
+          socket?.emit("call:ended", {
+            callId: callRef.current.callId,
+            reason: "connection_timeout",
+          });
+        }
+      }
+    }, 45000);
+  }, [setFailed, socket]);
+
+  function createPeerConnection(role: CallRole) {
+    const pc = new RTCPeerConnection(buildRtcConfig());
+    pcRef.current = pc;
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
-        debugCall("Local ICE candidate generated");
-        socket.emit("call:ice-candidate", { callId, candidate: event.candidate });
+      if (!event.candidate) {
+        return;
       }
+
+      debugCall("call:ice:local");
+      if (!socket || !callRef.current?.callId || !callRef.current?.chatId) {
+        pendingLocalIceRef.current.push(event.candidate.toJSON());
+        return;
+      }
+
+      socket.emit(
+        "call:ice-candidate",
+        {
+          callId: callRef.current.callId,
+          chatId: callRef.current.chatId,
+          candidate: event.candidate.toJSON(),
+        },
+        (response: SocketAck) => {
+          if (!response?.ok) {
+            debugCall("call:ice-candidate:ack-failed", { error: response?.error ?? "unknown" });
+          }
+        },
+      );
     };
 
     pc.ontrack = (event) => {
-      debugCall("Remote track received", { kind: event.track.kind });
+      debugCall("call:remote-track", { remoteTracksCount: event.streams[0]?.getTracks().length ?? 0 });
       if (!remoteStreamRef.current) {
         remoteStreamRef.current = new MediaStream();
-        setRemoteStream(remoteStreamRef.current);
       }
-      remoteStreamRef.current.addTrack(event.track);
+
+      event.streams[0]?.getTracks().forEach((track) => {
+        const exists = remoteStreamRef.current?.getTracks().some((existing) => existing.id === track.id);
+        if (!exists) {
+          remoteStreamRef.current?.addTrack(track);
+        }
+      });
+
+      if (!event.streams[0] && !remoteStreamRef.current.getTracks().some((track) => track.id === event.track.id)) {
+        remoteStreamRef.current.addTrack(event.track);
+      }
+
+      setRemoteStream(remoteStreamRef.current);
+      if (statusRef.current === "connecting" || statusRef.current === "ringing") {
+        setStatus("active");
+        statusRef.current = "active";
+      }
     };
 
     pc.onconnectionstatechange = () => {
-      debugCall("Connection state changed", { state: pc.connectionState });
+      debugCall("call:connection-state", { next: pc.connectionState });
       if (pc.connectionState === "connected") {
+        clearCallTimers();
         setStatus("active");
-      } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-        cleanup("connection failed");
+        statusRef.current = "active";
+        return;
+      }
+
+      if (pc.connectionState === "disconnected") {
+        if (disconnectTimeoutRef.current) {
+          clearTimeout(disconnectTimeoutRef.current);
+        }
+        disconnectTimeoutRef.current = setTimeout(() => {
+          setFailed("Соединение потеряно");
+          if (callRef.current?.callId) {
+            socket?.emit("call:ended", { callId: callRef.current.callId, reason: "disconnect_timeout" });
+          }
+        }, 10000);
+        return;
+      }
+
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        setFailed("Ошибка соединения");
       }
     };
 
-    pcRef.current = pc;
-    return pc;
-  }, [socket, cleanup, debugCall]);
+    pc.oniceconnectionstatechange = () => {
+      debugCall("call:ice-state", { next: pc.iceConnectionState });
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        clearCallTimers();
+        if (statusRef.current !== "active") {
+          setStatus("active");
+          statusRef.current = "active";
+        }
+      }
 
-  const startCall = useCallback(async (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => {
-    if (statusRef.current !== "idle") return;
-    debugCall("Starting outgoing call", { chatId });
-    setCall({
-      callId: `pending-${Date.now()}`,
-      chatId,
-      role: "caller",
-      user: { displayName: "Собеседник", avatarUrl: null }
-    });
-    setStatus("ringing");
+      if (pc.iceConnectionState === "failed") {
+        setFailed("Ошибка ICE-соединения");
+      }
+    };
+
+    debugCall("call:pc-created", { role });
+    return pc;
+  }
+
+  async function startCall(chatId: string, fromUser?: { displayName: string; avatarUrl: string | null }) {
+    if (!socket || statusRef.current !== "idle") {
+      return;
+    }
+
+    setError(null);
+    setCallState(
+      {
+        callId: `pending-${Date.now()}`,
+        chatId,
+        role: "caller",
+        user: { displayName: "Собеседник", avatarUrl: null },
+      },
+      "ringing",
+    );
+    debugCall("call:start:init", { chatId });
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setLocalStream(stream);
 
-      const pc = createPeerConnection("caller", "pending");
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      const pc = createPeerConnection("caller");
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      debugCall("call:offer-created", { hasLocalDescription: true });
 
-      socket?.emit("call:start", { chatId, offer, fromUser }, (response: { ok: boolean, callId: string }) => {
-        if (response.ok) {
-          debugCall("Call started successfully", { callId: response.callId });
-          setCall((current) =>
-            current
-              ? { ...current, callId: response.callId }
-              : {
-                  callId: response.callId,
-                  chatId,
-                  role: "caller",
-                  user: { displayName: "Собеседник", avatarUrl: null },
-                },
-          );
-          
-          timeoutRef.current = setTimeout(() => {
-            if (statusRef.current === "ringing") {
-              debugCall("Call timeout - no answer");
-              socket.emit("call:ended", { callId: response.callId, reason: "timeout" });
-              cleanup("timeout");
-            }
-          }, 45000);
-        } else {
-          failCall("Не удалось начать звонок");
+      socket.emit("call:start", { chatId, offer, fromUser }, (response: StartCallAck) => {
+        if (!response?.ok) {
+          setFailed(response?.error ?? "Не удалось начать звонок");
+          return;
         }
-      });
-    } catch (err) {
-      console.error(err);
-      failCall("Нет доступа к микрофону");
-    }
-  }, [socket, createPeerConnection, cleanup, debugCall, failCall]);
 
-  const acceptCall = useCallback(async () => {
-    if (!call || !incomingOfferRef.current || !socket) return;
-    debugCall("Accepting incoming call");
+        if (!response.callId) {
+          setFailed("Сервер не вернул идентификатор звонка");
+          return;
+        }
+
+        setCallState(
+          {
+            callId: response.callId,
+            chatId,
+            role: "caller",
+            user: response.callee ?? { displayName: "Собеседник", avatarUrl: null },
+          },
+          "ringing",
+        );
+
+        debugCall("call:start:ack", { callId: response.callId });
+        emitPendingLocalIce();
+
+        ringingTimeoutRef.current = setTimeout(() => {
+          if (statusRef.current === "ringing" && callRef.current?.callId) {
+            socket.emit("call:ended", { callId: callRef.current.callId, reason: "ring_timeout" });
+            setFailed("Собеседник не ответил");
+          }
+        }, 45000);
+      });
+    } catch (error) {
+      console.error(error);
+      socket.emit("call:ended", { callId: callRef.current?.callId, reason: "permission_denied" });
+      setFailed("Нет доступа к микрофону");
+    }
+  }
+
+  async function acceptCall() {
+    if (!socket || !callRef.current || !incomingOfferRef.current) {
+      return;
+    }
+
+    setError(null);
     setStatus("connecting");
+    statusRef.current = "connecting";
+    debugCall("call:accept:init");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setLocalStream(stream);
 
-      const pc = createPeerConnection("callee", call.callId);
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      const pc = createPeerConnection("callee");
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingOfferRef.current));
-      debugCall("Remote description set (offer)");
-
-      while (pendingIceQueue.current.length > 0) {
-        const cand = pendingIceQueue.current.shift();
-        if (cand) await pc.addIceCandidate(cand).catch(e => debugCall("ICE add failed", { error: String(e) }));
-      }
+      debugCall("call:remote-offer:set", { hasRemoteDescription: true });
+      await flushRemoteIce();
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      debugCall("Local description set (answer)");
+      debugCall("call:answer-created", { hasLocalDescription: true });
 
-      socket.emit("call:answer", { 
-        callId: call.callId, 
-        chatId: call.chatId, 
-        answer 
-      }, (res: { ok: boolean }) => {
-        if (!res.ok) failCall("Ошибка при ответе на звонок");
-      });
-    } catch (err) {
-      console.error(err);
-      failCall("Ошибка доступа к микрофону");
-      socket.emit("call:declined", { callId: call.callId });
+      socket.emit(
+        "call:answer",
+        {
+          callId: callRef.current.callId,
+          chatId: callRef.current.chatId,
+          answer,
+        },
+        (response: SocketAck) => {
+          if (!response?.ok) {
+            setFailed(response?.error ?? "Не удалось принять звонок");
+            return;
+          }
+
+          scheduleConnectingTimeout();
+        },
+      );
+    } catch (error) {
+      console.error(error);
+      socket.emit("call:declined", { callId: callRef.current.callId, reason: "permission_denied" });
+      setFailed("Нет доступа к микрофону");
     }
-  }, [call, socket, createPeerConnection, debugCall, failCall]);
+  }
 
-  const declineCall = useCallback(() => {
-    if (call && socket) {
-      socket.emit("call:declined", { callId: call.callId });
+  function declineCall() {
+    if (callRef.current?.callId) {
+      socket?.emit("call:declined", { callId: callRef.current.callId, reason: "declined" });
     }
     cleanup("declined");
-  }, [call, socket, cleanup]);
+  }
 
-  const endCall = useCallback(() => {
-    if (call && socket) {
-      socket.emit("call:ended", { callId: call.callId, reason: "user_ended" });
+  function endCall() {
+    if (callRef.current?.callId) {
+      socket?.emit("call:ended", { callId: callRef.current.callId, reason: "user_ended" });
     }
-    cleanup("ended by user");
-  }, [call, socket, cleanup]);
+    cleanup("ended");
+  }
 
-  const toggleMute = useCallback(() => {
-    if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-      }
+  function toggleMute() {
+    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+    if (!audioTrack) {
+      return;
     }
-  }, []);
+
+    audioTrack.enabled = !audioTrack.enabled;
+    setIsMuted(!audioTrack.enabled);
+  }
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      return;
+    }
 
-    const onIncoming = ({ callId, chatId, offer, fromUser }: IncomingPayload) => {
-      debugCall("Incoming call received", { callId });
+    const handleIncoming = ({ callId, chatId, offer, fromUser }: IncomingCallPayload) => {
+      debugCall("call:incoming", { callId, chatId });
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, reason: "busy" });
         return;
       }
-      setCall({
-        callId,
-        chatId,
-        role: "callee",
-        user: fromUser || { displayName: "Аноним", avatarUrl: null }
-      });
+
       incomingOfferRef.current = offer;
-      setStatus("ringing");
+      setCallState(
+        {
+          callId,
+          chatId,
+          role: "callee",
+          user: fromUser ?? { displayName: "Аноним", avatarUrl: null },
+        },
+        "ringing",
+      );
     };
 
-    const onAnswered = async ({ answer }: AnsweredPayload) => {
-      debugCall("Call answered by remote");
-      if (pcRef.current) {
-        setStatus("connecting");
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-        debugCall("Remote description set (answer)");
-        
-        while (pendingIceQueue.current.length > 0) {
-          const cand = pendingIceQueue.current.shift();
-          if (cand) await pcRef.current.addIceCandidate(cand).catch(e => debugCall("ICE add failed", { error: String(e) }));
+    const handleAnswered = async ({ callId, chatId, answer }: AnsweredCallPayload) => {
+      debugCall("call:answered", { callId, chatId });
+      if (!pcRef.current || !callRef.current || callRef.current.callId !== callId) {
+        return;
+      }
+
+      clearCallTimers();
+      setStatus("connecting");
+      statusRef.current = "connecting";
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+      debugCall("call:remote-answer:set", { hasRemoteDescription: true });
+      await flushRemoteIce();
+      scheduleConnectingTimeout();
+    };
+
+    const handleIceCandidate = async ({ callId, chatId, candidate }: IceCandidatePayload) => {
+      debugCall("call:ice:remote", { callId, chatId });
+      if (!callRef.current || callRef.current.callId !== callId) {
+        return;
+      }
+
+      if (pcRef.current?.remoteDescription) {
+        try {
+          await pcRef.current.addIceCandidate(candidate);
+        } catch (error) {
+          debugCall("call:ice:add-failed", { error: String(error) });
         }
+        return;
       }
+
+      pendingRemoteIceRef.current.push(candidate);
     };
 
-    const onIce = async ({ candidate }: IcePayload) => {
-      debugCall("Remote ICE candidate received");
-      if (pcRef.current && pcRef.current.remoteDescription) {
-        await pcRef.current.addIceCandidate(candidate).catch(e => debugCall("ICE add failed", { error: String(e) }));
-      } else {
-        debugCall("Queuing remote ICE candidate");
-        pendingIceQueue.current.push(candidate);
-      }
+    const handleEnded = ({ reason }: CallEndedPayload) => {
+      debugCall("call:ended", { reason });
+      cleanup(`remote-ended:${reason}`);
     };
 
-    const onEnded = ({ reason }: EndedPayload) => {
-      debugCall("Call ended by remote", { reason });
-      cleanup(`remote ended: ${reason}`);
+    const handleDeclined = ({ reason }: CallDeclinedPayload) => {
+      debugCall("call:declined", { reason });
+      setFailed(reason === "busy" ? "Пользователь занят" : "Звонок отклонён");
     };
 
-    const onDeclined = () => {
-      debugCall("Call declined by remote");
-      cleanup("remote declined");
-    };
-
-    socket.on("call:incoming", onIncoming);
-    socket.on("call:answered", onAnswered);
-    socket.on("call:ice-candidate", onIce);
-    socket.on("call:ended", onEnded);
-    socket.on("call:declined", onDeclined);
+    socket.on("call:incoming", handleIncoming);
+    socket.on("call:answered", handleAnswered);
+    socket.on("call:ice-candidate", handleIceCandidate);
+    socket.on("call:ended", handleEnded);
+    socket.on("call:declined", handleDeclined);
 
     return () => {
-      socket.off("call:incoming", onIncoming);
-      socket.off("call:answered", onAnswered);
-      socket.off("call:ice-candidate", onIce);
-      socket.off("call:ended", onEnded);
-      socket.off("call:declined", onDeclined);
+      socket.off("call:incoming", handleIncoming);
+      socket.off("call:answered", handleAnswered);
+      socket.off("call:ice-candidate", handleIceCandidate);
+      socket.off("call:ended", handleEnded);
+      socket.off("call:declined", handleDeclined);
     };
-  }, [socket, cleanup, debugCall]);
+  }, [cleanup, clearCallTimers, debugCall, flushRemoteIce, scheduleConnectingTimeout, setCallState, setFailed, socket]);
 
   return (
-    <CallContext.Provider value={{
-      call, status, localStream, remoteStream, isMuted, error,
-      startCall, acceptCall, declineCall, endCall, toggleMute
-    }}>
+    <CallContext.Provider
+      value={{
+        call,
+        status,
+        localStream,
+        remoteStream,
+        isMuted,
+        error,
+        startCall,
+        acceptCall,
+        declineCall,
+        endCall,
+        toggleMute,
+      }}
+    >
       {children}
     </CallContext.Provider>
   );
@@ -364,6 +620,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
 export function useAudioCall() {
   const context = useContext(CallContext);
-  if (!context) throw new Error("useAudioCall must be used within CallProvider");
+  if (!context) {
+    throw new Error("useAudioCall must be used within CallProvider");
+  }
   return context;
 }
