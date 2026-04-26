@@ -10,7 +10,7 @@ export default async function ContactsPage() {
 
   const prisma = getPrisma();
   
-  // Find all DIRECT chats the user is part of and extract the other member
+  // Find all DIRECT chats the user is part of and extract the other member or themselves for self-chat
   const memberships = await prisma.chatMember.findMany({
     where: {
       userId: user.id,
@@ -21,7 +21,7 @@ export default async function ContactsPage() {
       chat: {
         include: {
           members: {
-            where: { status: "ACTIVE", userId: { not: user.id } },
+            where: { status: "ACTIVE" },
             include: {
               user: {
                 select: {
@@ -43,8 +43,9 @@ export default async function ContactsPage() {
   });
 
   const contacts = memberships
-    .map(m => m.chat.members[0]?.user)
+    .map(m => m.chat.members.find(member => member.userId !== user.id)?.user || m.chat.members.find(member => member.userId === user.id)?.user)
     .filter(Boolean)
+    .filter((v, i, a) => a.findIndex(t => t?.id === v?.id) === i)
     .sort((a, b) => {
       const nameA = a!.profile?.displayName || a!.username;
       const nameB = b!.profile?.displayName || b!.username;

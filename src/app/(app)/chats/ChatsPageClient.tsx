@@ -10,6 +10,7 @@ import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
 import { ChatSearch } from "./ChatSearch";
 import { IncomingRequestCards } from "./IncomingRequestCards";
 import { SwipeableChatRow } from "./SwipeableChatRow";
+import { GroupPicker } from "./GroupPicker";
 
 const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === "true";
 
@@ -48,6 +49,7 @@ export function ChatsPageClient({
   const [archivedCount, setArchivedCount] = useState(initialArchivedCount);
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [muteSheetChat, setMuteSheetChat] = useState<ChatListItem | null>(null);
+  const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
   const syncAbortRef = useRef<AbortController | null>(null);
 
   const syncChats = useCallback(async () => {
@@ -185,29 +187,48 @@ export function ChatsPageClient({
   }, []);
 
   const handleNavigate = useCallback((chatId: string) => {
-    startTransition(() => {
-      router.push(`/chats/${chatId}`);
-    });
+    router.push(`/chats/${chatId}`);
   }, [router]);
 
   useEffect(() => {
     router.prefetch("/chats/new");
+    router.prefetch("/contacts");
+    router.prefetch("/calls");
+    router.prefetch("/profile");
   }, [router]);
 
   return (
     <div className="app-section transition-smooth">
       <div className="app-section-header px-2">
         <h1 className="app-section-title">Чаты</h1>
-        <Link
-          className="touch-target flex h-14 w-14 items-center justify-center rounded-[1.5rem] border border-primary/20 bg-primary/10 text-primary shadow-sm transition-smooth active:scale-90 hover:bg-primary/20"
-          href="/chats/new"
-          prefetch
-        >
-          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
-        </Link>
+        <div className="flex gap-2">
+          <button
+            className="touch-target flex h-14 w-14 items-center justify-center rounded-[1.5rem] border border-primary/20 bg-primary/10 text-primary shadow-sm transition-smooth active:scale-90 hover:bg-primary/20 fast-tap"
+            onClick={() => setIsGroupPickerOpen(true)}
+            title="Новая группа"
+          >
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </button>
+          <Link
+            className="touch-target flex h-14 w-14 items-center justify-center rounded-[1.5rem] border border-primary/20 bg-primary/10 text-primary shadow-sm transition-smooth active:scale-90 hover:bg-primary/20 fast-tap"
+            href="/chats/new"
+            prefetch
+          >
+            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+          </Link>
+        </div>
       </div>
+
+      {isGroupPickerOpen && (
+        <GroupPicker 
+          onClose={() => setIsGroupPickerOpen(false)} 
+          onNavigate={handleNavigate}
+        />
+      )}
 
       <div className="mb-8 px-2">
         <ChatSearch />
