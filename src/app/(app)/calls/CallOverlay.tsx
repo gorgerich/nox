@@ -252,7 +252,7 @@ export function CallOverlay() {
     : null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-16 backdrop-blur-2xl animate-in fade-in duration-500 pointer-events-auto">
+    <div className="fixed inset-0 z-1000 flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-16 backdrop-blur-2xl animate-in fade-in duration-500 pointer-events-auto">
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="mt-20 flex flex-col items-center text-center">
