@@ -75,44 +75,45 @@ export default async function ContactsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {contacts.map((contact) => (
-            <Link 
-              key={contact!.id} 
-              href={`/users/${contact!.id}`}
-              className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-smooth hover:bg-surface-elevated hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md fast-tap"
-            >
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
-                {contact!.profile?.avatarUrl ? (
-                  <Image src={contact!.profile.avatarUrl} alt="" fill className="object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xl font-black">
-                    {(contact!.profile?.displayName || contact!.username)[0].toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[17px] font-bold text-foreground group-hover:text-primary transition-colors">
-                  {contact!.profile?.displayName || contact!.username}
-                </p>
-                <p className="truncate text-sm font-medium text-muted-foreground">
-                  @{contact!.username}
-                </p>
-              </div>
-              <object
-                className="flex shrink-0 items-center"
-                onClick={(e) => {
-                  // Ensure clicking the button does not trigger the Link
-                }}
+          {contacts.map((contact) => {
+            const avatarUrl = contact!.profile?.avatarUrl;
+            const fullAvatarUrl = avatarUrl 
+              ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
+              : null;
+            return (
+              <Link 
+                key={contact!.id} 
+                href={`/users/${contact!.id}`}
+                className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-smooth hover:bg-surface-elevated hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md fast-tap"
               >
-                <Link
-                  href={`/chats/direct?userId=${contact!.id}`}
-                  className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap"
-                >
-                  Написать
-                </Link>
-              </object>
-            </Link>
-          ))}
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
+                  {fullAvatarUrl ? (
+                    <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xl font-black">
+                      {(contact!.profile?.displayName || contact!.username)[0].toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[17px] font-bold text-foreground group-hover:text-primary transition-colors">
+                    {contact!.profile?.displayName || contact!.username}
+                  </p>
+                  <p className="truncate text-sm font-medium text-muted-foreground">
+                    @{contact!.username}
+                  </p>
+                </div>
+                <object className="flex shrink-0 items-center">
+                  <Link
+                    href={`/chats/direct?userId=${contact!.id}`}
+                    className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap"
+                  >
+                    Написать
+                  </Link>
+                </object>
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

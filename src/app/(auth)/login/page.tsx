@@ -28,7 +28,8 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        setError(LOGIN_ERROR_MESSAGE);
+        const data = await response.json().catch(() => null);
+        setError(data?.error || LOGIN_ERROR_MESSAGE);
         return;
       }
 
