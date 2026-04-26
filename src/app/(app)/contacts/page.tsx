@@ -1,56 +1,96 @@
-import { redirect } from "next/navigation";
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { getCurrentUser } from "@/lib/auth";
-import { getPrisma } from "@/lib/prisma";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default async function ContactsPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+type Contact = {
+  id: string;
+  username: string;
+  profile: {
+    displayName: string;
+    avatarUrl: string | null;
+  } | null;
+};
 
-  const prisma = getPrisma();
-  
-  // Find all DIRECT chats the user is part of and extract the other member or themselves for self-chat
-  const memberships = await prisma.chatMember.findMany({
-    where: {
-      userId: user.id,
-      status: "ACTIVE",
-      chat: { type: "DIRECT" }
-    },
-    include: {
-      chat: {
-        include: {
-          members: {
-            where: { status: "ACTIVE" },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  profile: {
-                    select: {
-                      displayName: true,
-                      avatarUrl: true
-                    }
-                  }
-                }
-              }
+export default function ContactsPage() {
+  const router = useRouter();
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionPending, setActionPending] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/chats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.chats) {
+          const directChats = data.chats.filter((c: { type: string, otherMember?: Contact }) => c.type === "DIRECT" && c.otherMember);
+          const users = directChats.map((c: { otherMember: Contact }) => ({
+            id: c.otherMember.id,
+            username: c.otherMember.username,
+            profile: {
+              displayName: c.otherMember.profile?.displayName || c.otherMember.username,
+              avatarUrl: c.otherMember.profile?.avatarUrl || null,
             }
-          }
+          }));
+          
+          const uniqueUsers = Array.from(new Map(users.map((u: Contact) => [u.id, u])).values()) as Contact[];
+          
+          uniqueUsers.sort((a, b) => {
+            const nameA = a.profile?.displayName || a.username;
+            const nameB = b.profile?.displayName || b.username;
+            return nameA.localeCompare(nameB);
+          });
+          
+          setContacts(uniqueUsers);
         }
-      }
-    }
-  });
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, []);
 
-  const contacts = memberships
-    .map(m => m.chat.members.find(member => member.userId !== user.id)?.user || m.chat.members.find(member => member.userId === user.id)?.user)
-    .filter(Boolean)
-    .filter((v, i, a) => a.findIndex(t => t?.id === v?.id) === i)
-    .sort((a, b) => {
-      const nameA = a!.profile?.displayName || a!.username;
-      const nameB = b!.profile?.displayName || b!.username;
-      return nameA.localeCompare(nameB);
-    });
+  const handleWriteClick = async (e: React.MouseEvent, userId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (actionPending) return;
+    setActionPending(userId);
+    
+    try {
+      const response = await fetch("/api/chats/direct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        router.push(`/chats/${data.chat.id}`);
+      } else {
+        alert("Не удалось открыть чат");
+        setActionPending(null);
+      }
+    } catch {
+      alert("Ошибка сети");
+      setActionPending(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="app-section animate-in fade-in duration-300">
+        <header className="app-section-header">
+          <h1 className="app-section-title">Контакты</h1>
+        </header>
+        <div className="flex justify-center p-10">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-section animate-in fade-in duration-300">
@@ -103,14 +143,15 @@ export default async function ContactsPage() {
                     @{contact!.username}
                   </p>
                 </div>
-                <object className="flex shrink-0 items-center">
-                  <Link
-                    href={`/chats/direct?userId=${contact!.id}`}
-                    className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap"
+                <div className="flex shrink-0 items-center">
+                  <button
+                    onClick={(e) => handleWriteClick(e, contact!.id)}
+                    disabled={actionPending === contact!.id}
+                    className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap disabled:opacity-50"
                   >
-                    Написать
-                  </Link>
-                </object>
+                    {actionPending === contact!.id ? "..." : "Написать"}
+                  </button>
+                </div>
               </Link>
             )
           })}

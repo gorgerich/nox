@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { DirectChatButton } from "./DirectChatButton";
 
 export default async function UserProfilePage({
   params,
@@ -59,12 +59,7 @@ export default async function UserProfilePage({
         )}
 
         <div className="mt-10 flex gap-4 w-full max-w-xs">
-          <Link
-            href={`/chats/direct?userId=${targetUser.id}`}
-            className="btn-nox flex-1 bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary-hover fast-tap"
-          >
-            Написать
-          </Link>
+          <DirectChatButton userId={targetUser.id} />
         </div>
       </div>
     </div>

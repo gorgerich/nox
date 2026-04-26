@@ -268,6 +268,8 @@ export default async function ChatPage({
         chatInfo={{
           type: chat.type,
           title: chat.title,
+          avatarUrl: chat.avatarUrl,
+          memberCount: chat.members.length,
           otherMember: otherMember ? {
             id: otherMember.user.id,
             displayName: otherMember.user.profile?.displayName ?? otherMember.user.username,

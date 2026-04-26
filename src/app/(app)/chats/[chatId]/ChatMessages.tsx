@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
@@ -120,6 +121,8 @@ export function ChatMessages({
   chatInfo: {
     type: string;
     title: string | null;
+    avatarUrl?: string | null;
+    memberCount?: number;
     otherMember?: {
       id: string;
       displayName: string;
@@ -143,9 +146,44 @@ export function ChatMessages({
   const [isTypingLocal, setIsTypingLocal] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
-  const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect } | null>(null);
+  const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect; readers?: { name: string; avatarUrl: string | null }[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      container.scrollTo({ top: container.scrollHeight, behavior });
+    }
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  useEffect(() => {
+    if (isAtBottomRef.current) forceScrollBottom("smooth");
+  }, [messages, forceScrollBottom]);
+
+  const handleLongPress = useCallback(async (id: string, rect: DOMRect) => {
+    if (isSelectionMode) return;
+    setMenuState({ id, rect });
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(40);
+
+    if (chatInfo.type === "GROUP") {
+      try {
+        const response = await fetch(`/api/messages/${id}/readers`);
+        if (response.ok) {
+          const data = await response.json();
+          setMenuState(prev => prev && prev.id === id ? { ...prev, readers: data.readers } : prev);
+        }
+      } catch (err) {
+        console.error("Failed to fetch readers", err);
+      }
+    }
+  }, [isSelectionMode, chatInfo.type]);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [pinnedMessage, setPinnedMessage] = useState<Message | null>(initialPinnedMessage);
@@ -241,13 +279,6 @@ export function ChatMessages({
     };
   }, []);
 
-  const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {
-    if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      container.scrollTo({ top: container.scrollHeight, behavior });
-    }
-  }, []);
-
   const jumpToMessage = useCallback((id: string) => {
     const el = messageRefs.current[id];
     if (el) {
@@ -296,22 +327,6 @@ export function ChatMessages({
     void markAsRead();
     return () => { cancelAnimationFrame(frameId); clearTimeout(t1); clearTimeout(t2); };
   }, [chatId, forceScrollBottom, markAsRead]);
-
-  const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
-  }, []);
-
-  useEffect(() => {
-    if (isAtBottomRef.current) forceScrollBottom("smooth");
-  }, [messages, forceScrollBottom]);
-
-  const handleLongPress = useCallback((id: string, rect: DOMRect) => {
-    if (isSelectionMode) return;
-    setMenuState({ id, rect });
-    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(40);
-  }, [isSelectionMode]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -815,13 +830,19 @@ export function ChatMessages({
   const getStatusSubtitle = useCallback(() => {
     const users = Object.values(typingUsers);
     if (users.length > 0) {
+      if (chatInfo.type === "GROUP") {
+        return users.length === 1 
+          ? `${users[0].displayName} печатает...`
+          : `${users.length} человека печатают...`;
+      }
       return "печатает...";
     }
     if (chatInfo.type === "DIRECT") {
       return connected ? "в сети" : "подключение...";
     }
-    return "групповой чат";
-  }, [chatInfo.type, connected, typingUsers]);
+    const memberCount = chatInfo.memberCount || 0;
+    return `${memberCount} ${memberCount === 1 ? 'участник' : (memberCount > 1 && memberCount < 5) ? 'участника' : 'участников'}`;
+  }, [chatInfo.type, chatInfo.memberCount, connected, typingUsers]);
 
   const themeVars = getChatAppearanceVars(settings);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
@@ -889,22 +910,44 @@ export function ChatMessages({
         {/* Action Menu & Reactions */}
         <div className="menu-content" style={menuPosition as React.CSSProperties}>
           <div
-            className="reaction-bar self-center mb-4 rounded-full border px-3 py-2 shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 duration-200"
+            className="reaction-bar self-center mb-4 rounded-[2rem] border p-2 shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 duration-200"
             style={{
               backgroundColor: "var(--message-menu-bg)",
               borderColor: "var(--chat-menu-border)",
               color: "var(--message-menu-fg)",
             }}
           >
-             {ALLOWED_REACTIONS.map(emoji => (
-               <button 
-                key={emoji} 
-                className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
-                onClick={() => toggleReaction(menuState.id, emoji)}
-               >
-                {emoji}
-               </button>
-             ))}
+             {/* Readers summary for groups */}
+             {chatInfo.type === "GROUP" && focusedMessage.senderUserId === currentUserId && (
+               <div className="flex items-center justify-between gap-3 mb-2 px-3 py-1.5 bg-foreground/5 rounded-2xl">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-muted/80">
+                   {!menuState.readers ? "Загрузка..." : menuState.readers.length === 0 ? "Никто не прочитал" : `${menuState.readers.length} прочитали`}
+                 </span>
+                 <div className="flex items-center -space-x-1.5">
+                   {menuState.readers?.slice(0, 3).map((r, i) => (
+                     <div key={i} className="h-5 w-5 rounded-full border-2 border-[var(--message-menu-bg)] bg-primary/20 flex items-center justify-center overflow-hidden shrink-0 relative">
+                       {r.avatarUrl ? (
+                         <Image src={r.avatarUrl.startsWith('http') ? r.avatarUrl : `/api/avatars/${r.avatarUrl}`} fill className="object-cover" alt={r.name} />
+                       ) : (
+                         <span className="text-[9px] font-black text-primary">{r.name[0]?.toUpperCase()}</span>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
+
+             <div className="flex gap-1">
+               {ALLOWED_REACTIONS.map(emoji => (
+                 <button 
+                  key={emoji} 
+                  className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
+                  onClick={() => toggleReaction(menuState.id, emoji)}
+                 >
+                  {emoji}
+                 </button>
+               ))}
+             </div>
           </div>
 
           <div
@@ -939,17 +982,17 @@ export function ChatMessages({
               </button>
             )}
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => initiateForward(focusedMessage)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors hover:bg-foreground/5" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => initiateForward(focusedMessage)}>
               <span className="font-bold text-sm">Переслать</span>
-              <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </button>
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => startSelection(focusedMessage.id)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors hover:bg-foreground/5" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => startSelection(focusedMessage.id)}>
               <span className="font-bold text-sm">Выбрать</span>
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 text-red-400 hover:bg-red-500/10 transition-colors" onClick={() => handleDeleteQuietly(focusedMessage.id)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 text-red-500 hover:bg-red-500/10 transition-colors" onClick={() => handleDeleteQuietly(focusedMessage.id)}>
               <span className="font-bold text-sm">Удалить</span>
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             </button>
@@ -967,10 +1010,19 @@ export function ChatMessages({
       const next = messages[idx + 1];
       const date = new Date(msg.createdAt).toDateString();
       const prevDate = prev ? new Date(prev.createdAt).toDateString() : null;
-      if (date !== prevDate) result.push({ type: "date", date: new Date(msg.createdAt) });
+      if (date !== prevDate) {
+        result.push({ type: "date", date: new Date(msg.createdAt) });
+      }
       const isGroupStart = !prev || prev.senderUserId !== msg.senderUserId || (new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() > 300000);
       const isGroupEnd = !next || next.senderUserId !== msg.senderUserId || (new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime() > 300000);
-      result.push({ type: "message", message: msg, mine: msg.senderUserId === currentUserId, isGroupStart, isGroupEnd, showDisplayName: isGroupStart && chatInfo.type === "GROUP" });
+      result.push({ 
+        type: "message", 
+        message: msg, 
+        mine: msg.senderUserId === currentUserId, 
+        isGroupStart, 
+        isGroupEnd, 
+        showDisplayName: isGroupStart && chatInfo.type === "GROUP" 
+      });
     });
     return result;
   }, [messages, currentUserId, chatInfo.type]);
@@ -994,9 +1046,13 @@ export function ChatMessages({
       <ChatHeader
         chatId={chatId}
         chatType={chatInfo.type}
-        title={chatInfo.type === "DIRECT" && !chatInfo.otherMember ? "Избранное" : chatInfo.otherMember?.displayName || chatInfo.title || "Чат"}
+        title={
+          chatInfo.type === "GROUP"
+            ? (chatInfo.title || "Группа")
+            : (chatInfo.otherMember?.displayName || "Избранное")
+        }
         subtitle={getStatusSubtitle()}
-        avatarUrl={chatInfo.otherMember?.avatarUrl}
+        avatarUrl={chatInfo.type === "GROUP" ? chatInfo.avatarUrl : chatInfo.otherMember?.avatarUrl}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
         isConnected={connected}
         currentUser={currentUserInfo}

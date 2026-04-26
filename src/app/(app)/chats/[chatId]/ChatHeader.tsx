@@ -38,6 +38,16 @@ export function ChatHeader({
     router.replace("/chats");
   };
 
+  const isGroup = chatType === "GROUP";
+
+  const handleHeaderClick = () => {
+    if (isGroup) {
+      router.push(`/chats/${chatId}/group-profile`);
+    } else if (chatType === "DIRECT" && partnerId) {
+      router.push(`/chats/${chatId}/profile`);
+    }
+  };
+
   useEffect(() => {
     if (!socket || !partnerId || chatType !== "DIRECT") return;
 
@@ -54,7 +64,7 @@ export function ChatHeader({
     ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
     : null;
 
-  const displaySubtitle = onlineStatus || subtitle || (isConnected ? "в сети" : "подключение...");
+  const displaySubtitle = isGroup ? subtitle : (onlineStatus || subtitle || (isConnected ? "в сети" : "подключение..."));
 
   return (
     <header
@@ -75,7 +85,7 @@ export function ChatHeader({
         
         <div 
           className="flex items-center gap-3 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
-          onClick={() => chatType === "DIRECT" && router.push(`/chats/${chatId}/profile`)}
+          onClick={handleHeaderClick}
         >
           <div className="relative shrink-0">
             {fullAvatarUrl ? (
@@ -87,7 +97,7 @@ export function ChatHeader({
                 <span className="text-sm font-black uppercase tracking-tighter">{title.substring(0, 1)}</span>
               </div>
             )}
-            {isConnected && (
+            {!isGroup && isConnected && (
               <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary border-2 border-surface shadow-sm" />
             )}
           </div>
@@ -95,7 +105,7 @@ export function ChatHeader({
             <h1 className="truncate text-sm font-black tracking-tight leading-tight text-[var(--chat-header-fg)]">{title}</h1>
             <p
               className="truncate text-[10px] font-black uppercase tracking-widest"
-              style={{ color: displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
+              style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
             >
               {displaySubtitle}
             </p>
