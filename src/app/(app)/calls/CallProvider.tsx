@@ -171,6 +171,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const startCall = useCallback(async (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => {
     if (statusRef.current !== "idle") return;
     debugCall("Starting outgoing call", { chatId });
+    setCall({
+      callId: `pending-${Date.now()}`,
+      chatId,
+      role: "caller",
+      user: { displayName: "Собеседник", avatarUrl: null }
+    });
     setStatus("ringing");
 
     try {
@@ -187,12 +193,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket?.emit("call:start", { chatId, offer, fromUser }, (response: { ok: boolean, callId: string }) => {
         if (response.ok) {
           debugCall("Call started successfully", { callId: response.callId });
-          setCall({
-            callId: response.callId,
-            chatId,
-            role: "caller",
-            user: { displayName: "Собеседник", avatarUrl: null }
-          });
+          setCall((current) =>
+            current
+              ? { ...current, callId: response.callId }
+              : {
+                  callId: response.callId,
+                  chatId,
+                  role: "caller",
+                  user: { displayName: "Собеседник", avatarUrl: null },
+                },
+          );
           
           timeoutRef.current = setTimeout(() => {
             if (statusRef.current === "ringing") {

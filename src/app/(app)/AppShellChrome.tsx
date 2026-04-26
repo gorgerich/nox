@@ -63,8 +63,8 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         {children}
       </main>
 
-      <nav className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-50 lg:hidden w-[calc(100%-48px)] max-w-md animate-in slide-in-from-bottom-10 duration-500">
-        <div className="relative flex items-center justify-around bg-black/90 dark:bg-surface-elevated/80 backdrop-blur-2xl rounded-[2.5rem] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 dark:border-white/5 overflow-hidden h-[72px]">
+      <nav className="app-bottom-dock-shell lg:hidden">
+        <div className="app-bottom-dock relative h-[72px] overflow-hidden border border-white/10 bg-black/90 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-2xl">
           {/* Active Tab Highlight Pill */}
           {(pathname === '/calls' || pathname === '/chats' || pathname === '/profile') && (
             <div 

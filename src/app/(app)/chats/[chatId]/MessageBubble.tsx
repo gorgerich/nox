@@ -144,15 +144,24 @@ export function MessageBubble({
         borderBottomLeftRadius: isGroupEnd ? rBase : rSmall,
       };
 
-  const bubbleStyle: React.CSSProperties = mine 
-    ? { backgroundColor: settings.outgoingColor, color: "var(--bubble-outgoing-text)", ...radiusStyle }
-    : { ...radiusStyle };
+  const bubbleStyle: React.CSSProperties = mine
+    ? {
+        backgroundColor: "var(--bubble-outgoing-bg)",
+        color: "var(--bubble-outgoing-fg)",
+        ...radiusStyle,
+      }
+    : {
+        backgroundColor: "var(--bubble-incoming-bg)",
+        color: "var(--bubble-incoming-fg)",
+        border: "1px solid var(--bubble-incoming-border)",
+        ...radiusStyle,
+      };
 
-  const incomingClass = settings.incomingStyle === "glass" 
-    ? "bg-surface/40 backdrop-blur-lg border border-bubble-incoming-border" 
-    : settings.incomingStyle === "minimal" 
-      ? "bg-transparent border border-bubble-incoming-border"
-      : "bg-[var(--bubble-incoming)] border border-bubble-incoming-border";
+  const incomingClass = settings.incomingStyle === "glass"
+    ? "backdrop-blur-lg"
+    : settings.incomingStyle === "minimal"
+      ? "bg-transparent"
+      : "";
 
   const groupedReactions = message.reactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { count: 0, me: false };
@@ -180,7 +189,7 @@ export function MessageBubble({
 
       <div className={`flex flex-col flex-1 ${mine ? "items-end" : "items-start"}`}>
         {showDisplayName && !mine && (
-          <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest text-[var(--chat-muted)]">
+          <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--bubble-incoming-muted)" }}>
             {message.sender.profile?.displayName ?? message.sender.username}
           </span>
         )}
@@ -189,9 +198,7 @@ export function MessageBubble({
           ref={bubbleRef}
           className={`group relative max-w-[85%] px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] touch-pan-y ${
             isFocused ? "focused-message" : ""
-          } ${
-            mine ? "text-white shadow-sm" : "text-[var(--bubble-incoming-text)] shadow-sm"
-          } ${mine ? "" : incomingClass}`}
+          } shadow-sm ${mine ? "" : incomingClass}`}
           style={bubbleStyle}
           onContextMenu={(e) => { 
             e.preventDefault(); 
@@ -205,7 +212,13 @@ export function MessageBubble({
           onTouchCancel={handleTouchEnd}
         >
           {message.replyToMessage && (
-            <div className={`mb-2 border-l-2 pl-2.5 py-0.5 text-[11px] leading-tight opacity-90 ${mine ? "border-white/40" : "border-primary/50"}`}>
+            <div
+              className="mb-2 border-l-2 py-0.5 pl-2.5 text-[11px] leading-tight opacity-90"
+              style={{
+                borderColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+                color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
+              }}
+            >
               <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
               <p className="truncate line-clamp-1 italic opacity-70">
                 {message.replyToMessage.deletedAt ? "Недоступное сообщение" : (message.replyToMessage.body || "Вложение")}
@@ -243,13 +256,17 @@ export function MessageBubble({
                     </div>
                   ) : isVideo ? (
                     <div 
-                      className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center bg-black/10"
+                      className="relative overflow-hidden rounded-lg cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center"
+                      style={{
+                        backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+                        border: "1px solid var(--bubble-incoming-border)",
+                      }}
                       onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName }); }}
                     >
                       <video src={downloadUrl} className="max-h-96 w-full object-cover" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
-                          <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
+                          <svg className="h-6 w-6" style={{ color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }} fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         </div>
@@ -257,7 +274,11 @@ export function MessageBubble({
                     </div>
                   ) : (
                     <div 
-                      className="flex items-center gap-3 rounded-xl bg-black/10 p-4 border border-black/5 backdrop-blur-md transition-smooth active:bg-black/40 cursor-pointer"
+                      className="flex cursor-pointer items-center gap-3 rounded-xl p-4 backdrop-blur-md transition-smooth"
+                      style={{
+                        backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+                        border: "1px solid var(--bubble-incoming-border)",
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         const link = document.createElement("a");
@@ -266,7 +287,7 @@ export function MessageBubble({
                         link.click();
                       }}
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white/90 shadow-inner">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-inner" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }}>
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
@@ -285,31 +306,34 @@ export function MessageBubble({
           </>
 
           <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-            <span className={`text-[9px] font-black uppercase tracking-tighter ${mine ? "text-white/70" : "text-[var(--chat-muted)] opacity-60"}`}>
+            <span
+              className="text-[9px] font-black uppercase tracking-tighter"
+              style={{ color: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
+            >
               {message.editedAt && "изм. "}{time}
             </span>
             {mine && !message.deletedAt && (
               <div className="flex items-center ml-0.5">
                 {isRead ? (
                   <div className="flex -space-x-1.5">
-                    <svg className="h-3 w-3 text-[var(--bubble-read)] animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-3 w-3 text-[var(--bubble-read)] animate-in fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : isDelivered ? (
                   <div className="flex -space-x-1.5">
-                    <svg className="h-3 w-3 text-[var(--bubble-delivered)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-3 w-3 text-[var(--bubble-delivered)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : (
-                  <svg className="h-3 w-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}

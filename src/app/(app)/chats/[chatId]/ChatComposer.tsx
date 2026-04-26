@@ -85,10 +85,10 @@ export function ChatComposer({
   }
 
   return (
-    <div 
-      className="glass-composer px-4 py-3 transition-smooth"
-      style={{ backgroundColor: "var(--chat-composer-bg)", borderColor: "var(--chat-composer-border)", color: "var(--chat-composer-fg)" }}
-    >
+      <div 
+        className="glass-composer px-4 py-3 transition-smooth"
+        style={{ backgroundColor: "var(--chat-composer-bg)", borderColor: "var(--chat-composer-border)", color: "var(--chat-composer-fg)" }}
+      >
       {(replyingTo || editingTo) && (
         <div className="mb-3 flex items-center justify-between rounded-xl bg-foreground/5 p-3 border border-white/5 animate-in slide-in-from-bottom-2 duration-200">
           <div className="min-w-0 flex items-center gap-3">
@@ -148,8 +148,8 @@ export function ChatComposer({
               
               <textarea
                 ref={inputRef}
-                className="w-full bg-transparent py-3.5 pr-4 text-[15px] outline-none resize-none max-h-32 min-h-[48px] transition-smooth"
-                style={{ color: "var(--chat-composer-fg)" }}
+                className="w-full max-h-32 min-h-[48px] resize-none bg-transparent py-3.5 pr-4 text-[15px] outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
+                style={{ color: "var(--chat-input-fg)" }}
                 placeholder="Сообщение..."
                 rows={1}
                 value={text}
@@ -174,8 +174,16 @@ export function ChatComposer({
           onClick={isRecording ? onVoiceStop : text.trim() ? handleSend : onVoiceStart}
           disabled={pending}
           className={`touch-target h-[48px] w-12 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90 ${
-            isRecording ? "bg-danger text-white shadow-lg shadow-danger/20" : text.trim() ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-foreground/5 text-current opacity-40"
+            isRecording ? "shadow-lg shadow-danger/20" : text.trim() ? "shadow-lg shadow-primary/20" : "opacity-40"
           }`}
+          style={{
+            backgroundColor: isRecording
+              ? "var(--danger)"
+              : text.trim()
+                ? "var(--bubble-outgoing-bg)"
+                : "var(--chat-focus-ring)",
+            color: text.trim() || isRecording ? "var(--bubble-outgoing-fg)" : "var(--chat-header-fg)",
+          }}
         >
           {pending ? (
             <div className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />

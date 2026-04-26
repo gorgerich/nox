@@ -6,7 +6,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
-import { useChatAppearance, ChatAppearanceSheet, PRESETS } from "./ChatAppearance";
+import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from "./ChatAppearance";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { useSearchParams } from "next/navigation";
 
@@ -117,7 +117,6 @@ export function ChatMessages({
   const [isSearchOpen, setIsSearchOpen] = useState(() => searchParams.get("search") === "true");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultMessage[]>([]);
-  const [searching, setSearching] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   const { settings, updateSettings, resetSettings } = useChatAppearance(chatId);
@@ -159,18 +158,15 @@ export function ChatMessages({
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      if (searchResults.length > 0) {
-        setTimeout(() => setSearchResults([]), 0);
-      }
+      setTimeout(() => setSearchResults([]), 0);
       return;
     }
     const t = setTimeout(async () => {
-      setSearching(true);
       try {
         const res = await fetch(`/api/chats/${chatId}/search?q=${encodeURIComponent(searchQuery)}`);
         const data = await res.json();
         setSearchResults(data.messages || []);
-      } catch {} finally { setSearching(false); }
+      } catch {}
     }, 400);
     return () => clearTimeout(t);
   }, [searchQuery, chatId]);
@@ -351,7 +347,7 @@ export function ChatMessages({
     } catch {} finally { setPending(false); }
   };
 
-  const themeVars = PRESETS[settings.preset]?.vars || PRESETS.midnight.vars;
+  const themeVars = getChatAppearanceVars(settings);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
 
   // Safe Area Insets for positioning
@@ -416,11 +412,18 @@ export function ChatMessages({
 
         {/* Action Menu & Reactions */}
         <div className="menu-content" style={menuPosition as React.CSSProperties}>
-          <div className="reaction-bar self-center mb-4 px-3 py-2 bg-surface/10 backdrop-blur-2xl rounded-full border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div
+            className="reaction-bar self-center mb-4 rounded-full border px-3 py-2 shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 duration-200"
+            style={{
+              backgroundColor: "var(--message-menu-bg)",
+              borderColor: "var(--chat-menu-border)",
+              color: "var(--message-menu-fg)",
+            }}
+          >
              {ALLOWED_REACTIONS.map(emoji => (
                <button 
                 key={emoji} 
-                className={`reaction-btn text-2xl px-1.5 transition-smooth hover:scale-125 active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20 rounded-full" : ""}`} 
+                className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
                 onClick={() => toggleReaction(menuState.id, emoji)}
                >
                 {emoji}
@@ -428,39 +431,46 @@ export function ChatMessages({
              ))}
           </div>
 
-          <div className={`action-menu min-w-[220px] bg-surface/80 backdrop-blur-2xl rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}>
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}>
+          <div
+            className={`action-menu min-w-[220px] overflow-hidden rounded-[2rem] border shadow-2xl backdrop-blur-2xl animate-in slide-in-from-bottom-4 duration-300 ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}
+            style={{
+              backgroundColor: "var(--message-menu-bg)",
+              borderColor: "var(--chat-menu-border)",
+              color: "var(--message-menu-fg)",
+            }}
+          >
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}>
               <span className="font-bold text-sm">Ответить</span>
-              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+              <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
             </button>
             
             {focusedMessage.body && (
-              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => handleCopy(focusedMessage.body)}>
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => handleCopy(focusedMessage.body)}>
                 <span className="font-bold text-sm">Копировать</span>
-                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
               </button>
             )}
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => togglePin(focusedMessage.id)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => togglePin(focusedMessage.id)}>
               <span className="font-bold text-sm">{pinnedIds.includes(focusedMessage.id) ? "Открепить" : "Закрепить"}</span>
-              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+              <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
             </button>
 
             {focusedMessage.senderUserId === currentUserId && focusedMessage.type === "TEXT" && (
-              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}>
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}>
                 <span className="font-bold text-sm">Изменить</span>
-                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
             )}
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => initiateForward(focusedMessage)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => initiateForward(focusedMessage)}>
               <span className="font-bold text-sm">Переслать</span>
-              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
             </button>
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => startSelection(focusedMessage.id)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => startSelection(focusedMessage.id)}>
               <span className="font-bold text-sm">Выбрать</span>
-              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
 
             <button className="action-item w-full flex items-center justify-between px-6 py-4 text-red-400 hover:bg-red-500/10 transition-colors" onClick={() => handleDeleteQuietly(focusedMessage.id)}>
@@ -572,7 +582,14 @@ export function ChatMessages({
           {groupedMessages.map((item, idx) => (
             item.type === "date" ? (
               <div key={`date-${idx}`} className="flex justify-center py-6">
-                <span className="rounded-full bg-foreground/5 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-foreground/40 backdrop-blur-md border border-foreground/5">
+                <span
+                  className="rounded-full border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
+                  style={{
+                    backgroundColor: "var(--chat-date-bg)",
+                    color: "var(--chat-date-fg)",
+                    borderColor: "var(--chat-focus-ring)",
+                  }}
+                >
                   {formatDateLabel(item.date)}
                 </span>
               </div>

@@ -80,9 +80,9 @@ export function VoicePlayer({
     }
   };
 
-  const waveColor = isMine ? "rgba(255,255,255,0.4)" : "var(--voice-wave)";
-  const activeWaveColor = isMine ? "#ffffff" : "var(--voice-control)";
-  const bgControl = isMine ? "rgba(255,255,255,0.2)" : "rgba(128,128,128,0.1)";
+  const waveColor = isMine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)";
+  const activeWaveColor = isMine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)";
+  const bgControl = isMine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)";
   const radiusClass = cornerRadius === "round" ? "rounded-2xl" : "rounded-xl";
 
   return (
@@ -93,7 +93,7 @@ export function VoicePlayer({
         onClick={togglePlay}
         disabled={error}
         className={`touch-target h-11 w-11 flex shrink-0 items-center justify-center transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm ${radiusClass}`}
-        style={{ backgroundColor: bgControl, color: isMine ? '#ffffff' : 'var(--voice-control)' }}
+        style={{ backgroundColor: bgControl, color: activeWaveColor }}
       >
         {error ? (
           <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,14 +124,17 @@ export function VoicePlayer({
            ))}
         </div>
         
-        <div className="relative h-1 w-full overflow-hidden rounded-full bg-black/5">
+        <div className="relative h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--chat-focus-ring)" }}>
           <div 
             className="absolute left-0 top-0 h-full transition-all duration-100 ease-linear"
             style={{ width: `${progress}%`, backgroundColor: activeWaveColor }}
           />
         </div>
         
-        <div className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest opacity-60" style={{ color: isMine ? '#ffffff' : 'inherit' }}>
+        <div
+          className="mt-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest"
+          style={{ color: isMine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
+        >
           <span>{formatTime(currentTime)}</span>
           <span>{error ? "Ошибка" : isLoaded ? formatTime(totalDuration) : formatTime(totalDuration)}</span>
         </div>

@@ -53,11 +53,15 @@ export function ChatHeader({
   const displaySubtitle = onlineStatus || subtitle || (isConnected ? "в сети" : "подключение...");
 
   return (
-    <header className="glass-header flex items-center justify-between px-4 py-3 transition-smooth border-b border-white/5">
+    <header
+      className="glass-header flex items-center justify-between border-b px-4 py-3 transition-smooth"
+      style={{ backgroundColor: "var(--chat-header-bg)", color: "var(--chat-header-fg)", borderColor: "var(--chat-focus-ring)" }}
+    >
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <Link 
           href="/chats" 
-          className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-foreground/10 text-current transition-smooth active:scale-90 hover:bg-foreground/20"
+          className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90"
+          style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -74,7 +78,7 @@ export function ChatHeader({
                 <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white transition-smooth shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl transition-smooth shadow-sm" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
                 <span className="text-sm font-black uppercase tracking-tighter">{title.substring(0, 1)}</span>
               </div>
             )}
@@ -84,7 +88,10 @@ export function ChatHeader({
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-sm font-black tracking-tight leading-tight text-[var(--chat-header-fg)]">{title}</h1>
-            <p className={`truncate text-[10px] font-black uppercase tracking-widest ${displaySubtitle === "в сети" ? "text-primary" : "opacity-60"}`}>
+            <p
+              className="truncate text-[10px] font-black uppercase tracking-widest"
+              style={{ color: displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
+            >
               {displaySubtitle}
             </p>
           </div>
@@ -96,7 +103,8 @@ export function ChatHeader({
           <button
             onClick={() => startCall(chatId, currentUser)}
             disabled={status !== "idle"}
-            className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 disabled:opacity-30 disabled:grayscale"
+            className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90 disabled:opacity-30 disabled:grayscale"
+            style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--message-read)" }}
             title="Позвонить"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,7 +115,8 @@ export function ChatHeader({
 
         <button
           onClick={onAppearanceClick}
-          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-foreground/10 text-current transition-smooth active:scale-90 hover:bg-foreground/20"
+          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90"
+          style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
           title="Оформление"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
