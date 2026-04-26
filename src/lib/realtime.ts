@@ -2,6 +2,8 @@ import type { Server } from "socket.io";
 
 type GlobalWithSocket = typeof globalThis & {
   pmSocketIo?: Server;
+  pmOnlineUsers?: Map<string, Set<string>>;
+  pmActiveChatsByUser?: Map<string, Set<string>>;
 };
 
 export function getRealtimeServer() {
@@ -13,6 +15,28 @@ export function getRealtimeServer() {
 }
 
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
+
+function getOnlineUsersMap() {
+  return (globalThis as GlobalWithSocket).pmOnlineUsers ||
+    (process as unknown as GlobalWithSocket).pmOnlineUsers ||
+    (global as unknown as GlobalWithSocket).pmOnlineUsers;
+}
+
+function getActiveChatsByUserMap() {
+  return (globalThis as GlobalWithSocket).pmActiveChatsByUser ||
+    (process as unknown as GlobalWithSocket).pmActiveChatsByUser ||
+    (global as unknown as GlobalWithSocket).pmActiveChatsByUser;
+}
+
+export function isUserOnline(userId: string) {
+  const onlineUsers = getOnlineUsersMap();
+  return Boolean(onlineUsers?.get(userId)?.size);
+}
+
+export function isUserActiveInChat(userId: string, chatId: string) {
+  const activeChatsByUser = getActiveChatsByUserMap();
+  return activeChatsByUser?.get(userId)?.has(chatId) ?? false;
+}
 
 export function emitToChat(chatId: string, event: string, payload: unknown) {
   const io = getRealtimeServer();

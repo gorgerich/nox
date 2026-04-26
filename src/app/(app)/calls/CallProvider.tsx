@@ -47,6 +47,7 @@ interface IncomingPayload {
   offer: RTCSessionDescriptionInit;
   fromUser: { displayName: string, avatarUrl: string | null };
   expiresAt?: number;
+  timeoutMs?: number;
 }
 
 interface AnsweredPayload {
@@ -69,11 +70,17 @@ interface StartCallResponse {
   ok: boolean;
   callId: string;
   expiresAt?: number;
+  timeoutMs?: number;
   delivery?: "socket" | "push";
   callee?: {
     displayName: string;
     avatarUrl: string | null;
   };
+}
+
+interface CallAckResponse {
+  ok: boolean;
+  error?: "CALL_NOT_FOUND" | "CALL_EXPIRED" | "CALL_NOT_AVAILABLE" | "Нет доступа" | "Некорректный звонок";
 }
 
 interface SyncPendingResponse {
@@ -363,8 +370,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       debugCall("offer created");
       await pc.setLocalDescription(offer);
 
-      socket?.emit("call:start", { chatId, offer, fromUser }, (response: StartCallResponse) => {
-        if (response.ok) {
+      socket?.emit("call:start", { chatId, offer, fromUser }, (response?: StartCallResponse) => {
+        if (response?.ok) {
           callIdRef.current = response.callId;
           chatIdRef.current = chatId;
           debugCall("offer sent ack", { ok: true, callId: response.callId, delivery: response.delivery ?? "socket" });
@@ -387,16 +394,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
-          const timeoutMs = response.expiresAt ? Math.max(1000, response.expiresAt - Date.now()) : 45000;
+          const timeoutMs = response.timeoutMs ?? (response.expiresAt ? Math.max(1000, response.expiresAt - Date.now()) : 45000);
           timeoutRef.current = setTimeout(() => {
-            if (statusRef.current !== "active" && statusRef.current !== "idle") {
+            if (statusRef.current === "ringing") {
               debugCall("call timeout", { callId: response.callId });
               socket.emit("call:ended", { callId: response.callId, reason: "timeout" });
               failCall("Вызов пропущен");
             }
           }, timeoutMs);
         } else {
-          debugCall("offer sent ack", { ok: false });
+          debugCall("offer sent ack", { ok: false, error: response ? "server_rejected" : "missing_ack" });
           failCall("Не удалось начать звонок");
         }
       });
@@ -408,8 +415,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const acceptCall = useCallback(async () => {
     if (!call || !incomingOfferRef.current || !socket) return;
-    debugCall("acceptCall", { callId: call.callId });
+    if (statusRef.current !== "ringing" && statusRef.current !== "connecting") {
+      debugCall("acceptCall skipped", { callId: call.callId, status: statusRef.current });
+      return;
+    }
+    debugCall("accept clicked", { callId: call.callId });
     setStatus("connecting");
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     callIdRef.current = call.callId;
     chatIdRef.current = call.chatId;
     setError(null);
@@ -442,15 +457,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         callId: call.callId, 
         chatId: call.chatId, 
         answer 
-      }, (res: { ok: boolean }) => {
-        debugCall("answer sent ack", { ok: res.ok });
-        if (!res.ok) {
-          failCall("Ошибка при ответе на звонок");
+      }, (res?: CallAckResponse) => {
+        debugCall("accept ack", { callId: call.callId, ok: res?.ok ?? false, error: res?.error ?? null });
+        if (!res?.ok) {
+          if (res?.error === "CALL_EXPIRED") {
+            failCall("Вызов пропущен");
+            return;
+          }
+          if (res?.error === "CALL_NOT_FOUND" || res?.error === "CALL_NOT_AVAILABLE") {
+            failCall("Звонок больше недоступен");
+            return;
+          }
+          failCall("Не удалось принять звонок");
         }
       });
     } catch (err) {
       console.error(err);
-      failCall("Ошибка доступа к микрофону");
+      failCall("Ошибка при ответе на звонок");
       socket.emit("call:declined", { callId: call.callId });
     }
   }, [call, socket, createPeerConnection, debugCall, failCall, flushPendingRemoteIce, flushPendingLocalIce, debugLocalAudioTrack]);
@@ -482,8 +505,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!socket) return;
 
-    const onIncoming = ({ callId, chatId, offer, fromUser, expiresAt }: IncomingPayload) => {
-      debugCall("incoming offer received", { callId, chatId });
+    const onIncoming = ({ callId, chatId, offer, fromUser, expiresAt, timeoutMs }: IncomingPayload) => {
+      debugCall("incoming received", { callId, chatId, status: statusRef.current });
+      if (callIdRef.current === callId && statusRef.current !== "idle") {
+        debugCall("incoming duplicate ignored", { callId, chatId, status: statusRef.current });
+        return;
+      }
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, reason: "busy" });
         return;
@@ -506,19 +533,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      const timeoutMs = expiresAt ? Math.max(1000, expiresAt - Date.now()) : 45000;
+      const ringTimeoutMs = timeoutMs ?? (expiresAt ? Math.max(1000, expiresAt - Date.now()) : 45000);
       timeoutRef.current = setTimeout(() => {
         if (statusRef.current === "ringing") {
           debugCall("call expired before answer", { callId });
           failCall("Вызов пропущен");
         }
-      }, timeoutMs);
+      }, ringTimeoutMs);
     };
 
     const onAnswered = async ({ answer, callId }: AnsweredPayload) => {
       debugCall("answer received by caller", { callId: callId ?? callIdRef.current });
       if (pcRef.current) {
         setStatus("connecting");
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         if (callId) {
           callIdRef.current = callId;
         }

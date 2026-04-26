@@ -14,6 +14,7 @@ const webpush = require("web-push");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
+const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
 const CALL_TIMEOUT_MS = 45_000;
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -39,7 +40,9 @@ const prisma = new PrismaClient({
 });
 
 const activeCalls = new Map();
+const callExpiryTimers = new Map();
 const onlineUsers = new Map();
+const activeChatsByUser = new Map();
 
 function logCall(label, data = {}) {
   if (!DEBUG_CALLS) {
@@ -47,6 +50,14 @@ function logCall(label, data = {}) {
   }
 
   console.log(`[call-server] ${label}`, data);
+}
+
+function logRealtime(label, data = {}) {
+  if (!DEBUG_REALTIME) {
+    return;
+  }
+
+  console.log(`[realtime-server] ${label}`, data);
 }
 
 function getUserRoomSize(io, userId) {
@@ -58,6 +69,47 @@ function isCallExpired(call) {
   return !call || Date.now() > call.expiresAt;
 }
 
+function clearCallExpiryTimer(callId) {
+  const timeoutId = callExpiryTimers.get(callId);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    callExpiryTimers.delete(callId);
+  }
+}
+
+function deleteCall(callId) {
+  clearCallExpiryTimer(callId);
+  activeCalls.delete(callId);
+}
+
+function scheduleCallMissedTimeout(io, callId) {
+  clearCallExpiryTimer(callId);
+
+  const call = activeCalls.get(callId);
+  if (!call) {
+    return;
+  }
+
+  const timeoutMs = Math.max(0, call.expiresAt - Date.now());
+  logCall("missed timeout scheduled", { callId, ms: timeoutMs });
+
+  const timeoutId = setTimeout(() => {
+    callExpiryTimers.delete(callId);
+    const currentCall = activeCalls.get(callId);
+    logCall("missed timeout fired", { callId, status: currentCall?.status ?? "missing" });
+
+    if (!currentCall || currentCall.status !== "ringing") {
+      return;
+    }
+
+    io.to(`user:${currentCall.callerId}`).emit("call:ended", { callId, reason: "expired" });
+    io.to(`user:${currentCall.calleeId}`).emit("call:ended", { callId, reason: "expired" });
+    activeCalls.delete(callId);
+  }, timeoutMs);
+
+  callExpiryTimers.set(callId, timeoutId);
+}
+
 function sweepExpiredCalls(io) {
   for (const [callId, call] of activeCalls.entries()) {
     if (!isCallExpired(call)) {
@@ -66,7 +118,7 @@ function sweepExpiredCalls(io) {
 
     io.to(`user:${call.callerId}`).emit("call:ended", { callId, reason: "expired" });
     io.to(`user:${call.calleeId}`).emit("call:ended", { callId, reason: "expired" });
-    activeCalls.delete(callId);
+    deleteCall(callId);
     logCall("call expired", { callId, chatId: call.chatId });
   }
 }
@@ -133,6 +185,10 @@ function emitStoredIce(io, call, targetUserId) {
   });
 }
 
+function getCallRemainingMs(call) {
+  return Math.max(1000, call.expiresAt - Date.now());
+}
+
 function emitPendingCallsForUser(io, userId, incomingCallId) {
   sweepExpiredCalls(io);
 
@@ -154,6 +210,7 @@ function emitPendingCallsForUser(io, userId, incomingCallId) {
       offer: call.offer,
       fromUser: call.fromUser,
       expiresAt: call.expiresAt,
+      timeoutMs: getCallRemainingMs(call),
     });
     emitStoredIce(io, call, userId);
     emitted += 1;
@@ -165,6 +222,24 @@ function emitPendingCallsForUser(io, userId, incomingCallId) {
     foundIncomingCallId,
     expiredIncomingCallId: Boolean(incomingCallId && !foundIncomingCallId),
   };
+}
+
+function addActiveChat(userId, chatId) {
+  const currentChats = activeChatsByUser.get(userId) ?? new Set();
+  currentChats.add(chatId);
+  activeChatsByUser.set(userId, currentChats);
+}
+
+function removeActiveChat(userId, chatId) {
+  const currentChats = activeChatsByUser.get(userId);
+  if (!currentChats) {
+    return;
+  }
+
+  currentChats.delete(chatId);
+  if (currentChats.size === 0) {
+    activeChatsByUser.delete(userId);
+  }
 }
 
 function getJwtSecret() {
@@ -301,6 +376,7 @@ async function joinUserChatRooms(socket, userId) {
 
   memberships.forEach((membership) => {
     socket.join(`chat:${membership.chatId}`);
+    logRealtime("joined chat room", { chatId: membership.chatId, userId, socketId: socket.id, source: "membership-sync" });
   });
 }
 
@@ -316,6 +392,16 @@ app.prepare().then(() => {
       methods: ["GET", "POST"],
     },
   });
+
+  globalThis.pmSocketIo = io;
+  globalThis.pmOnlineUsers = onlineUsers;
+  globalThis.pmActiveChatsByUser = activeChatsByUser;
+  global.pmSocketIo = io;
+  global.pmOnlineUsers = onlineUsers;
+  global.pmActiveChatsByUser = activeChatsByUser;
+  process.pmSocketIo = io;
+  process.pmOnlineUsers = onlineUsers;
+  process.pmActiveChatsByUser = activeChatsByUser;
 
   io.use(async (socket, nextSocket) => {
     try {
@@ -337,18 +423,18 @@ app.prepare().then(() => {
     const user = socket.data.user;
     const userId = user.id;
 
+    logRealtime("user connected", { userId, socketId: socket.id });
+
     socket.join(`user:${userId}`);
+    logRealtime("joined user room", { userId, socketId: socket.id });
     await joinUserChatRooms(socket, userId);
+    logRealtime("joined chat rooms", { userId, socketId: socket.id });
 
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
       io.emit("presence:update", { userId, status: "online" });
     }
     onlineUsers.get(userId).add(socket.id);
-
-    setTimeout(() => {
-      emitPendingCallsForUser(io, userId);
-    }, 250);
 
     socket.on("chat:join", async (chatId, callback) => {
       if (typeof chatId !== "string") {
@@ -363,12 +449,33 @@ app.prepare().then(() => {
       }
 
       socket.join(`chat:${chatId}`);
+      logRealtime("joined chat room", { chatId, userId, socketId: socket.id });
       callback?.({ ok: true });
     });
 
     socket.on("chat:leave", (chatId, callback) => {
       if (typeof chatId === "string") {
         socket.leave(`chat:${chatId}`);
+        logRealtime("left chat room", { chatId, userId, socketId: socket.id });
+      }
+      callback?.({ ok: true });
+    });
+
+    socket.on("chat:active", async ({ chatId } = {}, callback) => {
+      if (typeof chatId !== "string" || !(await isActiveMember(chatId, userId))) {
+        callback?.({ ok: false, error: "Нет доступа" });
+        return;
+      }
+
+      addActiveChat(userId, chatId);
+      logRealtime("active chat set", { chatId, userId, socketId: socket.id });
+      callback?.({ ok: true });
+    });
+
+    socket.on("chat:inactive", ({ chatId } = {}, callback) => {
+      if (typeof chatId === "string") {
+        removeActiveChat(userId, chatId);
+        logRealtime("active chat cleared", { chatId, userId, socketId: socket.id });
       }
       callback?.({ ok: true });
     });
@@ -379,7 +486,12 @@ app.prepare().then(() => {
         return;
       }
 
-      socket.to(`chat:${chatId}`).emit("typing:update", { chatId, userId, isTyping: true });
+      socket.to(`chat:${chatId}`).emit("typing:update", {
+        chatId,
+        userId,
+        displayName: user.profile?.displayName ?? user.username,
+        isTyping: true,
+      });
       callback?.({ ok: true });
     });
 
@@ -389,7 +501,12 @@ app.prepare().then(() => {
         return;
       }
 
-      socket.to(`chat:${chatId}`).emit("typing:update", { chatId, userId, isTyping: false });
+      socket.to(`chat:${chatId}`).emit("typing:update", {
+        chatId,
+        userId,
+        displayName: user.profile?.displayName ?? user.username,
+        isTyping: false,
+      });
       callback?.({ ok: true });
     });
 
@@ -400,7 +517,6 @@ app.prepare().then(() => {
 
     socket.on("call:start", async ({ chatId, offer }, callback) => {
       sweepExpiredCalls(io);
-      logCall("call:start received", { chatId, userId });
 
       if (typeof chatId !== "string" || !offer) {
         callback?.({ ok: false, error: "Некорректный звонок" });
@@ -450,6 +566,15 @@ app.prepare().then(() => {
         callerIceCandidates: [],
         calleeIceCandidates: [],
       });
+      scheduleCallMissedTimeout(io, callId);
+      logCall("call:start", {
+        callId,
+        chatId,
+        callerId: context.callerId,
+        calleeId: context.calleeId,
+        calleeOnline,
+        expiresAt,
+      });
 
       if (calleeOnline) {
         io.to(`user:${context.calleeId}`).emit("call:incoming", {
@@ -461,6 +586,7 @@ app.prepare().then(() => {
             avatarUrl: callerAvatarUrl,
           },
           expiresAt,
+          timeoutMs: CALL_TIMEOUT_MS,
         });
         logCall("incoming emitted to socket", { callId, chatId, calleeId: context.calleeId });
       } else {
@@ -493,6 +619,7 @@ app.prepare().then(() => {
         ok: true,
         callId,
         expiresAt,
+        timeoutMs: CALL_TIMEOUT_MS,
         delivery: calleeOnline ? "socket" : "push",
         callee: {
           id: context.callee.id,
@@ -506,13 +633,29 @@ app.prepare().then(() => {
     socket.on("call:answer", async ({ callId, chatId, answer }, callback) => {
       sweepExpiredCalls(io);
       const call = activeCalls.get(callId);
-      logCall("call:answer received", { callId, chatId, userId, hasCall: Boolean(call) });
+      logCall("call:answer received", {
+        callId,
+        chatId,
+        userId,
+        status: call?.status ?? null,
+        exists: Boolean(call),
+      });
 
-      if (!call || isCallExpired(call) || call.chatId !== chatId || call.calleeId !== userId) {
+      if (!call || call.chatId !== chatId || call.calleeId !== userId) {
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+
+      if (isCallExpired(call)) {
         if (call && isCallExpired(call)) {
-          activeCalls.delete(callId);
+          deleteCall(callId);
         }
-        callback?.({ ok: false, error: "Звонок не найден" });
+        callback?.({ ok: false, error: "CALL_EXPIRED" });
+        return;
+      }
+
+      if (call.status !== "ringing" && call.status !== "connecting") {
+        callback?.({ ok: false, error: "CALL_NOT_AVAILABLE" });
         return;
       }
 
@@ -522,26 +665,27 @@ app.prepare().then(() => {
       }
 
       call.status = "connecting";
+      clearCallExpiryTimer(callId);
       io.to(`user:${call.callerId}`).emit("call:answered", { callId, chatId, answer });
       emitStoredIce(io, call, call.callerId);
       emitStoredIce(io, call, call.calleeId);
-      logCall("call:answer forwarded", {
-        callId,
-        fromUserId: userId,
-        toUserId: call.callerId,
-        callerRoomSize: getUserRoomSize(io, call.callerId),
-      });
+      logCall("call:answer forwarded", { callId, fromUserId: userId, toUserId: call.callerId });
       callback?.({ ok: true });
     });
 
     socket.on("call:ice-candidate", async ({ callId, chatId, candidate }, callback) => {
       sweepExpiredCalls(io);
       const call = activeCalls.get(callId);
-      if (!call || isCallExpired(call) || call.chatId !== chatId) {
+      if (!call || call.chatId !== chatId) {
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+
+      if (isCallExpired(call)) {
         if (call && isCallExpired(call)) {
-          activeCalls.delete(callId);
+          deleteCall(callId);
         }
-        callback?.({ ok: false, error: "Звонок не найден" });
+        callback?.({ ok: false, error: "CALL_EXPIRED" });
         return;
       }
 
@@ -569,7 +713,7 @@ app.prepare().then(() => {
     socket.on("call:declined", async ({ callId, reason }, callback) => {
       const call = activeCalls.get(callId);
       if (!call) {
-        callback?.({ ok: false, error: "Звонок не найден" });
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
         return;
       }
 
@@ -580,14 +724,14 @@ app.prepare().then(() => {
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       io.to(`user:${targetId}`).emit("call:declined", { callId, reason: reason ?? "declined" });
-      activeCalls.delete(callId);
+      deleteCall(callId);
       callback?.({ ok: true });
     });
 
     socket.on("call:ended", async ({ callId, reason }, callback) => {
       const call = activeCalls.get(callId);
       if (!call) {
-        callback?.({ ok: false, error: "Звонок не найден" });
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
         return;
       }
 
@@ -598,7 +742,7 @@ app.prepare().then(() => {
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       io.to(`user:${targetId}`).emit("call:ended", { callId, reason: reason ?? "ended" });
-      activeCalls.delete(callId);
+      deleteCall(callId);
       callback?.({ ok: true });
     });
 
@@ -628,14 +772,7 @@ app.prepare().then(() => {
       if (userStillOnline) {
         return;
       }
-
-      for (const [callId, call] of activeCalls.entries()) {
-        if (call.callerId === userId || call.calleeId === userId) {
-          const targetId = userId === call.callerId ? call.calleeId : call.callerId;
-          io.to(`user:${targetId}`).emit("call:ended", { callId, reason: "disconnect" });
-          activeCalls.delete(callId);
-        }
-      }
+      activeChatsByUser.delete(userId);
     });
   });
 

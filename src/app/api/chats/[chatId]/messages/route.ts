@@ -3,8 +3,18 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
-import { emitToChat, emitToUsers } from "@/lib/realtime";
+import { emitToChat, emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
 import { checkBlockStatus } from "@/lib/contacts";
+
+const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
+
+function logRealtime(label: string, data: Record<string, unknown>) {
+  if (!DEBUG_REALTIME) {
+    return;
+  }
+
+  console.log(`[realtime-server] ${label}`, data);
+}
 
 const messageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
@@ -110,14 +120,17 @@ export async function POST(
 
   await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });
 
+  logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
   emitToChat(chatId, "message:new", { chatId, message });
+  logRealtime("emitting message:new", { chatId, messageId: message.id });
   emitToUsers(activeMembers.map(m => m.userId), "chat:updated", { chatId });
 
   // Filter out muted users for push notifications
   const now = new Date();
   const pushRecipients = activeMembers
     .filter(m => m.userId !== user.id && (!m.mutedUntil || m.mutedUntil < now))
-    .map(m => m.userId);
+    .map(m => m.userId)
+    .filter((recipientId) => !isUserOnline(recipientId) || !isUserActiveInChat(recipientId, chatId));
 
   if (pushRecipients.length > 0) {
     const { sendPushToUsers } = await import("@/lib/push");

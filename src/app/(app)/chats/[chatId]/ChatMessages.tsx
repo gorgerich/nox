@@ -67,6 +67,8 @@ function normalizeMessage(message: unknown): Message | null {
 }
 
 const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "👎"];
+const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === "true";
+const DEBUG_MEDIA = process.env.NEXT_PUBLIC_DEBUG_MEDIA === "true" || DEBUG_REALTIME;
 
 export function ChatMessages({
   chatId,
@@ -101,6 +103,10 @@ export function ChatMessages({
   );
   
   const [pending, setPending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Record<string, { displayName: string; timeoutId: ReturnType<typeof setTimeout> }>>({});
+  const [isTypingLocal, setIsTypingLocal] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect } | null>(null);
@@ -127,6 +133,37 @@ export function ChatMessages({
   const isAtBottomRef = useRef(true);
   const initialScrollDoneRef = useRef(false);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRecordingCancelledRef = useRef(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+
+  const debugRealtime = useCallback((label: string, data: Record<string, unknown> = {}) => {
+    if (!DEBUG_REALTIME) {
+      return;
+    }
+
+    console.log(`[realtime-client] ${label}`, data);
+  }, []);
+
+  const debugMedia = useCallback((label: string, data: Record<string, unknown> = {}) => {
+    if (!DEBUG_MEDIA) {
+      return;
+    }
+
+    console.log(`[media] ${label}`, data);
+  }, []);
+
+  const markAsRead = useCallback(async () => {
+    try {
+      await fetch(`/api/chats/${chatId}/read`, { method: "POST" });
+    } catch {
+      // silenced
+    }
+  }, [chatId]);
 
   useEffect(() => {
     const frameId = requestAnimationFrame(() => setMounted(true));
@@ -156,6 +193,13 @@ export function ChatMessages({
 
   useEffect(() => {
     return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      mediaRecorderRef.current?.stream?.getTracks().forEach((track) => track.stop());
       document.body.style.overflow = "";
       document.body.style.pointerEvents = "";
       document.body.classList.remove("hide-bottom-nav", "modal-open", "chat-active");
@@ -214,9 +258,9 @@ export function ChatMessages({
       forceScrollBottom("auto");
       initialScrollDoneRef.current = true;
     }, 600);
-    fetch(`/api/chats/${chatId}/read`, { method: "POST" }).catch(() => {});
+    void markAsRead();
     return () => { cancelAnimationFrame(frameId); clearTimeout(t1); clearTimeout(t2); };
-  }, [chatId, forceScrollBottom]);
+  }, [chatId, forceScrollBottom, markAsRead]);
 
   useEffect(() => {
     const saved = localStorage.getItem(`nox:pinned:${chatId}`);
@@ -321,23 +365,144 @@ export function ChatMessages({
 
   useEffect(() => {
     if (!socket) return;
-    const handleNewMessage = (p: { chatId: string; message: unknown }) => {
-      if (p.chatId !== chatId) return;
-      const m = normalizeMessage(p.message);
-      if (m) setMessages(c => c.some(x => x.id === m.id) ? c : [...c, m]);
+    debugRealtime("chat mounted", { chatId });
+
+    const syncActiveChat = () => {
+      socket.emit("chat:join", chatId, (response?: { ok?: boolean }) => {
+        debugRealtime("chat:join emitted", { chatId, ok: response?.ok ?? null });
+      });
+      socket.emit("chat:active", { chatId }, (response?: { ok?: boolean }) => {
+        debugRealtime("chat:active emitted", { chatId, ok: response?.ok ?? null });
+      });
     };
-    const handleDeletedMessage = (p: { chatId: string; messageId: string }) => {
-      if (p.chatId === chatId) setMessages(c => c.filter(x => x.id !== p.messageId));
+
+    const handleNewMessage = (payload: { chatId: string; message: unknown }) => {
+      if (payload.chatId !== chatId) return;
+      const normalized = normalizeMessage(payload.message);
+      if (!normalized) {
+        return;
+      }
+
+      debugRealtime("message:new received", { messageId: normalized.id, chatId: payload.chatId });
+      setMessages((current) => {
+        const exists = current.some((message) => message.id === normalized.id);
+        debugRealtime(exists ? "message deduped" : "message appended", { messageId: normalized.id, chatId: payload.chatId });
+        return exists ? current : [...current, normalized];
+      });
+
+      if (normalized.senderUserId !== currentUserId) {
+        void markAsRead();
+      }
     };
-    socket.emit("chat:join", chatId);
+
+    const handleDeletedMessage = (payload: { chatId: string; messageId: string }) => {
+      if (payload.chatId !== chatId) return;
+      setMessages((current) => current.filter((message) => message.id !== payload.messageId));
+    };
+
+    const handleUpdatedMessage = (payload: { chatId: string; message: unknown }) => {
+      if (payload.chatId !== chatId) return;
+      const normalized = normalizeMessage(payload.message);
+      if (!normalized) {
+        return;
+      }
+      setMessages((current) => current.map((message) => (message.id === normalized.id ? normalized : message)));
+    };
+
+    const handleReactionsUpdated = (payload: { chatId: string; messageId: string; reactions: Message["reactions"] }) => {
+      if (payload.chatId !== chatId) return;
+      setMessages((current) =>
+        current.map((message) => (message.id === payload.messageId ? { ...message, reactions: payload.reactions } : message)),
+      );
+    };
+
+    const handleReceiptsUpdated = (payload: { chatId: string; userId: string; deliveredAt?: string | Date | null; readAt?: string | Date | null }) => {
+      if (payload.chatId !== chatId) return;
+      const deliveredAt = payload.deliveredAt ? new Date(payload.deliveredAt).toISOString() : null;
+      const readAt = payload.readAt ? new Date(payload.readAt).toISOString() : null;
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.senderUserId !== currentUserId) {
+            return message;
+          }
+
+          const existingReceipt = message.receipts.find((receipt) => receipt.userId === payload.userId);
+          if (existingReceipt) {
+            return {
+              ...message,
+              receipts: message.receipts.map((receipt) =>
+                receipt.userId === payload.userId
+                  ? {
+                      ...receipt,
+                      deliveredAt: deliveredAt ?? receipt.deliveredAt,
+                      readAt: readAt ?? receipt.readAt,
+                    }
+                  : receipt,
+              ),
+            };
+          }
+
+          return {
+            ...message,
+            receipts: [
+              ...message.receipts,
+              {
+                userId: payload.userId,
+                deliveredAt,
+                readAt,
+              },
+            ],
+          };
+        }),
+      );
+    };
+
+    const handleTypingUpdate = (payload: { chatId: string; userId: string; displayName: string; isTyping: boolean }) => {
+      if (payload.chatId !== chatId || payload.userId === currentUserId) return;
+      setTypingUsers((current) => {
+        const next = { ...current };
+        if (payload.isTyping) {
+          if (next[payload.userId]?.timeoutId) {
+            clearTimeout(next[payload.userId].timeoutId);
+          }
+          const timeoutId = setTimeout(() => {
+            setTypingUsers((prev) => {
+              const cleared = { ...prev };
+              delete cleared[payload.userId];
+              return cleared;
+            });
+          }, 5000);
+          next[payload.userId] = { displayName: payload.displayName, timeoutId };
+        } else {
+          if (next[payload.userId]?.timeoutId) {
+            clearTimeout(next[payload.userId].timeoutId);
+          }
+          delete next[payload.userId];
+        }
+        return next;
+      });
+    };
+
+    syncActiveChat();
+    socket.on("connect", syncActiveChat);
     socket.on("message:new", handleNewMessage);
     socket.on("message:deleted", handleDeletedMessage);
+    socket.on("message:updated", handleUpdatedMessage);
+    socket.on("message:reactions-updated", handleReactionsUpdated);
+    socket.on("message:receipts-updated", handleReceiptsUpdated);
+    socket.on("typing:update", handleTypingUpdate);
     return () => {
+      socket.emit("chat:inactive", { chatId });
       socket.emit("chat:leave", chatId);
+      socket.off("connect", syncActiveChat);
       socket.off("message:new", handleNewMessage);
       socket.off("message:deleted", handleDeletedMessage);
+      socket.off("message:updated", handleUpdatedMessage);
+      socket.off("message:reactions-updated", handleReactionsUpdated);
+      socket.off("message:receipts-updated", handleReceiptsUpdated);
+      socket.off("typing:update", handleTypingUpdate);
     };
-  }, [chatId, socket]);
+  }, [chatId, currentUserId, debugRealtime, markAsRead, socket]);
 
   const toggleReaction = async (messageId: string, emoji: string) => {
     try {
@@ -353,6 +518,7 @@ export function ChatMessages({
   const handleSend = async (body: string) => {
     if (!body.trim()) return;
     setPending(true);
+    setComposerError(null);
     try {
       const url = editingMessage ? `/api/messages/${editingMessage.id}` : `/api/chats/${chatId}/messages`;
       const method = editingMessage ? "PATCH" : "POST";
@@ -361,21 +527,146 @@ export function ChatMessages({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ body, replyToMessageId: replyingToMessage?.id }),
       });
-      if (response.ok) {
-        const data = await response.json();
-        const m = normalizeMessage(data.message);
-        if (m) {
-          setMessages(curr => {
-            const exists = curr.find(x => x.id === m.id);
-            if (exists) return curr.map(x => x.id === m.id ? m : x);
-            return [...curr, m];
-          });
-        }
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось отправить сообщение");
+      }
+      const data = await response.json();
+      const m = normalizeMessage(data.message);
+      if (m) {
+        setMessages(curr => {
+          const exists = curr.find(x => x.id === m.id);
+          if (exists) return curr.map(x => x.id === m.id ? m : x);
+          return [...curr, m];
+        });
       }
       setEditingMessage(null);
       setReplyingToMessage(null);
-    } catch {} finally { setPending(false); }
+    } catch (error) {
+      setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
+    } finally { setPending(false); }
   };
+
+  const handleTyping = useCallback((text: string) => {
+    if (!socket) return;
+
+    if (text.length > 0) {
+      if (!isTypingLocal) {
+        setIsTypingLocal(true);
+        socket.emit("typing:start", { chatId });
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTypingLocal(false);
+        socket.emit("typing:stop", { chatId });
+      }, 3000);
+    } else if (isTypingLocal) {
+      setIsTypingLocal(false);
+      socket.emit("typing:stop", { chatId });
+    }
+  }, [chatId, isTypingLocal, socket]);
+
+  const handleAttach = useCallback(async (file: File) => {
+    setUploading(true);
+    setComposerError(null);
+    debugMedia("file selected", { name: file.name, type: file.type, size: file.size });
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      debugMedia("upload started", { chatId, name: file.name });
+      const response = await fetch(`/api/chats/${chatId}/attachments`, { method: "POST", body: formData });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось отправить файл");
+      }
+      const data = await response.json();
+      const normalized = normalizeMessage(data.message);
+      const attachmentId = data.message?.attachments?.[0]?.id;
+      debugMedia("upload success", {
+        url: attachmentId ? `/api/attachments/${attachmentId}/download` : null,
+        attachmentId: attachmentId ?? null,
+      });
+      debugMedia("message create started", { chatId });
+      debugMedia("message create success", { messageId: data.message?.id ?? null, chatId });
+      if (normalized) {
+        setMessages((current) => {
+          const exists = current.some((message) => message.id === normalized.id);
+          debugMedia(exists ? "message deduped" : "message appended", { messageId: normalized.id });
+          return exists ? current : [...current, normalized];
+        });
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Не удалось отправить файл";
+      debugMedia("upload error", { reason });
+      setComposerError(reason);
+    } finally {
+      setUploading(false);
+    }
+  }, [chatId, debugMedia]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      isRecordingCancelledRef.current = false;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeTypes = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"];
+      const selectedMimeType = mimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+      const recorder = new MediaRecorder(stream, selectedMimeType ? { mimeType: selectedMimeType } : undefined);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        if (isRecordingCancelledRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: selectedMimeType || "audio/webm" });
+        const extension = selectedMimeType.includes("mp4") ? "m4a" : "webm";
+        const file = new File([blob], `voice-${Date.now()}.${extension}`, { type: blob.type });
+        await handleAttach(file);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      recordingTimerRef.current = setInterval(() => setRecordingDuration((value) => value + 1), 1000);
+    } catch (error) {
+      setComposerError(error instanceof Error ? error.message : "Нет доступа к микрофону");
+    }
+  }, [handleAttach]);
+
+  const stopRecording = useCallback(() => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  }, []);
+
+  const cancelRecording = useCallback(() => {
+    isRecordingCancelledRef.current = true;
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  }, []);
+
+  const getStatusSubtitle = useCallback(() => {
+    const users = Object.values(typingUsers);
+    if (users.length > 0) {
+      return "печатает...";
+    }
+    if (chatInfo.type === "DIRECT") {
+      return connected ? "в сети" : "подключение...";
+    }
+    return "групповой чат";
+  }, [chatInfo.type, connected, typingUsers]);
 
   const themeVars = getChatAppearanceVars(settings);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
@@ -549,7 +840,7 @@ export function ChatMessages({
         chatId={chatId}
         chatType={chatInfo.type}
         title={chatInfo.otherMember?.displayName || chatInfo.title || "Чат"}
-        subtitle={connected ? "в сети" : "подключение..."}
+        subtitle={getStatusSubtitle()}
         avatarUrl={chatInfo.otherMember?.avatarUrl}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
         isConnected={connected}
@@ -660,21 +951,28 @@ export function ChatMessages({
            </div>
         </div>
       ) : (
-        <ChatComposer
-          onSend={handleSend}
-          onTyping={() => {}}
-          onAttach={() => {}}
-          onVoiceStart={() => {}}
-          onVoiceStop={() => {}}
-          onVoiceCancel={() => {}}
-          isRecording={false}
-          recordingDuration={0}
-          isLocked={isLocked && currentRole === "MEMBER"}
-          pending={pending}
-          replyingTo={replyingToMessage}
-          editingTo={editingMessage}
-          onCancelAction={() => { setEditingMessage(null); setReplyingToMessage(null); }}
-        />
+        <>
+          {composerError ? (
+            <div className="px-4 pb-2 text-center text-xs font-semibold text-danger">
+              {composerError}
+            </div>
+          ) : null}
+          <ChatComposer
+            onSend={handleSend}
+            onTyping={handleTyping}
+            onAttach={handleAttach}
+            onVoiceStart={startRecording}
+            onVoiceStop={stopRecording}
+            onVoiceCancel={cancelRecording}
+            isRecording={isRecording}
+            recordingDuration={recordingDuration}
+            isLocked={isLocked && currentRole === "MEMBER"}
+            pending={pending || uploading}
+            replyingTo={replyingToMessage}
+            editingTo={editingMessage}
+            onCancelAction={() => { setEditingMessage(null); setReplyingToMessage(null); }}
+          />
+        </>
       )}
 
       {renderOverlay()}
