@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { requireActiveChatMembership } from "@/lib/chats";
+import { Prisma } from "@prisma/client";
 
 export async function GET(
   request: Request,
@@ -22,10 +23,11 @@ export async function GET(
   }
 
   const prisma = getPrisma();
+  const mode: Prisma.QueryMode = "insensitive";
   const messages = await prisma.message.findMany({
     where: {
       chatId,
-      body: { contains: query, mode: "insensitive" },
+      body: { contains: query, mode },
       deletedAt: null,
     },
     include: {

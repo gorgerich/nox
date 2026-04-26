@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 const MIN_QUERY_LENGTH = 3;
 const USERS_LIMIT = 5;
@@ -22,15 +23,15 @@ export async function GET(request: Request) {
   }
 
   const prisma = getPrisma();
+  const mode: Prisma.QueryMode = "insensitive";
 
   const [people, chats, messages] = await Promise.all([
     prisma.user.findMany({
       where: {
         status: "ACTIVE",
-        id: { not: user.id },
         OR: [
-          { username: { contains: q, mode: "insensitive" } },
-          { profile: { displayName: { contains: q, mode: "insensitive" } } },
+          { username: { contains: q, mode } },
+          { profile: { displayName: { contains: q, mode } } },
         ],
       },
       select: {
@@ -55,21 +56,32 @@ export async function GET(request: Request) {
           },
         },
         OR: [
-          { title: { contains: q, mode: "insensitive" } },
+          { title: { contains: q, mode } },
           {
+            type: "DIRECT",
             members: {
               some: {
                 status: "ACTIVE",
-                userId: { not: user.id },
                 user: {
                   OR: [
-                    { username: { contains: q, mode: "insensitive" } },
-                    { profile: { displayName: { contains: q, mode: "insensitive" } } },
+                    { username: { contains: q, mode } },
+                    { profile: { displayName: { contains: q, mode } } },
                   ],
                 },
               },
             },
           },
+          // Favorites search: direct chats with self
+          {
+            type: "DIRECT",
+            members: {
+              every: { userId: user.id }
+            },
+            OR: [
+              "избранное".includes(q.toLowerCase()) ? { type: "DIRECT" } : { id: "none" },
+              "saved".includes(q.toLowerCase()) ? { type: "DIRECT" } : { id: "none" },
+            ]
+          }
         ],
       },
       select: {
@@ -79,9 +91,9 @@ export async function GET(request: Request) {
         members: {
           where: {
             status: "ACTIVE",
-            userId: { not: user.id },
           },
           select: {
+            userId: true,
             user: {
               select: {
                 username: true,
@@ -102,7 +114,7 @@ export async function GET(request: Request) {
     prisma.message.findMany({
       where: {
         deletedAt: null,
-        body: { contains: q, mode: "insensitive" },
+        body: { contains: q, mode },
         chat: {
           members: {
             some: {
@@ -139,16 +151,22 @@ export async function GET(request: Request) {
       username: person.username,
       displayName: person.profile?.displayName || person.username,
       profile: person.profile,
+      isSelf: person.id === user.id,
     })),
-    chats: chats.map((chat) => ({
-      id: chat.id,
-      type: chat.type,
-      title:
-        chat.type === "DIRECT"
-          ? (chat.members[0]?.user.profile?.displayName || chat.members[0]?.user.username || "Личный чат")
+    chats: chats.map((chat) => {
+      const otherMember = chat.members.find(m => m.userId !== user.id);
+      const isSelfChat = chat.type === "DIRECT" && chat.members.length === 1 && chat.members[0].userId === user.id;
+      
+      return {
+        id: chat.id,
+        type: chat.type,
+        title: chat.type === "DIRECT"
+          ? (isSelfChat ? "Избранное" : (otherMember?.user.profile?.displayName || otherMember?.user.username || "Личный чат"))
           : chat.title || "Группа",
-      avatarUrl: chat.type === "DIRECT" ? chat.members[0]?.user.profile?.avatarUrl : null,
-    })),
+        avatarUrl: chat.type === "DIRECT" ? (isSelfChat ? null : otherMember?.user.profile?.avatarUrl) : null,
+        isSelfChat,
+      };
+    }),
     messages: messages.map((message) => ({
       id: message.id,
       body: message.body,

@@ -4,6 +4,7 @@ import { requireActiveChatMembership } from "@/lib/chats";
 import { getChatsPageData } from "@/lib/chat-list";
 import { getPrisma } from "@/lib/prisma";
 import { ChatMessages } from "./ChatMessages";
+import { Prisma } from "@prisma/client";
 
 type BaseMessage = {
   id: string;
@@ -84,8 +85,10 @@ type ForwardChatOption = {
 
 export default async function ChatPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ chatId: string }>;
+  searchParams: Promise<{ highlightMessageId?: string }>;
 }) {
   const user = await getCurrentUser();
 
@@ -94,6 +97,7 @@ export default async function ChatPage({
   }
 
   const { chatId } = await params;
+  const { highlightMessageId } = await searchParams;
   const membership = await requireActiveChatMembership(chatId, user.id);
 
   if (!membership) {
@@ -101,6 +105,34 @@ export default async function ChatPage({
   }
 
   const prisma = getPrisma();
+
+  // If we have a highlightMessageId, we need to make sure it's loaded.
+  // We can either fetch messages around it, or just ensure it's included in the set.
+  // For simplicity, if highlightMessageId is present, we'll fetch messages up to that message + some older ones.
+  let messageWhereClause: Prisma.MessageWhereInput = { chatId };
+  let take = 50;
+
+  if (highlightMessageId) {
+    const targetMessage = await prisma.message.findUnique({
+      where: { id: highlightMessageId },
+      select: { createdAt: true }
+    });
+
+    if (targetMessage) {
+      // Load 30 messages newer than target and 20 older than target?
+      // Actually Prisma doesn't easily support "around".
+      // Let's just load 70 messages starting from the target message's time, 
+      // but simpler is to load all messages newer than (target - small offset).
+      messageWhereClause = {
+        chatId,
+        createdAt: {
+          gte: new Date(targetMessage.createdAt.getTime() - 1000 * 60 * 60) // 1 hour before
+        }
+      };
+      take = 100; // Load more to be safe
+    }
+  }
+
   const [chat, rawMessages, chatsPageData] = await Promise.all([
     prisma.chat.findUnique({
       where: { id: chatId },
@@ -178,9 +210,9 @@ export default async function ChatPage({
       },
     }),
     prisma.message.findMany({
-      where: { chatId },
+      where: messageWhereClause,
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take,
       include: {
         sender: {
           select: {

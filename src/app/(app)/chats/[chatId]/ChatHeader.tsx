@@ -16,6 +16,7 @@ export function ChatHeader({
   isConnected,
   currentUser,
   partnerId,
+  onSearchClick,
 }: {
   chatId: string;
   chatType: string;
@@ -26,6 +27,7 @@ export function ChatHeader({
   isConnected: boolean;
   currentUser: { displayName: string; avatarUrl: string | null };
   partnerId?: string;
+  onSearchClick?: () => void;
 }) {
   const router = useRouter();
   const { startCall, status } = useAudioCall();
@@ -114,6 +116,17 @@ export function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={onSearchClick}
+          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90"
+          style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
+          title="Поиск"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+
         {canCall && (
           <button
             onClick={() => startCall(chatId, currentUser)}

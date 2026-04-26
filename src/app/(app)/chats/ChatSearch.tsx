@@ -5,8 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 
 type SearchResult = {
-  people: { id: string; username: string; displayName: string; profile?: { avatarUrl: string | null } }[];
-  chats: { id: string; title: string | null; type: string; avatarUrl?: string | null }[];
+  people: { id: string; username: string; displayName: string; isSelf?: boolean; profile?: { avatarUrl: string | null } }[];
+  chats: { id: string; title: string | null; type: string; avatarUrl?: string | null; isSelfChat?: boolean }[];
   messages: { id: string; body: string; chatId: string; createdAt: string; senderName: string }[];
 };
 
@@ -18,6 +18,7 @@ export function ChatSearch() {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -33,23 +34,49 @@ export function ChatSearch() {
     const timer = setTimeout(async () => {
       if (query.trim().length < MIN_QUERY_LENGTH) {
         setResults(null);
+        abortRef.current?.abort();
         return;
       }
 
       setLoading(true);
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        });
         const data = await res.json();
         setResults(data);
       } catch (e) {
-        console.error("Search failed", e);
+        if ((e as Error).name !== 'AbortError') {
+          console.error("Search failed", e);
+        }
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      abortRef.current?.abort();
+    };
   }, [query]);
+
+  const highlightText = (text: string, q: string) => {
+    if (!q.trim()) return text;
+    const parts = text.split(new RegExp(`(${q})`, "gi"));
+    return parts.map((part, i) =>
+      part.toLowerCase() === q.toLowerCase() ? (
+        <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5 font-bold">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
 
   return (
     <div className="relative" ref={containerRef}>
@@ -90,7 +117,7 @@ export function ChatSearch() {
                     {results.people.map((person) => (
                       <Link
                         key={person.id}
-                        href={`/chats/new?u=${person.username}`}
+                        href={person.isSelf ? `/chats` : `/chats/new?u=${person.username}`}
                         onClick={() => setIsOpen(false)}
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
@@ -101,9 +128,12 @@ export function ChatSearch() {
                             <span className="text-lg font-black text-primary uppercase">{person.displayName[0]}</span>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-foreground tracking-tight">{person.displayName}</p>
-                          <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">@{person.username}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-bold text-foreground tracking-tight">{highlightText(person.displayName, query)}</p>
+                            {person.isSelf && <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-[9px] font-black uppercase text-primary tracking-widest">Вы</span>}
+                          </div>
+                          <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">@{highlightText(person.username, query)}</p>
                         </div>
                       </Link>
                     ))}
@@ -123,14 +153,22 @@ export function ChatSearch() {
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105 relative">
-                          {chat.avatarUrl ? (
+                          {chat.isSelfChat ? (
+                            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                              </svg>
+                            </div>
+                          ) : chat.avatarUrl ? (
                             <Image src={chat.avatarUrl.startsWith('http') ? chat.avatarUrl : `/api/avatars/${chat.avatarUrl}`} alt={chat.title || "Чат"} fill className="object-cover" />
                           ) : (
                             <span className="text-lg font-black text-primary uppercase">{(chat.title || "C")[0]}</span>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-foreground tracking-tight">{chat.title || "Личный чат"}</p>
+                          <p className={`truncate text-sm font-bold tracking-tight ${chat.isSelfChat ? "text-primary" : "text-foreground"}`}>
+                            {chat.isSelfChat ? "Избранное" : highlightText(chat.title || "Личный чат", query)}
+                          </p>
                           <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">Открыть</p>
                         </div>
                       </Link>
@@ -146,7 +184,7 @@ export function ChatSearch() {
                     {results.messages.map((msg) => (
                       <Link
                         key={msg.id}
-                        href={`/chats/${msg.chatId}`}
+                        href={`/chats/${msg.chatId}?highlightMessageId=${msg.id}`}
                         onClick={() => setIsOpen(false)}
                         className="block rounded-2xl p-4 transition-smooth hover:bg-surface-muted active:scale-[0.98] border border-transparent hover:border-border-subtle/50"
                       >
@@ -154,7 +192,7 @@ export function ChatSearch() {
                           <p className="truncate text-xs font-black uppercase tracking-widest text-primary">{msg.senderName}</p>
                           <p className="text-[9px] font-black uppercase tracking-tighter text-muted/50">{new Date(msg.createdAt).toLocaleDateString("ru-RU")}</p>
                         </div>
-                        <p className="truncate text-sm font-medium text-muted leading-snug">{msg.body}</p>
+                        <p className="truncate text-sm font-medium text-muted leading-snug">{highlightText(msg.body, query)}</p>
                       </Link>
                     ))}
                   </div>

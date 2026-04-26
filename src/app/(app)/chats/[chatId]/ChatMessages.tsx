@@ -198,7 +198,29 @@ export function ChatMessages({
   const [isSearchOpen, setIsSearchOpen] = useState(() => searchParams.get("search") === "true");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultMessage[]>([]);
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(() => searchParams.get("highlightMessageId"));
+
+  useEffect(() => {
+    const highlightId = searchParams.get("highlightMessageId");
+    if (highlightId) {
+      const jumpWithRetry = (retries = 5) => {
+        const el = messageRefs.current[highlightId];
+        if (el) {
+          el.scrollIntoView({ behavior: "auto", block: "center" });
+          setHighlightedId(highlightId);
+          setTimeout(() => setHighlightedId(null), 3000);
+          
+          // Clear param from URL without reload
+          const url = new URL(window.location.href);
+          url.searchParams.delete("highlightMessageId");
+          window.history.replaceState({}, '', url.toString());
+        } else if (retries > 0) {
+          setTimeout(() => jumpWithRetry(retries - 1), 100);
+        }
+      };
+      jumpWithRetry();
+    }
+  }, [searchParams]);
 
   const { settings, updateSettings, resetSettings } = useChatAppearance(chatId);
 
@@ -208,6 +230,7 @@ export function ChatMessages({
   const initialScrollDoneRef = useRef(false);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -299,17 +322,30 @@ export function ChatMessages({
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setTimeout(() => setSearchResults([]), 0);
-      return;
+      const t = setTimeout(() => setSearchResults([]), 0);
+      searchAbortRef.current?.abort();
+      return () => clearTimeout(t);
     }
     const t = setTimeout(async () => {
+      searchAbortRef.current?.abort();
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
       try {
-        const res = await fetch(`/api/chats/${chatId}/search?q=${encodeURIComponent(searchQuery)}`);
+        const res = await fetch(`/api/chats/${chatId}/search?q=${encodeURIComponent(searchQuery)}`, {
+          signal: controller.signal
+        });
         const data = await res.json();
         setSearchResults(data.messages || []);
-      } catch {}
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error("Search failed", err);
+        }
+      }
     }, 400);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      searchAbortRef.current?.abort();
+    };
   }, [searchQuery, chatId]);
 
   useEffect(() => {
@@ -1066,6 +1102,7 @@ export function ChatMessages({
         subtitle={getStatusSubtitle()}
         avatarUrl={chatInfo.type === "GROUP" ? chatInfo.avatarUrl : chatInfo.otherMember?.avatarUrl}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
+        onSearchClick={() => setIsSearchOpen(true)}
         isConnected={connected}
         currentUser={currentUserInfo}
         partnerId={chatInfo.otherMember?.id}
@@ -1095,7 +1132,21 @@ export function ChatMessages({
                         <span className="text-[10px] font-black uppercase text-primary">{m.senderName}</span>
                         <span className="text-[9px] font-bold text-muted">{new Date(m.createdAt).toLocaleDateString()}</span>
                      </div>
-                     <p className="text-xs truncate text-foreground/80">{m.body}</p>
+                     <p className="text-xs truncate text-foreground/80">
+                        {searchQuery ? (
+                          m.body.split(new RegExp(`(${searchQuery})`, "gi")).map((part, i) =>
+                            part.toLowerCase() === searchQuery.toLowerCase() ? (
+                              <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5 font-bold">
+                                {part}
+                              </mark>
+                            ) : (
+                              part
+                            )
+                          )
+                        ) : (
+                          m.body
+                        )}
+                     </p>
                   </button>
                 ))}
              </div>
@@ -1162,6 +1213,7 @@ export function ChatMessages({
                   isSelected={selectedIds.has(item.message.id)}
                   onSelect={toggleSelection}
                   isFocused={menuState?.id === item.message.id}
+                  searchQuery={isSearchOpen ? searchQuery : ""}
                 />
               </div>
             )

@@ -74,6 +74,7 @@ export const MessageBubble = memo(function MessageBubble({
   selectionMode = false,
   onSelect,
   isFocused = false,
+  searchQuery = "",
 }: {
   message: Message;
   mine: boolean;
@@ -90,6 +91,7 @@ export const MessageBubble = memo(function MessageBubble({
   selectionMode?: boolean;
   onSelect?: (id: string) => void;
   isFocused?: boolean;
+  searchQuery?: string;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -361,7 +363,23 @@ export const MessageBubble = memo(function MessageBubble({
           )}
 
           <>
-            {message.body && <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words mb-2 last:mb-0">{message.body}</p>}
+            {message.body && (
+              <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words mb-2 last:mb-0">
+                {searchQuery ? (
+                  message.body.split(new RegExp(`(${searchQuery})`, "gi")).map((part, i) =>
+                    part.toLowerCase() === searchQuery.toLowerCase() ? (
+                      <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5">
+                        {part}
+                      </mark>
+                    ) : (
+                      part
+                    )
+                  )
+                ) : (
+                  message.body
+                )}
+              </p>
+            )}
             {message.attachments?.map((att) => {
               const downloadUrl = att.url || `/api/attachments/${att.id}/download`;
               const isImage = att.mimeType.startsWith("image/");
