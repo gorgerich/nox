@@ -46,6 +46,7 @@ interface IncomingPayload {
   chatId: string;
   offer: RTCSessionDescriptionInit;
   fromUser: { displayName: string, avatarUrl: string | null };
+  expiresAt?: number;
 }
 
 interface AnsweredPayload {
@@ -64,6 +65,23 @@ interface EndedPayload {
   reason: string;
 }
 
+interface StartCallResponse {
+  ok: boolean;
+  callId: string;
+  expiresAt?: number;
+  delivery?: "socket" | "push";
+  callee?: {
+    displayName: string;
+    avatarUrl: string | null;
+  };
+}
+
+interface SyncPendingResponse {
+  ok: boolean;
+  emitted?: number;
+  expiredIncomingCallId?: boolean;
+}
+
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { socket } = useSocket();
   const [call, setCall] = useState<CallMetadata | null>(null);
@@ -78,10 +96,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const pendingIceQueue = useRef<RTCIceCandidateInit[]>([]);
   const pendingLocalIceQueue = useRef<RTCIceCandidateInit[]>([]);
+  const receivedIceKeysRef = useRef<Set<string>>(new Set());
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statusRef = useRef<CallStatus>("idle");
   const callIdRef = useRef<string | null>(null);
+  const chatIdRef = useRef<string | null>(null);
   const hasRemoteAudioRef = useRef(false);
 
   useEffect(() => {
@@ -120,10 +140,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setRemoteStream(null);
     pendingIceQueue.current = [];
     pendingLocalIceQueue.current = [];
+    receivedIceKeysRef.current = new Set();
     incomingOfferRef.current = null;
     setIsMuted(false);
     remoteStreamRef.current = null;
     callIdRef.current = null;
+    chatIdRef.current = null;
     hasRemoteAudioRef.current = false;
   }, [debugCall]);
 
@@ -150,7 +172,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [debugCall]);
 
   const flushPendingLocalIce = useCallback((reason: string) => {
-    if (!socket || !callIdRef.current || pendingLocalIceQueue.current.length === 0) {
+    if (!socket || !callIdRef.current || !chatIdRef.current || pendingLocalIceQueue.current.length === 0) {
       return;
     }
 
@@ -159,7 +181,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("ICE flushed", { reason, count: queuedCandidates.length });
 
     for (const candidate of queuedCandidates) {
-      socket.emit("call:ice-candidate", { callId: callIdRef.current, candidate }, (response?: { ok?: boolean }) => {
+      socket.emit("call:ice-candidate", { callId: callIdRef.current, chatId: chatIdRef.current, candidate }, (response?: { ok?: boolean }) => {
         debugCall("ICE added", { direction: "outgoing", ok: response?.ok ?? null });
       });
     }
@@ -194,14 +216,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
 
       const currentCallId = callIdRef.current;
+      const currentChatId = chatIdRef.current;
       const candidate = event.candidate.toJSON();
-      if (!socket || !currentCallId) {
+      if (!socket || !currentCallId || !currentChatId) {
         pendingLocalIceQueue.current.push(candidate);
         debugCall("ICE queued", { direction: "outgoing", queuedCount: pendingLocalIceQueue.current.length });
         return;
       }
 
-      socket.emit("call:ice-candidate", { callId: currentCallId, candidate }, (response?: { ok?: boolean }) => {
+      socket.emit("call:ice-candidate", { callId: currentCallId, chatId: currentChatId, candidate }, (response?: { ok?: boolean }) => {
         debugCall("ICE added", { direction: "outgoing", ok: response?.ok ?? null });
       });
     };
@@ -310,7 +333,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     incomingOfferRef.current = null;
     pendingIceQueue.current = [];
     pendingLocalIceQueue.current = [];
+    receivedIceKeysRef.current = new Set();
     callIdRef.current = null;
+    chatIdRef.current = chatId;
     hasRemoteAudioRef.current = false;
     setCall({
       callId: `pending-${Date.now()}`,
@@ -338,29 +363,38 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       debugCall("offer created");
       await pc.setLocalDescription(offer);
 
-      socket?.emit("call:start", { chatId, offer, fromUser }, (response: { ok: boolean, callId: string }) => {
+      socket?.emit("call:start", { chatId, offer, fromUser }, (response: StartCallResponse) => {
         if (response.ok) {
           callIdRef.current = response.callId;
-          debugCall("offer sent ack", { ok: true, callId: response.callId });
+          chatIdRef.current = chatId;
+          debugCall("offer sent ack", { ok: true, callId: response.callId, delivery: response.delivery ?? "socket" });
           setCall((current) =>
             current
-              ? { ...current, callId: response.callId }
+              ? {
+                  ...current,
+                  callId: response.callId,
+                  user: response.callee ?? current.user,
+                }
               : {
                   callId: response.callId,
                   chatId,
                   role: "caller",
-                  user: { displayName: "Собеседник", avatarUrl: null },
+                  user: response.callee ?? { displayName: "Собеседник", avatarUrl: null },
                 },
           );
           flushPendingLocalIce("call:start ack");
-          
+
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+          const timeoutMs = response.expiresAt ? Math.max(1000, response.expiresAt - Date.now()) : 45000;
           timeoutRef.current = setTimeout(() => {
-            if (statusRef.current === "ringing") {
+            if (statusRef.current !== "active" && statusRef.current !== "idle") {
               debugCall("call timeout", { callId: response.callId });
               socket.emit("call:ended", { callId: response.callId, reason: "timeout" });
-              cleanup("timeout");
+              failCall("Вызов пропущен");
             }
-          }, 45000);
+          }, timeoutMs);
         } else {
           debugCall("offer sent ack", { ok: false });
           failCall("Не удалось начать звонок");
@@ -370,13 +404,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       console.error(err);
       failCall("Нет доступа к микрофону");
     }
-  }, [socket, createPeerConnection, cleanup, debugCall, failCall, flushPendingLocalIce, debugLocalAudioTrack]);
+  }, [socket, createPeerConnection, debugCall, failCall, flushPendingLocalIce, debugLocalAudioTrack]);
 
   const acceptCall = useCallback(async () => {
     if (!call || !incomingOfferRef.current || !socket) return;
     debugCall("acceptCall", { callId: call.callId });
     setStatus("connecting");
     callIdRef.current = call.callId;
+    chatIdRef.current = call.chatId;
     setError(null);
 
     try {
@@ -394,7 +429,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       });
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingOfferRef.current));
-      debugCall("remote description set", { side: "callee", type: "offer" });
+      debugCall("setRemoteDescription success", { side: "callee", type: "offer" });
 
       await flushPendingRemoteIce(pc, "after offer remoteDescription");
 
@@ -447,7 +482,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!socket) return;
 
-    const onIncoming = ({ callId, chatId, offer, fromUser }: IncomingPayload) => {
+    const onIncoming = ({ callId, chatId, offer, fromUser, expiresAt }: IncomingPayload) => {
       debugCall("incoming offer received", { callId, chatId });
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, reason: "busy" });
@@ -461,10 +496,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       });
       incomingOfferRef.current = offer;
       callIdRef.current = callId;
+      chatIdRef.current = chatId;
       pendingIceQueue.current = [];
       pendingLocalIceQueue.current = [];
+      receivedIceKeysRef.current = new Set();
       hasRemoteAudioRef.current = false;
       setStatus("ringing");
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      const timeoutMs = expiresAt ? Math.max(1000, expiresAt - Date.now()) : 45000;
+      timeoutRef.current = setTimeout(() => {
+        if (statusRef.current === "ringing") {
+          debugCall("call expired before answer", { callId });
+          failCall("Вызов пропущен");
+        }
+      }, timeoutMs);
     };
 
     const onAnswered = async ({ answer, callId }: AnsweredPayload) => {
@@ -475,13 +523,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           callIdRef.current = callId;
         }
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-        debugCall("remote description set", { side: "caller", type: "answer" });
+        debugCall("setRemoteDescription success", { side: "caller", type: "answer" });
         await flushPendingRemoteIce(pcRef.current, "after answer remoteDescription");
         flushPendingLocalIce("after answer received");
       }
     };
 
     const onIce = async ({ candidate }: IcePayload) => {
+      const candidateKey = JSON.stringify(candidate);
+      if (receivedIceKeysRef.current.has(candidateKey)) {
+        debugCall("ICE queued", { direction: "incoming", duplicate: true });
+        return;
+      }
+      receivedIceKeysRef.current.add(candidateKey);
+
       if (pcRef.current && pcRef.current.remoteDescription) {
         try {
           await pcRef.current.addIceCandidate(candidate);
@@ -497,6 +552,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const onEnded = ({ reason }: EndedPayload) => {
       debugCall("call ended by remote", { reason });
+      if (reason === "expired" || reason === "timeout") {
+        failCall("Вызов пропущен");
+        return;
+      }
       cleanup(`remote ended: ${reason}`);
     };
 
@@ -511,6 +570,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     socket.on("call:ended", onEnded);
     socket.on("call:declined", onDeclined);
 
+    const incomingCallId = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("incomingCallId");
+    socket.emit("call:sync-pending", { incomingCallId }, (response: SyncPendingResponse) => {
+      debugCall("pending calls synced", {
+        emitted: response.emitted ?? 0,
+        expiredIncomingCallId: Boolean(response.expiredIncomingCallId),
+      });
+      if (incomingCallId && response.expiredIncomingCallId && statusRef.current === "idle") {
+        failCall("Вызов пропущен");
+      }
+    });
+
     return () => {
       socket.off("call:incoming", onIncoming);
       socket.off("call:answered", onAnswered);
@@ -518,7 +588,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", onEnded);
       socket.off("call:declined", onDeclined);
     };
-  }, [socket, cleanup, debugCall, flushPendingLocalIce, flushPendingRemoteIce]);
+  }, [socket, cleanup, debugCall, failCall, flushPendingLocalIce, flushPendingRemoteIce]);
 
   return (
     <CallContext.Provider value={{

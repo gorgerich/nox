@@ -57,7 +57,7 @@ export function CallOverlay() {
     audio.muted = false;
     audio.volume = 1;
 
-    debugCall("audio element srcObject assigned", {
+    debugCall("audio srcObject assigned", {
       source,
       hasSrcObject: Boolean(audio.srcObject),
     });
@@ -188,11 +188,11 @@ export function CallOverlay() {
 
     void audio.play().then(() => {
       setNeedsTapToPlay(false);
-      debugCall("audio.play success", { source: "manual tap" });
+      debugCall("tap-to-play success", { source: "manual tap" });
       logAudioElementState("audio element after play success", audio);
     }).catch((playError) => {
       setNeedsTapToPlay(true);
-      debugCall("audio.play fail", { source: "manual tap", error: String(playError) });
+      debugCall("tap-to-play fail", { source: "manual tap", error: String(playError) });
       logAudioElementState("audio element after play fail", audio);
     });
   }, [attachRemoteAudioStream, debugCall, logAudioElementState]);

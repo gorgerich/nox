@@ -11,7 +11,8 @@ self.addEventListener('push', function (event) {
       tag: data.tag || 'nox-notification',
       data: {
         url: data.url || '/chats',
-        chatId: data.chatId
+        chatId: data.chatId,
+        callId: data.callId
       }
     };
 
@@ -24,13 +25,18 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
 
-  const urlToOpen = event.notification.data.url;
+  const urlToOpen = new URL(event.notification.data.url || '/chats', self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {
-        if (client.url.includes(urlToOpen) && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client && new URL(client.url).origin === self.location.origin) {
+          return client.focus().then(function (focusedClient) {
+            if ('navigate' in focusedClient) {
+              return focusedClient.navigate(urlToOpen);
+            }
+            return focusedClient;
+          });
         }
       }
       if (clients.openWindow) {

@@ -15,6 +15,7 @@ export type PushPayload = {
   url: string;
   type: "message" | "call" | "request";
   chatId?: string;
+  callId?: string;
   tag?: string;
 };
 
