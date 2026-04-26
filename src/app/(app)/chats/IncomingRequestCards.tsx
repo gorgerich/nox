@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 
 type IncomingRequest = {
@@ -24,17 +23,26 @@ async function readJson<T>(url: string, init?: RequestInit) {
   return data;
 }
 
-export function IncomingRequestCards({ requests }: { requests: IncomingRequest[] }) {
-  const router = useRouter();
-  const [visibleRequests, setVisibleRequests] = useState(requests);
+export function IncomingRequestCards({
+  requests,
+  onChange,
+}: {
+  requests: IncomingRequest[];
+  onChange?: () => void;
+}) {
+  const [hiddenRequestIds, setHiddenRequestIds] = useState<Set<string>>(new Set());
   const [pendingAction, setPendingAction] = useState("");
+  const visibleRequests = useMemo(
+    () => requests.filter((request) => !hiddenRequestIds.has(request.id)),
+    [hiddenRequestIds, requests],
+  );
 
   async function acceptRequest(id: string) {
     setPendingAction(`accept-${id}`);
     try {
       await readJson(`/api/chat-requests/${id}/accept`, { method: "POST" });
-      setVisibleRequests((curr) => curr.filter((r) => r.id !== id));
-      router.refresh();
+      setHiddenRequestIds((current) => new Set(current).add(id));
+      onChange?.();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Не удалось принять запрос");
     } finally {
@@ -46,8 +54,8 @@ export function IncomingRequestCards({ requests }: { requests: IncomingRequest[]
     setPendingAction(`decline-${id}`);
     try {
       await readJson(`/api/chat-requests/${id}/decline`, { method: "POST" });
-      setVisibleRequests((curr) => curr.filter((r) => r.id !== id));
-      router.refresh();
+      setHiddenRequestIds((current) => new Set(current).add(id));
+      onChange?.();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Не удалось отклонить запрос");
     } finally {

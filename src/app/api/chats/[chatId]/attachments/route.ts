@@ -147,6 +147,16 @@ export async function POST(
       data: { updatedAt: new Date() },
     });
 
+    await tx.chatMember.updateMany({
+      where: {
+        chatId,
+        status: "ACTIVE",
+      },
+      data: {
+        deletedAt: null,
+      },
+    });
+
     return createdMessage;
   });
 

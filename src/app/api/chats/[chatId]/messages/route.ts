@@ -19,6 +19,7 @@ function logRealtime(label: string, data: Record<string, unknown>) {
 const messageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
   replyToMessageId: z.string().uuid().optional(),
+  clientId: z.string().min(1).max(100).optional(),
 });
 
 export async function GET(
@@ -91,6 +92,17 @@ export async function POST(
   const parsed = messageSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Некорректное сообщение." }, { status: 400 });
 
+  if (parsed.data.replyToMessageId) {
+    const replyTarget = await prisma.message.findUnique({
+      where: { id: parsed.data.replyToMessageId },
+      select: { id: true, chatId: true },
+    });
+
+    if (!replyTarget || replyTarget.chatId !== chatId) {
+      return NextResponse.json({ error: "Нельзя ответить на сообщение из другого чата." }, { status: 400 });
+    }
+  }
+
   const activeMembers = await prisma.chatMember.findMany({
     where: { chatId, status: "ACTIVE" },
     select: { userId: true, mutedUntil: true },
@@ -118,10 +130,21 @@ export async function POST(
     },
   });
 
-  await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });
+  await prisma.$transaction([
+    prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } }),
+    prisma.chatMember.updateMany({
+      where: {
+        chatId,
+        status: "ACTIVE",
+      },
+      data: {
+        deletedAt: null,
+      },
+    }),
+  ]);
 
   logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
-  emitToChat(chatId, "message:new", { chatId, message });
+  emitToChat(chatId, "message:new", { chatId, message, clientId: parsed.data.clientId ?? null });
   logRealtime("emitting message:new", { chatId, messageId: message.id });
   emitToUsers(activeMembers.map(m => m.userId), "chat:updated", { chatId });
 
@@ -145,5 +168,5 @@ export async function POST(
     }).catch(() => {});
   }
 
-  return NextResponse.json({ message }, { status: 201 });
+  return NextResponse.json({ message, clientId: parsed.data.clientId ?? null }, { status: 201 });
 }

@@ -2,9 +2,12 @@
 
 import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
-import { useRef } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
 import Image from "next/image";
+
+const SWIPE_REPLY_THRESHOLD = 64;
+const SWIPE_REPLY_MAX = 92;
 
 export type Message = {
   id: string;
@@ -45,7 +48,7 @@ export type Message = {
     type: string;
     sender: {
       username: string;
-      profile: { displayName: string } | null;
+      profile: { displayName: string | null } | null;
     };
   } | null;
   receipts: {
@@ -55,13 +58,15 @@ export type Message = {
   }[];
 };
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   message,
   mine,
   settings,
   onLongPress,
   onReaction,
   onMediaClick,
+  onSwipeReply,
+  onReplyPreviewClick,
   isGroupStart,
   isGroupEnd,
   showDisplayName,
@@ -76,6 +81,8 @@ export function MessageBubble({
   onLongPress: (id: string, rect: DOMRect) => void;
   onReaction: (id: string, emoji: string) => void;
   onMediaClick: (item: MediaItem) => void;
+  onSwipeReply?: (message: Message) => void;
+  onReplyPreviewClick?: (messageId: string) => void;
   isGroupStart: boolean;
   isGroupEnd: boolean;
   showDisplayName: boolean;
@@ -87,36 +94,92 @@ export function MessageBubble({
   const bubbleRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const directionRef = useRef<"horizontal" | "vertical" | null>(null);
+  const swipeTriggeredRef = useRef(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (selectionMode) return;
-    const touch = e.touches[0];
-    startPosRef.current = { x: touch.clientX, y: touch.clientY };
+  const canSwipeReply = Boolean(onSwipeReply && !selectionMode && !message.deletedAt && message.type !== "SYSTEM");
+
+  const clearLongPress = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (selectionMode || !event.isPrimary) return;
+    pointerIdRef.current = event.pointerId;
+    const point = { x: event.clientX, y: event.clientY };
+    startPosRef.current = point;
+    directionRef.current = null;
+    swipeTriggeredRef.current = false;
     timerRef.current = setTimeout(() => {
       if (bubbleRef.current) {
         onLongPress(message.id, bubbleRef.current.getBoundingClientRect());
       }
       timerRef.current = null;
     }, 600);
-  };
+  }, [message.id, onLongPress, selectionMode]);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!startPosRef.current || !timerRef.current) return;
-    const touch = e.touches[0];
-    const dx = Math.abs(touch.clientX - startPosRef.current.x);
-    const dy = Math.abs(touch.clientY - startPosRef.current.y);
-    if (dx > 10 || dy > 10) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!startPosRef.current || pointerIdRef.current !== event.pointerId) return;
+    const rawDx = event.clientX - startPosRef.current.x;
+    const rawDy = event.clientY - startPosRef.current.y;
+    const dx = Math.abs(rawDx);
+    const dy = Math.abs(rawDy);
 
-  const handleTouchEnd = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    if (!directionRef.current) {
+      if (dy > 10 && dy > dx) {
+        directionRef.current = "vertical";
+        clearLongPress();
+        return;
+      }
+      if (dx > 10 && dx > dy) {
+        directionRef.current = "horizontal";
+        clearLongPress();
+      } else {
+        return;
+      }
     }
-  };
+
+    if (directionRef.current !== "horizontal") {
+      return;
+    }
+
+    if (!canSwipeReply) {
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(SWIPE_REPLY_MAX, rawDx));
+    setSwipeOffset(clamped);
+  }, [canSwipeReply, clearLongPress]);
+
+  const resetGesture = useCallback(() => {
+    pointerIdRef.current = null;
+    startPosRef.current = null;
+    directionRef.current = null;
+    swipeTriggeredRef.current = false;
+    clearLongPress();
+  }, [clearLongPress]);
+
+  const handlePointerEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== event.pointerId) {
+      return;
+    }
+
+    if (canSwipeReply && swipeOffset >= SWIPE_REPLY_THRESHOLD && !swipeTriggeredRef.current) {
+      swipeTriggeredRef.current = true;
+      onSwipeReply?.(message);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+    }
+
+    setSwipeOffset(0);
+    resetGesture();
+  }, [canSwipeReply, message, onSwipeReply, resetGesture, swipeOffset]);
 
   const handleClick = () => {
     if (selectionMode && onSelect) {
@@ -194,34 +257,59 @@ export function MessageBubble({
           </span>
         )}
 
-        <div
-          ref={bubbleRef}
-          className={`group relative max-w-[85%] px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] touch-pan-y ${
-            isFocused ? "focused-message" : ""
-          } shadow-sm ${mine ? "" : incomingClass}`}
-          style={bubbleStyle}
-          onContextMenu={(e) => { 
-            e.preventDefault(); 
-            if (!selectionMode && bubbleRef.current) {
-              onLongPress(message.id, bubbleRef.current.getBoundingClientRect()); 
-            }
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-        >
+        <div className="relative max-w-[85%]">
+          {canSwipeReply ? (
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center">
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle/50 bg-surface/80 text-primary shadow-sm transition-opacity duration-150"
+                style={{ opacity: Math.min(1, swipeOffset / SWIPE_REPLY_THRESHOLD) }}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+              </div>
+            </div>
+          ) : null}
+
+          <div
+            ref={bubbleRef}
+            className={`group relative px-4 py-2.5 transition-smooth cursor-default active:scale-[0.99] ${
+              isFocused ? "focused-message" : ""
+            } shadow-sm ${mine ? "" : incomingClass}`}
+            style={{
+              ...bubbleStyle,
+              transform: `translate3d(${swipeOffset}px, 0, 0)`,
+              touchAction: "pan-y",
+            }}
+            onContextMenu={(e) => { 
+              e.preventDefault(); 
+              if (!selectionMode && bubbleRef.current) {
+                onLongPress(message.id, bubbleRef.current.getBoundingClientRect()); 
+              }
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+          >
           {message.replyToMessage && (
             <div
-              className="mb-2 border-l-2 py-0.5 pl-2.5 text-[11px] leading-tight opacity-90"
+              className={`mb-2 border-l-2 py-0.5 pl-2.5 text-[11px] leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
               style={{
                 borderColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
                 color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
               }}
+              onClick={(event) => {
+                if (!message.replyToMessage || message.replyToMessage.deletedAt) {
+                  return;
+                }
+                event.stopPropagation();
+                onReplyPreviewClick?.(message.replyToMessage.id);
+              }}
             >
               <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
               <p className="truncate line-clamp-1 italic opacity-70">
-                {message.replyToMessage.deletedAt ? "Недоступное сообщение" : (message.replyToMessage.body || "Вложение")}
+                {message.replyToMessage.deletedAt ? "Исходное сообщение удалено" : (message.replyToMessage.body || "Вложение")}
               </p>
             </div>
           )}
@@ -340,6 +428,7 @@ export function MessageBubble({
               </div>
             )}
           </div>
+          </div>
         </div>
 
         {Object.keys(groupedReactions).length > 0 && !selectionMode && (
@@ -359,4 +448,4 @@ export function MessageBubble({
       </div>
     </div>
   );
-}
+});

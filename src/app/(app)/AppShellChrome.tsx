@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppBottomDock } from "./AppBottomDock";
 
@@ -14,10 +15,17 @@ interface AppShellChromeProps {
 
 export function AppShellChrome({ user, incomingRequestCount, children }: AppShellChromeProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const isChatRoom = /^\/chats\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
   const isChatsList = pathname === "/chats";
   const isMainDockScreen = pathname === "/chats" || pathname === "/calls" || pathname === "/profile";
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
+
+  useEffect(() => {
+    router.prefetch("/chats");
+    router.prefetch("/calls");
+    router.prefetch("/profile");
+  }, [router]);
 
   if (isChatRoom) {
     return <>{children}</>;

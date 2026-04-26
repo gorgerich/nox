@@ -224,6 +224,8 @@ model ChatMember {
   lastReadAt        DateTime?
   lastReadMessageId String?
   mutedUntil        DateTime?
+  archivedAt        DateTime?
+  deletedAt         DateTime?
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -232,6 +234,8 @@ model ChatMember {
   @@index([userId])
   @@index([chatId])
   @@index([status])
+  @@index([archivedAt])
+  @@index([deletedAt])
 }
 
 model Message {

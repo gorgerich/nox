@@ -58,6 +58,49 @@ interface SearchResultMessage {
   senderName: string;
 }
 
+function createOptimisticMessage(params: {
+  clientId: string;
+  body: string;
+  currentUserId: string;
+  replyToMessage: Message | null;
+}): Message {
+  return {
+    id: `temp-${params.clientId}`,
+    body: params.body,
+    type: "TEXT",
+    senderUserId: params.currentUserId,
+    deletedAt: null,
+    editedAt: null,
+    replyToMessageId: params.replyToMessage?.id ?? null,
+    createdAt: new Date().toISOString(),
+    sender: {
+      id: params.currentUserId,
+      username: "me",
+      profile: {
+        displayName: "Я",
+        avatarUrl: null,
+      },
+    },
+    attachments: [],
+    reactions: [],
+    replyToMessage: params.replyToMessage
+      ? {
+          id: params.replyToMessage.id,
+          body: params.replyToMessage.body,
+          deletedAt: params.replyToMessage.deletedAt,
+          type: params.replyToMessage.type,
+          sender: {
+            username: params.replyToMessage.sender.username,
+            profile: {
+              displayName: params.replyToMessage.sender.profile?.displayName ?? null,
+            },
+          },
+        }
+      : null,
+    receipts: [],
+  };
+}
+
 function normalizeMessage(message: unknown): Message | null {
   const m = message as Message;
   if (!m?.id || !m.senderUserId || !m.sender?.id || !m.createdAt) return null;
@@ -376,7 +419,7 @@ export function ChatMessages({
       });
     };
 
-    const handleNewMessage = (payload: { chatId: string; message: unknown }) => {
+    const handleNewMessage = (payload: { chatId: string; message: unknown; clientId?: string | null }) => {
       if (payload.chatId !== chatId) return;
       const normalized = normalizeMessage(payload.message);
       if (!normalized) {
@@ -385,9 +428,11 @@ export function ChatMessages({
 
       debugRealtime("message:new received", { messageId: normalized.id, chatId: payload.chatId });
       setMessages((current) => {
-        const exists = current.some((message) => message.id === normalized.id);
+        const optimisticId = payload.clientId ? `temp-${payload.clientId}` : null;
+        const withoutOptimistic = optimisticId ? current.filter((message) => message.id !== optimisticId) : current;
+        const exists = withoutOptimistic.some((message) => message.id === normalized.id);
         debugRealtime(exists ? "message deduped" : "message appended", { messageId: normalized.id, chatId: payload.chatId });
-        return exists ? current : [...current, normalized];
+        return exists ? withoutOptimistic : [...withoutOptimistic, normalized];
       });
 
       if (normalized.senderUserId !== currentUserId) {
@@ -504,7 +549,7 @@ export function ChatMessages({
     };
   }, [chatId, currentUserId, debugRealtime, markAsRead, socket]);
 
-  const toggleReaction = async (messageId: string, emoji: string) => {
+  const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     try {
       await fetch(`/api/messages/${messageId}/reactions`, {
         method: "POST",
@@ -513,10 +558,61 @@ export function ChatMessages({
       });
       setMenuState(null);
     } catch {}
-  };
+  }, []);
 
   const handleSend = async (body: string) => {
     if (!body.trim()) return;
+    const trimmedBody = body.trim();
+    const replyTarget = replyingToMessage;
+
+    if (!editingMessage) {
+      const clientId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const optimisticMessage = createOptimisticMessage({
+        clientId,
+        body: trimmedBody,
+        currentUserId,
+        replyToMessage: replyTarget,
+      });
+
+      setMessages((current) => [...current, optimisticMessage]);
+      setReplyingToMessage(null);
+      setPending(true);
+      setComposerError(null);
+
+      try {
+        const response = await fetch(`/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            body: trimmedBody,
+            replyToMessageId: replyTarget?.id,
+            clientId,
+          }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Не удалось отправить сообщение");
+        }
+
+        const data = await response.json();
+        const normalized = normalizeMessage(data.message);
+        if (normalized) {
+          setMessages((current) => {
+            const withoutOptimistic = current.filter((message) => message.id !== optimisticMessage.id);
+            const exists = withoutOptimistic.some((message) => message.id === normalized.id);
+            return exists ? withoutOptimistic : [...withoutOptimistic, normalized];
+          });
+        }
+      } catch (error) {
+        setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
+        setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
+      } finally {
+        setPending(false);
+      }
+
+      return;
+    }
+
     setPending(true);
     setComposerError(null);
     try {
@@ -525,7 +621,7 @@ export function ChatMessages({
       const response = await fetch(url, {
         method,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body, replyToMessageId: replyingToMessage?.id }),
+        body: JSON.stringify({ body: trimmedBody, replyToMessageId: replyTarget?.id }),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -927,6 +1023,11 @@ export function ChatMessages({
                   onLongPress={handleLongPress}
                   onReaction={toggleReaction}
                   onMediaClick={setSelectedMedia}
+                  onSwipeReply={(message) => {
+                    setEditingMessage(null);
+                    setReplyingToMessage(message);
+                  }}
+                  onReplyPreviewClick={jumpToMessage}
                   isGroupStart={item.isGroupStart}
                   isGroupEnd={item.isGroupEnd}
                   showDisplayName={item.showDisplayName}
