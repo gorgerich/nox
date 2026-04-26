@@ -28,6 +28,10 @@ export async function findDirectChatBetween(prisma: PrismaTx, firstUserId: strin
         .filter((member) => member.status === "ACTIVE")
         .map((member) => member.userId);
 
+      if (firstUserId === secondUserId) {
+        return activeMemberIds.length === 1 && activeMemberIds[0] === firstUserId;
+      }
+
       return (
         activeMemberIds.length === 2 &&
         activeMemberIds.includes(firstUserId) &&
@@ -38,15 +42,20 @@ export async function findDirectChatBetween(prisma: PrismaTx, firstUserId: strin
 }
 
 export async function createDirectChat(prisma: PrismaTx, ownerUserId: string, memberUserId: string) {
+  const members = ownerUserId === memberUserId
+    ? [{ userId: ownerUserId, role: "OWNER" as const }]
+    : [
+        { userId: ownerUserId, role: "OWNER" as const },
+        { userId: memberUserId, role: "MEMBER" as const },
+      ];
+
   return prisma.chat.create({
     data: {
       type: "DIRECT",
+      title: ownerUserId === memberUserId ? "Избранное" : null,
       createdByUserId: ownerUserId,
       members: {
-        create: [
-          { userId: ownerUserId, role: "OWNER" },
-          { userId: memberUserId, role: "MEMBER" },
-        ],
+        create: members,
       },
     },
     include: {

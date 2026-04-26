@@ -47,7 +47,7 @@ export type IncomingRequestCardItem = {
 export async function getChatsPageData(userId: string) {
   const prisma = getPrisma();
 
-  const [memberships, incomingRequests] = await Promise.all([
+  const [memberships, incomingRequests, archivedCount] = await Promise.all([
     prisma.chatMember.findMany({
       where: {
         userId,
@@ -120,6 +120,14 @@ export async function getChatsPageData(userId: string) {
           },
         },
       },
+    }),
+    prisma.chatMember.count({
+      where: {
+        userId,
+        status: "ACTIVE",
+        archivedAt: { not: null },
+        deletedAt: null,
+      }
     }),
   ]);
 
@@ -202,5 +210,6 @@ export async function getChatsPageData(userId: string) {
       ...request,
       createdAt: request.createdAt.toISOString(),
     })) satisfies IncomingRequestCardItem[],
+    archivedCount,
   };
 }

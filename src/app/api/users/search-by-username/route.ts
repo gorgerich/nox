@@ -48,6 +48,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     user: {
+      id: foundUser.id,
       username: foundUser.username,
       displayName: foundUser.profile?.displayName ?? foundUser.username,
       isSelf: foundUser.id === user.id,

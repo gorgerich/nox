@@ -77,8 +77,8 @@ export default async function ContactsPage() {
           {contacts.map((contact) => (
             <Link 
               key={contact!.id} 
-              href={`/chats/direct?userId=${contact!.id}`}
-              className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-all duration-200 hover:bg-surface-elevated hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md"
+              href={`/users/${contact!.id}`}
+              className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-smooth hover:bg-surface-elevated hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md fast-tap"
             >
               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
                 {contact!.profile?.avatarUrl ? (
@@ -97,11 +97,19 @@ export default async function ContactsPage() {
                   @{contact!.username}
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/5 text-foreground/40 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
+              <object
+                className="flex shrink-0 items-center"
+                onClick={(e) => {
+                  // Ensure clicking the button does not trigger the Link
+                }}
+              >
+                <Link
+                  href={`/chats/direct?userId=${contact!.id}`}
+                  className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap"
+                >
+                  Написать
+                </Link>
+              </object>
             </Link>
           ))}
         </div>

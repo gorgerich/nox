@@ -22,10 +22,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Некорректные данные личного чата." }, { status: 400 });
   }
 
-  if (parsed.data.userId === user.id) {
-    return NextResponse.json({ error: "Нельзя создать личный чат с собой." }, { status: 400 });
-  }
-
   const prisma = getPrisma();
   const targetUser = await prisma.user.findUnique({
     where: { id: parsed.data.userId },
@@ -42,7 +38,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ chat: existingChat });
   }
 
-  if (user.role !== "OWNER" && user.role !== "ADMIN") {
+  if (user.role !== "OWNER" && user.role !== "ADMIN" && user.id !== targetUser.id) {
     const acceptedRequest = await prisma.chatRequest.findFirst({
       where: {
         status: "ACCEPTED",

@@ -43,6 +43,7 @@ type SwipeableChatRowProps = {
   onDelete: (chat: ChatListItem) => void;
   onArchive: (chat: ChatListItem) => void;
   onMute: (chat: ChatListItem) => void;
+  isArchiveMode?: boolean;
 };
 
 export const SwipeableChatRow = memo(function SwipeableChatRow({
@@ -53,6 +54,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   onDelete,
   onArchive,
   onMute,
+  isArchiveMode = false,
 }: SwipeableChatRowProps) {
   const rowRef = useRef<HTMLDivElement | null>(null);
   const pointerIdRef = useRef<number | null>(null);
@@ -129,6 +131,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       return;
     }
 
+    // prevent horizontal page shift
+    event.preventDefault();
+
     movedRef.current = true;
     const nextX = Math.max(-ACTIONS_WIDTH, Math.min(0, startOffsetRef.current + deltaX));
     setTranslateX(nextX);
@@ -166,7 +171,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   }, [chat.id, onNavigate, translateX]);
 
   const title = chat.type === "DIRECT"
-    ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личный чат"
+    ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
     : chat.title ?? "Группа";
   const preview = getMessagePreview(chat);
   const fullAvatarUrl = chat.otherMember?.avatarUrl
@@ -184,21 +189,21 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         <button
           type="button"
           onClick={() => onArchive(chat)}
-          className="w-[74px] bg-primary/12 text-primary text-[10px] font-black uppercase tracking-widest active:scale-[0.98]"
+          className="w-[74px] bg-primary/12 text-primary text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
         >
-          Архив
+          {isArchiveMode ? "Вернуть" : "Архив"}
         </button>
         <button
           type="button"
           onClick={() => onMute(chat)}
-          className="w-[74px] bg-amber-500/14 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98]"
+          className="w-[74px] bg-amber-500/14 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
         >
           {muted ? "Тише" : "Без звука"}
         </button>
         <button
           type="button"
           onClick={() => onDelete(chat)}
-          className="w-[74px] bg-danger/14 text-danger text-[10px] font-black uppercase tracking-widest active:scale-[0.98]"
+          className="w-[74px] bg-danger/14 text-danger text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
         >
           Удалить
         </button>

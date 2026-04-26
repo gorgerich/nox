@@ -994,7 +994,7 @@ export function ChatMessages({
       <ChatHeader
         chatId={chatId}
         chatType={chatInfo.type}
-        title={chatInfo.otherMember?.displayName || chatInfo.title || "Чат"}
+        title={chatInfo.type === "DIRECT" && !chatInfo.otherMember ? "Избранное" : chatInfo.otherMember?.displayName || chatInfo.title || "Чат"}
         subtitle={getStatusSubtitle()}
         avatarUrl={chatInfo.otherMember?.avatarUrl}
         onAppearanceClick={() => setIsAppearanceOpen(true)}

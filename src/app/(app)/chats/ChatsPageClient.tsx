@@ -16,6 +16,7 @@ const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === "true";
 type ChatsPageClientProps = {
   initialChats: ChatListItem[];
   initialIncomingRequests: IncomingRequestCardItem[];
+  initialArchivedCount?: number;
 };
 
 const MUTE_OPTIONS = [
@@ -38,11 +39,13 @@ function debugRealtime(label: string, data: Record<string, unknown> = {}) {
 export function ChatsPageClient({
   initialChats,
   initialIncomingRequests,
+  initialArchivedCount = 0,
 }: ChatsPageClientProps) {
   const router = useRouter();
   const { socket } = useSocket();
   const [chats, setChats] = useState(initialChats);
   const [incomingRequests, setIncomingRequests] = useState(initialIncomingRequests);
+  const [archivedCount, setArchivedCount] = useState(initialArchivedCount);
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [muteSheetChat, setMuteSheetChat] = useState<ChatListItem | null>(null);
   const syncAbortRef = useRef<AbortController | null>(null);
@@ -63,9 +66,13 @@ export function ChatsPageClient({
       const data = await response.json() as {
         chats: ChatListItem[];
         incomingRequests: IncomingRequestCardItem[];
+        archivedCount?: number;
       };
       setChats(data.chats);
       setIncomingRequests(data.incomingRequests);
+      if (data.archivedCount !== undefined) {
+        setArchivedCount(data.archivedCount);
+      }
       debugRealtime("chat list synced", { chats: data.chats.length, requests: data.incomingRequests.length });
     } catch (error) {
       if ((error as Error).name === "AbortError") {
@@ -212,6 +219,27 @@ export function ChatsPageClient({
           <IncomingRequestCards requests={incomingRequests} onChange={() => { void syncChats(); }} />
         </div>
       ) : null}
+
+      {archivedCount > 0 && (
+        <div className="mb-4">
+          <Link href="/chats/archive" className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface border border-border-subtle/50 transition-smooth hover:bg-surface-elevated active:scale-[0.98] fast-tap">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">Архив</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted">{archivedCount} {archivedCount === 1 ? 'чат' : (archivedCount > 1 && archivedCount < 5) ? 'чата' : 'чатов'}</p>
+              </div>
+            </div>
+            <svg className="h-4 w-4 text-muted/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      )}
 
       {chats.length === 0 ? (
         <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-200">

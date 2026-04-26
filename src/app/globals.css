@@ -251,6 +251,15 @@
   min-height: 44px;
 }
 
+.fast-tap {
+  transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.fast-tap:active {
+  transform: scale(0.97);
+}
+
 html,
 body {
   min-height: 100%;
@@ -446,7 +455,6 @@ body::before {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
     transform: translate3d(0, 0, 0);
     will-change: transform;
-    contain: layout style;
   }
 
   .liquid-dock-frame {

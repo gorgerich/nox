@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type FoundUser = {
+  id: string;
   username: string;
   displayName: string;
   isSelf: boolean;
@@ -203,7 +204,34 @@ export function NewChatForm() {
             </div>
 
             {foundUser.isSelf ? (
-              <p className="mt-8 text-center text-xs font-black text-red-400">ВЫ НЕ МОЖЕТЕ ПИСАТЬ САМОМУ СЕБЕ</p>
+              <div className="mt-8 space-y-6">
+                <p className="text-center text-xs font-bold text-muted/80">Сообщения самому себе</p>
+                <button
+                  className="btn-nox w-full bg-primary h-14 text-sm font-black text-neutral-950 shadow-lg shadow-primary/20 transition-smooth active:scale-95 fast-tap"
+                  disabled={pendingAction !== ""}
+                  onClick={async () => {
+                    setPendingAction("start-self");
+                    try {
+                      const response = await readJson<{ chat: { id: string } }>("/api/chats/direct", {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ userId: foundUser.id })
+                      });
+                      if (response.chat) {
+                        router.push(`/chats/${response.chat.id}`);
+                        router.refresh();
+                      }
+                    } catch(reason) {
+                      setError(reason instanceof Error ? reason.message : "Не удалось открыть чат");
+                    } finally {
+                      setPendingAction("");
+                    }
+                  }}
+                  type="button"
+                >
+                  {pendingAction === "start-self" ? "..." : "ОТКРЫТЬ ИЗБРАННОЕ"}
+                </button>
+              </div>
             ) : (
               <div className="mt-8 space-y-6">
                 <textarea
