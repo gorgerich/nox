@@ -344,6 +344,12 @@ app.prepare().then(() => {
 
       call.status = "connecting";
       io.to(`user:${call.callerId}`).emit("call:answered", { callId, chatId, answer });
+      logCall("call:answer:sent", {
+        callId,
+        fromUserId: userId,
+        toUserId: call.callerId,
+        callerRoomSize: getUserRoomSize(io, call.callerId),
+      });
       callback?.({ ok: true });
     });
 
@@ -361,6 +367,12 @@ app.prepare().then(() => {
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       io.to(`user:${targetId}`).emit("call:ice-candidate", { callId, chatId, candidate });
+      logCall("call:ice:forwarded", {
+        callId,
+        fromUserId: userId,
+        toUserId: targetId,
+        targetRoomSize: getUserRoomSize(io, targetId),
+      });
       callback?.({ ok: true });
     });
 

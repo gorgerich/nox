@@ -8,36 +8,32 @@ import { useAudioCall } from "./CallProvider";
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
 
 export function CallOverlay() {
-  const { call, status, remoteStream, isMuted, error, acceptCall, declineCall, endCall, toggleMute } = useAudioCall();
+  const {
+    call,
+    status,
+    remoteStream,
+    needsTapToPlay,
+    isMuted,
+    error,
+    registerRemoteAudioElement,
+    enableRemoteAudioPlayback,
+    acceptCall,
+    declineCall,
+    endCall,
+    toggleMute,
+  } = useAudioCall();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [mounted] = useState(() => typeof window !== "undefined");
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [speakerHint, setSpeakerHint] = useState<string | null>(null);
 
   useEffect(() => {
-    if (audioRef.current && remoteStream) {
-      audioRef.current.srcObject = remoteStream;
-      audioRef.current.volume = 1;
-      audioRef.current.play()
-        .then(() => setAutoplayBlocked(false))
-        .catch((err) => {
-          console.warn("[CALL] Autoplay blocked or failed", err);
-          setAutoplayBlocked(true);
-        });
-    }
-  }, [remoteStream]);
+    registerRemoteAudioElement(audioRef.current);
+    return () => registerRemoteAudioElement(null);
+  }, [registerRemoteAudioElement]);
 
   const handleEnableAudio = () => {
-    if (!audioRef.current) {
-      return;
-    }
-
-    audioRef.current.play()
-      .then(() => setAutoplayBlocked(false))
-      .catch((err) => {
-        console.warn("[CALL] Manual audio enable failed", err);
-      });
+    void enableRemoteAudioPlayback();
   };
 
   const handleToggleSpeaker = async () => {
@@ -47,7 +43,7 @@ export function CallOverlay() {
     }
 
     if (typeof mediaEl.setSinkId !== "function" || typeof navigator === "undefined" || !navigator.mediaDevices) {
-      setSpeakerHint("Переключение динамика недоступно в этом браузере.");
+      setSpeakerHint("Громкая связь управляется системой устройства.");
       return;
     }
 
@@ -83,8 +79,9 @@ export function CallOverlay() {
       status,
       isOverlayVisible: status !== "idle",
       hasCall: Boolean(call),
+      needsTapToPlay,
     });
-  }, [call, status]);
+  }, [call, needsTapToPlay, status]);
 
   if (!mounted || status === "idle") {
     return null;
@@ -142,7 +139,7 @@ export function CallOverlay() {
           </p>
         ) : null}
 
-        {autoplayBlocked && remoteStream ? (
+        {needsTapToPlay && remoteStream ? (
           <button
             onClick={handleEnableAudio}
             className="mt-4 rounded-xl border border-primary/40 bg-primary/20 px-4 py-2 text-xs font-black uppercase tracking-wider text-primary transition-smooth active:scale-95"

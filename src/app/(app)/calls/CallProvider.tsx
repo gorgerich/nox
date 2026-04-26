@@ -23,8 +23,11 @@ interface CallContextType {
   status: CallStatus;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  needsTapToPlay: boolean;
   isMuted: boolean;
   error: string | null;
+  registerRemoteAudioElement: (element: HTMLAudioElement | null) => void;
+  enableRemoteAudioPlayback: () => Promise<void>;
   startCall: (chatId: string, fromUser?: { displayName: string; avatarUrl: string | null }) => Promise<void>;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
@@ -36,6 +39,8 @@ const CallContext = createContext<CallContextType | null>(null);
 
 type SocketAck = {
   ok: boolean;
+  code?: string;
+  message?: string;
   error?: string;
 };
 
@@ -105,6 +110,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<CallStatus>("idle");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +122,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const pendingRemoteIceRef = useRef<RTCIceCandidateInit[]>([]);
   const pendingLocalIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const remoteAudioElementRef = useRef<HTMLAudioElement | null>(null);
   const disconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ringingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -262,7 +269,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     pendingLocalIceRef.current = [];
     setLocalStream(null);
     setRemoteStream(null);
+    setNeedsTapToPlay(false);
     setIsMuted(false);
+    if (remoteAudioElementRef.current) {
+      remoteAudioElementRef.current.srcObject = null;
+    }
     setCallState(null, "idle");
   }, [clearCallTimers, debugCall, setCallState, stopTone]);
 
@@ -292,13 +303,61 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       try {
         await pcRef.current.addIceCandidate(candidate);
+        debugCall("call:remote-ice:flushed", { remaining: pendingRemoteIceRef.current.length });
       } catch (error) {
         debugCall("call:remote-ice:add-failed", { error: String(error) });
       }
     }
   }, [debugCall]);
 
-  function emitPendingLocalIce() {
+  const bindRemoteAudioStream = useCallback(async () => {
+    const audio = remoteAudioElementRef.current;
+    const stream = remoteStreamRef.current;
+    if (!audio || !stream) {
+      return;
+    }
+
+    if (audio.srcObject !== stream) {
+      audio.srcObject = stream;
+    }
+
+    audio.autoplay = true;
+    audio.setAttribute("playsinline", "true");
+    audio.muted = false;
+    audio.volume = 1;
+
+    try {
+      await audio.play();
+      setNeedsTapToPlay(false);
+      debugCall("call:remote-audio:play", { success: true });
+    } catch (error) {
+      setNeedsTapToPlay(true);
+      debugCall("call:remote-audio:play", { success: false, error: String(error) });
+    }
+  }, [debugCall]);
+
+  const registerRemoteAudioElement = useCallback((element: HTMLAudioElement | null) => {
+    remoteAudioElementRef.current = element;
+    if (element && remoteStreamRef.current) {
+      void bindRemoteAudioStream();
+    }
+  }, [bindRemoteAudioStream]);
+
+  const enableRemoteAudioPlayback = useCallback(async () => {
+    await bindRemoteAudioStream();
+  }, [bindRemoteAudioStream]);
+
+  const getLocalAudioStream = useCallback(async () => {
+    return navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+  }, []);
+
+  const emitPendingLocalIce = useCallback(() => {
     if (!socket || !callRef.current?.callId || !callRef.current?.chatId) {
       return;
     }
@@ -321,7 +380,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         },
       );
     });
-  }
+  }, [debugCall, socket]);
 
   const scheduleConnectingTimeout = useCallback(() => {
     if (connectingTimeoutRef.current) {
@@ -372,23 +431,30 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     pc.ontrack = (event) => {
-      debugCall("call:remote-track", { remoteTracksCount: event.streams[0]?.getTracks().length ?? 0 });
-      if (!remoteStreamRef.current) {
-        remoteStreamRef.current = new MediaStream();
-      }
-
-      event.streams[0]?.getTracks().forEach((track) => {
-        const exists = remoteStreamRef.current?.getTracks().some((existing) => existing.id === track.id);
-        if (!exists) {
-          remoteStreamRef.current?.addTrack(track);
-        }
+      debugCall("call:remote-track", {
+        trackKind: event.track.kind,
+        streamsLength: event.streams.length,
+        remoteTracksCount: event.streams[0]?.getTracks().length ?? 0,
       });
 
-      if (!event.streams[0] && !remoteStreamRef.current.getTracks().some((track) => track.id === event.track.id)) {
-        remoteStreamRef.current.addTrack(event.track);
+      if (event.track.kind !== "audio") {
+        return;
+      }
+
+      if (event.streams[0]) {
+        remoteStreamRef.current = event.streams[0];
+      } else {
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = new MediaStream();
+        }
+        const exists = remoteStreamRef.current.getTracks().some((track) => track.id === event.track.id);
+        if (!exists) {
+          remoteStreamRef.current.addTrack(event.track);
+        }
       }
 
       setRemoteStream(remoteStreamRef.current);
+      void bindRemoteAudioStream();
       if (statusRef.current === "connecting" || statusRef.current === "ringing") {
         setStatus("active");
         statusRef.current = "active";
@@ -463,12 +529,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("call:start:init", { chatId });
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getLocalAudioStream();
       localStreamRef.current = stream;
       setLocalStream(stream);
 
       const pc = createPeerConnection("caller");
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+      debugCall("call:local-tracks-added", {
+        role: "caller",
+        localTracksCount: stream.getAudioTracks().length,
+        sendersCount: pc.getSenders().length,
+      });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -524,12 +595,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("call:accept:init");
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getLocalAudioStream();
       localStreamRef.current = stream;
       setLocalStream(stream);
 
       const pc = createPeerConnection("callee");
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+      debugCall("call:local-tracks-added", {
+        role: "callee",
+        localTracksCount: stream.getAudioTracks().length,
+        sendersCount: pc.getSenders().length,
+      });
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingOfferRef.current));
       debugCall("call:remote-offer:set", { hasRemoteDescription: true });
@@ -552,6 +628,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
+          emitPendingLocalIce();
           scheduleConnectingTimeout();
         },
       );
@@ -623,21 +700,31 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       stopTone();
       setStatus("connecting");
       statusRef.current = "connecting";
-      await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-      debugCall("call:remote-answer:set", { hasRemoteDescription: true });
-      await flushRemoteIce();
-      scheduleConnectingTimeout();
+      try {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        debugCall("call:remote-answer:set", {
+          hasRemoteDescription: true,
+          remoteDescriptionType: pcRef.current.remoteDescription?.type ?? null,
+        });
+        await flushRemoteIce();
+        emitPendingLocalIce();
+        scheduleConnectingTimeout();
+      } catch (error) {
+        debugCall("call:remote-answer:set-failed", { error: String(error) });
+        setFailed("Не удалось завершить согласование звонка");
+      }
     };
 
     const handleIceCandidate = async ({ callId, chatId, candidate }: IceCandidatePayload) => {
       debugCall("call:ice:remote", { callId, chatId });
-      if (!callRef.current || callRef.current.callId !== callId) {
+      if (!callRef.current || callRef.current.callId !== callId || !candidate) {
         return;
       }
 
       if (pcRef.current?.remoteDescription) {
         try {
           await pcRef.current.addIceCandidate(candidate);
+          debugCall("call:ice:added", { immediate: true });
         } catch (error) {
           debugCall("call:ice:add-failed", { error: String(error) });
         }
@@ -645,6 +732,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
 
       pendingRemoteIceRef.current.push(candidate);
+      debugCall("call:ice:queued", { queued: pendingRemoteIceRef.current.length });
     };
 
     const handleEnded = ({ reason }: CallEndedPayload) => {
@@ -672,7 +760,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", handleEnded);
       socket.off("call:declined", handleDeclined);
     };
-  }, [cleanup, clearCallTimers, debugCall, flushRemoteIce, playTone, scheduleConnectingTimeout, setCallState, setFailed, socket, stopTone]);
+  }, [cleanup, clearCallTimers, debugCall, emitPendingLocalIce, flushRemoteIce, playTone, scheduleConnectingTimeout, setCallState, setFailed, socket, stopTone]);
 
   useEffect(() => {
     return () => {
@@ -691,8 +779,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         status,
         localStream,
         remoteStream,
+        needsTapToPlay,
         isMuted,
         error,
+        registerRemoteAudioElement,
+        enableRemoteAudioPlayback,
         startCall,
         acceptCall,
         declineCall,
