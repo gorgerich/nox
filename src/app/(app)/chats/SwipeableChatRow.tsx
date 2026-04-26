@@ -174,8 +174,10 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
     : chat.title ?? "Группа";
   const preview = getMessagePreview(chat);
-  const fullAvatarUrl = chat.otherMember?.avatarUrl
-    ? (chat.otherMember.avatarUrl.startsWith("http") ? chat.otherMember.avatarUrl : `/api/avatars/${chat.otherMember.avatarUrl}`)
+  
+  const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
+  const fullAvatarUrl = avatarToDisplay
+    ? (avatarToDisplay.startsWith("http") ? avatarToDisplay : `/api/avatars/${avatarToDisplay}`)
     : null;
 
   const actionsVisible = isOpen || translateX < -8;

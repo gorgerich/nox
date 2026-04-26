@@ -7,7 +7,7 @@ import { emitToChat } from "@/lib/realtime";
 
 const groupProfileSchema = z.object({
   title: z.string().trim().min(1).max(64).optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -34,7 +34,11 @@ export async function PATCH(
     data: parsed.data
   });
 
-  emitToChat(chatId, "chat:updated", { chatId: chat.id, title: chat.title });
+  emitToChat(chatId, "chat:updated", { 
+    chatId: chat.id, 
+    title: chat.title,
+    avatarUrl: chat.avatarUrl 
+  });
 
   return NextResponse.json({ chat });
 }

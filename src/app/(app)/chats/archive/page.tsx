@@ -103,6 +103,7 @@ export default async function ArchivePage() {
         id: membership.chat.id,
         type: membership.chat.type,
         title: membership.chat.title,
+        avatarUrl: membership.chat.avatarUrl,
         createdAt: membership.chat.createdAt.toISOString(),
         updatedAt: membership.chat.updatedAt.toISOString(),
         unreadCount: unreadCountByChatId[membership.chatId] ?? 0,

@@ -26,12 +26,12 @@ export default function ContactsPage() {
       .then((data) => {
         if (data.chats) {
           const directChats = data.chats.filter((c: { type: string, otherMember?: Contact }) => c.type === "DIRECT" && c.otherMember);
-          const users = directChats.map((c: { otherMember: Contact }) => ({
+          const users = directChats.map((c: { otherMember: { id: string, username: string, displayName: string, avatarUrl: string | null } }) => ({
             id: c.otherMember.id,
             username: c.otherMember.username,
             profile: {
-              displayName: c.otherMember.profile?.displayName || c.otherMember.username,
-              avatarUrl: c.otherMember.profile?.avatarUrl || null,
+              displayName: c.otherMember.displayName,
+              avatarUrl: c.otherMember.avatarUrl,
             }
           }));
           
