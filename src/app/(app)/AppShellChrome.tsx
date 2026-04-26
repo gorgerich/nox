@@ -24,6 +24,9 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     } else {
       document.body.classList.remove("hide-bottom-nav");
     }
+    return () => {
+      document.body.classList.remove("hide-bottom-nav");
+    };
   }, [isChatRoom]);
 
   useLayoutEffect(() => {

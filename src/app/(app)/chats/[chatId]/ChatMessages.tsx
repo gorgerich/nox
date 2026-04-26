@@ -8,7 +8,7 @@ import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
 import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from "./ChatAppearance";
 import { MediaViewer, MediaItem } from "./MediaViewer";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -94,6 +94,7 @@ export function ChatMessages({
 }) {
   const { socket, connected } = useSocket();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   
   const [messages, setMessages] = useState<Message[]>(() =>
     initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
@@ -130,6 +131,35 @@ export function ChatMessages({
   useEffect(() => {
     const frameId = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  useEffect(() => {
+    if (pathname === `/chats/${chatId}`) {
+      return;
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      setMenuState(null);
+      setIsAppearanceOpen(false);
+      setSelectedMedia(null);
+      setShowForwardPicker(false);
+      setEditingMessage(null);
+      setReplyingToMessage(null);
+      setIsSelectionMode(false);
+      setSelectedIds(new Set());
+    });
+    document.body.style.overflow = "";
+    document.body.style.pointerEvents = "";
+    document.body.classList.remove("hide-bottom-nav", "modal-open", "chat-active");
+    return () => cancelAnimationFrame(rafId);
+  }, [chatId, pathname]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.pointerEvents = "";
+      document.body.classList.remove("hide-bottom-nav", "modal-open", "chat-active");
+    };
   }, []);
 
   const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {

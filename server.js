@@ -35,6 +35,11 @@ function logCall(label, data = {}) {
   console.log(`[call-server] ${label}`, data);
 }
 
+function getUserRoomSize(io, userId) {
+  const room = io.sockets.adapter.rooms.get(`user:${userId}`);
+  return room ? room.size : 0;
+}
+
 function getJwtSecret() {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
@@ -272,7 +277,21 @@ app.prepare().then(() => {
       }
 
       const calleeSockets = onlineUsers.get(context.calleeId);
-      if (!calleeSockets || calleeSockets.size === 0) {
+      const mapSize = calleeSockets ? calleeSockets.size : 0;
+      const roomSize = getUserRoomSize(io, context.calleeId);
+
+      logCall("call:start:resolved", {
+        chatId,
+        callerId: context.callerId,
+        calleeId: context.calleeId,
+        mapSize,
+        roomSize,
+      });
+      if (context.calleeId === context.callerId) {
+        callback?.({ ok: false, error: "Собеседник не найден" });
+        return;
+      }
+      if (mapSize === 0 && roomSize === 0) {
         callback?.({ ok: false, error: "Пользователь недоступен" });
         return;
       }

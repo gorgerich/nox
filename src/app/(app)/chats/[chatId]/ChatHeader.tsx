@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
 import { useSocket } from "@/hooks/useSocket";
 
@@ -33,6 +32,11 @@ export function ChatHeader({
   const { socket } = useSocket();
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
   const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
+  const handleBackToChats = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    router.replace("/chats");
+  };
 
   useEffect(() => {
     if (!socket || !partnerId || chatType !== "DIRECT") return;
@@ -58,15 +62,16 @@ export function ChatHeader({
       style={{ backgroundColor: "var(--chat-header-bg)", color: "var(--chat-header-fg)", borderColor: "var(--chat-focus-ring)" }}
     >
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <Link 
-          href="/chats" 
+        <button
+          type="button"
+          onClick={handleBackToChats}
           className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90"
           style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
-        </Link>
+        </button>
         
         <div 
           className="flex items-center gap-3 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
