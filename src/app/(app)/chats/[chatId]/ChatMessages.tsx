@@ -43,7 +43,7 @@ interface SearchResultMessage {
 
 function createOptimisticMessage(params: {
   clientId: string;
-  body: string;
+  body: string | null;
   currentUserId: string;
   replyToMessage: Message | null;
 }): Message {
@@ -95,6 +95,10 @@ function normalizeMessage(message: unknown): Message | null {
 const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "👎"];
 const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === "true";
 const DEBUG_MEDIA = process.env.NEXT_PUBLIC_DEBUG_MEDIA === "true" || DEBUG_REALTIME;
+
+function generateClientId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export function ChatMessages({
   chatId,
@@ -586,13 +590,103 @@ export function ChatMessages({
     } catch {}
   }, []);
 
-  const handleSend = async (body: string) => {
-    if (!body.trim()) return;
+  const handleTyping = useCallback((text: string) => {
+    if (!socket) return;
+
+    if (text.length > 0) {
+      if (!isTypingLocal) {
+        setIsTypingLocal(true);
+        socket.emit("typing:start", { chatId });
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTypingLocal(false);
+        socket.emit("typing:stop", { chatId });
+      }, 3000);
+    } else if (isTypingLocal) {
+      setIsTypingLocal(false);
+      socket.emit("typing:stop", { chatId });
+    }
+  }, [chatId, isTypingLocal, socket]);
+
+  const handleAttach = useCallback(async (file: File, caption?: string) => {
+    setUploading(true);
+    setComposerError(null);
+    debugMedia("file selected", { name: file.name, type: file.type, size: file.size, caption });
+
+    // Optimistic message for media
+    const clientId = generateClientId();
+    const tempUrl = URL.createObjectURL(file);
+    const optimisticMessage: Message = {
+      ...createOptimisticMessage({
+        clientId,
+        body: caption || null,
+        currentUserId,
+        replyToMessage: replyingToMessage,
+      }),
+      type: file.type.startsWith("image/") ? "IMAGE" : file.type.startsWith("video/") ? "VIDEO" : "FILE",
+      attachments: [{
+        id: `temp-${clientId}`,
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        url: tempUrl,
+      }]
+    };
+
+    setMessages((current) => [...current, optimisticMessage]);
+    setReplyingToMessage(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (caption) {
+      formData.append("body", caption);
+    }
+
+    try {
+      debugMedia("upload started", { chatId, name: file.name });
+      const response = await fetch(`/api/chats/${chatId}/attachments`, { method: "POST", body: formData });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось отправить файл");
+      }
+      const data = await response.json();
+      const normalized = normalizeMessage(data.message);
+      
+      if (normalized) {
+        setMessages((current) => {
+          const withoutOptimistic = current.filter((message) => message.id !== optimisticMessage.id);
+          const exists = withoutOptimistic.some((message) => message.id === normalized.id);
+          return exists ? withoutOptimistic : [...withoutOptimistic, normalized];
+        });
+      }
+      URL.revokeObjectURL(tempUrl);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Не удалось отправить файл";
+      debugMedia("upload error", { reason });
+      setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
+      setComposerError(reason);
+      URL.revokeObjectURL(tempUrl);
+    } finally {
+      setUploading(false);
+    }
+  }, [chatId, currentUserId, debugMedia, replyingToMessage]);
+
+  const handleSend = useCallback(async (body: string, file?: File) => {
+    if (!body.trim() && !file) return;
+
+    if (file) {
+      await handleAttach(file, body.trim());
+      return;
+    }
+
     const trimmedBody = body.trim();
     const replyTarget = replyingToMessage;
 
     if (!editingMessage) {
-      const clientId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const clientId = generateClientId();
       const optimisticMessage = createOptimisticMessage({
         clientId,
         body: trimmedBody,
@@ -667,68 +761,7 @@ export function ChatMessages({
     } catch (error) {
       setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
     } finally { setPending(false); }
-  };
-
-  const handleTyping = useCallback((text: string) => {
-    if (!socket) return;
-
-    if (text.length > 0) {
-      if (!isTypingLocal) {
-        setIsTypingLocal(true);
-        socket.emit("typing:start", { chatId });
-      }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      typingTimeoutRef.current = setTimeout(() => {
-        setIsTypingLocal(false);
-        socket.emit("typing:stop", { chatId });
-      }, 3000);
-    } else if (isTypingLocal) {
-      setIsTypingLocal(false);
-      socket.emit("typing:stop", { chatId });
-    }
-  }, [chatId, isTypingLocal, socket]);
-
-  const handleAttach = useCallback(async (file: File) => {
-    setUploading(true);
-    setComposerError(null);
-    debugMedia("file selected", { name: file.name, type: file.type, size: file.size });
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      debugMedia("upload started", { chatId, name: file.name });
-      const response = await fetch(`/api/chats/${chatId}/attachments`, { method: "POST", body: formData });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || "Не удалось отправить файл");
-      }
-      const data = await response.json();
-      const normalized = normalizeMessage(data.message);
-      const attachmentId = data.message?.attachments?.[0]?.id;
-      debugMedia("upload success", {
-        url: attachmentId ? `/api/attachments/${attachmentId}/download` : null,
-        attachmentId: attachmentId ?? null,
-      });
-      debugMedia("message create started", { chatId });
-      debugMedia("message create success", { messageId: data.message?.id ?? null, chatId });
-      if (normalized) {
-        setMessages((current) => {
-          const exists = current.some((message) => message.id === normalized.id);
-          debugMedia(exists ? "message deduped" : "message appended", { messageId: normalized.id });
-          return exists ? current : [...current, normalized];
-        });
-      }
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось отправить файл";
-      debugMedia("upload error", { reason });
-      setComposerError(reason);
-    } finally {
-      setUploading(false);
-    }
-  }, [chatId, debugMedia]);
+  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -1087,7 +1120,6 @@ export function ChatMessages({
           <ChatComposer
             onSend={handleSend}
             onTyping={handleTyping}
-            onAttach={handleAttach}
             onVoiceStart={startRecording}
             onVoiceStop={stopRecording}
             onVoiceCancel={cancelRecording}

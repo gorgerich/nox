@@ -30,14 +30,45 @@ export function MediaViewer({
 
   if (!item || typeof document === "undefined") return null;
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const link = document.createElement("a");
-    link.href = `${item.url}?download=1`;
-    link.download = item.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const response = await fetch(item.url);
+      const blob = await response.blob();
+      const fileName = item.fileName || "nox-file";
+      
+      // Prefer Web Share API with files when supported (better for mobile PWA)
+      if (typeof navigator !== "undefined" && navigator.canShare && window.File) {
+        try {
+          const file = new File([blob], fileName, { type: blob.type });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: fileName });
+            return;
+          }
+        } catch (shareError) {
+          console.error("Share failed:", shareError);
+        }
+      }
+
+      // Fallback browser download
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      // Fallback to direct link if fetch fails
+      const link = document.createElement("a");
+      link.href = `${item.url}?download=1`;
+      link.download = item.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return createPortal(

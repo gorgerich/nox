@@ -5,7 +5,6 @@ import { useRef, useState, useCallback, useEffect } from "react";
 export function ChatComposer({
   onSend,
   onTyping,
-  onAttach,
   onVoiceStart,
   onVoiceStop,
   onVoiceCancel,
@@ -17,9 +16,8 @@ export function ChatComposer({
   editingTo,
   onCancelAction,
 }: {
-  onSend: (text: string) => void;
+  onSend: (text: string, file?: File) => void;
   onTyping: (text: string) => void;
-  onAttach: (file: File) => void;
   onVoiceStart: () => void;
   onVoiceStop: () => void;
   onVoiceCancel: () => void;
@@ -32,6 +30,8 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editingIdRef = useRef<string | null>(null);
@@ -59,14 +59,41 @@ export function ChatComposer({
     }
   }, [editingTo, replyingTo]);
 
+  // Clean up preview URL when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const handleFileSelect = (file: File) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setSelectedFile(file);
+    if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+      setPreviewUrl(URL.createObjectURL(file));
+    } else {
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleSend = useCallback(() => {
-    if (text.trim()) {
-      onSend(text);
+    if (text.trim() || selectedFile) {
+      onSend(text, selectedFile || undefined);
       setText("");
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       editingIdRef.current = null;
       if (inputRef.current) inputRef.current.style.height = 'auto';
     }
-  }, [text, onSend]);
+  }, [text, selectedFile, onSend]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -89,24 +116,58 @@ export function ChatComposer({
         className="glass-composer px-4 py-3 transition-smooth"
         style={{ backgroundColor: "var(--chat-composer-bg)", borderColor: "var(--chat-composer-border)", color: "var(--chat-composer-fg)" }}
       >
-      {(replyingTo || editingTo) && (
-        <div className="mb-3 flex items-center justify-between rounded-xl bg-foreground/5 p-3 border border-white/5 animate-in slide-in-from-bottom-2 duration-200">
-          <div className="min-w-0 flex items-center gap-3">
-             <div className="h-8 w-1 bg-primary rounded-full shrink-0" />
-             <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                  {replyingTo ? "Ответ" : "Изменение"}
-                </p>
-                <p className="truncate text-xs opacity-70 font-medium">
-                  {replyingTo ? (replyingTo.body || "Вложение") : editingTo?.body}
-                </p>
-             </div>
-          </div>
-          <button onClick={onCancelAction} className="touch-target text-current opacity-40 hover:opacity-100 transition-smooth p-1 active:scale-90">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+      {(replyingTo || editingTo || selectedFile) && (
+        <div className="mb-3 flex flex-col gap-2">
+          {(replyingTo || editingTo) && (
+            <div className="flex items-center justify-between rounded-xl bg-foreground/5 p-3 border border-white/5 animate-in slide-in-from-bottom-2 duration-200">
+              <div className="min-w-0 flex items-center gap-3">
+                 <div className="h-8 w-1 bg-primary rounded-full shrink-0" />
+                 <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                      {replyingTo ? "Ответ" : "Изменение"}
+                    </p>
+                    <p className="truncate text-xs opacity-70 font-medium">
+                      {replyingTo ? (replyingTo.body || "Вложение") : editingTo?.body}
+                    </p>
+                 </div>
+              </div>
+              <button onClick={onCancelAction} className="touch-target text-current opacity-40 hover:opacity-100 transition-smooth p-1 active:scale-90">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {selectedFile && (
+            <div className="flex items-center gap-3 rounded-xl bg-foreground/5 p-2 pr-3 border border-white/5 animate-in slide-in-from-bottom-2 duration-200">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-foreground/10">
+                {previewUrl ? (
+                  selectedFile.type.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <video src={previewUrl} className="h-full w-full object-cover" />
+                  )
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <svg className="h-6 w-6 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 002 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold">{selectedFile.name}</p>
+                <p className="text-[10px] opacity-40 font-black uppercase tracking-widest">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
+              <button onClick={handleRemoveFile} className="touch-target text-current opacity-40 hover:opacity-100 transition-smooth p-1 active:scale-90">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -132,8 +193,7 @@ export function ChatComposer({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    onAttach(file);
-                    e.target.value = "";
+                    handleFileSelect(file);
                   }
                 }}
               />
@@ -150,7 +210,7 @@ export function ChatComposer({
                 ref={inputRef}
                 className="w-full max-h-32 min-h-[48px] resize-none bg-transparent py-3.5 pr-4 text-[15px] outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 style={{ color: "var(--chat-input-fg)" }}
-                placeholder="Сообщение..."
+                placeholder={selectedFile ? "Добавить подпись..." : "Сообщение..."}
                 rows={1}
                 value={text}
                 onChange={(e) => {
@@ -171,18 +231,18 @@ export function ChatComposer({
         </div>
 
         <button
-          onClick={isRecording ? onVoiceStop : text.trim() ? handleSend : onVoiceStart}
+          onClick={isRecording ? onVoiceStop : (text.trim() || selectedFile) ? handleSend : onVoiceStart}
           disabled={pending}
           className={`touch-target h-[48px] w-12 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90 ${
-            isRecording ? "shadow-lg shadow-danger/20" : text.trim() ? "shadow-lg shadow-primary/20" : "opacity-40"
+            isRecording ? "shadow-lg shadow-danger/20" : (text.trim() || selectedFile) ? "shadow-lg shadow-primary/20" : "opacity-40"
           }`}
           style={{
             backgroundColor: isRecording
               ? "var(--danger)"
-              : text.trim()
+              : (text.trim() || selectedFile)
                 ? "var(--bubble-outgoing-bg)"
                 : "var(--chat-focus-ring)",
-            color: text.trim() || isRecording ? "var(--bubble-outgoing-fg)" : "var(--chat-header-fg)",
+            color: (text.trim() || selectedFile) || isRecording ? "var(--bubble-outgoing-fg)" : "var(--chat-header-fg)",
           }}
         >
           {pending ? (
@@ -191,7 +251,7 @@ export function ChatComposer({
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
-          ) : text.trim() ? (
+          ) : (text.trim() || selectedFile) ? (
             <svg className="h-5 w-5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>

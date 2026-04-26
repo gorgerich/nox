@@ -38,6 +38,7 @@ export async function POST(
 
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
+  const body = formData?.get("body") as string | null;
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Выберите файл." }, { status: 400 });
@@ -74,6 +75,7 @@ export async function POST(
         chatId,
         senderUserId: user.id,
         type: rule.kind,
+        body: body || null,
         receipts: {
           create: activeMembers
             .filter((member) => member.userId !== user.id)

@@ -4,7 +4,6 @@ import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
 import { memo, useCallback, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
-import Image from "next/image";
 
 const SWIPE_REPLY_THRESHOLD = 64;
 const SWIPE_REPLY_MAX = 92;
@@ -31,6 +30,7 @@ export type Message = {
     fileName: string;
     mimeType: string;
     sizeBytes: number;
+    url?: string;
   }[];
   reactions: {
     emoji: string;
@@ -315,9 +315,9 @@ export const MessageBubble = memo(function MessageBubble({
           )}
 
           <>
-            {message.body && <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words">{message.body}</p>}
+            {message.body && <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words mb-2 last:mb-0">{message.body}</p>}
             {message.attachments?.map((att) => {
-              const downloadUrl = `/api/attachments/${att.id}/download`;
+              const downloadUrl = att.url || `/api/attachments/${att.id}/download`;
               const isImage = att.mimeType.startsWith("image/");
               const isVideo = att.mimeType.startsWith("video/");
 
@@ -334,12 +334,12 @@ export const MessageBubble = memo(function MessageBubble({
                       className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
                       onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName }); }}
                     >
-                      <Image 
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
                         src={downloadUrl} 
                         alt="" 
-                        width={400}
-                        height={400}
                         className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
+                        loading="lazy"
                       />
                     </div>
                   ) : isVideo ? (
@@ -351,10 +351,10 @@ export const MessageBubble = memo(function MessageBubble({
                       }}
                       onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName }); }}
                     >
-                      <video src={downloadUrl} className="max-h-96 w-full object-cover" />
+                      <video src={downloadUrl} className="max-h-96 w-full object-cover" preload="metadata" muted playsInline />
                       <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
                         <div className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
-                          <svg className="h-6 w-6" style={{ color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }} fill="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-6 w-6" style={{ color: "white" }} fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         </div>
