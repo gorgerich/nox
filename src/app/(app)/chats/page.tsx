@@ -123,16 +123,16 @@ export default async function ChatsPage() {
   });
 
   return (
-    <div className="page-container transition-smooth">
+    <div className="app-section transition-smooth">
       <ChatsRealtimeListener />
       
-      <div className="mb-10 flex items-center justify-between px-2">
-        <h1 className="text-4xl font-black tracking-tight text-foreground">Чаты</h1>
+      <div className="app-section-header px-2">
+        <h1 className="app-section-title">Чаты</h1>
         <Link
-          className="touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 shadow-sm border border-primary/20"
+          className="touch-target h-14 w-14 flex items-center justify-center rounded-[1.5rem] bg-primary/10 text-primary transition-smooth active:scale-90 hover:bg-primary/20 shadow-sm border border-primary/20"
           href="/chats/new"
         >
-          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
         </Link>
@@ -155,7 +155,7 @@ export default async function ChatsPage() {
       )}
 
       {sortedChats.length === 0 ? (
-        <div className="mt-24 text-center animate-in fade-in zoom-in-95 duration-700 pb-32">
+        <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-700">
           <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[2.5rem] bg-surface-muted border border-border-subtle/50 shadow-inner">
             <span className="text-4xl">💬</span>
           </div>
@@ -169,7 +169,7 @@ export default async function ChatsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-1 animate-in fade-in duration-500 pb-32">
+        <div className="space-y-1 animate-in fade-in duration-500">
           {sortedChats.map((chat) => {
             const otherMember = chat.members.find((member) => member.user.id !== user.id);
             const title = chat.type === "DIRECT"

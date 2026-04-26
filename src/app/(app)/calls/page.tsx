@@ -9,10 +9,12 @@ export default async function CallsPage() {
   }
 
   return (
-    <div className="page-container transition-smooth">
-      <div className="mb-12 px-2">
-        <h1 className="text-4xl font-black tracking-tight text-foreground">Звонки</h1>
-        <p className="mt-2 text-sm text-muted/60 font-medium uppercase tracking-widest">Ваша история аудиовызовов</p>
+    <div className="app-section transition-smooth">
+      <div className="app-section-header px-2">
+        <div>
+          <h1 className="app-section-title">Звонки</h1>
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Ваша история аудиовызовов</p>
+        </div>
       </div>
 
       <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-700">

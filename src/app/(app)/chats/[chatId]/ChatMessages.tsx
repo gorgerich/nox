@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
@@ -110,6 +111,7 @@ export function ChatMessages({
   const [forwardingMessages, setForwardingMessages] = useState<Message[] | null>(null);
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [showForwardPicker, setShowForwardPicker] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Message Search State
   const [isSearchOpen, setIsSearchOpen] = useState(() => searchParams.get("search") === "true");
@@ -125,6 +127,11 @@ export function ChatMessages({
   const isAtBottomRef = useRef(true);
   const initialScrollDoneRef = useRef(false);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frameId);
+  }, []);
 
   const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     if (scrollContainerRef.current) {
@@ -166,7 +173,7 @@ export function ChatMessages({
       } catch {} finally { setSearching(false); }
     }, 400);
     return () => clearTimeout(t);
-  }, [searchQuery, chatId, searchResults.length]);
+  }, [searchQuery, chatId]);
 
   useEffect(() => {
     initialScrollDoneRef.current = false;
@@ -347,20 +354,125 @@ export function ChatMessages({
   const themeVars = PRESETS[settings.preset]?.vars || PRESETS.midnight.vars;
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
 
+  // Safe Area Insets for positioning
+  const envTop = typeof window !== 'undefined' ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0') : 0;
+
   const menuPosition = useMemo(() => {
-    if (!menuState) return null;
+    if (!menuState || !focusedMessage) return null;
     const spaceBelow = window.innerHeight - menuState.rect.bottom;
     const spaceAbove = menuState.rect.top;
-    const menuHeight = 350;
+    const menuHeight = 320;
     const showAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
     
+    // Clamp values to screen
+    const top = showAbove ? 'auto' : Math.max(envTop + 80, Math.min(window.innerHeight - menuHeight - 20, menuState.rect.top - 60));
+    const bottom = showAbove ? Math.max(20, window.innerHeight - menuState.rect.top + 10) : 'auto';
+    
     return {
-      top: showAbove ? 'auto' : Math.max(20, Math.min(window.innerHeight - menuHeight, menuState.rect.top - 70)),
-      bottom: showAbove ? (window.innerHeight - menuState.rect.top + 10) : 'auto',
-      left: focusedMessage?.senderUserId === currentUserId ? 'auto' : Math.min(window.innerWidth - 280, Math.max(20, menuState.rect.left)),
-      right: focusedMessage?.senderUserId === currentUserId ? Math.min(window.innerWidth - 280, Math.max(20, window.innerWidth - menuState.rect.right)) : 'auto',
+      top,
+      bottom,
+      left: focusedMessage.senderUserId === currentUserId ? 'auto' : Math.min(window.innerWidth - 260, Math.max(16, menuState.rect.left)),
+      right: focusedMessage.senderUserId === currentUserId ? Math.min(window.innerWidth - 260, Math.max(16, window.innerWidth - menuState.rect.right)) : 'auto',
     };
-  }, [menuState, focusedMessage, currentUserId]);
+  }, [menuState, focusedMessage, currentUserId, envTop]);
+
+  const renderOverlay = () => {
+    if (!menuState || !focusedMessage || !mounted) return null;
+
+    return createPortal(
+      <div className="fixed inset-0 z-[900] flex flex-col no-select">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/35 backdrop-blur-xl animate-in fade-in duration-300" 
+          onClick={() => setMenuState(null)} 
+        />
+
+        {/* Selected Message Clone */}
+        <div 
+          className="focused-message-clone"
+          style={{
+            top: menuState.rect.top,
+            left: menuState.rect.left,
+            width: menuState.rect.width,
+            height: menuState.rect.height,
+          }}
+        >
+          <MessageBubble
+            message={focusedMessage}
+            mine={focusedMessage.senderUserId === currentUserId}
+            settings={settings}
+            onLongPress={() => {}}
+            onReaction={() => {}}
+            onMediaClick={() => {}}
+            isGroupStart={true}
+            isGroupEnd={true}
+            showDisplayName={false}
+            selectionMode={false}
+            isSelected={false}
+            onSelect={() => {}}
+            isFocused={true}
+          />
+        </div>
+
+        {/* Action Menu & Reactions */}
+        <div className="menu-content" style={menuPosition as React.CSSProperties}>
+          <div className="reaction-bar self-center mb-4 px-3 py-2 bg-surface/10 backdrop-blur-2xl rounded-full border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
+             {ALLOWED_REACTIONS.map(emoji => (
+               <button 
+                key={emoji} 
+                className={`reaction-btn text-2xl px-1.5 transition-smooth hover:scale-125 active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20 rounded-full" : ""}`} 
+                onClick={() => toggleReaction(menuState.id, emoji)}
+               >
+                {emoji}
+               </button>
+             ))}
+          </div>
+
+          <div className={`action-menu min-w-[220px] bg-surface/80 backdrop-blur-2xl rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}>
+              <span className="font-bold text-sm">Ответить</span>
+              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+            </button>
+            
+            {focusedMessage.body && (
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => handleCopy(focusedMessage.body)}>
+                <span className="font-bold text-sm">Копировать</span>
+                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+              </button>
+            )}
+
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => togglePin(focusedMessage.id)}>
+              <span className="font-bold text-sm">{pinnedIds.includes(focusedMessage.id) ? "Открепить" : "Закрепить"}</span>
+              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+            </button>
+
+            {focusedMessage.senderUserId === currentUserId && focusedMessage.type === "TEXT" && (
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}>
+                <span className="font-bold text-sm">Изменить</span>
+                <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </button>
+            )}
+
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => initiateForward(focusedMessage)}>
+              <span className="font-bold text-sm">Переслать</span>
+              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+            </button>
+
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-white/5 hover:bg-white/5 transition-colors" onClick={() => startSelection(focusedMessage.id)}>
+              <span className="font-bold text-sm">Выбрать</span>
+              <svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </button>
+
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 text-red-400 hover:bg-red-500/10 transition-colors" onClick={() => handleDeleteQuietly(focusedMessage.id)}>
+              <span className="font-bold text-sm">Удалить</span>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
 
   const groupedMessages = useMemo(() => {
     const result: GroupedItem[] = [];
@@ -433,9 +545,6 @@ export function ChatMessages({
                   </button>
                 ))}
              </div>
-           )}
-           {searchQuery && !searching && searchResults.length === 0 && (
-             <p className="mt-4 text-center text-[10px] font-black uppercase text-muted py-4">Ничего не найдено</p>
            )}
         </div>
       )}
@@ -521,27 +630,7 @@ export function ChatMessages({
         />
       )}
 
-      {menuState && focusedMessage && (
-        <>
-          <div className="menu-overlay" onClick={() => setMenuState(null)} />
-          <div className="menu-content" style={menuPosition as React.CSSProperties}>
-            <div className="reaction-bar self-center mb-2 px-3">
-               {ALLOWED_REACTIONS.map(emoji => (
-                 <button key={emoji} className={`reaction-btn ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20 scale-125" : ""}`} onClick={() => toggleReaction(menuState.id, emoji)}>{emoji}</button>
-               ))}
-            </div>
-            <div className={`action-menu ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}>
-              <button className="action-item" onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}><span>Ответить</span><svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg></button>
-              {focusedMessage.body && <button className="action-item" onClick={() => handleCopy(focusedMessage.body)}><span>Копировать</span><svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg></button>}
-              <button className="action-item" onClick={() => togglePin(focusedMessage.id)}><span>{pinnedIds.includes(focusedMessage.id) ? "Открепить" : "Закрепить"}</span><svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></button>
-              {focusedMessage.senderUserId === currentUserId && focusedMessage.type === "TEXT" && <button className="action-item" onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}><span>Изменить</span><svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>}
-              <button className="action-item" onClick={() => initiateForward(focusedMessage)}><span>Переслать</span><svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg></button>
-              <button className="action-item" onClick={() => startSelection(focusedMessage.id)}><span>Выбрать</span><svg className="h-5 w-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
-              <button className="action-item action-item-destructive" onClick={() => handleDeleteQuietly(focusedMessage.id)}><span>Удалить</span><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-            </div>
-          </div>
-        </>
-      )}
+      {renderOverlay()}
 
       {showForwardPicker && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-xl p-6 animate-in fade-in">

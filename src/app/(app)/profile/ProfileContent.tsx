@@ -112,54 +112,60 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   }
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 transition-smooth">
-      <section className="flex flex-col items-center text-center">
-        <div className="group relative mb-6">
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={pending}
-            className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] border-4 border-surface shadow-2xl transition-smooth group-hover:scale-105 active:scale-95 overflow-hidden bg-surface-muted relative"
-          >
-            {fullAvatarUrl ? (
-              <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
-            ) : (
-              <span className="text-4xl font-black text-primary">
-                {displayName[0]?.toUpperCase() || username[0]?.toUpperCase()}
-              </span>
-            )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-          </button>
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleAvatarUpload} 
-            accept="image/*" 
-            className="hidden" 
-          />
-          
-          {avatarUrl && (
-            <button 
-              onClick={handleAvatarDelete}
-              className="absolute -bottom-2 -right-2 h-10 w-10 bg-surface border border-border-subtle rounded-2xl flex items-center justify-center text-red-400 shadow-xl active:scale-90 transition-smooth"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          )}
-        </div>
-        
-        <h2 className="text-3xl font-black tracking-tight text-foreground">{displayName || username}</h2>
-        <p className="text-sm font-bold text-primary tracking-widest uppercase mt-1">@{username}</p>
-      </section>
+    <div className="app-section transition-smooth">
+      <div className="app-section-header px-1">
+        <h1 className="app-section-title">Профиль</h1>
+      </div>
 
-      <div className="space-y-10 px-1">
+      <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <section className="flex flex-col items-center text-center mt-4">
+          <div className="group relative mb-6">
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={pending}
+              className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] border-4 border-surface shadow-2xl transition-smooth group-hover:scale-105 active:scale-95 overflow-hidden bg-surface-muted relative"
+            >
+              {fullAvatarUrl ? (
+                <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
+              ) : (
+                <span className="text-4xl font-black text-primary">
+                  {displayName[0]?.toUpperCase() || username[0]?.toUpperCase()}
+                </span>
+              )}
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+            </button>
+            
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleAvatarUpload} 
+              accept="image/*" 
+              className="hidden" 
+            />
+            
+            {avatarUrl && (
+              <button 
+                onClick={handleAvatarDelete}
+                className="absolute -bottom-2 -right-2 h-10 w-10 bg-surface border border-border-subtle rounded-2xl flex items-center justify-center text-red-400 shadow-xl active:scale-90 transition-smooth"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+          </div>
+          
+          <h2 className="text-3xl font-black tracking-tight text-foreground">{displayName || username}</h2>
+          <p className="text-sm font-bold text-primary tracking-widest uppercase mt-1">@{username}</p>
+        </section>
+
+        <div className="space-y-10 px-1">
+
         {/* Appearance Section */}
         <section className="space-y-6">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 ml-1">Оформление</h3>
@@ -266,5 +272,6 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
         </form>
       </div>
     </div>
-  );
+  </div>
+);
 }

@@ -31,8 +31,9 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
-      <header className={`hidden lg:sticky lg:top-0 lg:z-40 lg:block lg:border-b lg:border-border-subtle lg:bg-background/80 lg:backdrop-blur-lg transition-smooth ${isChatsList ? 'lg:hidden' : ''}`}>
+    <div className="app-screen">
+      {/* Desktop Header */}
+      <header className="hidden lg:sticky lg:top-0 lg:z-40 lg:block lg:border-b lg:border-border-subtle lg:bg-background/80 lg:backdrop-blur-lg transition-smooth">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <Link className="flex items-center gap-2 transition-smooth hover:opacity-80 active:scale-[0.98]" href="/chats">
             <span className="text-2xl font-black tracking-tighter text-primary">Nox</span>
@@ -49,7 +50,8 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         </div>
       </header>
 
-      {!isChatsList && (
+      {/* Mobile Top Header - ONLY for subpages, not for main tabs with large titles */}
+      {!isChatsList && pathname !== "/calls" && pathname !== "/profile" && (
         <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg lg:hidden safe-top transition-smooth border-b border-border-subtle/50">
           <div className="flex items-center justify-between px-6 py-4">
             <span className="text-xl font-black tracking-tighter text-primary">Nox</span>
@@ -57,12 +59,12 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         </header>
       )}
 
-      <main className={`mx-auto w-full max-w-5xl flex-1 overflow-x-hidden safe-px pb-32 lg:pb-8 transition-smooth ${isChatsList ? 'pt-safe' : ''}`}>
+      <main className="flex-1 w-full">
         {children}
       </main>
 
-      <nav className="nav-blur lg:hidden safe-bottom">
-        <div className="grid grid-cols-3 items-center">
+      <nav className="app-bottom-nav lg:hidden">
+        <div className="grid grid-cols-3 items-center max-w-5xl mx-auto">
           <NavLink href="/calls" icon={<CallIcon />} label="Звонки" />
           <NavLink href="/chats" icon={<ChatIcon />} label="Чаты" count={incomingRequestCount} />
           <NavLink href="/profile" icon={<ProfileIcon />} label="Профиль" />
