@@ -3,16 +3,16 @@
 :root {
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
   /* --- Light Theme (Premium Off-white) --- */
-  --background: #fdfdfd;
+  --background: #eef4fa;
   --foreground: #1a1c1e;
   
-  --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-muted: #f1f3f5;
-  --surface-hover: #f8f9fa;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-elevated: rgba(255, 255, 255, 0.86);
+  --surface-muted: rgba(255, 255, 255, 0.5);
+  --surface-hover: rgba(255, 255, 255, 0.92);
   
-  --border: #e9ecef;
-  --border-subtle: #f1f3f5;
+  --border: rgba(148, 163, 184, 0.32);
+  --border-subtle: rgba(255, 255, 255, 0.62);
   
   --muted: #6c757d;
   --muted-foreground: #adb5bd;
@@ -24,7 +24,7 @@
   --danger: #fa5252;
   --success: #10b981;
   
-  --input: #f8f9fa;
+  --input: rgba(255, 255, 255, 0.62);
   --input-foreground: #1a1c1e;
   --placeholder: #adb5bd;
   
@@ -32,14 +32,21 @@
   --icon-muted: #adb5bd;
   
   --ring: rgba(16, 185, 129, 0.2);
-  --shadow-color: rgba(0, 0, 0, 0.05);
+  --shadow-color: rgba(15, 23, 42, 0.12);
+  --glass-shadow: rgba(15, 23, 42, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.72);
+  --glass-soft-highlight: rgba(255, 255, 255, 0.32);
+  --ambient-1: rgba(16, 185, 129, 0.18);
+  --ambient-2: rgba(56, 189, 248, 0.16);
+  --ambient-3: rgba(255, 255, 255, 0.58);
+  --ambient-4: rgba(148, 163, 184, 0.18);
 
   /* Chat Specific Defaults (will be overridden by inline styles from settings) */
-  --chat-background: #fdfdfd;
-  --chat-header: rgba(255, 255, 255, 0.8);
-  --chat-composer: rgba(255, 255, 255, 0.8);
-  --chat-composer-border: #f1f3f5;
-  --chat-input-bg: #f1f3f5;
+  --chat-background: rgba(240, 246, 253, 0.72);
+  --chat-header: rgba(255, 255, 255, 0.56);
+  --chat-composer: rgba(255, 255, 255, 0.56);
+  --chat-composer-border: rgba(255, 255, 255, 0.62);
+  --chat-input-bg: rgba(255, 255, 255, 0.68);
   
   --bubble-incoming: #f1f3f5;
   --bubble-incoming-text: #1a1c1e;
@@ -55,8 +62,8 @@
   --voice-control: #10b981;
   --voice-wave: #adb5bd;
 
-  --nav-background: rgba(255, 255, 255, 0.8);
-  --nav-border: #f1f3f5;
+  --nav-background: rgba(255, 255, 255, 0.52);
+  --nav-border: rgba(255, 255, 255, 0.6);
 
   --dock-background: rgba(255, 255, 255, 0.52);
   --dock-background-fallback: rgba(255, 255, 255, 0.9);
@@ -90,16 +97,16 @@
 
 [data-theme="dark"] {
   /* --- Dark Theme (Premium Graphite) --- */
-  --background: #0b0c0d;
+  --background: #06090f;
   --foreground: #f8f9fa;
   
-  --surface: #141517;
-  --surface-elevated: #1a1b1e;
-  --surface-muted: #1a1b1e;
-  --surface-hover: #25262b;
+  --surface: rgba(15, 19, 27, 0.72);
+  --surface-elevated: rgba(17, 22, 31, 0.84);
+  --surface-muted: rgba(27, 33, 44, 0.54);
+  --surface-hover: rgba(33, 40, 53, 0.72);
   
-  --border: #2c2e33;
-  --border-subtle: #25262b;
+  --border: rgba(148, 163, 184, 0.24);
+  --border-subtle: rgba(255, 255, 255, 0.16);
   
   --muted: #909296;
   --muted-foreground: #5c5f66;
@@ -111,7 +118,7 @@
   --danger: #ff6b6b;
   --success: #10b981;
   
-  --input: #1a1b1e;
+  --input: rgba(18, 24, 34, 0.72);
   --input-foreground: #f8f9fa;
   --placeholder: #5c5f66;
   
@@ -119,14 +126,21 @@
   --icon-muted: #5c5f66;
   
   --ring: rgba(16, 185, 129, 0.3);
-  --shadow-color: rgba(0, 0, 0, 0.4);
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --glass-shadow: rgba(0, 0, 0, 0.48);
+  --glass-highlight: rgba(255, 255, 255, 0.2);
+  --glass-soft-highlight: rgba(255, 255, 255, 0.1);
+  --ambient-1: rgba(16, 185, 129, 0.18);
+  --ambient-2: rgba(56, 189, 248, 0.14);
+  --ambient-3: rgba(15, 23, 42, 0.6);
+  --ambient-4: rgba(148, 163, 184, 0.14);
 
   /* Chat Specific Dark Defaults */
-  --chat-background: #0b0c0d;
-  --chat-header: rgba(11, 12, 13, 0.7);
-  --chat-composer: rgba(11, 12, 13, 0.7);
-  --chat-composer-border: #1a1b1e;
-  --chat-input-bg: #1a1b1e;
+  --chat-background: rgba(8, 12, 19, 0.72);
+  --chat-header: rgba(10, 14, 21, 0.62);
+  --chat-composer: rgba(10, 14, 21, 0.62);
+  --chat-composer-border: rgba(255, 255, 255, 0.14);
+  --chat-input-bg: rgba(18, 24, 34, 0.72);
   
   --bubble-incoming: #1a1b1e;
   --bubble-incoming-text: #f8f9fa;
@@ -142,8 +156,8 @@
   --voice-control: #10b981;
   --voice-wave: #5c5f66;
 
-  --nav-background: rgba(11, 12, 13, 0.8);
-  --nav-border: #1a1b1e;
+  --nav-background: rgba(11, 14, 22, 0.6);
+  --nav-border: rgba(255, 255, 255, 0.16);
 
   --dock-background: rgba(15, 15, 18, 0.54);
   --dock-background-fallback: rgba(15, 15, 18, 0.88);
@@ -221,7 +235,11 @@
 }
 
 body {
-  background-color: var(--background);
+  background:
+    radial-gradient(130% 90% at 10% -20%, var(--ambient-1), transparent 58%),
+    radial-gradient(100% 80% at 95% 10%, var(--ambient-2), transparent 60%),
+    radial-gradient(120% 100% at 50% 120%, var(--ambient-4), transparent 66%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -229,51 +247,102 @@ body {
   overflow-x: hidden;
   touch-action: manipulation;
   transition: background-color 0.3s ease, color 0.3s ease;
+  position: relative;
+  min-height: 100dvh;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(70% 50% at 15% 12%, var(--ambient-3), transparent 75%),
+    radial-gradient(60% 45% at 84% 0%, var(--ambient-3), transparent 72%);
 }
 
 /* --- Base Layout Classes --- */
 @layer utilities {
   .glass-header {
-    @apply sticky top-0 z-50 backdrop-blur-xl border-b;
+    @apply sticky top-0 z-50 border-b;
     background-color: var(--chat-header);
     border-color: var(--border-subtle);
     padding-top: env(safe-area-inset-top);
+    backdrop-filter: blur(16px) saturate(1.25);
+    -webkit-backdrop-filter: blur(16px) saturate(1.25);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 12px 28px var(--glass-shadow);
   }
 
   .glass-composer {
-    @apply sticky bottom-0 z-50 backdrop-blur-xl border-t;
+    @apply sticky bottom-0 z-50 border-t;
     background-color: var(--chat-composer);
     border-color: var(--chat-composer-border);
     padding-bottom: env(safe-area-inset-bottom);
+    backdrop-filter: blur(16px) saturate(1.25);
+    -webkit-backdrop-filter: blur(16px) saturate(1.25);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 -12px 28px var(--glass-shadow);
   }
 
   .nav-blur {
-    @apply fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl border-t;
+    @apply fixed bottom-0 left-0 right-0 z-50 border-t;
     background-color: var(--nav-background);
     border-color: var(--nav-border);
     padding-bottom: env(safe-area-inset-bottom);
+    backdrop-filter: blur(18px) saturate(1.3);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 -16px 38px var(--glass-shadow);
   }
 
   .card-premium {
-    @apply bg-surface border border-border-subtle rounded-2xl transition-smooth;
-    box-shadow: 0 4px 12px var(--shadow-color);
+    @apply border border-border-subtle rounded-2xl transition-smooth;
+    background:
+      linear-gradient(160deg, var(--glass-soft-highlight), rgba(255, 255, 255, 0)),
+      var(--surface);
+    backdrop-filter: blur(16px) saturate(1.28);
+    -webkit-backdrop-filter: blur(16px) saturate(1.28);
+    box-shadow:
+      0 14px 32px var(--glass-shadow),
+      inset 0 1px 0 var(--glass-highlight);
   }
 
   .input-nox {
-    @apply w-full bg-input border border-border-subtle rounded-2xl px-5 py-4 text-base transition-smooth outline-none;
+    @apply w-full border border-border-subtle rounded-2xl px-5 py-4 text-base transition-smooth outline-none;
+    background:
+      linear-gradient(160deg, var(--glass-soft-highlight), rgba(255, 255, 255, 0)),
+      var(--input);
     color: var(--input-foreground);
     -webkit-appearance: none;
+    backdrop-filter: blur(10px) saturate(1.15);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 8px 20px rgba(15, 23, 42, 0.08);
   }
   .input-nox::placeholder { 
     @apply text-muted/50; 
   }
   .input-nox:focus { 
-    @apply ring-2 ring-primary/20 border-primary/40 bg-surface; 
+    @apply ring-2 ring-primary/20 border-primary/40;
+    background:
+      linear-gradient(160deg, var(--glass-highlight), rgba(255, 255, 255, 0.02)),
+      var(--surface-elevated);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 12px 24px rgba(15, 23, 42, 0.12);
   }
 
   .btn-nox {
     @apply flex items-center justify-center font-bold rounded-2xl transition-smooth active:scale-[0.97] disabled:opacity-50;
     min-height: 44px;
+    backdrop-filter: blur(10px) saturate(1.15);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
   }
 
   .chat-screen {
@@ -287,7 +356,9 @@ body {
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
     min-height: 100dvh;
-    background: var(--background);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 35%),
+      transparent;
     color: var(--foreground);
     overflow-x: hidden;
     display: flex;
@@ -532,6 +603,18 @@ body {
     @apply w-full mx-auto max-w-5xl px-4;
   }
 
+  .liquid-top-chrome {
+    background:
+      linear-gradient(160deg, var(--glass-soft-highlight), rgba(255, 255, 255, 0)),
+      var(--surface);
+    border-color: var(--border-subtle);
+    backdrop-filter: blur(18px) saturate(1.25);
+    -webkit-backdrop-filter: blur(18px) saturate(1.25);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 10px 26px var(--glass-shadow);
+  }
+
   /* --- Context Menu & Native Overlays --- */
   .menu-overlay {
     @apply fixed inset-0 z-[900] bg-black/35 backdrop-blur-xl animate-in fade-in;
@@ -553,6 +636,26 @@ body {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+  }
+}
+
+[data-theme="dark"] .card-premium,
+[data-theme="dark"] .liquid-top-chrome {
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .card-premium,
+  .input-nox,
+  .glass-header,
+  .glass-composer,
+  .nav-blur,
+  .liquid-top-chrome {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--surface-elevated);
   }
 }
 
