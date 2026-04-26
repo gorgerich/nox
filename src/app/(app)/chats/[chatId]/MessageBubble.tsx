@@ -239,6 +239,11 @@ export const MessageBubble = memo(function MessageBubble({
     <div 
       className={`flex items-center gap-3 w-full mb-1 px-4 transition-smooth ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""} no-select`}
       onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      style={{ touchAction: "pan-y" }}
     >
       {selectionMode && (
         <div className={`flex shrink-0 items-center justify-center h-6 w-6 rounded-full border-2 transition-smooth ${isSelected ? "bg-primary border-primary shadow-lg shadow-primary/20 scale-110" : "border-muted/30"}`}>
@@ -279,7 +284,6 @@ export const MessageBubble = memo(function MessageBubble({
             style={{
               ...bubbleStyle,
               transform: `translate3d(${swipeOffset}px, 0, 0)`,
-              touchAction: "pan-y",
             }}
             onContextMenu={(e) => { 
               e.preventDefault(); 
@@ -287,10 +291,6 @@ export const MessageBubble = memo(function MessageBubble({
                 onLongPress(message.id, bubbleRef.current.getBoundingClientRect()); 
               }
             }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
           >
           {message.replyToMessage && (
             <div

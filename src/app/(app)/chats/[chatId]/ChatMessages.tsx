@@ -28,27 +28,10 @@ interface GroupedMessage {
 
 type GroupedItem = GroupedDate | GroupedMessage;
 
-interface RecentChat {
+interface ForwardChatOption {
   id: string;
   title: string;
-}
-
-interface ChatMember {
-  userId: string;
-  user: {
-    profile?: {
-      displayName: string;
-    } | null;
-  };
-}
-
-interface ChatApiResponse {
-  chats: {
-    id: string;
-    type: string;
-    title: string | null;
-    members: ChatMember[];
-  }[];
+  avatarUrl: string | null;
 }
 
 interface SearchResultMessage {
@@ -119,6 +102,8 @@ export function ChatMessages({
   currentRole,
   isLocked,
   initialMessages,
+  initialPinnedMessage,
+  initialForwardChats,
   chatInfo,
 }: {
   chatId: string;
@@ -126,6 +111,8 @@ export function ChatMessages({
   currentRole: ChatRole;
   isLocked: boolean;
   initialMessages: unknown[];
+  initialPinnedMessage: Message | null;
+  initialForwardChats: ForwardChatOption[];
   chatInfo: {
     type: string;
     title: string | null;
@@ -157,10 +144,11 @@ export function ChatMessages({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [pinnedMessage, setPinnedMessage] = useState<Message | null>(initialPinnedMessage);
   const [forwardingMessages, setForwardingMessages] = useState<Message[] | null>(null);
-  const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const [recentChats] = useState<ForwardChatOption[]>(initialForwardChats);
   const [showForwardPicker, setShowForwardPicker] = useState(false);
+  const [isForwarding, setIsForwarding] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Message Search State
@@ -300,28 +288,10 @@ export function ChatMessages({
     const t2 = setTimeout(() => {
       forceScrollBottom("auto");
       initialScrollDoneRef.current = true;
-    }, 600);
+    }, 240);
     void markAsRead();
     return () => { cancelAnimationFrame(frameId); clearTimeout(t1); clearTimeout(t2); };
   }, [chatId, forceScrollBottom, markAsRead]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(`nox:pinned:${chatId}`);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setTimeout(() => setPinnedIds(parsed), 0);
-    }
-    let active = true;
-    fetch("/api/chats").then(res => res.json()).then((data: ChatApiResponse) => {
-      if (active && Array.isArray(data.chats)) {
-        setRecentChats(data.chats.map((c) => ({
-          id: c.id,
-          title: c.type === "DIRECT" ? (c.members.find((m) => m.userId !== currentUserId)?.user.profile?.displayName || "Чат") : (c.title || "Группа")
-        })));
-      }
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [chatId, currentUserId]);
 
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
@@ -374,14 +344,27 @@ export function ChatMessages({
     for (const id of ids) fetch(`/api/messages/${id}`, { method: "DELETE" }).catch(() => {});
   }, [selectedIds]);
 
-  const togglePin = useCallback((id: string) => {
-    setPinnedIds(prev => {
-      const next = prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id];
-      localStorage.setItem(`nox:pinned:${chatId}`, JSON.stringify(next));
-      return next;
-    });
+  const togglePin = useCallback(async (message: Message) => {
+    const previousPinnedMessage = pinnedMessage;
+    const nextPinnedMessage = previousPinnedMessage?.id === message.id ? null : message;
+    setPinnedMessage(nextPinnedMessage);
     setMenuState(null);
-  }, [chatId]);
+
+    try {
+      const response = await fetch(`/api/chats/${chatId}/pinned-message`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messageId: nextPinnedMessage?.id ?? null }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось обновить закреплённое сообщение");
+      }
+    } catch (error) {
+      setPinnedMessage(previousPinnedMessage);
+      setComposerError(error instanceof Error ? error.message : "Не удалось обновить закреплённое сообщение");
+    }
+  }, [chatId, pinnedMessage]);
 
   const initiateForward = useCallback((msg: Message | Message[]) => {
     setForwardingMessages(Array.isArray(msg) ? msg : [msg]);
@@ -390,21 +373,49 @@ export function ChatMessages({
   }, []);
 
   const confirmForward = useCallback(async (targetChatId: string) => {
-    if (!forwardingMessages) return;
-    setShowForwardPicker(false);
-    for (const msg of forwardingMessages) {
-      if (msg.body) {
-        await fetch(`/api/chats/${targetChatId}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: `[Переслано] ${msg.body}` })
+    if (!forwardingMessages || forwardingMessages.length === 0) return;
+    setIsForwarding(true);
+    setComposerError(null);
+
+    try {
+      const response = await fetch("/api/messages/forward", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          targetChatId,
+          messageIds: forwardingMessages.map((message) => message.id),
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось переслать сообщение");
+      }
+      const data = await response.json().catch(() => null);
+
+      if (targetChatId === chatId && Array.isArray(data?.messages)) {
+        setMessages((current) => {
+          const next = [...current];
+          for (const item of data.messages) {
+            const normalized = normalizeMessage(item);
+            if (!normalized || next.some((message) => message.id === normalized.id)) {
+              continue;
+            }
+            next.push(normalized);
+          }
+          return next;
         });
       }
+
+      setShowForwardPicker(false);
+      setForwardingMessages(null);
+      setIsSelectionMode(false);
+      setSelectedIds(new Set());
+    } catch (error) {
+      setComposerError(error instanceof Error ? error.message : "Не удалось переслать сообщение");
+    } finally {
+      setIsForwarding(false);
     }
-    setForwardingMessages(null);
-    setIsSelectionMode(false);
-    setSelectedIds(new Set());
-  }, [forwardingMessages]);
+  }, [chatId, forwardingMessages]);
 
   useEffect(() => {
     if (!socket) return;
@@ -528,6 +539,19 @@ export function ChatMessages({
       });
     };
 
+    const handlePinnedMessageUpdated = (payload: { chatId: string; pinnedMessage: unknown | null }) => {
+      if (payload.chatId !== chatId) return;
+      const normalizedPinnedMessage = payload.pinnedMessage ? normalizeMessage(payload.pinnedMessage) : null;
+      setPinnedMessage(normalizedPinnedMessage);
+
+      if (normalizedPinnedMessage) {
+        setMessages((current) => {
+          const exists = current.some((message) => message.id === normalizedPinnedMessage.id);
+          return exists ? current : [...current, normalizedPinnedMessage];
+        });
+      }
+    };
+
     syncActiveChat();
     socket.on("connect", syncActiveChat);
     socket.on("message:new", handleNewMessage);
@@ -536,6 +560,7 @@ export function ChatMessages({
     socket.on("message:reactions-updated", handleReactionsUpdated);
     socket.on("message:receipts-updated", handleReceiptsUpdated);
     socket.on("typing:update", handleTypingUpdate);
+    socket.on("chat:pinned-message-updated", handlePinnedMessageUpdated);
     return () => {
       socket.emit("chat:inactive", { chatId });
       socket.emit("chat:leave", chatId);
@@ -546,6 +571,7 @@ export function ChatMessages({
       socket.off("message:reactions-updated", handleReactionsUpdated);
       socket.off("message:receipts-updated", handleReceiptsUpdated);
       socket.off("typing:update", handleTypingUpdate);
+      socket.off("chat:pinned-message-updated", handlePinnedMessageUpdated);
     };
   }, [chatId, currentUserId, debugRealtime, markAsRead, socket]);
 
@@ -868,8 +894,8 @@ export function ChatMessages({
               </button>
             )}
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => togglePin(focusedMessage.id)}>
-              <span className="font-bold text-sm">{pinnedIds.includes(focusedMessage.id) ? "Открепить" : "Закрепить"}</span>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => void togglePin(focusedMessage)}>
+              <span className="font-bold text-sm">{pinnedMessage?.id === focusedMessage.id ? "Открепить" : "Закрепить"}</span>
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
             </button>
 
@@ -929,7 +955,7 @@ export function ChatMessages({
 
   return (
     <div 
-      className={`chat-screen transition-all duration-500 ${menuState ? "overflow-hidden" : ""}`} 
+      className={`chat-screen transition-[opacity] duration-150 ${menuState ? "overflow-hidden" : ""}`} 
       style={themeVars as React.CSSProperties}
     >
       <ChatHeader
@@ -976,16 +1002,16 @@ export function ChatMessages({
         </div>
       )}
 
-      {pinnedIds.length > 0 && (
+      {pinnedMessage && (
         <div className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-border-subtle/30 px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2">
            <div className="flex items-center gap-3 min-w-0">
               <div className="h-8 w-1 bg-primary rounded-full" />
-              <div className="min-w-0 cursor-pointer" onClick={() => jumpToMessage(pinnedIds[pinnedIds.length-1])}>
+              <div className="min-w-0 cursor-pointer" onClick={() => jumpToMessage(pinnedMessage.id)}>
                  <p className="text-[10px] font-black uppercase text-primary">Закреплённое сообщение</p>
-                 <p className="text-xs truncate text-foreground/60">{messages.find(m => m.id === pinnedIds[pinnedIds.length-1])?.body || "Вложение"}</p>
+                 <p className="text-xs truncate text-foreground/60">{pinnedMessage.body || pinnedMessage.attachments[0]?.fileName || "Вложение"}</p>
               </div>
            </div>
-           <button onClick={() => setPinnedIds([])} className="text-muted p-2"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+           <button onClick={() => void togglePin(pinnedMessage)} className="text-muted p-2"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
       )}
 
@@ -1014,7 +1040,7 @@ export function ChatMessages({
               <div 
                 key={item.message.id} 
                 ref={el => { messageRefs.current[item.message.id] = el; }}
-                className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-500" : ""}`}
+                className={`animate-in fade-in slide-in-from-bottom-2 duration-180 ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-200" : ""}`}
               >
                 <MessageBubble
                   message={item.message}
@@ -1083,10 +1109,17 @@ export function ChatMessages({
            <div className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl">
               <h2 className="text-xl font-black mb-6 px-2">Переслать в...</h2>
               <div className="max-h-80 overflow-y-auto space-y-2 pr-2 scrollbar-hide">
-                 {recentChats.map(c => (
-                   <button key={c.id} onClick={() => confirmForward(c.id)} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-95">
-                      <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">{c.title[0]}</div>
+                 {recentChats.length === 0 ? (
+                   <div className="rounded-2xl border border-border-subtle/40 bg-surface/60 p-5 text-center text-sm font-medium text-muted">
+                     Нет доступных чатов для пересылки.
+                   </div>
+                 ) : recentChats.map(c => (
+                   <button key={c.id} onClick={() => void confirmForward(c.id)} disabled={isForwarding} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-95 disabled:opacity-50">
+                      <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                        {c.title[0]}
+                      </div>
                       <span className="font-bold truncate">{c.title}</span>
+                      {isForwarding ? <span className="ml-auto text-xs font-black uppercase text-muted">...</span> : null}
                    </button>
                  ))}
               </div>

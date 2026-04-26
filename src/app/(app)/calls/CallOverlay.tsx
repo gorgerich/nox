@@ -252,7 +252,7 @@ export function CallOverlay() {
     : null;
 
   return createPortal(
-    <div className="fixed inset-0 z-1000 flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-16 backdrop-blur-2xl animate-in fade-in duration-500 pointer-events-auto">
+    <div className="fixed inset-0 z-1000 flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-16 backdrop-blur-xl animate-in fade-in duration-200 pointer-events-auto">
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="mt-20 flex flex-col items-center text-center">
@@ -305,7 +305,7 @@ export function CallOverlay() {
 
       <div className="flex w-full max-w-sm flex-col gap-8">
         {isIncoming ? (
-          <div className="flex items-center justify-around gap-8 animate-in slide-in-from-bottom-10 duration-700">
+          <div className="flex items-center justify-around gap-8 animate-in slide-in-from-bottom-10 duration-200">
             <button onClick={declineCall} className="flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-2xl shadow-danger/40 transition-smooth active:scale-90">
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActiveChatMembership } from "@/lib/chats";
+import { getChatsPageData } from "@/lib/chat-list";
 import { getPrisma } from "@/lib/prisma";
 import { ChatMessages } from "./ChatMessages";
 
@@ -75,6 +76,12 @@ function serializeMessage(message: BaseMessage) {
   };
 }
 
+type ForwardChatOption = {
+  id: string;
+  title: string;
+  avatarUrl: string | null;
+};
+
 export default async function ChatPage({
   params,
 }: {
@@ -94,10 +101,62 @@ export default async function ChatPage({
   }
 
   const prisma = getPrisma();
-  const [chat, rawMessages] = await Promise.all([
+  const [chat, rawMessages, chatsPageData] = await Promise.all([
     prisma.chat.findUnique({
       where: { id: chatId },
       include: {
+        pinnedMessage: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                profile: {
+                  select: {
+                    displayName: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+            attachments: {
+              select: {
+                id: true,
+                fileName: true,
+                mimeType: true,
+                sizeBytes: true,
+              },
+            },
+            replyToMessage: {
+              include: {
+                sender: {
+                  select: {
+                    username: true,
+                    profile: { select: { displayName: true } },
+                  },
+                },
+              },
+            },
+            reactions: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    profile: { select: { displayName: true } },
+                  },
+                },
+              },
+            },
+            receipts: {
+              select: {
+                userId: true,
+                deliveredAt: true,
+                readAt: true,
+              },
+            },
+          },
+        },
         members: {
           where: { status: "ACTIVE" },
           include: {
@@ -173,6 +232,7 @@ export default async function ChatPage({
         },
       },
     }),
+    getChatsPageData(user.id),
   ]);
 
   if (!chat) {
@@ -180,6 +240,20 @@ export default async function ChatPage({
   }
 
   const otherMember = chat.members.find((member) => member.user.id !== user.id);
+  const pinnedMessage = chat.pinnedMessage ? serializeMessage(chat.pinnedMessage as BaseMessage) : null;
+  const serializedMessages = rawMessages.reverse().map((m: BaseMessage) => serializeMessage(m));
+  const messagesWithPinned = pinnedMessage && !serializedMessages.some((message) => message.id === pinnedMessage.id)
+    ? [...serializedMessages, pinnedMessage].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
+    : serializedMessages;
+  const forwardChats: ForwardChatOption[] = chatsPageData.chats
+    .filter((candidate) => candidate.id !== chatId)
+    .map((candidate) => ({
+      id: candidate.id,
+      title: candidate.type === "DIRECT"
+        ? candidate.otherMember?.displayName ?? candidate.otherMember?.username ?? "Чат"
+        : candidate.title ?? "Группа",
+      avatarUrl: candidate.type === "DIRECT" ? candidate.otherMember?.avatarUrl ?? null : null,
+    }));
   
   return (
     <div className="chat-screen bg-background transition-smooth overflow-hidden">
@@ -187,7 +261,9 @@ export default async function ChatPage({
         chatId={chat.id}
         currentRole={membership.role}
         currentUserId={user.id}
-        initialMessages={rawMessages.reverse().map((m: BaseMessage) => serializeMessage(m))}
+        initialMessages={messagesWithPinned}
+        initialPinnedMessage={pinnedMessage}
+        initialForwardChats={forwardChats}
         isLocked={chat.isLocked}
         chatInfo={{
           type: chat.type,

@@ -173,9 +173,14 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     ? (chat.otherMember.avatarUrl.startsWith("http") ? chat.otherMember.avatarUrl : `/api/avatars/${chat.otherMember.avatarUrl}`)
     : null;
 
+  const actionsVisible = isOpen || translateX < -8;
+
   return (
-    <div ref={rowRef} className="relative overflow-hidden rounded-[2rem]">
-      <div className="absolute inset-y-0 right-0 flex items-stretch">
+    <div ref={rowRef} className="relative isolate overflow-hidden rounded-[2rem]">
+      <div
+        className="absolute inset-y-0 right-0 z-0 flex items-stretch transition-opacity duration-150"
+        style={{ opacity: actionsVisible ? 1 : 0, pointerEvents: actionsVisible ? "auto" : "none" }}
+      >
         <button
           type="button"
           onClick={() => onArchive(chat)}
@@ -200,7 +205,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       </div>
 
       <div
-        className="will-change-transform"
+        className="relative z-10 will-change-transform"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -210,7 +215,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         <button
           type="button"
           onClick={handleOpenChat}
-          className="group relative flex w-full items-center gap-4 rounded-[2rem] border border-transparent bg-background/20 p-4 text-left transition-smooth hover:bg-surface-hover active:scale-[0.99] active:bg-surface-muted/50"
+          className="group relative flex w-full items-center gap-4 rounded-[2rem] border border-border-subtle/30 p-4 text-left transition-[transform,background-color,border-color] duration-150 hover:bg-surface-hover active:scale-[0.99] active:bg-surface-muted/50"
+          style={{ backgroundColor: "var(--glass-bg-strong)" }}
         >
           <div className="relative flex h-15 w-15 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-subtle/30 bg-surface-muted shadow-sm transition-smooth group-hover:scale-105">
             {fullAvatarUrl ? (

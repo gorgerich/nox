@@ -207,14 +207,14 @@ export function ChatsPageClient({
       </div>
 
       {incomingRequests.length > 0 ? (
-        <div className="mb-10 animate-in slide-in-from-top-2 duration-500">
+        <div className="mb-10 animate-in slide-in-from-top-2 duration-200">
           <h2 className="mb-5 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Запросы на переписку</h2>
           <IncomingRequestCards requests={incomingRequests} onChange={() => { void syncChats(); }} />
         </div>
       ) : null}
 
       {chats.length === 0 ? (
-        <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-700">
+        <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-200">
           <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[2.5rem] border border-border-subtle/50 bg-surface-muted shadow-inner">
             <span className="text-4xl">💬</span>
           </div>
@@ -231,7 +231,7 @@ export function ChatsPageClient({
           </Link>
         </div>
       ) : (
-        <div className="space-y-1 animate-in fade-in duration-500">
+        <div className="space-y-1 animate-in fade-in duration-180">
           {chats.map((chat) => (
             <SwipeableChatRow
               key={chat.id}

@@ -58,6 +58,7 @@ interface AnsweredPayload {
 
 interface IcePayload {
   callId?: string;
+  chatId?: string;
   candidate: RTCIceCandidateInit;
 }
 
@@ -543,6 +544,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onAnswered = async ({ answer, callId }: AnsweredPayload) => {
+      if (callId && callIdRef.current && callId !== callIdRef.current) {
+        debugCall("answer ignored for stale call", { callId, currentCallId: callIdRef.current });
+        return;
+      }
+
       debugCall("answer received by caller", { callId: callId ?? callIdRef.current });
       if (pcRef.current) {
         setStatus("connecting");
@@ -560,7 +566,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const onIce = async ({ candidate }: IcePayload) => {
+    const onIce = async ({ callId, candidate }: IcePayload) => {
+      if (callId && callIdRef.current && callId !== callIdRef.current) {
+        debugCall("ICE ignored for stale call", { callId, currentCallId: callIdRef.current });
+        return;
+      }
+
       const candidateKey = JSON.stringify(candidate);
       if (receivedIceKeysRef.current.has(candidateKey)) {
         debugCall("ICE queued", { direction: "incoming", duplicate: true });
@@ -581,8 +592,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const onEnded = ({ reason }: EndedPayload) => {
-      debugCall("call ended by remote", { reason });
+    const onEnded = ({ callId, reason }: EndedPayload) => {
+      if (callId && callIdRef.current && callId !== callIdRef.current) {
+        debugCall("call:ended ignored for stale call", { callId, currentCallId: callIdRef.current, reason });
+        return;
+      }
+
+      debugCall("call ended by remote", { callId: callId ?? callIdRef.current, reason });
       if (reason === "expired" || reason === "timeout") {
         failCall("Вызов пропущен");
         return;
@@ -590,8 +606,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       cleanup(`remote ended: ${reason}`);
     };
 
-    const onDeclined = () => {
-      debugCall("call declined by remote");
+    const onDeclined = ({ callId, reason }: { callId?: string; reason?: string } = {}) => {
+      if (callId && callIdRef.current && callId !== callIdRef.current) {
+        debugCall("call:declined ignored for stale call", { callId, currentCallId: callIdRef.current, reason: reason ?? null });
+        return;
+      }
+
+      debugCall("call declined by remote", { callId: callId ?? callIdRef.current, reason: reason ?? null });
       cleanup("remote declined");
     };
 

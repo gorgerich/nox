@@ -202,13 +202,15 @@ model Chat {
   avatarUrl       String?
   createdByUserId String
   isLocked        Boolean  @default(false)
+  pinnedMessageId String?  @unique
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  createdBy User          @relation("ChatCreator", fields: [createdByUserId], references: [id])
-  members   ChatMember[]
-  messages  Message[]
-  calls     CallSession[]
+  createdBy     User          @relation("ChatCreator", fields: [createdByUserId], references: [id])
+  members       ChatMember[]
+  messages      Message[]
+  calls         CallSession[]
+  pinnedMessage Message?      @relation("PinnedChatMessage", fields: [pinnedMessageId], references: [id], onDelete: SetNull)
 
   @@index([type])
   @@index([updatedAt])
@@ -258,6 +260,7 @@ model Message {
   replyToMessage Message?         @relation("MessageReplies", fields: [replyToMessageId], references: [id])
   replies        Message[]        @relation("MessageReplies")
   receipts       MessageReceipt[]
+  pinnedInChat   Chat?            @relation("PinnedChatMessage")
 
   @@index([chatId, createdAt])
   @@index([senderUserId])
