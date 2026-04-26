@@ -55,7 +55,7 @@ export function ChatSearch() {
     <div className="relative" ref={containerRef}>
       <div className="relative group transition-smooth">
         <input
-          className="input-nox h-14 pr-5 pl-[56px] bg-surface-muted border-border-subtle/50 focus:bg-surface focus:border-primary/40 transition-smooth"
+          className="input-nox h-14 !pr-5 !pl-14 bg-surface-muted border-border-subtle/50 focus:bg-surface focus:border-primary/40 transition-smooth"
           placeholder="Поиск людей, чатов и сообщений"
           value={query}
           onChange={(e) => {
@@ -64,7 +64,7 @@ export function ChatSearch() {
           }}
           onFocus={() => setIsOpen(true)}
         />
-        <div className="pointer-events-none absolute left-0 top-0 flex h-14 w-14 items-center justify-center">
+        <div className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2">
           <svg className="h-5 w-5 text-muted transition-smooth group-focus-within:text-primary group-focus-within:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 
 interface AppShellChromeProps {
   user: {
@@ -26,33 +26,30 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     }
   }, [isChatRoom]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
     const root = document.documentElement;
+    const probe = document.createElement("div");
+    probe.className = "safe-area-bottom-probe";
+    document.body.appendChild(probe);
 
     const syncSafeArea = () => {
-      const visualViewport = window.visualViewport;
-      const inset = visualViewport
-        ? Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop)
-        : 0;
-
+      const computed = window.getComputedStyle(probe).paddingBottom;
+      const inset = Number.parseFloat(computed) || 0;
       root.style.setProperty("--app-safe-bottom", `${Math.round(inset)}px`);
     };
 
     syncSafeArea();
     window.addEventListener("orientationchange", syncSafeArea);
     window.addEventListener("resize", syncSafeArea);
-    window.visualViewport?.addEventListener("resize", syncSafeArea);
-    window.visualViewport?.addEventListener("scroll", syncSafeArea);
 
     return () => {
       window.removeEventListener("orientationchange", syncSafeArea);
       window.removeEventListener("resize", syncSafeArea);
-      window.visualViewport?.removeEventListener("resize", syncSafeArea);
-      window.visualViewport?.removeEventListener("scroll", syncSafeArea);
+      probe.remove();
     };
   }, []);
 

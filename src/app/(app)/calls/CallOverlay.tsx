@@ -11,15 +11,68 @@ export function CallOverlay() {
   const { call, status, remoteStream, isMuted, error, acceptCall, declineCall, endCall, toggleMute } = useAudioCall();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [mounted] = useState(() => typeof window !== "undefined");
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
+  const [speakerHint, setSpeakerHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (audioRef.current && remoteStream) {
       audioRef.current.srcObject = remoteStream;
-      audioRef.current.play().catch((err) => {
-        console.warn("[CALL] Autoplay blocked or failed", err);
-      });
+      audioRef.current.volume = 1;
+      audioRef.current.play()
+        .then(() => setAutoplayBlocked(false))
+        .catch((err) => {
+          console.warn("[CALL] Autoplay blocked or failed", err);
+          setAutoplayBlocked(true);
+        });
     }
   }, [remoteStream]);
+
+  const handleEnableAudio = () => {
+    if (!audioRef.current) {
+      return;
+    }
+
+    audioRef.current.play()
+      .then(() => setAutoplayBlocked(false))
+      .catch((err) => {
+        console.warn("[CALL] Manual audio enable failed", err);
+      });
+  };
+
+  const handleToggleSpeaker = async () => {
+    const mediaEl = audioRef.current as (HTMLAudioElement & { setSinkId?: (sinkId: string) => Promise<void> }) | null;
+    if (!mediaEl) {
+      return;
+    }
+
+    if (typeof mediaEl.setSinkId !== "function" || typeof navigator === "undefined" || !navigator.mediaDevices) {
+      setSpeakerHint("Переключение динамика недоступно в этом браузере.");
+      return;
+    }
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter((device) => device.kind === "audiooutput");
+      if (outputs.length === 0) {
+        setSpeakerHint("Не найдено доступных аудиовыходов.");
+        return;
+      }
+
+      let nextSink = "default";
+      if (!isSpeakerOn) {
+        const preferred = outputs.find((device) => /speaker|динам/i.test(device.label)) ?? outputs[0];
+        nextSink = preferred.deviceId;
+      }
+
+      await mediaEl.setSinkId(nextSink);
+      setIsSpeakerOn((prev) => !prev);
+      setSpeakerHint(null);
+    } catch (err) {
+      console.warn("[CALL] Speaker switch failed", err);
+      setSpeakerHint("Не удалось переключить аудиовыход.");
+    }
+  };
 
   useEffect(() => {
     if (!DEBUG_CALLS) {
@@ -82,6 +135,21 @@ export function CallOverlay() {
             {error}
           </p>
         ) : null}
+
+        {speakerHint ? (
+          <p className="mt-3 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80">
+            {speakerHint}
+          </p>
+        ) : null}
+
+        {autoplayBlocked && remoteStream ? (
+          <button
+            onClick={handleEnableAudio}
+            className="mt-4 rounded-xl border border-primary/40 bg-primary/20 px-4 py-2 text-xs font-black uppercase tracking-wider text-primary transition-smooth active:scale-95"
+          >
+            Включить звук
+          </button>
+        ) : null}
       </div>
 
       <div className="flex w-full max-w-sm flex-col gap-8">
@@ -113,7 +181,12 @@ export function CallOverlay() {
                 </svg>
               </button>
 
-              <button className="flex h-16 w-16 items-center justify-center rounded-3xl border-2 border-white/10 bg-white/5 text-white transition-smooth active:scale-90">
+              <button
+                onClick={handleToggleSpeaker}
+                className={`flex h-16 w-16 items-center justify-center rounded-3xl border-2 transition-smooth active:scale-90 ${
+                  isSpeakerOn ? "border-primary bg-primary text-white" : "border-white/10 bg-white/5 text-white"
+                }`}
+              >
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>

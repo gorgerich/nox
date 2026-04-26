@@ -119,6 +119,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const disconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ringingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toneContextRef = useRef<AudioContext | null>(null);
+  const toneIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const toneTypeRef = useRef<"ringback" | "incoming" | null>(null);
 
   useEffect(() => {
     callRef.current = call;
@@ -166,6 +169,67 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const stopTone = useCallback(() => {
+    if (toneIntervalRef.current) {
+      clearInterval(toneIntervalRef.current);
+      toneIntervalRef.current = null;
+    }
+    toneTypeRef.current = null;
+  }, []);
+
+  const playTone = useCallback((type: "ringback" | "incoming") => {
+    if (typeof window === "undefined" || toneTypeRef.current === type) {
+      return;
+    }
+
+    stopTone();
+    toneTypeRef.current = type;
+
+    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) {
+      return;
+    }
+
+    try {
+      if (!toneContextRef.current) {
+        toneContextRef.current = new AudioCtx();
+      }
+    } catch {
+      return;
+    }
+
+    const ctx = toneContextRef.current;
+    if (!ctx) {
+      return;
+    }
+
+    const scheduleBeep = () => {
+      try {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const now = ctx.currentTime;
+
+        oscillator.type = "sine";
+        oscillator.frequency.value = type === "ringback" ? 420 : 520;
+        gain.gain.value = 0.0001;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(type === "ringback" ? 0.03 : 0.05, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.3);
+      } catch (error) {
+        debugCall("call:tone:error", { type, error: String(error) });
+      }
+    };
+
+    scheduleBeep();
+    toneIntervalRef.current = setInterval(scheduleBeep, type === "ringback" ? 1800 : 1400);
+  }, [debugCall, stopTone]);
+
   const setCallState = useCallback((nextCall: CallMetadata | null, nextStatus: CallStatus) => {
     callRef.current = nextCall;
     statusRef.current = nextStatus;
@@ -176,6 +240,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const cleanup = useCallback((reason = "cleanup") => {
     debugCall("call:cleanup", { reason });
     clearCallTimers();
+    stopTone();
 
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
@@ -199,10 +264,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setRemoteStream(null);
     setIsMuted(false);
     setCallState(null, "idle");
-  }, [clearCallTimers, debugCall, setCallState]);
+  }, [clearCallTimers, debugCall, setCallState, stopTone]);
 
   const setFailed = useCallback((message: string) => {
     debugCall("call:failed", { message });
+    stopTone();
     setError(message);
     statusRef.current = "failed";
     setStatus("failed");
@@ -211,7 +277,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       cleanup("failed");
       setError(null);
     }, 3000);
-  }, [clearCallTimers, cleanup, debugCall]);
+  }, [clearCallTimers, cleanup, debugCall, stopTone]);
 
   const flushRemoteIce = useCallback(async () => {
     if (!pcRef.current || !pcRef.current.remoteDescription) {
@@ -376,7 +442,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function startCall(chatId: string, fromUser?: { displayName: string; avatarUrl: string | null }) {
-    if (!socket || statusRef.current !== "idle") {
+    if (!socket || !socket.connected || statusRef.current !== "idle") {
+      if (statusRef.current === "idle") {
+        setFailed("Нет подключения к серверу звонков");
+      }
       return;
     }
 
@@ -390,6 +459,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       },
       "ringing",
     );
+    playTone("ringback");
     debugCall("call:start:init", { chatId });
 
     try {
@@ -443,13 +513,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function acceptCall() {
-    if (!socket || !callRef.current || !incomingOfferRef.current) {
+    if (!socket || !socket.connected || !callRef.current || !incomingOfferRef.current) {
       return;
     }
 
     setError(null);
     setStatus("connecting");
     statusRef.current = "connecting";
+    stopTone();
     debugCall("call:accept:init");
 
     try {
@@ -492,6 +563,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }
 
   function declineCall() {
+    stopTone();
     if (callRef.current?.callId) {
       socket?.emit("call:declined", { callId: callRef.current.callId, reason: "declined" });
     }
@@ -499,6 +571,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }
 
   function endCall() {
+    stopTone();
     if (callRef.current?.callId) {
       socket?.emit("call:ended", { callId: callRef.current.callId, reason: "user_ended" });
     }
@@ -537,6 +610,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         },
         "ringing",
       );
+      playTone("incoming");
     };
 
     const handleAnswered = async ({ callId, chatId, answer }: AnsweredCallPayload) => {
@@ -546,6 +620,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
 
       clearCallTimers();
+      stopTone();
       setStatus("connecting");
       statusRef.current = "connecting";
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
@@ -574,11 +649,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const handleEnded = ({ reason }: CallEndedPayload) => {
       debugCall("call:ended", { reason });
+      stopTone();
       cleanup(`remote-ended:${reason}`);
     };
 
     const handleDeclined = ({ reason }: CallDeclinedPayload) => {
       debugCall("call:declined", { reason });
+      stopTone();
       setFailed(reason === "busy" ? "Пользователь занят" : "Звонок отклонён");
     };
 
@@ -595,7 +672,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", handleEnded);
       socket.off("call:declined", handleDeclined);
     };
-  }, [cleanup, clearCallTimers, debugCall, flushRemoteIce, scheduleConnectingTimeout, setCallState, setFailed, socket]);
+  }, [cleanup, clearCallTimers, debugCall, flushRemoteIce, playTone, scheduleConnectingTimeout, setCallState, setFailed, socket, stopTone]);
+
+  useEffect(() => {
+    return () => {
+      stopTone();
+      if (toneContextRef.current) {
+        void toneContextRef.current.close();
+        toneContextRef.current = null;
+      }
+    };
+  }, [stopTone]);
 
   return (
     <CallContext.Provider

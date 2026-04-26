@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --app-safe-bottom: 0px;
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
   /* --- Light Theme (Premium Off-white) --- */
   --background: #fdfdfd;
   --foreground: #1a1c1e;
@@ -67,6 +67,15 @@
   --radius-2xl: 24px;
   --radius-3xl: 32px;
   --radius-full: 9999px;
+}
+
+.safe-area-bottom-probe {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 [data-theme="dark"] {
