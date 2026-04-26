@@ -328,7 +328,7 @@ export const MessageBubble = memo(function MessageBubble({
 
           <div
             ref={bubbleRef}
-            className={`group relative px-4 py-2.5 cursor-default active:scale-[0.99] ${
+            className={`group relative px-4 py-2.5 cursor-default active:scale-[0.99] no-select ${
               isFocused ? "focused-message" : ""
             } shadow-sm ${mine ? "" : incomingClass}`}
             style={{
@@ -338,9 +338,6 @@ export const MessageBubble = memo(function MessageBubble({
 
             onContextMenu={(e) => { 
               e.preventDefault(); 
-              if (!selectionMode && bubbleRef.current) {
-                onLongPress(message.id, bubbleRef.current.getBoundingClientRect()); 
-              }
             }}
           >
           {message.replyToMessage && (
