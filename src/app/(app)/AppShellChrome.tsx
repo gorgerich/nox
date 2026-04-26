@@ -63,35 +63,43 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         {children}
       </main>
 
-      <nav className="app-bottom-nav lg:hidden">
-        <div className="grid grid-cols-3 items-center max-w-5xl mx-auto">
-          <NavLink href="/calls" icon={<CallIcon />} label="Звонки" />
-          <NavLink href="/chats" icon={<ChatIcon />} label="Чаты" count={incomingRequestCount} />
-          <NavLink href="/profile" icon={<ProfileIcon />} label="Профиль" />
+      <nav className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-50 lg:hidden w-[calc(100%-48px)] max-w-md animate-in slide-in-from-bottom-10 duration-500">
+        <div className="relative flex items-center justify-around bg-black/90 dark:bg-surface-elevated/80 backdrop-blur-2xl rounded-[2.5rem] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 dark:border-white/5 overflow-hidden h-[72px]">
+          {/* Active Tab Highlight Pill */}
+          {(pathname === '/calls' || pathname === '/chats' || pathname === '/profile') && (
+            <div 
+              className="absolute h-[56px] bg-white rounded-[2rem] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-xl"
+              style={{ 
+                width: 'calc((100% - 16px) / 3)',
+                left: `calc(8px + ((${pathname === '/calls' ? 0 : pathname === '/chats' ? 1 : 2}) * (100% - 16px) / 3))`,
+              }}
+            />
+          )}
+          
+          <NavLink href="/calls" icon={<CallIcon />} label="Звонки" isActive={pathname === '/calls'} />
+          <NavLink href="/chats" icon={<ChatIcon />} label="Чаты" isActive={pathname === '/chats'} count={incomingRequestCount} />
+          <NavLink href="/profile" icon={<ProfileIcon />} label="Профиль" isActive={pathname === '/profile'} />
         </div>
       </nav>
     </div>
   );
 }
 
-function NavLink({ href, icon, label, count }: { href: string; icon: React.ReactNode; label: string; count?: number }) {
-  const pathname = usePathname();
-  const isActive = pathname === href;
-
+function NavLink({ href, icon, label, count, isActive }: { href: string; icon: React.ReactNode; label: string; count?: number; isActive: boolean }) {
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center justify-center gap-1 py-3 transition-smooth active:scale-90 ${isActive ? 'text-primary' : 'text-muted'}`}
+      className={`relative z-10 flex flex-col items-center justify-center gap-1 w-full h-full transition-colors duration-300 ${isActive ? 'text-black' : 'text-white/60 dark:text-white/50'}`}
     >
-      <div className="relative touch-target">
+      <div className="relative">
         {icon}
         {count && count > 0 ? (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-black text-white ring-2 ring-background">
+          <span className={`absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-black ring-2 ${isActive ? 'bg-primary text-white ring-white' : 'bg-primary text-white ring-black'}`}>
             {count > 9 ? "9+" : count}
           </span>
         ) : null}
       </div>
-      <span className="text-[10px] font-black uppercase tracking-widest opacity-90">{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-tighter opacity-90">{label}</span>
     </Link>
   );
 }

@@ -111,8 +111,19 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
     }
   }
 
+  async function handleLogout() {
+    setPending(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout failed", error);
+      setPending(false);
+    }
+  }
+
   return (
-    <div className="pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <section className="flex flex-col items-center text-center mt-4">
         <div className="group relative mb-6">
           <button 
@@ -259,10 +270,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
             <button
               type="button"
-              onClick={() => router.push("/api/auth/logout")}
+              onClick={handleLogout}
+              disabled={pending}
               className="btn-nox w-full bg-surface-hover/30 text-red-400 border border-red-500/10 active:bg-red-500/5 uppercase tracking-widest text-xs mt-8"
             >
-              Выйти из аккаунта
+              {pending ? "Выход..." : "Выйти из аккаунта"}
             </button>
           </div>
         </form>

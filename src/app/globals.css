@@ -272,7 +272,7 @@ body {
     padding-left: 20px;
     padding-right: 20px;
     padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 140px);
   }
 
   .app-section-header {
