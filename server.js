@@ -92,6 +92,35 @@ function deleteCall(callId) {
   activeCalls.delete(callId);
 }
 
+async function saveCallLog(call, status) {
+  if (!call) return;
+  try {
+    const startedAt = new Date(call.createdAt);
+    const answeredAt = call.answeredAt ? new Date(call.answeredAt) : null;
+    const endedAt = new Date();
+    let durationSec = null;
+    if (answeredAt) {
+      durationSec = Math.floor((endedAt.getTime() - answeredAt.getTime()) / 1000);
+    }
+
+    await prisma.callLog.create({
+      data: {
+        chatId: call.chatId,
+        callerId: call.callerId,
+        calleeId: call.calleeId,
+        status,
+        startedAt,
+        answeredAt,
+        endedAt,
+        durationSec,
+      },
+    });
+    logCall("call log saved", { callId: call.callId, status });
+  } catch (error) {
+    console.error("Failed to save call log", error);
+  }
+}
+
 function scheduleCallMissedTimeout(io, callId) {
   clearCallExpiryTimer(callId);
 
@@ -103,7 +132,7 @@ function scheduleCallMissedTimeout(io, callId) {
   const timeoutMs = Math.max(0, call.expiresAt - Date.now());
   logCall("missed timeout scheduled", { callId, ms: timeoutMs });
 
-  const timeoutId = setTimeout(() => {
+  const timeoutId = setTimeout(async () => {
     callExpiryTimers.delete(callId);
     const currentCall = activeCalls.get(callId);
     logCall("missed timeout fired", { callId, status: currentCall?.status ?? "missing" });
@@ -114,6 +143,7 @@ function scheduleCallMissedTimeout(io, callId) {
 
     io.to(`user:${currentCall.callerId}`).emit("call:ended", { callId, reason: "expired" });
     io.to(`user:${currentCall.calleeId}`).emit("call:ended", { callId, reason: "expired" });
+    await saveCallLog(currentCall, "missed");
     activeCalls.delete(callId);
   }, timeoutMs);
 
@@ -128,6 +158,7 @@ function sweepExpiredCalls(io) {
 
     io.to(`user:${call.callerId}`).emit("call:ended", { callId, reason: "expired" });
     io.to(`user:${call.calleeId}`).emit("call:ended", { callId, reason: "expired" });
+    void saveCallLog(call, "missed");
     deleteCall(callId);
     logCall("call expired", { callId, chatId: call.chatId });
   }
@@ -639,6 +670,7 @@ app.prepare().then(() => {
       }
 
       call.status = "connecting";
+      call.answeredAt = Date.now();
       clearCallExpiryTimer(callId);
       io.to(`user:${call.callerId}`).emit("call:answer", { callId, chatId, answer });
       logCall("call:answer forwarded", { callId, fromUserId: userId, toUserId: call.callerId });
@@ -699,6 +731,7 @@ app.prepare().then(() => {
       }
 
       io.to(`user:${call.callerId}`).emit("call:declined", { callId, reason: reason ?? "declined" });
+      await saveCallLog(call, "declined");
       deleteCall(callId);
       logCall("call ended", { callId, reason: reason ?? "declined" });
       callback?.({ ok: true });
@@ -718,6 +751,10 @@ app.prepare().then(() => {
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       io.to(`user:${targetId}`).emit("call:ended", { callId, reason: reason ?? "ended" });
+      
+      const status = call.answeredAt ? "completed" : (userId === call.callerId ? "canceled" : "declined");
+      await saveCallLog(call, status);
+      
       deleteCall(callId);
       logCall("call ended", { callId, reason: reason ?? "ended" });
       callback?.({ ok: true });

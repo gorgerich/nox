@@ -11,17 +11,15 @@ export function ChatHeader({
   title,
   subtitle,
   avatarUrl,
-  onAppearanceClick,
   isConnected,
   partnerId,
-  onSearchClick,
 }: {
   chatId: string;
   chatType: string;
   title: string;
   subtitle?: string | null;
   avatarUrl?: string | null;
-  onAppearanceClick: () => void;
+  onAppearanceClick?: () => void;
   isConnected: boolean;
   currentUser: { displayName: string; avatarUrl: string | null };
   partnerId?: string;
@@ -116,17 +114,6 @@ export function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={onSearchClick}
-          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90"
-          style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
-          title="Поиск"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
-
         {canCall && (
           <button
             onClick={() => startCall(chatId)}
@@ -140,17 +127,6 @@ export function ChatHeader({
             </svg>
           </button>
         )}
-
-        <button
-          onClick={onAppearanceClick}
-          className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90"
-          style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
-          title="Оформление"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-          </svg>
-        </button>
       </div>
     </header>
   );

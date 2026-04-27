@@ -3,7 +3,7 @@
  * Uses Web Crypto API for ECDH, HKDF, and AES-GCM.
  */
 
-export const ALGORITHM_NAME = "ECDH-P256-HKDF-SHA256-AES-GCM-v1";
+export const ALGORITHM_NAME = "ECDH-P256-HKDF-SHA256-AES-GCM";
 
 /**
  * Encodes a string to Uint8Array.

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
+import { AvatarCropModal } from "./AvatarCropModal";
 
 type UserWithProfile = {
   id: string;
@@ -28,6 +29,8 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   const [avatarUrl, setAvatarUrl] = useState(user.profile?.avatarUrl || null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [showFullscreenAvatar, setShowFullscreenAvatar] = useState(false);
+  const [cropImage, setCropImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
@@ -42,11 +45,19 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const reader = new FileReader();
+    reader.onload = () => setCropImage(reader.result as string);
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const uploadCroppedAvatar = useCallback(async (blob: Blob) => {
     setPending(true);
     setMessage("");
+    setCropImage(null);
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", blob, "avatar.jpg");
 
     try {
       const res = await fetch("/api/me/avatar", {
@@ -64,9 +75,8 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       setMessage(error instanceof Error ? error.message : "Ошибка загрузки");
     } finally {
       setPending(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }
+  }, [router]);
 
   async function handleAvatarDelete() {
     if (!confirm("Удалить фото профиля?")) return;
@@ -127,7 +137,10 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       <section className="flex flex-col items-center text-center mt-4">
         <div className="group relative mb-6">
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (fullAvatarUrl) setShowFullscreenAvatar(true);
+              else fileInputRef.current?.click();
+            }}
             disabled={pending}
             className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] border-4 border-surface shadow-2xl transition-smooth group-hover:scale-105 active:scale-95 overflow-hidden bg-surface-muted relative"
           >
@@ -140,8 +153,8 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             )}
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
             </div>
           </button>
@@ -153,6 +166,16 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             accept="image/*" 
             className="hidden" 
           />
+          
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute -bottom-1 -left-1 h-9 w-9 bg-primary text-white border-4 border-surface rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-smooth z-10"
+            title="Изменить фото"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            </svg>
+          </button>
           
           {avatarUrl && (
             <button 
@@ -279,6 +302,34 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
           </div>
         </form>
       </div>
+
+      {/* Fullscreen Avatar Modal */}
+      {showFullscreenAvatar && fullAvatarUrl && (
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black animate-in fade-in duration-200"
+          onClick={() => setShowFullscreenAvatar(false)}
+        >
+           <button 
+             className="absolute top-10 right-6 z-10 h-12 w-12 flex items-center justify-center rounded-2xl bg-white/10 text-white backdrop-blur-md active:scale-90 transition-smooth"
+             onClick={() => setShowFullscreenAvatar(false)}
+           >
+             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+           </button>
+           <div className="relative w-full aspect-square max-w-2xl px-4" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" priority />
+              </div>
+           </div>
+        </div>
+      )}
+
+      {cropImage && (
+        <AvatarCropModal 
+          imageSrc={cropImage} 
+          onCrop={uploadCroppedAvatar} 
+          onCancel={() => setCropImage(null)} 
+        />
+      )}
     </div>
   );
 }

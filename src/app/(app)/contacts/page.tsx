@@ -14,11 +14,14 @@ type Contact = {
   } | null;
 };
 
+let sessionContacts: Contact[] | null = null;
+let sessionMe: Contact | null = null;
+
 export default function ContactsPage() {
   const router = useRouter();
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [me, setMe] = useState<Contact | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [contacts, setContacts] = useState<Contact[]>(sessionContacts || []);
+  const [me, setMe] = useState<Contact | null>(sessionMe);
+  const [loading, setLoading] = useState(!sessionContacts);
   const [actionPending, setActionPending] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,22 +37,25 @@ export default function ContactsPage() {
             profile: meData.user.profile || { displayName: meData.user.username, avatarUrl: null }
           };
           setMe(meContact);
+          sessionMe = meContact;
         }
 
         if (chatsData.chats) {
-          const directChats = chatsData.chats.filter((c: { type: string, otherMember?: Contact | null }) => c.type === "DIRECT");
-          const users = directChats.map((c: { otherMember: { id: string; username: string; displayName: string; avatarUrl: string | null } | null }) => {
+          interface ChatEntry { type: string; otherMember: { id: string; username: string; displayName: string; avatarUrl: string | null } | null }
+          const chatList = chatsData.chats as ChatEntry[];
+          const directChats = chatList.filter((c) => c.type === "DIRECT");
+          const users = directChats.map((c) => {
             if (c.otherMember) {
+              const om = c.otherMember;
               return {
-                id: c.otherMember.id,
-                username: c.otherMember.username,
+                id: om.id,
+                username: om.username,
                 profile: {
-                  displayName: c.otherMember.displayName,
-                  avatarUrl: c.otherMember.avatarUrl,
+                  displayName: om.displayName,
+                  avatarUrl: om.avatarUrl,
                 }
               };
             }
-            // Self chat case
             return null;
           }).filter(Boolean) as Contact[];
           
@@ -60,7 +66,6 @@ export default function ContactsPage() {
               username: meData.user.username,
               profile: meData.user.profile || { displayName: meData.user.username, avatarUrl: null }
             };
-            // Add me to contacts if not already there
             if (!allContacts.some(u => u.id === meContact.id)) {
               allContacts.push(meContact);
             }
@@ -69,7 +74,6 @@ export default function ContactsPage() {
           const uniqueUsers = Array.from(new Map(allContacts.map((u: Contact) => [u.id, u])).values()) as Contact[];
           
           uniqueUsers.sort((a, b) => {
-            // Put 'Me' at top
             if (meData.user && a.id === meData.user.id) return -1;
             if (meData.user && b.id === meData.user.id) return 1;
             
@@ -79,6 +83,7 @@ export default function ContactsPage() {
           });
           
           setContacts(uniqueUsers);
+          sessionContacts = uniqueUsers;
         }
         setLoading(false);
       })

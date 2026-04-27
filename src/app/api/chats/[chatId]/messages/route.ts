@@ -20,13 +20,29 @@ const messageSchema = z.object({
   body: z.string().trim().min(1).max(4000).optional(),
   replyToMessageId: z.string().uuid().optional(),
   clientId: z.string().min(1).max(100).optional(),
+  encrypted: z.boolean().optional(),
   isEncrypted: z.boolean().optional(),
-  ciphertext: z.string().optional(),
-  iv: z.string().optional(),
-  salt: z.string().optional(),
-  algorithm: z.string().optional(),
-  encryptionVersion: z.number().optional(),
+  ciphertext: z.string().trim().min(1).optional(),
+  iv: z.string().trim().min(1).optional(),
+  salt: z.string().trim().min(1).optional(),
+  algorithm: z.string().trim().min(1).optional(),
+  encryptionVersion: z.number().int().positive().optional(),
+  senderKeyId: z.string().trim().min(1).max(160).optional(),
 });
+
+const DIRECT_E2EE_ALGORITHM = "ECDH-P256-HKDF-SHA256-AES-GCM";
+const PLAINTEXT_FIELDS = ["body", "content", "text", "message"] as const;
+
+function getPlaintextFields(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return [];
+  }
+
+  return PLAINTEXT_FIELDS.filter((field) => {
+    const value = (payload as Record<string, unknown>)[field];
+    return typeof value === "string" && value.trim().length > 0;
+  });
+}
 
 export async function GET(
   _request: Request,
@@ -83,12 +99,15 @@ export async function POST(
     return NextResponse.json({ error: "Чат закрыт." }, { status: 403 });
   }
 
+  let directPeerUserId: string | null = null;
+
   // Security: Check Blocks
   if (membership.chat.type === "DIRECT") {
     const otherMember = await prisma.chatMember.findFirst({
       where: { chatId, userId: { not: user.id } },
       select: { userId: true }
     });
+    directPeerUserId = otherMember?.userId ?? null;
     if (otherMember && await checkBlockStatus(user.id, otherMember.userId)) {
       return NextResponse.json({ error: "Вы не можете отправить сообщение этому пользователю." }, { status: 403 });
     }
@@ -98,9 +117,33 @@ export async function POST(
   const parsed = messageSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Некорректное сообщение." }, { status: 400 });
 
-  // Hardening: reject body if isEncrypted is true
-  if (parsed.data.isEncrypted && parsed.data.body) {
+  const isEncrypted = parsed.data.encrypted === true || parsed.data.isEncrypted === true;
+  const plaintextFields = getPlaintextFields(body);
+  const requiresDirectEncryption = membership.chat.type === "DIRECT" && Boolean(directPeerUserId);
+
+  if (isEncrypted && plaintextFields.length > 0) {
     return NextResponse.json({ error: "Зашифрованное сообщение не должно содержать текст в открытом виде." }, { status: 400 });
+  }
+
+  if (requiresDirectEncryption && !isEncrypted) {
+    return NextResponse.json({ error: "Direct text messages must be encrypted" }, { status: 400 });
+  }
+
+  if (isEncrypted) {
+    if (
+      !parsed.data.ciphertext ||
+      !parsed.data.iv ||
+      !parsed.data.salt ||
+      !parsed.data.algorithm ||
+      !parsed.data.encryptionVersion ||
+      !parsed.data.senderKeyId
+    ) {
+      return NextResponse.json({ error: "Некорректное зашифрованное сообщение." }, { status: 400 });
+    }
+
+    if (parsed.data.algorithm !== DIRECT_E2EE_ALGORITHM) {
+      return NextResponse.json({ error: "Неподдерживаемый алгоритм шифрования." }, { status: 400 });
+    }
   }
 
   if (parsed.data.replyToMessageId) {
@@ -124,15 +167,16 @@ export async function POST(
       chatId,
       senderUserId: user.id,
       type: "TEXT",
-      body: parsed.data.isEncrypted ? null : parsed.data.body,
-      isEncrypted: parsed.data.isEncrypted || false,
+      body: isEncrypted ? null : parsed.data.body,
+      isEncrypted,
       ciphertext: parsed.data.ciphertext,
       iv: parsed.data.iv,
       salt: parsed.data.salt,
       algorithm: parsed.data.algorithm,
       encryptionVersion: parsed.data.encryptionVersion || 0,
+      senderKeyId: parsed.data.senderKeyId,
       replyToMessageId: parsed.data.replyToMessageId,
-      expiresAt: parsed.data.isEncrypted ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
+      expiresAt: isEncrypted ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
       receipts: {
         create: activeMembers.filter(m => m.userId !== user.id).map(m => ({ userId: m.userId }))
       }

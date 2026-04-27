@@ -50,7 +50,10 @@ export function ChatsPageClient({
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [muteSheetChat, setMuteSheetChat] = useState<ChatListItem | null>(null);
   const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullProgress, setPullProgress] = useState(0);
   const syncAbortRef = useRef<AbortController | null>(null);
+  const pullStartRef = useRef<number | null>(null);
 
   const syncChats = useCallback(async () => {
     syncAbortRef.current?.abort();
@@ -84,6 +87,38 @@ export function ChatsPageClient({
     }
   }, []);
 
+  const handlePullTouchStart = useCallback((e: React.TouchEvent) => {
+    if (window.scrollY > 5) return;
+    pullStartRef.current = e.touches[0].clientY;
+  }, []);
+
+  const handlePullTouchMove = useCallback((e: React.TouchEvent) => {
+    if (pullStartRef.current === null || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - pullStartRef.current;
+    
+    if (diff > 0) {
+      const progress = Math.min(100, (diff / 150) * 100);
+      setPullProgress(progress);
+    }
+  }, [isRefreshing]);
+
+  const handlePullTouchEnd = useCallback(async () => {
+    if (pullStartRef.current === null || isRefreshing) return;
+    if (pullProgress >= 90) {
+      setIsRefreshing(true);
+      setPullProgress(100);
+      await syncChats();
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullProgress(0);
+      }, 500);
+    } else {
+      setPullProgress(0);
+    }
+    pullStartRef.current = null;
+  }, [isRefreshing, pullProgress, syncChats]);
+
   useEffect(() => {
     return () => {
       syncAbortRef.current?.abort();
@@ -100,6 +135,39 @@ export function ChatsPageClient({
     };
 
     socket.on("chat:updated", refreshList);
+    socket.on("message:new", (data: { chatId: string; message: ChatListItem["lastMessage"] & { senderUserId: string, sender?: { username: string; profile?: { displayName: string } } } }) => {
+      setChats(prev => {
+        const chatIdx = prev.findIndex(c => c.id === data.chatId);
+        if (chatIdx === -1) {
+          refreshList();
+          return prev;
+        }
+        
+        const updatedChat = { ...prev[chatIdx] };
+        const msg = data.message;
+        
+        updatedChat.lastMessage = {
+          id: msg.id,
+          type: msg.type,
+          body: msg.isEncrypted ? "Зашифрованное сообщение" : msg.body,
+          isEncrypted: msg.isEncrypted,
+          deletedAt: msg.deletedAt,
+          createdAt: msg.createdAt,
+          attachments: msg.attachments || [],
+          sender: {
+            id: msg.senderUserId,
+            username: msg.sender?.username || "",
+            displayName: msg.sender?.profile?.displayName || msg.sender?.username || "",
+          }
+        };
+        updatedChat.updatedAt = msg.createdAt;
+        
+        const newChats = [...prev];
+        newChats[chatIdx] = updatedChat;
+        // Sort by updatedAt
+        return newChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      });
+    });
     socket.on("chat-request:new", refreshList);
     socket.on("chat-request:accepted", refreshList);
     socket.on("chat-request:declined", refreshList);
@@ -236,7 +304,26 @@ export function ChatsPageClient({
   }, [chats, router]);
 
   return (
-    <div className="app-section transition-smooth">
+    <div 
+      className="app-section transition-smooth relative"
+      onTouchStart={handlePullTouchStart}
+      onTouchMove={handlePullTouchMove}
+      onTouchEnd={handlePullTouchEnd}
+    >
+      {/* Pull indicator */}
+      {(pullProgress > 0 || isRefreshing) && (
+        <div 
+          className="absolute top-0 left-0 right-0 flex justify-center pt-2 pointer-events-none z-[100]"
+          style={{ transform: `translateY(${Math.min(40, (pullProgress / 100) * 60)}px)`, opacity: pullProgress / 100 }}
+        >
+          <div className={`bg-surface-elevated border border-border-subtle rounded-full p-2 shadow-xl transition-smooth ${isRefreshing ? "animate-spin" : ""}`}>
+             <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ transform: `rotate(${pullProgress * 3.6}deg)` }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
+             </svg>
+          </div>
+        </div>
+      )}
+
       <div className="app-section-header px-2">
         <h1 className="app-section-title">Чаты</h1>
         <div className="flex gap-2">

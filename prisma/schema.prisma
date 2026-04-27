@@ -20,6 +20,8 @@ model User {
   adminActions               AdminActionLog[]   @relation("AdminActions")
   attachments                Attachment[]
   callSessions               CallSession[]      @relation("CallCreator")
+  sentCallLogs               CallLog[]          @relation("CallLogCaller")
+  receivedCallLogs           CallLog[]          @relation("CallLogCallee")
   createdChats               Chat[]             @relation("ChatCreator")
   chatMembers                ChatMember[]
   sentChatRequests           ChatRequest[]      @relation("SentChatRequests")
@@ -139,6 +141,7 @@ model Chat {
   updatedAt       DateTime      @updatedAt
   pinnedMessageId String?       @unique
   calls           CallSession[]
+  callLogs        CallLog[]
   createdBy       User          @relation("ChatCreator", fields: [createdByUserId], references: [id])
   pinnedMessage   Message?      @relation("PinnedChatMessage", fields: [pinnedMessageId], references: [id])
   members         ChatMember[]
@@ -269,6 +272,28 @@ model CallSession {
 
   @@index([chatId])
   @@index([status])
+}
+
+model CallLog {
+  id          String    @id @default(cuid())
+  chatId      String
+  callerId    String
+  calleeId    String
+  status      String // missed | declined | completed | failed | canceled
+  startedAt   DateTime  @default(now())
+  answeredAt  DateTime?
+  endedAt     DateTime?
+  durationSec Int?
+  createdAt   DateTime  @default(now())
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  caller User @relation("CallLogCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  callee User @relation("CallLogCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+
+  @@index([callerId])
+  @@index([calleeId])
+  @@index([chatId])
+  @@index([startedAt])
 }
 
 model ChatRequest {

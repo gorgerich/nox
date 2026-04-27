@@ -10,6 +10,13 @@ import { Prisma } from "@prisma/client";
 type BaseMessage = {
   id: string;
   body: string | null;
+  ciphertext: string | null;
+  iv: string | null;
+  salt: string | null;
+  algorithm: string | null;
+  encryptionVersion: number | null;
+  isEncrypted: boolean;
+  senderKeyId: string | null;
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
   replyToMessageId: string | null;

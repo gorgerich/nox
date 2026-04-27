@@ -1,5 +1,13 @@
 import * as crypto from "./crypto";
-import { getLocalPrivateKey, fetchRecipientKeyBundle } from "./keys";
+import { ensureKeys, getLocalPrivateKey, fetchRecipientKeyBundle, uploadPublicKeys } from "./keys";
+
+async function createSenderKeyId(publicJwk: string): Promise<string> {
+  const encoded = crypto.encode(publicJwk);
+  const payload = new ArrayBuffer(encoded.byteLength);
+  new Uint8Array(payload).set(encoded);
+  const digest = await window.crypto.subtle.digest("SHA-256", payload);
+  return `ecdh-p256:${crypto.arrayBufferToBase64(digest).slice(0, 24)}`;
+}
 
 /**
  * Encrypts a message for a specific recipient.
@@ -9,6 +17,8 @@ export async function encryptMessage(
   recipientUserId: string,
   chatId: string
 ) {
+  const localPublicJwk = await ensureKeys();
+  await uploadPublicKeys(localPublicJwk);
   const privateKey = await getLocalPrivateKey();
   if (!privateKey) throw new Error("Local private key missing");
 
@@ -32,6 +42,7 @@ export async function encryptMessage(
     salt: crypto.arrayBufferToBase64(salt.buffer),
     algorithm: crypto.ALGORITHM_NAME,
     encryptionVersion: 1,
+    senderKeyId: await createSenderKeyId(localPublicJwk),
   };
 }
 

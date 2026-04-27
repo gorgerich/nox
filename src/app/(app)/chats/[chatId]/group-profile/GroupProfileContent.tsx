@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
 
 interface GroupMember {
   userId: string;
@@ -54,6 +55,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   const [searchUser, setSearchUser] = useState("");
   const [foundUsers, setFoundUser] = useState<GroupMember[]>([]);
   const [pending, setPending] = useState(false);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const { settings: appearance, updateSettings, resetSettings } = useChatAppearance(chatId);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -224,6 +227,12 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         <p className="text-[10px] font-black text-muted tracking-[0.2em] uppercase mt-2">Группа создана {new Date(chat.createdAt).toLocaleDateString()}</p>
       </section>
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 gap-4 px-6 mb-10">
+        <ActionButton onClick={() => router.push(`/chats/${chatId}?search=true`)} label="Найти" icon={<SearchIcon />} />
+        <ActionButton onClick={() => setIsAppearanceOpen(true)} label="Стиль" icon={<AppearanceIcon />} />
+      </div>
+
       <div className="px-6 space-y-4 mb-10">
         {permissions.canEditGroup && (
           <section className="card-premium p-1">
@@ -329,9 +338,31 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
            </div>
         </div>
       )}
+
+      <ChatAppearanceSheet 
+        isOpen={isAppearanceOpen} 
+        onClose={() => setIsAppearanceOpen(false)} 
+        settings={appearance} 
+        onUpdate={updateSettings} 
+        onReset={resetSettings} 
+      />
     </div>
   );
 }
+
+function ActionButton({ label, icon, onClick }: { label: string, icon: React.ReactNode, onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-2 group">
+      <div className="h-12 w-12 rounded-2xl flex items-center justify-center transition-smooth active:scale-90 bg-primary/10 text-primary group-hover:scale-105">
+        {icon}
+      </div>
+      <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80">{label}</span>
+    </button>
+  );
+}
+
+function SearchIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>; }
+function AppearanceIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>; }
 
 function SettingsItem({ label, value, onClick }: { label: string, value: string, onClick?: () => void }) {
   return (

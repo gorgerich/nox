@@ -60,7 +60,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   onPin,
   isArchiveMode = false,
 }: SwipeableChatRowProps) {
-  const actionsWidth = isArchiveMode ? 222 : 296;
+  const LEFT_ACTIONS_WIDTH = isArchiveMode ? 74 : 148;
+  const RIGHT_ACTIONS_WIDTH = 148;
   const rowRef = useRef<HTMLDivElement | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const startXRef = useRef(0);
@@ -68,13 +69,13 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const startOffsetRef = useRef(0);
   const directionLockedRef = useRef<"horizontal" | "vertical" | null>(null);
   const movedRef = useRef(false);
-  const [translateX, setTranslateX] = useState(isOpen ? -actionsWidth : 0);
+  const [translateX, setTranslateX] = useState(0);
   const muted = Boolean(chat.mutedUntil && new Date(chat.mutedUntil).getTime() > Date.now());
   const pinned = Boolean(chat.pinnedAt);
 
   useEffect(() => {
-    setTranslateX(isOpen ? -actionsWidth : 0);
-  }, [actionsWidth, isOpen]);
+    if (!isOpen) setTranslateX(0);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -108,10 +109,10 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     pointerIdRef.current = event.pointerId;
     startXRef.current = event.clientX;
     startYRef.current = event.clientY;
-    startOffsetRef.current = isOpen ? -actionsWidth : 0;
+    startOffsetRef.current = translateX;
     directionLockedRef.current = null;
     movedRef.current = false;
-  }, [actionsWidth, chat.id, isOpen, onPrefetch]);
+  }, [chat.id, onPrefetch, translateX]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) {
@@ -142,16 +143,23 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     event.preventDefault();
 
     movedRef.current = true;
-    const nextX = Math.max(-actionsWidth, Math.min(0, startOffsetRef.current + deltaX));
+    const nextX = Math.max(-RIGHT_ACTIONS_WIDTH, Math.min(LEFT_ACTIONS_WIDTH, startOffsetRef.current + deltaX));
     setTranslateX(nextX);
-  }, [actionsWidth, resetGesture]);
+  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, resetGesture, startOffsetRef]);
 
   const finalizeSwipe = useCallback(() => {
-    const shouldOpen = Math.abs(translateX) > SWIPE_OPEN_THRESHOLD;
-    onOpen(shouldOpen ? chat.id : null);
-    setTranslateX(shouldOpen ? -actionsWidth : 0);
+    if (translateX < -SWIPE_OPEN_THRESHOLD) {
+      setTranslateX(-RIGHT_ACTIONS_WIDTH);
+      onOpen(chat.id);
+    } else if (translateX > SWIPE_OPEN_THRESHOLD) {
+      setTranslateX(LEFT_ACTIONS_WIDTH);
+      onOpen(chat.id);
+    } else {
+      setTranslateX(0);
+      onOpen(null);
+    }
     resetGesture();
-  }, [actionsWidth, chat.id, onOpen, resetGesture, translateX]);
+  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, chat.id, onOpen, resetGesture, translateX]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) {
@@ -166,9 +174,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       return;
     }
 
-    setTranslateX(isOpen ? -actionsWidth : 0);
+    setTranslateX(isOpen ? translateX : 0);
     resetGesture();
-  }, [actionsWidth, isOpen, resetGesture]);
+  }, [isOpen, resetGesture, translateX]);
 
   const handleOpenChat = useCallback(() => {
     if (movedRef.current || translateX !== 0) {
@@ -189,33 +197,42 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     ? (avatarToDisplay.startsWith("http") ? avatarToDisplay : `/api/avatars/${avatarToDisplay}`)
     : null;
 
-  const actionsVisible = isOpen || translateX < -8;
+  const leftActionsVisible = translateX > 8;
+  const rightActionsVisible = translateX < -8;
 
   return (
     <div ref={rowRef} className="relative isolate overflow-hidden rounded-[2rem]">
+      {/* Left Actions (visible when swiping right) */}
       <div
-        className="absolute inset-y-0 right-0 z-0 flex items-stretch transition-opacity duration-150"
-        style={{ opacity: actionsVisible ? 1 : 0, pointerEvents: actionsVisible ? "auto" : "none" }}
+        className="absolute inset-y-0 left-0 z-0 flex items-stretch transition-opacity duration-150"
+        style={{ opacity: leftActionsVisible ? 1 : 0, pointerEvents: leftActionsVisible ? "auto" : "none" }}
       >
         {!isArchiveMode ? (
           <button
             type="button"
-            onClick={() => onPin?.(chat)}
+            onClick={() => { onPin?.(chat); onOpen(null); }}
             className="w-[74px] bg-sky-500/14 text-sky-600 dark:text-sky-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
           >
-            {pinned ? "Открепить" : "Закрепить"}
+            {pinned ? "Откреп." : "Закреп."}
           </button>
         ) : null}
         <button
           type="button"
-          onClick={() => onArchive(chat)}
+          onClick={() => { onArchive(chat); onOpen(null); }}
           className="w-[74px] bg-primary/12 text-primary text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
         >
           {isArchiveMode ? "Вернуть" : "Архив"}
         </button>
+      </div>
+
+      {/* Right Actions (visible when swiping left) */}
+      <div
+        className="absolute inset-y-0 right-0 z-0 flex items-stretch transition-opacity duration-150"
+        style={{ opacity: rightActionsVisible ? 1 : 0, pointerEvents: rightActionsVisible ? "auto" : "none" }}
+      >
         <button
           type="button"
-          onClick={() => onMute(chat)}
+          onClick={() => { onMute(chat); onOpen(null); }}
           className="w-[74px] bg-amber-500/14 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap disabled:opacity-40"
           disabled={isArchiveMode}
         >
@@ -223,7 +240,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         </button>
         <button
           type="button"
-          onClick={() => onDelete(chat)}
+          onClick={() => { onDelete(chat); onOpen(null); }}
           className="w-[74px] bg-danger/14 text-danger text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
         >
           Удалить

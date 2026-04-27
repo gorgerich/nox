@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAudioCall } from "../../../calls/CallProvider";
 import { usePresence } from "@/hooks/usePresence";
+import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
 
 interface PartnerProfileProps {
   chatId: string;
@@ -45,6 +46,9 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
   const [loadingShared, setLoadingShared] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(settings.nickname || partnerUser.displayName);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const { settings: appearance, updateSettings, resetSettings } = useChatAppearance(chatId);
+
   const presence = usePresence({
     userId: partnerUser.id,
     initialLastSeenAt: partnerUser.lastSeenAt,
@@ -123,7 +127,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
       </section>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-4 gap-2 px-6 mb-10">
+      <div className="grid grid-cols-5 gap-1 px-4 mb-10">
         <ActionButton 
           onClick={() => {
             const currentU = { displayName: "Я", avatarUrl: null };
@@ -133,6 +137,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
           icon={<CallIcon />} 
         />
         <ActionButton onClick={() => router.push(`/chats/${chatId}?search=true`)} label="Найти" icon={<SearchIcon />} />
+        <ActionButton onClick={() => setIsAppearanceOpen(true)} label="Стиль" icon={<AppearanceIcon />} />
         <ActionMenuButton label="Звук" icon={<MuteIcon isMuted={!!settings.mutedUntil} />} options={muteOptions} onSelect={handleMute} />
         <ActionButton onClick={() => updateContact({ isBlocked: !settings.isBlocked })} label={settings.isBlocked ? "Разблок." : "Блок"} icon={<BlockIcon />} destructive={!settings.isBlocked} />
       </div>
@@ -189,6 +194,14 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
           </div>
         </div>
       )}
+
+      <ChatAppearanceSheet 
+        isOpen={isAppearanceOpen} 
+        onClose={() => setIsAppearanceOpen(false)} 
+        settings={appearance} 
+        onUpdate={updateSettings} 
+        onReset={resetSettings} 
+      />
     </div>
   );
 }
@@ -287,6 +300,7 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
 
 function CallIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>; }
 function SearchIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>; }
+function AppearanceIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>; }
 function MuteIcon({ isMuted }: { isMuted: boolean }) { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMuted ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"} /></svg>; }
 function BlockIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
 function FileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>; }

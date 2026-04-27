@@ -154,6 +154,7 @@ export function ChatMessages({
   );
 
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
+  const plaintextByClientIdRef = useRef<Map<string, string>>(new Map());
   const [otherMemberPublicKey, setOtherMemberPublicKey] = useState<string | null>(null);
   const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
 
@@ -223,6 +224,9 @@ export function ChatMessages({
             // Also store own sent messages for local history
             await storeMessage(msg.id, { body: decrypted });
           }
+        } else if (msg.senderUserId !== currentUserId) {
+          newDecrypted[msg.id] = "Не удалось расшифровать сообщение";
+          changed = true;
         }
       }
 
@@ -595,6 +599,12 @@ export function ChatMessages({
       }
 
       debugRealtime("message:new received", { messageId: normalized.id, chatId: payload.chatId });
+      const localPlaintext = payload.clientId ? plaintextByClientIdRef.current.get(payload.clientId) : null;
+      if (localPlaintext) {
+        plaintextByClientIdRef.current.delete(payload.clientId as string);
+        setDecryptedBodies((current) => ({ ...current, [normalized.id]: localPlaintext }));
+        void storeMessage(normalized.id, { body: localPlaintext });
+      }
       setMessages((current) => {
         const optimisticId = payload.clientId ? `temp-${payload.clientId}` : null;
         const withoutOptimistic = optimisticId ? current.filter((message) => message.id !== optimisticId) : current;
@@ -776,6 +786,7 @@ export function ChatMessages({
     // Optimistic message for media
     const clientId = generateClientId();
     const tempUrl = URL.createObjectURL(file);
+    const isAudio = file.type.startsWith("audio/");
     const optimisticMessage: Message = {
       ...createOptimisticMessage({
         clientId,
@@ -783,7 +794,7 @@ export function ChatMessages({
         currentUserId,
         replyToMessage: replyingToMessage,
       }),
-      type: file.type.startsWith("image/") ? "IMAGE" : file.type.startsWith("video/") ? "VIDEO" : "FILE",
+      type: file.type.startsWith("image/") ? "IMAGE" : file.type.startsWith("video/") ? "VIDEO" : (isAudio ? "VOICE" : "FILE"),
       attachments: [{
         id: `temp-${clientId}`,
         fileName: file.name,
@@ -858,24 +869,22 @@ export function ChatMessages({
       setComposerError(null);
 
     try {
-      let payload: Record<string, unknown> = {
-        body: trimmedBody,
-        replyToMessageId: replyTarget?.id,
-        clientId,
-      };
-
+      let payload: Record<string, unknown>;
       if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
-        try {
-          const encrypted = await encryptMessage(trimmedBody, chatInfo.otherMember.id, chatId);
-          payload = {
-            ...encrypted,
-            replyToMessageId: replyTarget?.id,
-            clientId,
-            isEncrypted: true,
-          };
-        } catch (e2eeErr: unknown) {
-          console.error("[e2ee] Encryption failed, falling back to plaintext:", e2eeErr);
-        }
+        const encrypted = await encryptMessage(trimmedBody, chatInfo.otherMember.id, chatId);
+        payload = {
+          encrypted: true,
+          ...encrypted,
+          replyToMessageId: replyTarget?.id,
+          clientId,
+        };
+        plaintextByClientIdRef.current.set(clientId, trimmedBody);
+      } else {
+        payload = {
+          body: trimmedBody,
+          replyToMessageId: replyTarget?.id,
+          clientId,
+        };
       }
 
       const response = await fetch(`/api/chats/${chatId}/messages`, {
@@ -891,6 +900,11 @@ export function ChatMessages({
         const data = await response.json();
         const normalized = normalizeMessage(data.message);
         if (normalized) {
+          if (payload.encrypted === true) {
+            plaintextByClientIdRef.current.delete(clientId);
+            setDecryptedBodies((current) => ({ ...current, [normalized.id]: trimmedBody }));
+            void storeMessage(normalized.id, { body: trimmedBody });
+          }
           setMessages((current) => {
             const withoutOptimistic = current.filter((message) => message.id !== optimisticMessage.id);
             const exists = withoutOptimistic.some((message) => message.id === normalized.id);
@@ -898,6 +912,7 @@ export function ChatMessages({
           });
         }
       } catch (error) {
+        plaintextByClientIdRef.current.delete(clientId);
         setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
         setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
         throw error;
@@ -1201,6 +1216,17 @@ export function ChatMessages({
 
   const currentUserInfo = useMemo(() => { return { displayName: "Я", avatarUrl: null }; }, []);
 
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    
+    // Clear param from URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete("search");
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
   return (
     <div 
       className={`chat-screen transition-[opacity] duration-150 ${menuState ? "overflow-hidden" : ""}`} 
@@ -1216,8 +1242,6 @@ export function ChatMessages({
         }
         subtitle={getStatusSubtitle()}
         avatarUrl={chatInfo.type === "GROUP" ? chatInfo.avatarUrl : chatInfo.otherMember?.avatarUrl}
-        onAppearanceClick={() => setIsAppearanceOpen(true)}
-        onSearchClick={() => setIsSearchOpen(true)}
         isConnected={chatInfo.type === "DIRECT" ? partnerPresence.isOnline : false}
         currentUser={currentUserInfo}
         partnerId={chatInfo.otherMember?.id}
@@ -1236,7 +1260,7 @@ export function ChatMessages({
                  />
                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </div>
-              <button onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }} className="text-sm font-black uppercase text-primary">Отмена</button>
+              <button onClick={closeSearch} className="text-sm font-black uppercase text-primary">Отмена</button>
            </div>
            
            {searchResults.length > 0 && (

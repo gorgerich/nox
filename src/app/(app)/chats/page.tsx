@@ -3,6 +3,8 @@ import { getChatsPageData } from "@/lib/chat-list";
 
 import { ChatsPageClient } from "./ChatsPageClient";
 
+export const revalidate = 0;
+
 export default async function ChatsPage() {
   const user = await getCurrentUser();
 

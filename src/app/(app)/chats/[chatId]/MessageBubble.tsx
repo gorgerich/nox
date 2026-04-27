@@ -17,6 +17,7 @@ export type Message = {
   algorithm?: string | null;
   encryptionVersion?: number | null;
   isEncrypted?: boolean;
+  senderKeyId?: string | null;
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
   deletedAt: string | null;
