@@ -117,7 +117,7 @@ export function ChatSearch() {
                     {results.people.map((person) => (
                       <Link
                         key={person.id}
-                        href={person.isSelf ? `/chats` : `/chats/new?u=${person.username}`}
+                        href={person.isSelf ? "/profile" : `/users/${person.id}`}
                         onClick={() => setIsOpen(false)}
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >

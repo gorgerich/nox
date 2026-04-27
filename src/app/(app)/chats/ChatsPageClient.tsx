@@ -190,12 +190,22 @@ export function ChatsPageClient({
     router.push(`/chats/${chatId}`);
   }, [router]);
 
+  const handlePrefetchChat = useCallback((chatId: string) => {
+    router.prefetch(`/chats/${chatId}`);
+  }, [router]);
+
   useEffect(() => {
     router.prefetch("/chats/new");
     router.prefetch("/contacts");
     router.prefetch("/calls");
     router.prefetch("/profile");
   }, [router]);
+
+  useEffect(() => {
+    chats.slice(0, 8).forEach((chat) => {
+      router.prefetch(`/chats/${chat.id}`);
+    });
+  }, [chats, router]);
 
   return (
     <div className="app-section transition-smooth">
@@ -288,6 +298,7 @@ export function ChatsPageClient({
               isOpen={openRowId === chat.id}
               onOpen={setOpenRowId}
               onNavigate={handleNavigate}
+              onPrefetch={handlePrefetchChat}
               onDelete={handleDelete}
               onArchive={handleArchive}
               onMute={handleOpenMute}

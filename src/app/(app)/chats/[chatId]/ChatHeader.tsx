@@ -37,7 +37,13 @@ export function ChatHeader({
   const handleBackToChats = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    router.replace("/chats");
+
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push("/chats");
   };
 
   const isGroup = chatType === "GROUP";
@@ -49,6 +55,16 @@ export function ChatHeader({
       router.push(`/chats/${chatId}/profile`);
     }
   };
+
+  useEffect(() => {
+    router.prefetch("/chats");
+    if (chatType === "DIRECT" && partnerId) {
+      router.prefetch(`/chats/${chatId}/profile`);
+    }
+    if (isGroup) {
+      router.prefetch(`/chats/${chatId}/group-profile`);
+    }
+  }, [chatId, chatType, isGroup, partnerId, router]);
 
   useEffect(() => {
     if (!socket || !partnerId || chatType !== "DIRECT") return;

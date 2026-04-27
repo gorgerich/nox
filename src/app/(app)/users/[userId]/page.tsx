@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { BackButton } from "./BackButton";
 import { DirectChatButton } from "./DirectChatButton";
 
 export default async function UserProfilePage({
@@ -15,26 +16,46 @@ export default async function UserProfilePage({
   const { userId } = await params;
   const prisma = getPrisma();
 
-  const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { profile: true },
-  });
+  const [targetUser, contactSettings] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    }),
+    prisma.contactSettings.findUnique({
+      where: {
+        ownerId_targetUserId: {
+          ownerId: user.id,
+          targetUserId: userId,
+        },
+      },
+      select: {
+        nickname: true,
+      },
+    }),
+  ]);
 
   if (!targetUser || targetUser.status !== "ACTIVE") {
     redirect("/contacts");
   }
 
-  const displayName = targetUser.profile?.displayName || targetUser.username;
-  const avatarUrl = targetUser.profile?.avatarUrl;
+  const displayName =
+    contactSettings?.nickname ||
+    targetUser.profile?.displayName ||
+    targetUser.username ||
+    "Пользователь";
+  const username = targetUser.username || "Без username";
+  const bio = targetUser.profile?.bio || "";
+  const avatarUrl = targetUser.profile?.avatarUrl ?? null;
   const fullAvatarUrl = avatarUrl
     ? avatarUrl.startsWith("http")
       ? avatarUrl
       : `/api/avatars/${avatarUrl}`
     : null;
 
-  return (
+      return (
     <div className="app-section animate-in fade-in duration-300">
-      <header className="app-section-header">
+      <header className="app-section-header flex items-center gap-3">
+        <BackButton />
         <h1 className="app-section-title">Профиль</h1>
       </header>
 
@@ -50,13 +71,13 @@ export default async function UserProfilePage({
         </div>
         
         <h2 className="mt-6 text-2xl font-black text-foreground tracking-tight">{displayName}</h2>
-        <p className="mt-1 text-sm font-bold text-muted-foreground">@{targetUser.username}</p>
+        <p className="mt-1 text-sm font-bold text-muted-foreground">@{username}</p>
 
-        {targetUser.profile?.bio && (
+        {bio ? (
           <p className="mt-4 text-center text-sm font-medium text-foreground/80 max-w-sm">
-            {targetUser.profile.bio}
+            {bio}
           </p>
-        )}
+        ) : null}
 
         <div className="mt-10 flex gap-4 w-full max-w-xs">
           <DirectChatButton userId={targetUser.id} />

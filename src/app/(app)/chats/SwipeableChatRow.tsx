@@ -40,6 +40,7 @@ type SwipeableChatRowProps = {
   isOpen: boolean;
   onOpen: (chatId: string | null) => void;
   onNavigate: (chatId: string) => void;
+  onPrefetch?: (chatId: string) => void;
   onDelete: (chat: ChatListItem) => void;
   onArchive: (chat: ChatListItem) => void;
   onMute: (chat: ChatListItem) => void;
@@ -51,6 +52,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   isOpen,
   onOpen,
   onNavigate,
+  onPrefetch,
   onDelete,
   onArchive,
   onMute,
@@ -98,13 +100,14 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       return;
     }
 
+    onPrefetch?.(chat.id);
     pointerIdRef.current = event.pointerId;
     startXRef.current = event.clientX;
     startYRef.current = event.clientY;
     startOffsetRef.current = isOpen ? -ACTIONS_WIDTH : 0;
     directionLockedRef.current = null;
     movedRef.current = false;
-  }, [isOpen]);
+  }, [chat.id, isOpen, onPrefetch]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) {
