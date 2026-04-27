@@ -34,6 +34,13 @@ type DebugInfo = {
   remoteAudioTracks: number;
   remoteStreamExists: boolean;
   iceServers: string[];
+  outboundBytes: number;
+  inboundBytes: number;
+  outboundPackets: number;
+  inboundPackets: number;
+  candidatePair: string | null;
+  localCandidateType: string | null;
+  remoteCandidateType: string | null;
 };
 
 interface CallContextType {
@@ -144,6 +151,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     remoteAudioTracks: 0,
     remoteStreamExists: false,
     iceServers: [],
+    outboundBytes: 0,
+    inboundBytes: 0,
+    outboundPackets: 0,
+    inboundPackets: 0,
+    candidatePair: null,
+    localCandidateType: null,
+    remoteCandidateType: null,
   });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -156,6 +170,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const statusRef = useRef<CallStatus>("idle");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -182,9 +197,72 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const stopStatsInterval = useCallback(() => {
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+      statsIntervalRef.current = null;
+    }
+  }, []);
+
+  const startStatsInterval = useCallback(() => {
+    stopStatsInterval();
+    statsIntervalRef.current = setInterval(async () => {
+      const pc = pcRef.current;
+      if (!pc || pc.connectionState === "closed") return;
+
+      try {
+        const stats = await pc.getStats();
+        let outboundBytes = 0;
+        let inboundBytes = 0;
+        let outboundPackets = 0;
+        let inboundPackets = 0;
+        let candidatePair = null;
+        let localCandidateType = null;
+        let remoteCandidateType = null;
+
+        stats.forEach((report) => {
+          if (report.type === "outbound-rtp" && report.kind === "audio") {
+            outboundBytes = report.bytesSent || 0;
+            outboundPackets = report.packetsSent || 0;
+          }
+          if (report.type === "inbound-rtp" && report.kind === "audio") {
+            inboundBytes = report.bytesReceived || 0;
+            inboundPackets = report.packetsReceived || 0;
+          }
+          if (report.type === "transport") {
+            const selectedPairId = report.selectedCandidatePairId;
+            if (selectedPairId) {
+              const pairReport = stats.get(selectedPairId);
+              if (pairReport) {
+                candidatePair = `${pairReport.state}`;
+                const localId = pairReport.localCandidateId;
+                const remoteId = pairReport.remoteCandidateId;
+                if (localId) localCandidateType = stats.get(localId)?.candidateType;
+                if (remoteId) remoteCandidateType = stats.get(remoteId)?.candidateType;
+              }
+            }
+          }
+        });
+
+        updateDebugInfo({
+          outboundBytes,
+          inboundBytes,
+          outboundPackets,
+          inboundPackets,
+          candidatePair,
+          localCandidateType,
+          remoteCandidateType,
+        });
+      } catch {
+        // ignore stats errors
+      }
+    }, 2000);
+  }, [stopStatsInterval, updateDebugInfo]);
+
   const cleanup = useCallback((reason: string) => {
     debugCall("cleanup", { reason });
     clearCallTimer();
+    stopStatsInterval();
 
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
@@ -218,8 +296,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       localAudioTracks: 0,
       remoteAudioTracks: 0,
       remoteStreamExists: false,
+      outboundBytes: 0,
+      inboundBytes: 0,
+      outboundPackets: 0,
+      inboundPackets: 0,
+      candidatePair: null,
+      localCandidateType: null,
+      remoteCandidateType: null,
     });
-  }, [clearCallTimer, debugCall, updateDebugInfo]);
+  }, [clearCallTimer, debugCall, stopStatsInterval, updateDebugInfo]);
 
   const failCall = useCallback((message: string) => {
     debugCall("call failed", { message });
@@ -327,6 +412,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const pc = new RTCPeerConnection(config);
     pcRef.current = pc;
     debugCall("pc created role", { callId, chatId, role });
+
+    // Explicitly add audio transceiver with sendrecv direction
+    try {
+      pc.addTransceiver("audio", { direction: "sendrecv" });
+      debugCall("transceiver created audio sendrecv");
+    } catch (err) {
+      debugCall("addTransceiver failed, falling back to addTrack later", { error: String(err) });
+    }
+
     updateDebugInfo({ 
       callId, 
       role, 
@@ -377,8 +471,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       updateDebugInfo({ signalingState: pc.signalingState });
     };
 
+    startStatsInterval();
     return pc;
-  }, [debugCall, failCall, handleRemoteTrack, sendIceCandidate, updateDebugInfo, verifyAndSetActive]);
+  }, [debugCall, failCall, handleRemoteTrack, sendIceCandidate, startStatsInterval, updateDebugInfo, verifyAndSetActive]);
 
   const acquireLocalAudio = useCallback(async (source: string) => {
     debugCall("getUserMedia start", { source });
@@ -413,14 +508,45 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [debugCall, updateDebugInfo]);
 
   const addLocalTracks = useCallback((pc: RTCPeerConnection, stream: MediaStream, source: string) => {
-    stream.getAudioTracks().forEach((track) => {
-      pc.addTrack(track, stream);
-      debugCall("addTrack", { source, kind: track.kind });
-    });
-    const sendersCount = pc.getSenders().filter((sender) => sender.track?.kind === "audio").length;
-    debugCall("pc.getSenders audio count after addTrack", {
+    const audioTrack = stream.getAudioTracks()[0];
+    if (!audioTrack) {
+      debugCall("no audio track found to add", { source });
+      return;
+    }
+
+    // Modern approach: if we have transceivers, use the audio one
+    const transceivers = pc.getTransceivers();
+    const audioTransceiver = transceivers.find(t => 
+      t.sender.track?.kind === "audio" || 
+      t.receiver.track.kind === "audio" ||
+      (t.sender.track === null && t.receiver.track.kind === "audio")
+    );
+
+    if (audioTransceiver && audioTransceiver.sender) {
+      debugCall("using transceiver sender", { source, mid: audioTransceiver.mid });
+      void audioTransceiver.sender.replaceTrack(audioTrack).then(() => {
+        debugCall("sender replaceTrack audio success", { source });
+      }).catch(err => {
+        debugCall("sender replaceTrack failed, trying addTrack", { source, error: String(err) });
+        pc.addTrack(audioTrack, stream);
+      });
+    } else {
+      // Fallback for older browsers or if transceiver not found
+      const senders = pc.getSenders();
+      const existingSender = senders.find(s => s.track?.kind === "audio");
+      
+      if (existingSender) {
+        debugCall("using existing sender", { source });
+        void existingSender.replaceTrack(audioTrack);
+      } else {
+        debugCall("addTrack fallback", { source });
+        pc.addTrack(audioTrack, stream);
+      }
+    }
+
+    debugCall("pc.getSenders audio count after addLocalTracks", {
       source,
-      count: sendersCount,
+      count: pc.getSenders().filter((sender) => sender.track?.kind === "audio").length,
     });
   }, [debugCall]);
 

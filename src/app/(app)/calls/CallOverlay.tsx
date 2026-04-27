@@ -220,7 +220,20 @@ export function CallOverlay() {
           <div>ICE: {debugInfo.iceConnectionState}</div>
           <div>Local Tracks: {debugInfo.localAudioTracks}</div>
           <div>Remote Tracks: {debugInfo.remoteAudioTracks}</div>
-          <div>Stream: {debugInfo.remoteStreamExists ? "YES" : "NO"}</div>
+          <div className="mt-1 border-t border-green-500/30 pt-1">
+            Out: {(debugInfo.outboundBytes / 1024).toFixed(1)} KB ({debugInfo.outboundPackets})
+          </div>
+          <div>
+            In: {(debugInfo.inboundBytes / 1024).toFixed(1)} KB ({debugInfo.inboundPackets})
+          </div>
+          <div className="mt-1 border-t border-green-500/30 pt-1">
+            Pair: {debugInfo.candidatePair || "N/A"}
+          </div>
+          <div>L: {debugInfo.localCandidateType || "N/A"}</div>
+          <div>R: {debugInfo.remoteCandidateType || "N/A"}</div>
+          <div className="mt-1 border-t border-green-500/30 pt-1">
+            Stream: {debugInfo.remoteStreamExists ? "YES" : "NO"}
+          </div>
           <div>Audio Src: {audioSrcAssigned ? "YES" : "NO"}</div>
           <div>Play: {audioPlayStatus}</div>
           {debugInfo.iceServers.length === 0 && (
@@ -265,9 +278,12 @@ export function CallOverlay() {
         {needsTapToPlay && remoteStream ? (
           <button
             onClick={handleTapToPlay}
-            className="mt-4 rounded-2xl border border-primary/40 bg-primary/20 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-primary"
+            className="mt-4 flex flex-col items-center gap-2 rounded-2xl border-2 border-primary bg-primary/20 px-6 py-4 transition-smooth active:scale-95"
           >
-            Включить звук
+            <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            <span className="text-sm font-black uppercase tracking-[0.12em] text-primary">Включить звук</span>
           </button>
         ) : null}
       </div>
