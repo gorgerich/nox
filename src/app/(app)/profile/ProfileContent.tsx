@@ -37,9 +37,43 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   const { isSubscribed, subscribe, unsubscribe } = usePushNotifications();
   const { theme, setTheme } = useTheme();
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordPending, setPasswordPending] = useState(false);
+
   const fullAvatarUrl = avatarUrl 
     ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
     : null;
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordPending(true);
+    setPasswordMessage("");
+    setPasswordError("");
+
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Не удалось изменить пароль.");
+      }
+
+      setPasswordMessage("Пароль успешно изменён.");
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : "Ошибка при изменении пароля.");
+    } finally {
+      setPasswordPending(false);
+    }
+  }
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -298,6 +332,50 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               className="btn-nox w-full bg-surface-hover/30 text-red-400 border border-red-500/10 active:bg-red-500/5 uppercase tracking-widest text-xs mt-8"
             >
               {pending ? "Выход..." : "Выйти из аккаунта"}
+            </button>
+          </div>
+        </form>
+
+        {/* Change Password Section */}
+        <form onSubmit={handlePasswordChange} className="space-y-8 mt-12">
+          <div className="space-y-6">
+             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60 ml-1">Безопасность</h3>
+             
+             <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">Текущий пароль</label>
+                  <input
+                    className="input-nox"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Введите текущий пароль"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">Новый пароль</label>
+                  <input
+                    className="input-nox"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Новый пароль (минимум 8 символов)"
+                  />
+                </div>
+             </div>
+          </div>
+
+          <div className="space-y-4 pt-4">
+            {passwordError && <p className="text-center text-xs font-bold text-red-400 animate-in fade-in py-2">{passwordError}</p>}
+            {passwordMessage && <p className="text-center text-xs font-bold text-primary animate-in fade-in py-2">{passwordMessage}</p>}
+            
+            <button
+              type="submit"
+              disabled={passwordPending || !currentPassword || newPassword.length < 8}
+              className="btn-nox w-full bg-surface-muted text-foreground border border-border-subtle/50 uppercase tracking-widest text-xs"
+            >
+              {passwordPending ? "Сохранение..." : "Изменить пароль"}
             </button>
           </div>
         </form>

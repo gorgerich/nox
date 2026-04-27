@@ -7,29 +7,29 @@ datasource db {
 }
 
 model User {
-  id                         String             @id @default(uuid())
-  email                      String?            @unique
-  login                      String?            @unique
-  username                   String             @unique
+  id                         String               @id @default(uuid())
+  email                      String?              @unique
+  login                      String?              @unique
+  username                   String               @unique
   passwordHash               String?
-  status                     UserStatus         @default(PENDING)
-  role                       UserRole           @default(MEMBER)
-  createdAt                  DateTime           @default(now())
-  updatedAt                  DateTime           @updatedAt
+  status                     UserStatus           @default(PENDING)
+  role                       UserRole             @default(MEMBER)
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
   lastSeenAt                 DateTime?
-  adminActions               AdminActionLog[]   @relation("AdminActions")
+  adminActions               AdminActionLog[]     @relation("AdminActions")
   attachments                Attachment[]
-  callSessions               CallSession[]      @relation("CallCreator")
-  sentCallLogs               CallLog[]          @relation("CallLogCaller")
-  receivedCallLogs           CallLog[]          @relation("CallLogCallee")
-  createdChats               Chat[]             @relation("ChatCreator")
+  callSessions               CallSession[]        @relation("CallCreator")
+  sentCallLogs               CallLog[]            @relation("CallLogCaller")
+  receivedCallLogs           CallLog[]            @relation("CallLogCallee")
+  createdChats               Chat[]               @relation("ChatCreator")
   chatMembers                ChatMember[]
-  sentChatRequests           ChatRequest[]      @relation("SentChatRequests")
-  receivedChatRequests       ChatRequest[]      @relation("ReceivedChatRequests")
-  contactSettingsOwned       ContactSettings[]  @relation("ContactSettingsOwner")
-  contactSettingsTargetingMe ContactSettings[]  @relation("ContactSettingsTarget")
+  sentChatRequests           ChatRequest[]        @relation("SentChatRequests")
+  receivedChatRequests       ChatRequest[]        @relation("ReceivedChatRequests")
+  contactSettingsOwned       ContactSettings[]    @relation("ContactSettingsOwner")
+  contactSettingsTargetingMe ContactSettings[]    @relation("ContactSettingsTarget")
   devices                    Device[]
-  createdInvites             Invite[]           @relation("InviteCreator")
+  createdInvites             Invite[]             @relation("InviteCreator")
   messages                   Message[]
   messageReceipts            MessageReceipt[]
   profile                    Profile?
@@ -38,10 +38,27 @@ model User {
   keyBundle                  UserKeyBundle?
   e2eeDevices                UserDevice[]
   deviceKeyBundles           DeviceKeyBundle[]
-  receivedMessageEnvelopes   MessageEnvelope[]  @relation("MessageEnvelopeRecipientUser")
+  receivedMessageEnvelopes   MessageEnvelope[]    @relation("MessageEnvelopeRecipientUser")
+  passwordResetTokens        PasswordResetToken[]
 
   @@index([status])
   @@index([role])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  ipHash    String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model UserKeyBundle {

@@ -40,6 +40,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Device belongs to another user" }, { status: 403 });
   }
 
+  if (existingDevice?.revokedAt) {
+    return NextResponse.json({ error: "DEVICE_REVOKED" }, { status: 403 });
+  }
+
   if (existingDevice?.keyBundle && existingDevice.keyBundle.publicKey !== publicKey) {
     return NextResponse.json({ error: "DEVICE_KEY_MISMATCH" }, { status: 409 });
   }
@@ -51,7 +55,6 @@ export async function POST(request: Request) {
       userAgent,
       platform,
       lastSeenAt: now,
-      revokedAt: null,
     },
     create: {
       userId: user.id,
@@ -67,7 +70,6 @@ export async function POST(request: Request) {
     where: { userDeviceId: userDevice.id },
     update: {
       algorithm,
-      revokedAt: null,
     },
     create: {
       userDeviceId: userDevice.id,

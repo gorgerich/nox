@@ -70,11 +70,21 @@ export async function POST(
 
     const envelope = await prisma.messageEnvelope.findUnique({
       where: { messageId_recipientDeviceId: { messageId, recipientDeviceId: deviceId } },
-      select: { id: true, recipientUserId: true, deliveredAt: true, encryptedPayloadDeletedAt: true },
+      select: { id: true, recipientUserId: true, recipientDeviceId: true, deliveredAt: true, encryptedPayloadDeletedAt: true, ciphertext: true },
     });
 
     if (!envelope || envelope.recipientUserId !== user.id) {
       return NextResponse.json({ error: "Envelope not found" }, { status: 404 });
+    }
+
+    if (envelope.encryptedPayloadDeletedAt && !envelope.ciphertext) {
+      return NextResponse.json({
+        ok: true,
+        messageId,
+        deviceId: envelope.recipientDeviceId,
+        deliveredAt: envelope.deliveredAt?.toISOString() ?? null,
+        encryptedPayloadDeletedAt: envelope.encryptedPayloadDeletedAt?.toISOString() ?? null,
+      });
     }
 
     const updatedEnvelope = await prisma.messageEnvelope.update({

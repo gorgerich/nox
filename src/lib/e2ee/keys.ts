@@ -157,6 +157,29 @@ export async function registerCurrentDevice(): Promise<LocalDeviceKey> {
 
   if (!res.ok) {
     const data = await res.json().catch(() => null);
+    if (data?.error === "DEVICE_REVOKED" || data?.error === "DEVICE_KEY_MISMATCH") {
+      // Clear local keys and try again once to generate a new device identity
+      await clearKeys();
+      const newLocal = await ensureDeviceKeys();
+      const retryRes = await fetch("/api/e2ee/devices/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          deviceId: newLocal.deviceId,
+          publicKey: newLocal.publicKey,
+          algorithm: crypto.ALGORITHM_NAME,
+          name: getBrowserDeviceName(),
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+          platform: typeof navigator !== "undefined"
+            ? ((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform)
+            : undefined,
+        }),
+      });
+      if (!retryRes.ok) {
+        throw new Error("Не удалось перерегистрировать устройство после сброса");
+      }
+      return newLocal;
+    }
     throw new Error(data?.error || "Не удалось зарегистрировать устройство шифрования");
   }
 

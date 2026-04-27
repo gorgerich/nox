@@ -92,8 +92,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-10 text-center">
-          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95" href="/join">
+        <div className="mt-10 text-center flex flex-col gap-4">
+          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95 mx-auto" href="/forgot-password">
+            Забыли пароль?
+          </Link>
+          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95 mx-auto" href="/join">
             Присоединиться по приглашению
           </Link>
         </div>

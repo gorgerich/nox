@@ -504,7 +504,21 @@ export function ChatMessages({
           signal: controller.signal
         });
         const data = await res.json();
-        setSearchResults(data.messages || []);
+        
+        const q = searchQuery.toLowerCase();
+        const localMatches = messagesWithDecrypted
+          .filter((m) => m.isEncrypted && m.body && m.body.toLowerCase().includes(q))
+          .map((m) => ({
+            id: m.id,
+            body: m.body,
+            createdAt: m.createdAt,
+            senderName: m.sender.profile?.displayName || m.sender.username,
+          }));
+
+        const merged = [...localMatches, ...(data.messages || [])];
+        const unique = Array.from(new Map(merged.map(m => [m.id, m])).values()) as SearchResultMessage[];
+
+        setSearchResults(unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error("Search failed", err);
@@ -515,7 +529,7 @@ export function ChatMessages({
       clearTimeout(t);
       searchAbortRef.current?.abort();
     };
-  }, [searchQuery, chatId]);
+  }, [searchQuery, chatId, messagesWithDecrypted]);
 
   useEffect(() => {
     initialScrollDoneRef.current = false;
