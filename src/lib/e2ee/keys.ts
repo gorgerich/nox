@@ -163,16 +163,22 @@ export async function registerCurrentDevice(): Promise<LocalDeviceKey> {
   return local;
 }
 
-export async function fetchUserDeviceBundles(userId: string): Promise<DeviceKeyBundle[]> {
-  const res = await fetch(`/api/e2ee/devices?userId=${userId}`);
-  if (!res.ok) return [];
+export async function fetchUserDeviceBundles(userId: string, chatId?: string): Promise<DeviceKeyBundle[]> {
+  const params = new URLSearchParams({ userId });
+  if (chatId) params.set("chatId", chatId);
+  const res = await fetch(`/api/e2ee/devices?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error("Не удалось получить ключи шифрования. Попробуйте снова.");
+  }
   const data = await res.json().catch(() => null);
   return Array.isArray(data?.devices) ? data.devices : [];
 }
 
 export async function fetchCurrentUserDeviceBundles(): Promise<DeviceKeyBundle[]> {
   const res = await fetch("/api/e2ee/devices");
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error("Не удалось получить ключи шифрования. Попробуйте снова.");
+  }
   const data = await res.json().catch(() => null);
   return Array.isArray(data?.devices) ? data.devices : [];
 }

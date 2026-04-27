@@ -2,10 +2,27 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
-async function canAccessUserDevices(currentUserId: string, targetUserId: string) {
+async function canAccessUserDevices(currentUserId: string, targetUserId: string, chatId?: string | null) {
   if (currentUserId === targetUserId) return true;
 
   const prisma = getPrisma();
+  if (chatId) {
+    const sharedChat = await prisma.chat.findFirst({
+      where: {
+        id: chatId,
+        members: {
+          some: { userId: currentUserId, status: "ACTIVE" },
+        },
+        AND: {
+          members: { some: { userId: targetUserId, status: "ACTIVE" } },
+        },
+      },
+      select: { id: true },
+    });
+
+    return Boolean(sharedChat);
+  }
+
   const sharedChat = await prisma.chat.findFirst({
     where: {
       type: "DIRECT",
@@ -29,6 +46,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId") || user.id;
   const deviceId = searchParams.get("deviceId");
+  const chatId = searchParams.get("chatId");
 
   const prisma = getPrisma();
 
@@ -48,7 +66,7 @@ export async function GET(request: Request) {
       },
     });
 
-    if (!device || !(await canAccessUserDevices(user.id, device.userId))) {
+    if (!device || !(await canAccessUserDevices(user.id, device.userId, chatId))) {
       return NextResponse.json({ error: "Device not found" }, { status: 404 });
     }
 
@@ -65,7 +83,7 @@ export async function GET(request: Request) {
     });
   }
 
-  if (!(await canAccessUserDevices(user.id, userId))) {
+  if (!(await canAccessUserDevices(user.id, userId, chatId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

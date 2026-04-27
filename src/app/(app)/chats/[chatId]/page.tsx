@@ -107,6 +107,13 @@ function serializeMessage(message: BaseMessage) {
   };
 }
 
+function filterMessageEnvelopesForUser<T extends { envelopes: BaseMessage["envelopes"] }>(message: T, userId: string): T {
+  return {
+    ...message,
+    envelopes: message.envelopes.filter((envelope) => envelope.recipientUserId === userId),
+  };
+}
+
 type ForwardChatOption = {
   id: string;
   title: string;
@@ -337,8 +344,12 @@ export default async function ChatPage({
 
   const otherMember = chat.members.find((member) => member.user.id !== user.id);
   const otherMemberIsOnline = otherMember ? isUserOnline(otherMember.user.id) : false;
-  const pinnedMessage = chat.pinnedMessage ? serializeMessage(chat.pinnedMessage as BaseMessage) : null;
-  const serializedMessages = rawMessages.reverse().map((m: BaseMessage) => serializeMessage(m));
+  const pinnedMessage = chat.pinnedMessage
+    ? serializeMessage(filterMessageEnvelopesForUser(chat.pinnedMessage as BaseMessage, user.id))
+    : null;
+  const serializedMessages = rawMessages
+    .reverse()
+    .map((m: BaseMessage) => serializeMessage(filterMessageEnvelopesForUser(m, user.id)));
   const messagesWithPinned = pinnedMessage && !serializedMessages.some((message) => message.id === pinnedMessage.id)
     ? [...serializedMessages, pinnedMessage].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
     : serializedMessages;

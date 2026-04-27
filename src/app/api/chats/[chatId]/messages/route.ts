@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
-import { emitToChat, emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
+import { emitToChat, emitToUser, emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
 import { checkBlockStatus } from "@/lib/contacts";
 
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
@@ -78,6 +78,17 @@ const messageInclude = {
   },
 } as const;
 
+type MessageWithEnvelopes = {
+  envelopes?: { recipientUserId: string }[];
+};
+
+function filterMessageEnvelopesForUser<T extends MessageWithEnvelopes>(message: T, userId: string): T {
+  return {
+    ...message,
+    envelopes: message.envelopes?.filter((envelope) => envelope.recipientUserId === userId) ?? [],
+  };
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ chatId: string }> },
@@ -97,7 +108,9 @@ export async function GET(
     include: messageInclude,
   });
 
-  return NextResponse.json({ messages: messages.reverse() });
+  return NextResponse.json({
+    messages: messages.reverse().map((message) => filterMessageEnvelopesForUser(message, user.id)),
+  });
 }
 
 export async function POST(
@@ -237,7 +250,13 @@ export async function POST(
     ]);
 
     logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
-    emitToChat(chatId, "message:new", { chatId, message, clientId: parsed.data.clientId ?? null });
+    for (const member of activeMembers) {
+      emitToUser(member.userId, "message:new", {
+        chatId,
+        message: filterMessageEnvelopesForUser(message, member.userId),
+        clientId: parsed.data.clientId ?? null,
+      });
+    }
     logRealtime("emitting message:new", { chatId, messageId: message.id });
     emitToUsers(activeMembers.map((member) => member.userId), "chat:updated", { chatId });
 
@@ -260,7 +279,10 @@ export async function POST(
       }).catch(() => undefined);
     }
 
-    return NextResponse.json({ message, clientId: parsed.data.clientId ?? null }, { status: 201 });
+    return NextResponse.json({
+      message: filterMessageEnvelopesForUser(message, user.id),
+      clientId: parsed.data.clientId ?? null,
+    }, { status: 201 });
   }
 
   if (parsed.data.replyToMessageId) {

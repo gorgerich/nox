@@ -112,7 +112,7 @@ export async function encryptMessageForDevices(
 ): Promise<EncryptedMessageV2Payload> {
   const local = await registerCurrentDevice();
   const [recipientDevices, senderDevices] = await Promise.all([
-    fetchUserDeviceBundles(recipientUserId),
+    fetchUserDeviceBundles(recipientUserId, chatId),
     fetchCurrentUserDeviceBundles(),
   ]);
 
