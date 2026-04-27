@@ -118,7 +118,7 @@ export function ChatsPageClient({
 
   const applyChatMutation = useCallback(async (
     chat: ChatListItem,
-    body: { mutedUntil?: string | null; archived?: boolean; deleted?: boolean },
+    body: { mutedUntil?: string | null; pinned?: boolean; archived?: boolean; deleted?: boolean },
     optimisticUpdater: (current: ChatListItem[]) => ChatListItem[],
     rollback: ChatListItem[],
   ) => {
@@ -185,6 +185,34 @@ export function ChatsPageClient({
     setOpenRowId(null);
     setMuteSheetChat(chat);
   }, []);
+
+  const handlePin = useCallback((chat: ChatListItem) => {
+    const previous = chats;
+    const shouldPin = !chat.pinnedAt;
+    const pinnedAt = shouldPin ? new Date().toISOString() : null;
+
+    void applyChatMutation(
+      chat,
+      { pinned: shouldPin },
+      (current) =>
+        current
+          .map((item) => (item.id === chat.id ? { ...item, pinnedAt } : item))
+          .sort((left, right) => {
+            const leftPinned = left.pinnedAt ? new Date(left.pinnedAt).getTime() : 0;
+            const rightPinned = right.pinnedAt ? new Date(right.pinnedAt).getTime() : 0;
+            if (leftPinned !== rightPinned) {
+              return rightPinned - leftPinned;
+            }
+            if (left.isSelfChat !== right.isSelfChat) {
+              return left.isSelfChat ? -1 : 1;
+            }
+            const leftTime = left.lastMessage?.createdAt ?? left.updatedAt;
+            const rightTime = right.lastMessage?.createdAt ?? right.updatedAt;
+            return new Date(rightTime).getTime() - new Date(leftTime).getTime();
+          }),
+      previous,
+    );
+  }, [applyChatMutation, chats]);
 
   const handleNavigate = useCallback((chatId: string) => {
     router.push(`/chats/${chatId}`);
@@ -302,6 +330,7 @@ export function ChatsPageClient({
               onDelete={handleDelete}
               onArchive={handleArchive}
               onMute={handleOpenMute}
+              onPin={handlePin}
             />
           ))}
         </div>

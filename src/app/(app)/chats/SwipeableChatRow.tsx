@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Bookmark, Pin } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
 
-const ACTIONS_WIDTH = 222;
 const SWIPE_OPEN_THRESHOLD = 72;
 
 function formatChatTime(isoDate: string) {
@@ -44,6 +44,7 @@ type SwipeableChatRowProps = {
   onDelete: (chat: ChatListItem) => void;
   onArchive: (chat: ChatListItem) => void;
   onMute: (chat: ChatListItem) => void;
+  onPin?: (chat: ChatListItem) => void;
   isArchiveMode?: boolean;
 };
 
@@ -56,8 +57,10 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   onDelete,
   onArchive,
   onMute,
+  onPin,
   isArchiveMode = false,
 }: SwipeableChatRowProps) {
+  const actionsWidth = isArchiveMode ? 222 : 296;
   const rowRef = useRef<HTMLDivElement | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const startXRef = useRef(0);
@@ -65,12 +68,13 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const startOffsetRef = useRef(0);
   const directionLockedRef = useRef<"horizontal" | "vertical" | null>(null);
   const movedRef = useRef(false);
-  const [translateX, setTranslateX] = useState(isOpen ? -ACTIONS_WIDTH : 0);
+  const [translateX, setTranslateX] = useState(isOpen ? -actionsWidth : 0);
   const muted = Boolean(chat.mutedUntil && new Date(chat.mutedUntil).getTime() > Date.now());
+  const pinned = Boolean(chat.pinnedAt);
 
   useEffect(() => {
-    setTranslateX(isOpen ? -ACTIONS_WIDTH : 0);
-  }, [isOpen]);
+    setTranslateX(isOpen ? -actionsWidth : 0);
+  }, [actionsWidth, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -104,10 +108,10 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     pointerIdRef.current = event.pointerId;
     startXRef.current = event.clientX;
     startYRef.current = event.clientY;
-    startOffsetRef.current = isOpen ? -ACTIONS_WIDTH : 0;
+    startOffsetRef.current = isOpen ? -actionsWidth : 0;
     directionLockedRef.current = null;
     movedRef.current = false;
-  }, [chat.id, isOpen, onPrefetch]);
+  }, [actionsWidth, chat.id, isOpen, onPrefetch]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) {
@@ -138,16 +142,16 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     event.preventDefault();
 
     movedRef.current = true;
-    const nextX = Math.max(-ACTIONS_WIDTH, Math.min(0, startOffsetRef.current + deltaX));
+    const nextX = Math.max(-actionsWidth, Math.min(0, startOffsetRef.current + deltaX));
     setTranslateX(nextX);
-  }, [resetGesture]);
+  }, [actionsWidth, resetGesture]);
 
   const finalizeSwipe = useCallback(() => {
     const shouldOpen = Math.abs(translateX) > SWIPE_OPEN_THRESHOLD;
     onOpen(shouldOpen ? chat.id : null);
-    setTranslateX(shouldOpen ? -ACTIONS_WIDTH : 0);
+    setTranslateX(shouldOpen ? -actionsWidth : 0);
     resetGesture();
-  }, [chat.id, onOpen, resetGesture, translateX]);
+  }, [actionsWidth, chat.id, onOpen, resetGesture, translateX]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) {
@@ -162,9 +166,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       return;
     }
 
-    setTranslateX(isOpen ? -ACTIONS_WIDTH : 0);
+    setTranslateX(isOpen ? -actionsWidth : 0);
     resetGesture();
-  }, [isOpen, resetGesture]);
+  }, [actionsWidth, isOpen, resetGesture]);
 
   const handleOpenChat = useCallback(() => {
     if (movedRef.current || translateX !== 0) {
@@ -173,10 +177,12 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     onNavigate(chat.id);
   }, [chat.id, onNavigate, translateX]);
 
-  const title = chat.type === "DIRECT"
-    ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
+  const title = chat.isSelfChat
+    ? "Избранное"
+    : chat.type === "DIRECT"
+      ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
     : chat.title ?? "Группа";
-  const preview = getMessagePreview(chat);
+  const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
   
   const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
   const fullAvatarUrl = avatarToDisplay
@@ -191,6 +197,15 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         className="absolute inset-y-0 right-0 z-0 flex items-stretch transition-opacity duration-150"
         style={{ opacity: actionsVisible ? 1 : 0, pointerEvents: actionsVisible ? "auto" : "none" }}
       >
+        {!isArchiveMode ? (
+          <button
+            type="button"
+            onClick={() => onPin?.(chat)}
+            className="w-[74px] bg-sky-500/14 text-sky-600 dark:text-sky-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
+          >
+            {pinned ? "Открепить" : "Закрепить"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => onArchive(chat)}
@@ -201,7 +216,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         <button
           type="button"
           onClick={() => onMute(chat)}
-          className="w-[74px] bg-amber-500/14 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
+          className="w-[74px] bg-amber-500/14 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap disabled:opacity-40"
+          disabled={isArchiveMode}
         >
           {muted ? "Тише" : "Без звука"}
         </button>
@@ -226,10 +242,16 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
           type="button"
           onClick={handleOpenChat}
           className="group relative flex w-full items-center gap-4 rounded-[2rem] border border-border-subtle/30 p-4 text-left transition-[transform,background-color,border-color] duration-150 hover:bg-surface-hover active:scale-[0.99] active:bg-surface-muted/50"
-          style={{ backgroundColor: "var(--glass-bg-strong)" }}
+          style={{
+            backgroundColor: chat.isSelfChat ? "color-mix(in srgb, var(--glass-bg-strong) 82%, var(--accent) 18%)" : "var(--glass-bg-strong)",
+          }}
         >
           <div className="relative flex h-15 w-15 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-subtle/30 bg-surface-muted shadow-sm transition-smooth group-hover:scale-105">
-            {fullAvatarUrl ? (
+            {chat.isSelfChat ? (
+              <div className="flex h-full w-full items-center justify-center bg-primary/15 text-primary">
+                <Bookmark className="h-7 w-7" />
+              </div>
+            ) : fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
             ) : (
               <span className="text-2xl font-black uppercase text-primary">{title[0]}</span>
@@ -239,6 +261,14 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <p className={`truncate text-base font-black tracking-tight ${chat.unreadCount > 0 ? "text-foreground" : "text-foreground/80"}`}>{title}</p>
+                {pinned ? (
+                  <Pin className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+                ) : null}
+                {chat.isSelfChat ? (
+                  <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-primary">
+                    Saved
+                  </span>
+                ) : null}
                 {muted ? (
                   <span className="shrink-0 text-[11px] text-muted/70">🔕</span>
                 ) : null}

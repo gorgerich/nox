@@ -7,6 +7,7 @@ import { emitToUser } from "@/lib/realtime";
 
 const settingsSchema = z.object({
   mutedUntil: z.string().datetime().nullable().optional(),
+  pinned: z.boolean().optional(),
   archived: z.boolean().optional(),
   deleted: z.boolean().optional(),
 });
@@ -32,7 +33,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Некорректные настройки." }, { status: 400 });
   }
 
-  const { mutedUntil, archived, deleted } = parsed.data;
+  const { mutedUntil, pinned, archived, deleted } = parsed.data;
   const now = new Date();
   const prisma = getPrisma();
 
@@ -45,12 +46,14 @@ export async function PATCH(
     },
     data: {
       mutedUntil: mutedUntil === undefined ? undefined : mutedUntil ? new Date(mutedUntil) : null,
+      pinnedAt: pinned === undefined ? undefined : pinned ? now : null,
       archivedAt: archived === undefined ? undefined : archived ? now : null,
       deletedAt: deleted === undefined ? undefined : deleted ? now : null,
     },
     select: {
       chatId: true,
       mutedUntil: true,
+      pinnedAt: true,
       archivedAt: true,
       deletedAt: true,
     },
@@ -62,6 +65,7 @@ export async function PATCH(
     membership: {
       chatId: updatedMembership.chatId,
       mutedUntil: updatedMembership.mutedUntil?.toISOString() ?? null,
+      pinnedAt: updatedMembership.pinnedAt?.toISOString() ?? null,
       archivedAt: updatedMembership.archivedAt?.toISOString() ?? null,
       deletedAt: updatedMembership.deletedAt?.toISOString() ?? null,
     },

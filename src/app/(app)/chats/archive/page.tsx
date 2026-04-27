@@ -108,8 +108,10 @@ export default async function ArchivePage() {
         updatedAt: membership.chat.updatedAt.toISOString(),
         unreadCount: unreadCountByChatId[membership.chatId] ?? 0,
         mutedUntil: membership.mutedUntil?.toISOString() ?? null,
+        pinnedAt: membership.pinnedAt?.toISOString() ?? null,
         archivedAt: membership.archivedAt?.toISOString() ?? null,
         deletedAt: membership.deletedAt?.toISOString() ?? null,
+        isSelfChat: membership.chat.type === "DIRECT" && !otherMember,
         otherMember: otherMember
           ? {
               id: otherMember.user.id,

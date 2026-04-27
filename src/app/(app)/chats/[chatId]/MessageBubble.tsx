@@ -283,8 +283,9 @@ export const MessageBubble = memo(function MessageBubble({
     return acc;
   }, {} as Record<string, { count: number; me: boolean }>);
 
-  const isRead = message.receipts?.some(r => r.readAt);
-  const isDelivered = message.receipts?.some(r => r.deliveredAt);
+  const relevantReceipts = message.receipts?.filter((receipt) => receipt.userId !== message.senderUserId) ?? [];
+  const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
+  const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
 
   return (
     <div 

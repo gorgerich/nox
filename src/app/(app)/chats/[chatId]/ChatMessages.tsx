@@ -9,7 +9,7 @@ import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
 import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from "./ChatAppearance";
 import { MediaViewer, MediaItem } from "./MediaViewer";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -134,7 +134,6 @@ export function ChatMessages({
   const { socket, connected } = useSocket();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const router = useRouter();
   
   const [messages, setMessages] = useState<Message[]>(() =>
     initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
@@ -530,6 +529,10 @@ export function ChatMessages({
 
     const handleReceiptsUpdated = (payload: { chatId: string; userId: string; deliveredAt?: string | Date | null; readAt?: string | Date | null }) => {
       if (payload.chatId !== chatId) return;
+      if (payload.userId === currentUserId) {
+        debugRealtime("receipts ignored for current user", { chatId, userId: payload.userId });
+        return;
+      }
       const deliveredAt = payload.deliveredAt ? new Date(payload.deliveredAt).toISOString() : null;
       const readAt = payload.readAt ? new Date(payload.readAt).toISOString() : null;
       setMessages((current) =>
@@ -608,12 +611,6 @@ export function ChatMessages({
       }
     };
 
-    const handleChatUpdated = (payload: { chatId: string }) => {
-      if (payload.chatId === chatId) {
-        router.refresh();
-      }
-    };
-
     syncActiveChat();
     socket.on("connect", syncActiveChat);
     socket.on("message:new", handleNewMessage);
@@ -623,7 +620,6 @@ export function ChatMessages({
     socket.on("message:receipts-updated", handleReceiptsUpdated);
     socket.on("typing:update", handleTypingUpdate);
     socket.on("chat:pinned-message-updated", handlePinnedMessageUpdated);
-    socket.on("chat:updated", handleChatUpdated);
     return () => {
       socket.emit("chat:inactive", { chatId });
       socket.emit("chat:leave", chatId);
@@ -635,9 +631,8 @@ export function ChatMessages({
       socket.off("message:receipts-updated", handleReceiptsUpdated);
       socket.off("typing:update", handleTypingUpdate);
       socket.off("chat:pinned-message-updated", handlePinnedMessageUpdated);
-      socket.off("chat:updated", handleChatUpdated);
     };
-  }, [chatId, currentUserId, debugRealtime, markAsRead, socket, router]);
+  }, [chatId, currentUserId, debugRealtime, markAsRead, socket]);
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     try {

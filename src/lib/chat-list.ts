@@ -9,8 +9,10 @@ export type ChatListItem = {
   updatedAt: string;
   unreadCount: number;
   mutedUntil: string | null;
+  pinnedAt: string | null;
   archivedAt: string | null;
   deletedAt: string | null;
+  isSelfChat: boolean;
   otherMember: {
     id: string;
     username: string;
@@ -173,8 +175,10 @@ export async function getChatsPageData(userId: string) {
         updatedAt: membership.chat.updatedAt.toISOString(),
         unreadCount: unreadCountByChatId[membership.chatId] ?? 0,
         mutedUntil: membership.mutedUntil?.toISOString() ?? null,
+        pinnedAt: membership.pinnedAt?.toISOString() ?? null,
         archivedAt: membership.archivedAt?.toISOString() ?? null,
         deletedAt: membership.deletedAt?.toISOString() ?? null,
+        isSelfChat: membership.chat.type === "DIRECT" && !otherMember,
         otherMember: otherMember
           ? {
               id: otherMember.user.id,
@@ -201,6 +205,16 @@ export async function getChatsPageData(userId: string) {
       } satisfies ChatListItem;
     })
     .sort((left, right) => {
+      const leftPinned = left.pinnedAt ? new Date(left.pinnedAt).getTime() : 0;
+      const rightPinned = right.pinnedAt ? new Date(right.pinnedAt).getTime() : 0;
+      if (leftPinned !== rightPinned) {
+        return rightPinned - leftPinned;
+      }
+
+      if (left.isSelfChat !== right.isSelfChat) {
+        return left.isSelfChat ? -1 : 1;
+      }
+
       const leftTime = left.lastMessage?.createdAt ?? left.updatedAt;
       const rightTime = right.lastMessage?.createdAt ?? right.updatedAt;
       return new Date(rightTime).getTime() - new Date(leftTime).getTime();
