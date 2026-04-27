@@ -19,13 +19,15 @@ type WindowWithWebkitAudioContext = Window & typeof globalThis & {
 };
 
 export function CallOverlay() {
-  const { call, status, remoteStream, isMuted, error, acceptCall, declineCall, endCall, toggleMute } = useAudioCall();
+  const { call, status, remoteStream, isMuted, error, debugInfo, acceptCall, declineCall, endCall, toggleMute } = useAudioCall();
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ringbackContextRef = useRef<AudioContext | null>(null);
   const ringbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [speakerHint, setSpeakerHint] = useState<string | null>(null);
   const [speakerMode, setSpeakerMode] = useState<"default" | "alternate">("default");
+  const [audioPlayStatus, setAudioPlayStatus] = useState<"idle" | "pending" | "success" | "failed">("idle");
+  const [audioSrcAssigned, setAudioSrcAssigned] = useState(false);
 
   const debugCall = useCallback((label: string, data: Record<string, unknown> = {}) => {
     if (!DEBUG_CALLS) return;
@@ -41,6 +43,7 @@ export function CallOverlay() {
     audio.setAttribute("playsinline", "true");
     audio.muted = false;
     audio.volume = 1;
+    setAudioSrcAssigned(true);
 
     debugCall("audio srcObject assigned", {
       source,
@@ -48,11 +51,14 @@ export function CallOverlay() {
       hasSrcObject: Boolean(audio.srcObject),
     });
 
+    setAudioPlayStatus("pending");
     void audio.play().then(() => {
       setNeedsTapToPlay(false);
+      setAudioPlayStatus("success");
       debugCall("audio.play success", { source });
     }).catch((playError) => {
       setNeedsTapToPlay(true);
+      setAudioPlayStatus("failed");
       debugCall("audio.play failed", { source, error: String(playError) });
     });
   }, [debugCall, remoteStream]);
@@ -60,7 +66,11 @@ export function CallOverlay() {
   useEffect(() => {
     if (!remoteStream) {
       const audio = remoteAudioRef.current;
-      if (audio) audio.srcObject = null;
+      if (audio) {
+        audio.srcObject = null;
+        setAudioSrcAssigned(false);
+        setAudioPlayStatus("idle");
+      }
       return;
     }
 
@@ -97,6 +107,7 @@ export function CallOverlay() {
     ringbackContextRef.current = context;
 
     const playTone = () => {
+      if (!ringbackContextRef.current) return;
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
       oscillator.type = "sine";
@@ -137,11 +148,14 @@ export function CallOverlay() {
     audio.srcObject = remoteStream;
     audio.muted = false;
     audio.volume = 1;
+    setAudioPlayStatus("pending");
     void audio.play().then(() => {
       setNeedsTapToPlay(false);
+      setAudioPlayStatus("success");
       debugCall("tap-to-play success");
     }).catch((playError) => {
       setNeedsTapToPlay(true);
+      setAudioPlayStatus("failed");
       debugCall("tap-to-play fail", { error: String(playError) });
     });
   }, [debugCall, remoteStream]);
@@ -194,6 +208,26 @@ export function CallOverlay() {
   return createPortal(
     <div className="fixed inset-0 z-1000 flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] backdrop-blur-xl animate-in fade-in duration-200 pointer-events-auto">
       <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      {DEBUG_CALLS && (
+        <div className="absolute left-4 top-24 z-50 max-w-[200px] rounded-lg bg-black/80 p-3 text-[10px] font-mono text-green-500 shadow-xl backdrop-blur-md">
+          <div className="mb-1 border-b border-green-500/30 pb-1 font-bold">CALL DEBUG</div>
+          <div>ID: {debugInfo.callId?.slice(0, 8)}...</div>
+          <div>Role: {debugInfo.role}</div>
+          <div>Status: {debugInfo.status}</div>
+          <div>Signaling: {debugInfo.signalingState}</div>
+          <div>Conn: {debugInfo.connectionState}</div>
+          <div>ICE: {debugInfo.iceConnectionState}</div>
+          <div>Local Tracks: {debugInfo.localAudioTracks}</div>
+          <div>Remote Tracks: {debugInfo.remoteAudioTracks}</div>
+          <div>Stream: {debugInfo.remoteStreamExists ? "YES" : "NO"}</div>
+          <div>Audio Src: {audioSrcAssigned ? "YES" : "NO"}</div>
+          <div>Play: {audioPlayStatus}</div>
+          {debugInfo.iceServers.length === 0 && (
+            <div className="mt-1 text-red-500 underline underline-offset-2">NO TURN CONFIGURED</div>
+          )}
+        </div>
+      )}
 
       <div className="mt-20 flex flex-col items-center text-center">
         <div className="relative mb-6 h-32 w-32">

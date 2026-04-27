@@ -648,8 +648,14 @@ app.prepare().then(() => {
     socket.on("call:ice-candidate", async ({ callId, chatId, candidate }, callback) => {
       sweepExpiredCalls(io);
       const call = activeCalls.get(callId);
-      if (!call || call.chatId !== chatId) {
+      if (!call) {
+        logCall("ice rejected: call not found", { callId, fromUserId: userId });
         callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+      if (call.chatId !== chatId) {
+        logCall("ice rejected: chat mismatch", { callId, chatId, expectedChatId: call.chatId });
+        callback?.({ ok: false, error: "CALL_CHAT_MISMATCH" });
         return;
       }
 
@@ -657,22 +663,25 @@ app.prepare().then(() => {
         if (call && isCallExpired(call)) {
           deleteCall(callId);
         }
+        logCall("ice rejected: call expired", { callId });
         callback?.({ ok: false, error: "CALL_EXPIRED" });
         return;
       }
 
       if (userId !== call.callerId && userId !== call.calleeId) {
+        logCall("ice rejected: not participant", { callId, userId });
         callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
         return;
       }
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
-      logCall("ice received", { callId, fromUserId: userId });
+      logCall("ice received", { callId, fromUserId: userId, fromRole: userId === call.callerId ? "caller" : "callee" });
       io.to(`user:${targetId}`).emit("call:ice-candidate", { callId, chatId, candidate });
       logCall("ice forwarded", {
         callId,
         fromRole: userId === call.callerId ? "caller" : "callee",
         toRole: targetId === call.callerId ? "caller" : "callee",
+        toUserId: targetId,
       });
       callback?.({ ok: true });
     });
