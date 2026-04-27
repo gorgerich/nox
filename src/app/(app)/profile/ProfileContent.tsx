@@ -43,9 +43,43 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   const [passwordError, setPasswordError] = useState("");
   const [passwordPending, setPasswordPending] = useState(false);
 
+  const [showTrustedReset, setShowTrustedReset] = useState(false);
+  const [trustedNewPassword, setTrustedNewPassword] = useState("");
+  const [trustedPending, setTrustedPending] = useState(false);
+  const [trustedError, setTrustedError] = useState("");
+  const [trustedMessage, setTrustedMessage] = useState("");
+
   const fullAvatarUrl = avatarUrl 
     ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
     : null;
+
+  async function handleTrustedReset(e: React.FormEvent) {
+    e.preventDefault();
+    setTrustedPending(true);
+    setTrustedError("");
+    setTrustedMessage("");
+
+    try {
+      const res = await fetch("/api/auth/reset-password-from-trusted-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: trustedNewPassword }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Не удалось изменить пароль.");
+      }
+
+      setTrustedMessage("Пароль успешно изменён.");
+      setTrustedNewPassword("");
+      setTimeout(() => setShowTrustedReset(false), 2000);
+    } catch (error) {
+      setTrustedError(error instanceof Error ? error.message : "Ошибка при изменении пароля.");
+    } finally {
+      setTrustedPending(false);
+    }
+  }
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
@@ -377,9 +411,67 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             >
               {passwordPending ? "Сохранение..." : "Изменить пароль"}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setShowTrustedReset(true)}
+              className="btn-nox w-full bg-transparent text-primary hover:bg-primary/5 uppercase tracking-widest text-xs"
+            >
+              Не помню текущий пароль
+            </button>
           </div>
         </form>
       </div>
+
+      {/* Trusted Reset Modal */}
+      {showTrustedReset && (
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-200 p-6"
+          onClick={() => setShowTrustedReset(false)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl relative" 
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-black mb-2 text-center">Сброс пароля</h3>
+            <p className="text-xs text-muted text-center mb-6 leading-relaxed">
+              Это устройство уже авторизовано. После смены пароля ваши сообщения на этом устройстве останутся доступны.
+            </p>
+
+            <form onSubmit={handleTrustedReset} className="space-y-6">
+              <input
+                className="input-nox h-14"
+                type="password"
+                value={trustedNewPassword}
+                onChange={(e) => setTrustedNewPassword(e.target.value)}
+                placeholder="Новый пароль (минимум 8 символов)"
+                required
+                minLength={8}
+              />
+
+              {trustedError && <p className="text-center text-xs font-bold text-red-400">{trustedError}</p>}
+              {trustedMessage && <p className="text-center text-xs font-bold text-primary">{trustedMessage}</p>}
+
+              <div className="flex gap-4 mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowTrustedReset(false)} 
+                  className="flex-1 py-4 font-black uppercase text-muted text-xs tracking-widest transition-smooth active:scale-95"
+                >
+                  Отмена
+                </button>
+                <button 
+                  type="submit"
+                  disabled={trustedPending || trustedNewPassword.length < 8} 
+                  className="flex-1 py-4 font-black uppercase text-primary text-xs tracking-widest disabled:opacity-50 transition-smooth active:scale-95"
+                >
+                  {trustedPending ? "..." : "Сохранить"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Fullscreen Avatar Modal */}
       {showFullscreenAvatar && fullAvatarUrl && (

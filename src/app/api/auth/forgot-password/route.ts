@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPrisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { emitToUser } from "@/lib/realtime";
 
 const forgotPasswordSchema = z.object({
   usernameOrEmail: z.string().min(1),
@@ -29,9 +30,9 @@ export async function POST(request: Request) {
       },
     });
 
-    // Always return the same generic success message to prevent user enumeration.
+    // Always return the same generic success message
     const genericSuccessResponse = NextResponse.json({
-      message: "Если аккаунт с такими данными существует, мы отправили на него инструкции по восстановлению.",
+      message: "Если аккаунт существует, мы отправили инструкции или запрос на активное устройство.",
     });
 
     if (!user) {
@@ -40,37 +41,53 @@ export async function POST(request: Request) {
       return genericSuccessResponse;
     }
 
-    // Generate a secure random token
-    const token = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-    // Extract basic IP and user-agent info for security logging, if available.
     const userAgent = request.headers.get("user-agent")?.substring(0, 255) ?? null;
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
-    // Store the hashed token with a 30-minute expiration
-    await prisma.passwordResetToken.create({
+    // Generate an 8-character uppercase alphanumeric code (easily typable)
+    const publicCode = crypto.randomBytes(4).toString("hex").toUpperCase(); 
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Create AccountRecoveryRequest unconditionally so even if socket delivery fails,
+    // if the user has another way to view it (or later opens the app within 10 mins), it's there.
+    const recoveryRequest = await prisma.accountRecoveryRequest.create({
       data: {
         userId: user.id,
-        tokenHash,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
-        ipHash,
-        userAgent,
-      },
+        publicCode,
+        expiresAt,
+        requesterIpHash: ipHash,
+        requesterUserAgent: userAgent,
+      }
     });
 
-    // In a real application, you would send an email here containing the cleartext `token`.
-    // We cannot log the token in production, but for MVP demonstration, we might
-    // need a way to access it, so we'll log it carefully marked as a dev-only feature.
-    if (process.env.NODE_ENV !== "production" || process.env.DEBUG_AUTH === "true") {
-      console.log(`[DEV ONLY] Password reset token for ${user.username}: ${token}`);
-    } else {
-       console.log(`[AUTH] Password reset requested for user id: ${user.id}`);
+    // Emit to active user sessions
+    emitToUser(user.id, "account-recovery:requested", {
+      requestId: recoveryRequest.id,
+      publicCode,
+      requesterUserAgent: userAgent,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    console.log(`[AUTH] Recovery request emitted for user id: ${user.id}`);
+
+    // Also support email fallback if email exists
+    if (user.email) {
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+          ipHash,
+          userAgent,
+        },
+      });
+      if (process.env.NODE_ENV !== "production" || process.env.DEBUG_AUTH === "true") {
+        console.log(`[DEV ONLY] Password reset token for ${user.username}: ${token}`);
+      }
     }
-    
-    // TODO: Implement actual email sending.
-    // await sendEmail(user.email, "Восстановление пароля Nox", `Ваш токен: ${token}`);
 
     return genericSuccessResponse;
   } catch (error) {
