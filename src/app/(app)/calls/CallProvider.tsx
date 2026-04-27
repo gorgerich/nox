@@ -104,7 +104,7 @@ interface StartCallResponse {
 
 interface CallAckResponse {
   ok: boolean;
-  error?: "CALL_NOT_FOUND" | "CALL_EXPIRED" | "CALL_NOT_AVAILABLE" | "Нет доступа" | "Некорректный звонок";
+  error?: "CALL_NOT_FOUND" | "CALL_EXPIRED" | "CALL_NOT_AVAILABLE" | "NOT_CALL_PARTICIPANT" | "INVALID_STATE" | "Нет доступа" | "Некорректный звонок";
 }
 
 interface SyncPendingResponse {
@@ -316,13 +316,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let stream = event.streams[0] || remoteStreamRef.current;
+      const incomingStream = event.streams[0] ?? null;
+      let stream = remoteStreamRef.current;
       if (!stream) {
         stream = new MediaStream();
       }
 
-      if (!stream.getTracks().some((track) => track.id === event.track.id)) {
-        stream.addTrack(event.track);
+      const tracks = incomingStream ? incomingStream.getTracks() : [event.track];
+      for (const track of tracks) {
+        if ((track.kind === "audio" || track.kind === "video") && !stream.getTracks().some((item) => item.id === track.id)) {
+          stream.addTrack(track);
+        }
       }
 
       remoteStreamRef.current = stream;
@@ -351,9 +355,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       if (pc.connectionState === "connected") {
         setStatusActiveFromSignal("connectionState-connected");
       } else if (pc.connectionState === "failed") {
-        failCall("Сбой соединения");
+        debugCall("connection failed", { state: pc.connectionState });
       } else if (pc.connectionState === "closed") {
-        cleanup("connection closed");
+        debugCall("connection closed");
       }
     };
 
@@ -362,7 +366,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
         setStatusActiveFromSignal(`iceConnectionState-${pc.iceConnectionState}`);
       } else if (pc.iceConnectionState === "failed") {
-        failCall("Сбой ICE-соединения");
+        debugCall("iceConnectionState failed", { state: pc.iceConnectionState });
       }
     };
 
@@ -376,7 +380,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     pcRef.current = pc;
     return pc;
-  }, [socket, cleanup, debugCall, setStatusActiveFromSignal, failCall]);
+  }, [socket, debugCall, setStatusActiveFromSignal]);
 
   const debugLocalTrack = useCallback((track: MediaStreamTrack | undefined, source: "startCall" | "acceptCall") => {
     if (!track) {
@@ -570,7 +574,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             failCall("Вызов пропущен");
             return;
           }
-          if (res?.error === "CALL_NOT_FOUND" || res?.error === "CALL_NOT_AVAILABLE") {
+          if (res?.error === "CALL_NOT_FOUND" || res?.error === "CALL_NOT_AVAILABLE" || res?.error === "INVALID_STATE") {
             failCall("Звонок больше недоступен");
             return;
           }
@@ -799,6 +803,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     socket.on("call:incoming", onIncoming);
+    socket.on("call:answer", onAnswered);
     socket.on("call:answered", onAnswered);
     socket.on("call:ice-candidate", onIce);
     socket.on("call:ended", onEnded);
@@ -817,6 +822,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       socket.off("call:incoming", onIncoming);
+      socket.off("call:answer", onAnswered);
       socket.off("call:answered", onAnswered);
       socket.off("call:ice-candidate", onIce);
       socket.off("call:ended", onEnded);

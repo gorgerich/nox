@@ -579,6 +579,7 @@ app.prepare().then(() => {
 
     socket.on("call:start", async ({ chatId, mode = "audio", offer }, callback) => {
       sweepExpiredCalls(io);
+      logCall("call:start received", { chatId, userId });
 
       const callMode = mode === "video" ? "video" : mode === "audio" ? "audio" : null;
       if (typeof chatId !== "string" || !offer || !callMode) {
@@ -631,14 +632,14 @@ app.prepare().then(() => {
         calleeIceCandidates: [],
       });
       scheduleCallMissedTimeout(io, callId);
-      logCall("call:start", {
+      logCall("active call created", {
         callId,
         chatId,
         mode: callMode,
         callerId: context.callerId,
         calleeId: context.calleeId,
         calleeOnline,
-        expiresAt,
+        expiresIn: CALL_TIMEOUT_MS,
       });
 
       if (calleeOnline) {
@@ -707,8 +708,13 @@ app.prepare().then(() => {
         exists: Boolean(call),
       });
 
-      if (!call || call.chatId !== chatId || call.calleeId !== userId) {
+      if (!call || call.chatId !== chatId) {
         callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+
+      if (call.calleeId !== userId) {
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
         return;
       }
 
@@ -721,7 +727,7 @@ app.prepare().then(() => {
       }
 
       if (call.status !== "ringing" && call.status !== "connecting") {
-        callback?.({ ok: false, error: "CALL_NOT_AVAILABLE" });
+        callback?.({ ok: false, error: "INVALID_STATE" });
         return;
       }
 
@@ -732,7 +738,7 @@ app.prepare().then(() => {
 
       call.status = "connecting";
       clearCallExpiryTimer(callId);
-      io.to(`user:${call.callerId}`).emit("call:answered", { callId, chatId, answer });
+      io.to(`user:${call.callerId}`).emit("call:answer", { callId, chatId, answer });
       emitStoredIce(io, call, call.callerId);
       emitStoredIce(io, call, call.calleeId);
       logCall("call:answer forwarded", { callId, fromUserId: userId, toUserId: call.callerId });
@@ -756,7 +762,7 @@ app.prepare().then(() => {
       }
 
       if (userId !== call.callerId && userId !== call.calleeId) {
-        callback?.({ ok: false, error: "Нет доступа" });
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
         return;
       }
 
@@ -784,13 +790,14 @@ app.prepare().then(() => {
       }
 
       if (userId !== call.callerId && userId !== call.calleeId) {
-        callback?.({ ok: false, error: "Нет доступа" });
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
         return;
       }
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       io.to(`user:${targetId}`).emit("call:declined", { callId, reason: reason ?? "declined" });
       deleteCall(callId);
+      logCall("call ended", { callId, reason: reason ?? "declined" });
       callback?.({ ok: true });
     });
 
@@ -802,13 +809,14 @@ app.prepare().then(() => {
       }
 
       if (userId !== call.callerId && userId !== call.calleeId) {
-        callback?.({ ok: false, error: "Нет доступа" });
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
         return;
       }
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       io.to(`user:${targetId}`).emit("call:ended", { callId, reason: reason ?? "ended" });
       deleteCall(callId);
+      logCall("call ended", { callId, reason: reason ?? "ended" });
       callback?.({ ok: true });
     });
 
