@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/prisma";
 import { AppShellChrome } from "./AppShellChrome";
 import { CallProvider } from "./calls/CallProvider";
 import { CallOverlay } from "./calls/CallOverlay";
+import { E2EEInitializer } from "@/lib/e2ee/E2EEInitializer";
 
 export default async function AppLayout({
   children,
@@ -26,6 +27,7 @@ export default async function AppLayout({
 
   return (
     <CallProvider>
+      <E2EEInitializer />
       <AppShellChrome user={{ role: user.role }} incomingRequestCount={incomingRequestCount}>
         {children}
       </AppShellChrome>

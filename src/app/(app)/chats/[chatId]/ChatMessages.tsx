@@ -11,8 +11,12 @@ import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from ".
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
+import { decryptMessage, encryptMessage } from "@/lib/e2ee/utils";
+import { fetchRecipientKeyBundle, getLocalPublicJwk } from "@/lib/e2ee/keys";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
+
+type MessageWithDecrypted = Message & { body: string };
 
 interface GroupedDate {
   type: "date";
@@ -21,7 +25,7 @@ interface GroupedDate {
 
 interface GroupedMessage {
   type: "message";
-  message: Message;
+  message: MessageWithDecrypted;
   mine: boolean;
   isGroupStart: boolean;
   isGroupEnd: boolean;
@@ -146,7 +150,63 @@ export function ChatMessages({
   const [messages, setMessages] = useState<Message[]>(() =>
     initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
   );
-  
+
+  const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
+  const [otherMemberPublicKey, setOtherMemberPublicKey] = useState<string | null>(null);
+  const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
+
+  // Fetch keys for decryption
+  useEffect(() => {
+    if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
+      fetchRecipientKeyBundle(chatInfo.otherMember.id).then(setOtherMemberPublicKey);
+    }
+    getLocalPublicJwk().then(setMyPublicKey);
+  }, [chatInfo.otherMember?.id, chatInfo.type]);
+
+  // Decrypt messages when they arrive or keys change
+  useEffect(() => {
+    async function decryptAll() {
+      const newDecrypted: Record<string, string> = { ...decryptedBodies };
+      let changed = false;
+
+      for (const msg of messages) {
+        if (!msg.isEncrypted || msg.body || decryptedBodies[msg.id]) continue;
+
+        const senderKey = msg.senderUserId === currentUserId ? myPublicKey : otherMemberPublicKey;
+        if (!senderKey) continue;
+
+        const decrypted = await decryptMessage(
+          {
+            ciphertext: msg.ciphertext || null,
+            iv: msg.iv || null,
+            salt: msg.salt || null,
+            chatId,
+            senderUserId: msg.senderUserId,
+          },
+          senderKey
+        );
+
+        if (decrypted) {
+          newDecrypted[msg.id] = decrypted;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        setDecryptedBodies(newDecrypted);
+      }
+    }
+
+    decryptAll();
+  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, decryptedBodies]);
+
+  const messagesWithDecrypted = useMemo(() => {
+    return messages.map(msg => ({
+      ...msg,
+      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? "Зашифрованное сообщение" : msg.body || "")
+    })) as MessageWithDecrypted[];
+  }, [messages, decryptedBodies]);
+
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -763,16 +823,32 @@ export function ChatMessages({
       setPending(true);
       setComposerError(null);
 
-      try {
-        const response = await fetch(`/api/chats/${chatId}/messages`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            body: trimmedBody,
+    try {
+      let payload: Record<string, unknown> = {
+        body: trimmedBody,
+        replyToMessageId: replyTarget?.id,
+        clientId,
+      };
+
+      if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
+        try {
+          const encrypted = await encryptMessage(trimmedBody, chatInfo.otherMember.id, chatId);
+          payload = {
+            ...encrypted,
             replyToMessageId: replyTarget?.id,
             clientId,
-          }),
-        });
+            isEncrypted: true,
+          };
+        } catch (e2eeErr: unknown) {
+          console.error("[e2ee] Encryption failed, falling back to plaintext:", e2eeErr);
+        }
+      }
+
+      const response = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
         if (!response.ok) {
           const data = await response.json().catch(() => null);
           throw new Error(data?.error || "Не удалось отправить сообщение");
@@ -826,8 +902,10 @@ export function ChatMessages({
     } catch (error) {
       setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
       throw error;
-    } finally { setPending(false); }
-  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach]);
+    } finally {
+      setPending(false);
+    }
+  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach, chatInfo.otherMember, chatInfo.type]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -1056,9 +1134,9 @@ export function ChatMessages({
 
   const groupedMessages = useMemo(() => {
     const result: GroupedItem[] = [];
-    messages.forEach((msg, idx) => {
-      const prev = messages[idx - 1];
-      const next = messages[idx + 1];
+    messagesWithDecrypted.forEach((msg, idx) => {
+      const prev = messagesWithDecrypted[idx - 1];
+      const next = messagesWithDecrypted[idx + 1];
       const date = new Date(msg.createdAt).toDateString();
       const prevDate = prev ? new Date(prev.createdAt).toDateString() : null;
       if (date !== prevDate) {
@@ -1076,7 +1154,7 @@ export function ChatMessages({
       });
     });
     return result;
-  }, [messages, currentUserId, chatInfo.type]);
+  }, [messagesWithDecrypted, currentUserId, chatInfo.type]);
 
   const formatDateLabel = (date: Date) => {
     const now = new Date();

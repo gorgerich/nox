@@ -11,6 +11,12 @@ const SWIPE_REPLY_MAX = 92;
 export type Message = {
   id: string;
   body: string | null;
+  ciphertext?: string | null;
+  iv?: string | null;
+  salt?: string | null;
+  algorithm?: string | null;
+  encryptionVersion?: number | null;
+  isEncrypted?: boolean;
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
   deletedAt: string | null;

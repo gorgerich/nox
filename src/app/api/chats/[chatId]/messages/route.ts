@@ -17,9 +17,15 @@ function logRealtime(label: string, data: Record<string, unknown>) {
 }
 
 const messageSchema = z.object({
-  body: z.string().trim().min(1).max(4000),
+  body: z.string().trim().min(1).max(4000).optional(),
   replyToMessageId: z.string().uuid().optional(),
   clientId: z.string().min(1).max(100).optional(),
+  isEncrypted: z.boolean().optional(),
+  ciphertext: z.string().optional(),
+  iv: z.string().optional(),
+  salt: z.string().optional(),
+  algorithm: z.string().optional(),
+  encryptionVersion: z.number().optional(),
 });
 
 export async function GET(
@@ -113,7 +119,13 @@ export async function POST(
       chatId,
       senderUserId: user.id,
       type: "TEXT",
-      body: parsed.data.body,
+      body: parsed.data.isEncrypted ? null : parsed.data.body,
+      isEncrypted: parsed.data.isEncrypted || false,
+      ciphertext: parsed.data.ciphertext,
+      iv: parsed.data.iv,
+      salt: parsed.data.salt,
+      algorithm: parsed.data.algorithm,
+      encryptionVersion: parsed.data.encryptionVersion || 0,
       replyToMessageId: parsed.data.replyToMessageId,
       receipts: {
         create: activeMembers.filter(m => m.userId !== user.id).map(m => ({ userId: m.userId }))
@@ -160,7 +172,7 @@ export async function POST(
     const senderName = message.sender.profile?.displayName || message.sender.username;
     sendPushToUsers(pushRecipients, {
       title: senderName,
-      body: (message.body || "").substring(0, 100),
+      body: message.isEncrypted ? "Новое сообщение" : (message.body || "").substring(0, 100),
       url: `/chats/${chatId}`,
       type: "message",
       chatId,

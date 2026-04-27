@@ -33,9 +33,20 @@ model User {
   profile                    Profile?
   pushSubscriptions          PushSubscription[]
   reactions                  Reaction[]
+  keyBundle                  UserKeyBundle?
 
   @@index([status])
   @@index([role])
+}
+
+model UserKeyBundle {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  ecdhPublicKey     String
+  identityPublicKey String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ContactSettings {
@@ -167,8 +178,13 @@ model Message {
   chatId            String
   senderUserId      String
   body              String?
-  encryptedBody     String?
-  encryptionVersion String?
+  ciphertext        String?
+  iv                String?
+  salt              String?
+  algorithm         String?
+  encryptionVersion Int?             @default(0)
+  isEncrypted       Boolean          @default(false)
+  senderKeyId       String?
   type              MessageType      @default(TEXT)
   replyToMessageId  String?
   editedAt          DateTime?

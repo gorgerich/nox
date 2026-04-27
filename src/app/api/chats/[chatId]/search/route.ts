@@ -28,6 +28,7 @@ export async function GET(
     where: {
       chatId,
       body: { contains: query, mode },
+      isEncrypted: false,
       deletedAt: null,
     },
     include: {
