@@ -5,6 +5,42 @@
 
 export const ALGORITHM_NAME = "ECDH-P256-HKDF-SHA256-AES-GCM";
 
+const textEncoder = new TextEncoder();
+
+function copyToArrayBuffer(value: Uint8Array | ArrayBuffer): ArrayBuffer {
+  if (value instanceof ArrayBuffer) {
+    return value.slice(0);
+  }
+
+  const copy = new ArrayBuffer(value.byteLength);
+  new Uint8Array(copy).set(value);
+  return copy;
+}
+
+function stableStringify(value: unknown): string {
+  if (value == null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
+}
+
+export function encodeAad(value: unknown): Uint8Array {
+  if (value == null) return new Uint8Array();
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (typeof value === "string") return textEncoder.encode(value);
+  return textEncoder.encode(stableStringify(value));
+}
+
 /**
  * Encodes a string to Uint8Array.
  */
@@ -131,19 +167,17 @@ export async function encrypt(
   key: CryptoKey,
   plaintext: string,
   iv: Uint8Array,
-  aad?: Uint8Array
+  aadValue?: unknown
 ): Promise<ArrayBuffer> {
+  const aad = encodeAad(aadValue);
   return crypto.subtle.encrypt(
     {
       name: "AES-GCM",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      iv: iv as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      additionalData: aad as any,
+      iv: copyToArrayBuffer(iv),
+      additionalData: copyToArrayBuffer(aad),
     },
     key,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    encode(plaintext) as any
+    copyToArrayBuffer(encode(plaintext))
   );
 }
 
@@ -154,19 +188,17 @@ export async function decrypt(
   key: CryptoKey,
   ciphertext: ArrayBuffer,
   iv: Uint8Array,
-  aad?: Uint8Array
+  aadValue?: unknown
 ): Promise<string> {
+  const aad = encodeAad(aadValue);
   const decrypted = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      iv: iv as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      additionalData: aad as any,
+      iv: copyToArrayBuffer(iv),
+      additionalData: copyToArrayBuffer(aad),
     },
     key,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ciphertext as any
+    ciphertext
   );
   return decode(new Uint8Array(decrypted));
 }

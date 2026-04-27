@@ -196,7 +196,11 @@ export function ChatMessages({
         // If no server payload, cannot decrypt
         if (!msg.ciphertext) continue;
 
+        const recipientUserId = msg.senderUserId === currentUserId
+          ? chatInfo.otherMember?.id
+          : currentUserId;
         const senderKey = msg.senderUserId === currentUserId ? myPublicKey : otherMemberPublicKey;
+        if (!recipientUserId) continue;
         if (!senderKey) continue;
 
         const decrypted = await decryptMessage(
@@ -206,6 +210,9 @@ export function ChatMessages({
             salt: msg.salt || null,
             chatId,
             senderUserId: msg.senderUserId,
+            recipientUserId,
+            algorithm: msg.algorithm || null,
+            encryptionVersion: msg.encryptionVersion || null,
           },
           senderKey
         );
@@ -236,7 +243,7 @@ export function ChatMessages({
     }
 
     decryptAll();
-  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, decryptedBodies, sendDeliveryAck]);
+  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, decryptedBodies, sendDeliveryAck]);
 
   const messagesWithDecrypted = useMemo(() => {
     return messages.map(msg => ({
@@ -871,7 +878,17 @@ export function ChatMessages({
     try {
       let payload: Record<string, unknown>;
       if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
-        const encrypted = await encryptMessage(trimmedBody, chatInfo.otherMember.id, chatId);
+        let encrypted: Awaited<ReturnType<typeof encryptMessage>>;
+        try {
+          encrypted = await encryptMessage(trimmedBody, chatInfo.otherMember.id, chatId, currentUserId);
+        } catch (encryptError) {
+          console.error("[e2ee] Encryption failed before message POST", encryptError);
+          const message = encryptError instanceof Error && encryptError.message.startsWith("На этом устройстве")
+            ? encryptError.message
+            : "Не удалось зашифровать сообщение на этом устройстве";
+          throw new Error(message);
+        }
+
         payload = {
           encrypted: true,
           ...encrypted,

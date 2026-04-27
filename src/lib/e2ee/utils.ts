@@ -15,10 +15,19 @@ async function createSenderKeyId(publicJwk: string): Promise<string> {
 export async function encryptMessage(
   plaintext: string,
   recipientUserId: string,
-  chatId: string
+  chatId: string,
+  senderUserId: string
 ) {
   const localPublicJwk = await ensureKeys();
-  await uploadPublicKeys(localPublicJwk);
+  const uploadResult = await uploadPublicKeys(localPublicJwk);
+  if (!uploadResult.ok) {
+    if (uploadResult.conflict) {
+      throw new Error("На этом устройстве нет ключа шифрования аккаунта. Старые сообщения могут быть недоступны.");
+    }
+
+    throw new Error("Не удалось подготовить ключ шифрования на этом устройстве");
+  }
+
   const privateKey = await getLocalPrivateKey();
   if (!privateKey) throw new Error("Local private key missing");
 
@@ -33,15 +42,23 @@ export async function encryptMessage(
 
   const aesKey = await crypto.deriveAesKey(privateKey, peerPublicKey, salt, info);
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const encryptionVersion = 1;
+  const aad = {
+    algorithm: crypto.ALGORITHM_NAME,
+    chatId,
+    encryptionVersion,
+    recipientId: recipientUserId,
+    senderId: senderUserId,
+  };
 
-  const ciphertext = await crypto.encrypt(aesKey, plaintext, iv);
+  const ciphertext = await crypto.encrypt(aesKey, plaintext, iv, aad);
 
   return {
     ciphertext: crypto.arrayBufferToBase64(ciphertext),
     iv: crypto.arrayBufferToBase64(iv.buffer),
     salt: crypto.arrayBufferToBase64(salt.buffer),
     algorithm: crypto.ALGORITHM_NAME,
-    encryptionVersion: 1,
+    encryptionVersion,
     senderKeyId: await createSenderKeyId(localPublicJwk),
   };
 }
@@ -56,6 +73,9 @@ export async function decryptMessage(
     salt: string | null;
     chatId: string;
     senderUserId: string;
+    recipientUserId: string;
+    algorithm?: string | null;
+    encryptionVersion?: number | null;
   },
   senderPublicJwk: string | null
 ): Promise<string | null> {
@@ -74,8 +94,19 @@ export async function decryptMessage(
     const aesKey = await crypto.deriveAesKey(privateKey, peerPublicKey, salt, info);
     const iv = new Uint8Array(crypto.base64ToArrayBuffer(message.iv));
     const ciphertext = crypto.base64ToArrayBuffer(message.ciphertext);
+    const aad = {
+      algorithm: message.algorithm || crypto.ALGORITHM_NAME,
+      chatId: message.chatId,
+      encryptionVersion: message.encryptionVersion || 1,
+      recipientId: message.recipientUserId,
+      senderId: message.senderUserId,
+    };
 
-    return await crypto.decrypt(aesKey, ciphertext, iv);
+    try {
+      return await crypto.decrypt(aesKey, ciphertext, iv, aad);
+    } catch {
+      return await crypto.decrypt(aesKey, ciphertext, iv);
+    }
   } catch (error) {
     console.error("[e2ee] Decryption failed:", error);
     return null;

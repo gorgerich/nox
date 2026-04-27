@@ -9,6 +9,12 @@ import * as db from "./indexed-db";
 const PRIVATE_KEY_ID = "nox-private-key-v1";
 const PUBLIC_KEY_ID = "nox-public-key-v1";
 
+export type KeyUploadResult = {
+  ok: boolean;
+  conflict?: boolean;
+  error?: string;
+};
+
 /**
  * Ensures the user has a key pair generated and stored.
  * Returns the public key (JWK string).
@@ -71,15 +77,22 @@ export async function fetchRecipientKeyBundle(userId: string): Promise<string | 
 /**
  * Key Bundle uploading to server.
  */
-export async function uploadPublicKeys(ecdhPublicKey: string): Promise<boolean> {
+export async function uploadPublicKeys(ecdhPublicKey: string): Promise<KeyUploadResult> {
   try {
     const res = await fetch("/api/e2ee/key-bundle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ecdhPublicKey }),
     });
-    return res.ok;
+    if (res.ok) return { ok: true };
+
+    const data = await res.json().catch(() => null);
+    return {
+      ok: false,
+      conflict: res.status === 409,
+      error: data?.error || "KEY_UPLOAD_FAILED",
+    };
   } catch {
-    return false;
+    return { ok: false, error: "KEY_UPLOAD_FAILED" };
   }
 }

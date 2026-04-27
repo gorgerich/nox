@@ -45,16 +45,29 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrisma();
-  const keyBundle = await prisma.userKeyBundle.upsert({
+  const existingBundle = await prisma.userKeyBundle.findUnique({
     where: { userId: user.id },
-    update: {
-      ecdhPublicKey,
-    },
-    create: {
-      userId: user.id,
-      ecdhPublicKey,
-    },
+    select: { id: true, ecdhPublicKey: true },
   });
+
+  if (existingBundle && existingBundle.ecdhPublicKey !== ecdhPublicKey) {
+    return NextResponse.json(
+      {
+        error: "KEY_BUNDLE_EXISTS",
+        message: "На этом аккаунте уже зарегистрирован другой ключ шифрования.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const keyBundle = existingBundle
+    ? existingBundle
+    : await prisma.userKeyBundle.create({
+        data: {
+          userId: user.id,
+          ecdhPublicKey,
+        },
+      });
 
   return NextResponse.json({ ok: true, keyBundle });
 }
