@@ -208,6 +208,7 @@ function emitPendingCallsForUser(io, userId, incomingCallId) {
     io.to(`user:${userId}`).emit("call:incoming", {
       callId: call.callId,
       chatId: call.chatId,
+      mode: call.mode ?? "audio",
       offer: call.offer,
       fromUser: call.fromUser,
       expiresAt: call.expiresAt,
@@ -516,10 +517,11 @@ app.prepare().then(() => {
       callback?.({ ok: true, ...result });
     });
 
-    socket.on("call:start", async ({ chatId, offer }, callback) => {
+    socket.on("call:start", async ({ chatId, mode = "audio", offer }, callback) => {
       sweepExpiredCalls(io);
 
-      if (typeof chatId !== "string" || !offer) {
+      const callMode = mode === "video" ? "video" : mode === "audio" ? "audio" : null;
+      if (typeof chatId !== "string" || !offer || !callMode) {
         callback?.({ ok: false, error: "Некорректный звонок" });
         return;
       }
@@ -556,6 +558,7 @@ app.prepare().then(() => {
         chatId,
         callerId: context.callerId,
         calleeId: context.calleeId,
+        mode: callMode,
         status: "ringing",
         offer,
         fromUser: {
@@ -571,6 +574,7 @@ app.prepare().then(() => {
       logCall("call:start", {
         callId,
         chatId,
+        mode: callMode,
         callerId: context.callerId,
         calleeId: context.calleeId,
         calleeOnline,
@@ -581,6 +585,7 @@ app.prepare().then(() => {
         io.to(`user:${context.calleeId}`).emit("call:incoming", {
           callId,
           chatId,
+          mode: callMode,
           offer,
           fromUser: {
             displayName: callerDisplayName,
@@ -592,7 +597,7 @@ app.prepare().then(() => {
         logCall("incoming emitted to socket", { callId, chatId, calleeId: context.calleeId });
       } else {
         sendPushToUser(context.calleeId, {
-          title: "Входящий звонок",
+          title: callMode === "video" ? "Входящий видеозвонок" : "Входящий звонок",
           body: callerDisplayName,
           url: `/chats/${chatId}?incomingCallId=${callId}`,
           type: "call",

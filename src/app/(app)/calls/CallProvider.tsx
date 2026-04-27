@@ -7,11 +7,13 @@ const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
 
 type CallStatus = "idle" | "ringing" | "connecting" | "active" | "ended" | "failed";
 type CallRole = "caller" | "callee";
+export type CallMode = "audio" | "video";
 
 interface CallMetadata {
   callId: string;
   chatId: string;
   role: CallRole;
+  mode: CallMode;
   user: {
     displayName: string;
     avatarUrl: string | null;
@@ -24,12 +26,20 @@ interface CallContextType {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   isMuted: boolean;
+  isCameraOff: boolean;
+  canSwitchCamera: boolean;
   error: string | null;
-  startCall: (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => Promise<void>;
+  startCall: (
+    chatId: string,
+    modeOrUser?: CallMode | { displayName: string, avatarUrl: string | null },
+    fromUser?: { displayName: string, avatarUrl: string | null },
+  ) => Promise<void>;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
+  toggleCamera: () => void;
+  switchCamera: () => Promise<void>;
 }
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -56,6 +66,7 @@ const getRtcConfig = (): RTCConfiguration => {
 interface IncomingPayload {
   callId: string;
   chatId: string;
+  mode?: CallMode;
   offer: RTCSessionDescriptionInit;
   fromUser: { displayName: string, avatarUrl: string | null };
   expiresAt?: number;
@@ -109,6 +120,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [canSwitchCamera, setCanSwitchCamera] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -123,6 +136,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const callIdRef = useRef<string | null>(null);
   const chatIdRef = useRef<string | null>(null);
   const hasRemoteAudioRef = useRef(false);
+  const hasRemoteTrackRef = useRef(false);
+  const callModeRef = useRef<CallMode>("audio");
+  const facingModeRef = useRef<"user" | "environment">("user");
 
   useEffect(() => {
     statusRef.current = status;
@@ -166,10 +182,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     receivedIceKeysRef.current = new Set();
     incomingOfferRef.current = null;
     setIsMuted(false);
+    setIsCameraOff(false);
+    setCanSwitchCamera(false);
     remoteStreamRef.current = null;
     callIdRef.current = null;
     chatIdRef.current = null;
     hasRemoteAudioRef.current = false;
+    hasRemoteTrackRef.current = false;
+    callModeRef.current = "audio";
+    facingModeRef.current = "user";
   }, [debugCall]);
 
   const failCall = useCallback((err: string) => {
@@ -183,6 +204,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [cleanup, debugCall]);
 
   const setStatusActiveFromSignal = useCallback((signal: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     setStatus((current) => {
       if (current === "idle" || current === "failed" || current === "ended") {
         return current;
@@ -193,6 +219,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       return "active";
     });
   }, [debugCall]);
+
+  const scheduleConnectingTimeout = useCallback((callId: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      if (statusRef.current === "connecting" && callIdRef.current === callId) {
+        debugCall("call timeout", { callId, phase: "connecting" });
+        failCall("Не удалось установить соединение");
+      }
+    }, 45000);
+  }, [debugCall, failCall]);
 
   const flushPendingLocalIce = useCallback((reason: string) => {
     if (!socket || !callIdRef.current || !chatIdRef.current || pendingLocalIceQueue.current.length === 0) {
@@ -229,6 +268,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [debugCall]);
 
+  const getMediaStreamForMode = useCallback(async (mode: CallMode) => {
+    const constraints: MediaStreamConstraints = mode === "video"
+      ? { audio: true, video: { facingMode: facingModeRef.current } }
+      : { audio: true, video: false };
+
+    debugCall("getUserMedia constraints", {
+      mode,
+      audio: true,
+      video: mode === "video" ? facingModeRef.current : false,
+    });
+
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }, [debugCall]);
+
   const createPeerConnection = useCallback((role: CallRole) => {
     debugCall("peer connection created", { role });
     const pc = new RTCPeerConnection(getRtcConfig());
@@ -259,23 +312,37 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         streamsLength: event.streams.length,
       });
 
-      if (event.track.kind !== "audio") {
+      if (event.track.kind !== "audio" && event.track.kind !== "video") {
         return;
       }
 
-      const stream = event.streams[0] || new MediaStream([event.track]);
+      let stream = event.streams[0] || remoteStreamRef.current;
+      if (!stream) {
+        stream = new MediaStream();
+      }
+
+      if (!stream.getTracks().some((track) => track.id === event.track.id)) {
+        stream.addTrack(event.track);
+      }
+
       remoteStreamRef.current = stream;
-      setRemoteStream(stream);
+      setRemoteStream(new MediaStream(stream.getTracks()));
 
       debugCall("ontrack audio received", {
+        kind: event.track.kind,
         trackReadyState: event.track.readyState,
         streamId: stream.id,
-        tracksCount: stream.getAudioTracks().length
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length,
       });
 
-      if (!hasRemoteAudioRef.current) {
+      if (event.track.kind === "audio" && !hasRemoteAudioRef.current) {
         hasRemoteAudioRef.current = true;
-        setStatusActiveFromSignal("remote-audio-track");
+      }
+
+      if (!hasRemoteTrackRef.current) {
+        hasRemoteTrackRef.current = true;
+        setStatusActiveFromSignal(`remote-${event.track.kind}-track`);
       }
     };
 
@@ -311,24 +378,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     return pc;
   }, [socket, cleanup, debugCall, setStatusActiveFromSignal, failCall]);
 
-  const debugLocalAudioTrack = useCallback((track: MediaStreamTrack | undefined, source: "startCall" | "acceptCall") => {
+  const debugLocalTrack = useCallback((track: MediaStreamTrack | undefined, source: "startCall" | "acceptCall") => {
     if (!track) {
       debugCall("local audio track state", { source, exists: false });
       return;
     }
 
     track.onmute = () => {
-      debugCall("local audio track muted", { source, readyState: track.readyState });
+      debugCall("local audio track muted", { source, kind: track.kind, readyState: track.readyState });
     };
     track.onunmute = () => {
-      debugCall("local audio track unmuted", { source, readyState: track.readyState });
+      debugCall("local audio track unmuted", { source, kind: track.kind, readyState: track.readyState });
     };
     track.onended = () => {
-      debugCall("local audio track ended", { source, readyState: track.readyState });
+      debugCall("local audio track ended", { source, kind: track.kind, readyState: track.readyState });
     };
 
     debugCall("local audio track state", {
       source,
+      kind: track.kind,
       exists: true,
       enabled: track.enabled,
       muted: track.muted,
@@ -336,9 +404,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     });
   }, [debugCall]);
 
-  const startCall = useCallback(async (chatId: string, fromUser?: { displayName: string, avatarUrl: string | null }) => {
+  const startCall = useCallback(async (
+    chatId: string,
+    modeOrUser: CallMode | { displayName: string, avatarUrl: string | null } = "audio",
+    fromUser?: { displayName: string, avatarUrl: string | null },
+  ) => {
+    const mode: CallMode = typeof modeOrUser === "string" ? modeOrUser : "audio";
+    const callerUser = typeof modeOrUser === "string" ? fromUser : modeOrUser;
     if (statusRef.current !== "idle") return;
-    debugCall("startCall", { chatId });
+    debugCall("startCall", { chatId, mode });
     setError(null);
     remoteStreamRef.current = null;
     setRemoteStream(null);
@@ -349,50 +423,65 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     callIdRef.current = null;
     chatIdRef.current = chatId;
     hasRemoteAudioRef.current = false;
+    hasRemoteTrackRef.current = false;
+    callModeRef.current = mode;
+    facingModeRef.current = "user";
     setCall({
       callId: `pending-${Date.now()}`,
       chatId,
       role: "caller",
+      mode,
       user: { displayName: "Собеседник", avatarUrl: null }
     });
     setStatus("ringing");
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getMediaStreamForMode(mode);
       localStreamRef.current = stream;
       setLocalStream(stream);
-      debugCall("local stream acquired", { source: "startCall", audioTracks: stream.getAudioTracks().length });
-      debugLocalAudioTrack(stream.getAudioTracks()[0], "startCall");
+      setCanSwitchCamera(mode === "video" && stream.getVideoTracks().length > 0);
+      debugCall("local stream acquired", {
+        source: "startCall",
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length,
+      });
+      stream.getTracks().forEach((track) => debugLocalTrack(track, "startCall"));
 
       const pc = createPeerConnection("caller");
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+        debugCall("addTrack kind", { source: "startCall", kind: track.kind });
+      });
       debugCall("addTrack senders count", {
         source: "startCall",
-        count: pc.getSenders().filter((sender) => sender.track?.kind === "audio").length,
+        audio: pc.getSenders().filter((sender) => sender.track?.kind === "audio").length,
+        video: pc.getSenders().filter((sender) => sender.track?.kind === "video").length,
       });
 
       const offer = await pc.createOffer();
       debugCall("offer created");
       await pc.setLocalDescription(offer);
 
-      socket?.emit("call:start", { chatId, offer, fromUser }, (response?: StartCallResponse) => {
+      socket?.emit("call:start", { chatId, mode, offer, fromUser: callerUser }, (response?: StartCallResponse) => {
         if (response?.ok) {
           callIdRef.current = response.callId;
           chatIdRef.current = chatId;
           debugCall("offer sent ack", { ok: true, callId: response.callId, delivery: response.delivery ?? "socket" });
           setCall((current) =>
             current
-              ? {
-                  ...current,
-                  callId: response.callId,
-                  user: response.callee ?? current.user,
-                }
-              : {
-                  callId: response.callId,
-                  chatId,
-                  role: "caller",
-                  user: response.callee ?? { displayName: "Собеседник", avatarUrl: null },
-                },
+	              ? {
+	                  ...current,
+	                  callId: response.callId,
+	                  mode,
+	                  user: response.callee ?? current.user,
+	                }
+	              : {
+	                  callId: response.callId,
+	                  chatId,
+	                  role: "caller",
+	                  mode,
+	                  user: response.callee ?? { displayName: "Собеседник", avatarUrl: null },
+	                },
           );
           flushPendingLocalIce("call:start ack");
 
@@ -414,9 +503,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (err) {
       console.error(err);
-      failCall("Нет доступа к микрофону");
+      failCall(mode === "video" ? "Нет доступа к камере. Разрешите камеру в настройках браузера." : "Нет доступа к микрофону.");
     }
-  }, [socket, createPeerConnection, debugCall, failCall, flushPendingLocalIce, debugLocalAudioTrack]);
+  }, [socket, createPeerConnection, debugCall, failCall, flushPendingLocalIce, debugLocalTrack, getMediaStreamForMode]);
 
   const acceptCall = useCallback(async () => {
     if (!call || !incomingOfferRef.current || !socket) return;
@@ -435,17 +524,29 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mode = call.mode ?? "audio";
+      callModeRef.current = mode;
+      debugCall("accept mode", { callId: call.callId, mode });
+      const stream = await getMediaStreamForMode(mode);
       localStreamRef.current = stream;
       setLocalStream(stream);
-      debugCall("local stream acquired", { source: "acceptCall", audioTracks: stream.getAudioTracks().length });
-      debugLocalAudioTrack(stream.getAudioTracks()[0], "acceptCall");
+      setCanSwitchCamera(mode === "video" && stream.getVideoTracks().length > 0);
+      debugCall("local stream acquired", {
+        source: "acceptCall",
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length,
+      });
+      stream.getTracks().forEach((track) => debugLocalTrack(track, "acceptCall"));
 
       const pc = createPeerConnection("callee");
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+        debugCall("addTrack kind", { source: "acceptCall", kind: track.kind });
+      });
       debugCall("addTrack senders count", {
         source: "acceptCall",
-        count: pc.getSenders().filter((sender) => sender.track?.kind === "audio").length,
+        audio: pc.getSenders().filter((sender) => sender.track?.kind === "audio").length,
+        video: pc.getSenders().filter((sender) => sender.track?.kind === "video").length,
       });
 
       await pc.setRemoteDescription(new RTCSessionDescription(incomingOfferRef.current));
@@ -474,14 +575,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           failCall("Не удалось принять звонок");
+          return;
         }
+        scheduleConnectingTimeout(call.callId);
       });
     } catch (err) {
       console.error(err);
-      failCall("Ошибка при ответе на звонок");
+      failCall((call.mode ?? "audio") === "video" ? "Нет доступа к камере. Разрешите камеру в настройках браузера." : "Ошибка при ответе на звонок");
       socket.emit("call:declined", { callId: call.callId });
     }
-  }, [call, socket, createPeerConnection, debugCall, failCall, flushPendingRemoteIce, flushPendingLocalIce, debugLocalAudioTrack]);
+  }, [call, socket, createPeerConnection, debugCall, failCall, flushPendingRemoteIce, flushPendingLocalIce, debugLocalTrack, getMediaStreamForMode, scheduleConnectingTimeout]);
 
   const declineCall = useCallback(() => {
     if (call && socket) {
@@ -507,11 +610,62 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const toggleCamera = useCallback(() => {
+    const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (!videoTrack) {
+      return;
+    }
+
+    videoTrack.enabled = !videoTrack.enabled;
+    setIsCameraOff(!videoTrack.enabled);
+    debugCall("camera toggle enabled", { enabled: videoTrack.enabled });
+  }, [debugCall]);
+
+  const switchCamera = useCallback(async () => {
+    if (callModeRef.current !== "video" || !pcRef.current || !localStreamRef.current) {
+      return;
+    }
+
+    const oldTrack = localStreamRef.current.getVideoTracks()[0];
+    if (!oldTrack) {
+      return;
+    }
+
+    const nextFacingMode = facingModeRef.current === "user" ? "environment" : "user";
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: nextFacingMode },
+      });
+      const nextTrack = stream.getVideoTracks()[0];
+      const sender = pcRef.current.getSenders().find((item) => item.track?.kind === "video");
+
+      if (!nextTrack || !sender) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error(nextTrack ? "NO_VIDEO_SENDER" : "NO_VIDEO_TRACK");
+      }
+
+      await sender.replaceTrack(nextTrack);
+      localStreamRef.current.removeTrack(oldTrack);
+      oldTrack.stop();
+      localStreamRef.current.addTrack(nextTrack);
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      facingModeRef.current = nextFacingMode;
+      setIsCameraOff(!nextTrack.enabled);
+      debugCall("switch camera success", { facingMode: nextFacingMode });
+    } catch (error) {
+      debugCall("switch camera fail", { error: String(error) });
+      setError("Переключение камеры недоступно");
+      setTimeout(() => setError(null), 2500);
+    }
+  }, [debugCall]);
+
   useEffect(() => {
     if (!socket) return;
 
-    const onIncoming = ({ callId, chatId, offer, fromUser, expiresAt, timeoutMs }: IncomingPayload) => {
-      debugCall("incoming received", { callId, chatId, status: statusRef.current });
+    const onIncoming = ({ callId, chatId, mode = "audio", offer, fromUser, expiresAt, timeoutMs }: IncomingPayload) => {
+      const incomingMode: CallMode = mode === "video" ? "video" : "audio";
+      debugCall("incoming received", { callId, chatId, mode: incomingMode, status: statusRef.current });
       
       // If we're currently in a call that's not idle, ended or failed, we're busy
       if (statusRef.current !== "idle" && statusRef.current !== "ended" && statusRef.current !== "failed") {
@@ -533,8 +687,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         callId,
         chatId,
         role: "callee",
+        mode: incomingMode,
         user: fromUser || { displayName: "Аноним", avatarUrl: null }
       });
+      callModeRef.current = incomingMode;
       incomingOfferRef.current = offer;
       callIdRef.current = callId;
       chatIdRef.current = chatId;
@@ -542,6 +698,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       pendingLocalIceQueue.current = [];
       receivedIceKeysRef.current = new Set();
       hasRemoteAudioRef.current = false;
+      hasRemoteTrackRef.current = false;
       setStatus("ringing");
 
       if (timeoutRef.current) {
@@ -581,6 +738,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           debugCall("setRemoteDescription success", { side: "caller", type: "answer" });
           await flushPendingRemoteIce(pcRef.current, "after answer remoteDescription");
           flushPendingLocalIce("after answer received");
+          if (effectiveCallId) {
+            scheduleConnectingTimeout(effectiveCallId);
+          }
         } catch (err) {
           debugCall("setRemoteDescription failed", { error: String(err) });
           failCall("Ошибка при установке соединения");
@@ -662,12 +822,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", onEnded);
       socket.off("call:declined", onDeclined);
     };
-  }, [socket, cleanup, debugCall, failCall, flushPendingLocalIce, flushPendingRemoteIce]);
+  }, [socket, cleanup, debugCall, failCall, flushPendingLocalIce, flushPendingRemoteIce, scheduleConnectingTimeout]);
 
   return (
     <CallContext.Provider value={{
-      call, status, localStream, remoteStream, isMuted, error,
-      startCall, acceptCall, declineCall, endCall, toggleMute
+      call, status, localStream, remoteStream, isMuted, isCameraOff, canSwitchCamera, error,
+      startCall, acceptCall, declineCall, endCall, toggleMute, toggleCamera, switchCamera
     }}>
       {children}
     </CallContext.Provider>
