@@ -64,6 +64,20 @@ export type Message = {
     deliveredAt: string | null;
     readAt: string | null;
   }[];
+  envelopes?: {
+    id: string;
+    recipientUserId: string;
+    recipientDeviceId: string;
+    senderDeviceId: string;
+    ciphertext: string;
+    iv: string;
+    salt: string | null;
+    algorithm: string;
+    encryptionVersion: number;
+    createdAt?: string;
+    deliveredAt?: string | null;
+    readAt?: string | null;
+  }[];
 };
 
 export const MessageBubble = memo(function MessageBubble({

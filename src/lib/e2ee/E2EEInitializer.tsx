@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { ensureKeys, uploadPublicKeys } from "./keys";
+import { registerCurrentDevice } from "./keys";
 
 /**
- * Client-side component that ensures E2EE keys are generated and registered.
+ * Client-side component that ensures this browser/device has its own E2EE key bundle.
  */
 export function E2EEInitializer() {
   useEffect(() => {
     async function init() {
       try {
-        const publicJwk = await ensureKeys();
-        // Periodically or once per session ensure server has the key
-        await uploadPublicKeys(publicJwk);
+        await registerCurrentDevice();
       } catch (error) {
-        console.error("[e2ee] Initialization failed:", error);
+        console.error("[e2ee] Device registration failed:", error);
       }
     }
 

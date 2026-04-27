@@ -36,6 +36,9 @@ model User {
   pushSubscriptions          PushSubscription[]
   reactions                  Reaction[]
   keyBundle                  UserKeyBundle?
+  e2eeDevices                UserDevice[]
+  deviceKeyBundles           DeviceKeyBundle[]
+  receivedMessageEnvelopes   MessageEnvelope[]  @relation("MessageEnvelopeRecipientUser")
 
   @@index([status])
   @@index([role])
@@ -49,6 +52,41 @@ model UserKeyBundle {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserDevice {
+  id         String           @id @default(cuid())
+  userId     String
+  deviceId   String           @unique
+  name       String?
+  userAgent  String?
+  platform   String?
+  createdAt  DateTime         @default(now())
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyBundle  DeviceKeyBundle?
+
+  @@index([userId])
+  @@index([revokedAt])
+}
+
+model DeviceKeyBundle {
+  id           String     @id @default(cuid())
+  userDeviceId String     @unique
+  userId       String
+  deviceId     String
+  publicKey    String
+  algorithm    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  revokedAt    DateTime?
+  userDevice   UserDevice @relation(fields: [userDeviceId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([revokedAt])
 }
 
 model ContactSettings {
@@ -177,7 +215,7 @@ model ChatMember {
 }
 
 model Message {
-  id                String           @id @default(uuid())
+  id                String            @id @default(uuid())
   chatId            String
   senderUserId      String
   body              String?
@@ -185,27 +223,51 @@ model Message {
   iv                String?
   salt              String?
   algorithm         String?
-  encryptionVersion Int?             @default(0)
-  isEncrypted       Boolean          @default(false)
+  encryptionVersion Int?              @default(0)
+  isEncrypted       Boolean           @default(false)
   senderKeyId       String?
-  type              MessageType      @default(TEXT)
+  type              MessageType       @default(TEXT)
   replyToMessageId  String?
   editedAt          DateTime?
   deletedAt         DateTime?
   deliveredAt       DateTime?
   expiresAt         DateTime?
-  createdAt         DateTime         @default(now())
+  createdAt         DateTime          @default(now())
   attachments       Attachment[]
-  pinnedInChat      Chat?            @relation("PinnedChatMessage")
-  chat              Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  replyToMessage    Message?         @relation("MessageReplies", fields: [replyToMessageId], references: [id])
-  replies           Message[]        @relation("MessageReplies")
-  sender            User             @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  pinnedInChat      Chat?             @relation("PinnedChatMessage")
+  chat              Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  replyToMessage    Message?          @relation("MessageReplies", fields: [replyToMessageId], references: [id])
+  replies           Message[]         @relation("MessageReplies")
+  sender            User              @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
   receipts          MessageReceipt[]
   reactions         Reaction[]
+  envelopes         MessageEnvelope[]
 
   @@index([chatId, createdAt])
   @@index([senderUserId])
+}
+
+model MessageEnvelope {
+  id                String    @id @default(cuid())
+  messageId         String
+  recipientUserId   String
+  recipientDeviceId String
+  senderDeviceId    String
+  ciphertext        String
+  iv                String
+  salt              String?
+  algorithm         String
+  encryptionVersion Int       @default(2)
+  createdAt         DateTime  @default(now())
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  message           Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipientUser     User      @relation("MessageEnvelopeRecipientUser", fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, recipientDeviceId])
+  @@index([recipientUserId])
+  @@index([recipientDeviceId])
+  @@index([messageId])
 }
 
 model MessageReceipt {

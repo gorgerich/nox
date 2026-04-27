@@ -63,6 +63,20 @@ type BaseMessage = {
     deliveredAt: Date | null;
     readAt: Date | null;
   }[];
+  envelopes: {
+    id: string;
+    recipientUserId: string;
+    recipientDeviceId: string;
+    senderDeviceId: string;
+    ciphertext: string;
+    iv: string;
+    salt: string | null;
+    algorithm: string;
+    encryptionVersion: number;
+    createdAt: Date;
+    deliveredAt: Date | null;
+    readAt: Date | null;
+  }[];
 };
 
 function serializeMessage(message: BaseMessage) {
@@ -83,6 +97,12 @@ function serializeMessage(message: BaseMessage) {
       ...r,
       deliveredAt: r.deliveredAt?.toISOString() ?? null,
       readAt: r.readAt?.toISOString() ?? null,
+    })),
+    envelopes: message.envelopes.map((envelope) => ({
+      ...envelope,
+      createdAt: envelope.createdAt.toISOString(),
+      deliveredAt: envelope.deliveredAt?.toISOString() ?? null,
+      readAt: envelope.readAt?.toISOString() ?? null,
     })),
   };
 }
@@ -198,6 +218,22 @@ export default async function ChatPage({
                 readAt: true,
               },
             },
+            envelopes: {
+              select: {
+                id: true,
+                recipientUserId: true,
+                recipientDeviceId: true,
+                senderDeviceId: true,
+                ciphertext: true,
+                iv: true,
+                salt: true,
+                algorithm: true,
+                encryptionVersion: true,
+                createdAt: true,
+                deliveredAt: true,
+                readAt: true,
+              },
+            },
           },
         },
         members: {
@@ -270,6 +306,22 @@ export default async function ChatPage({
         receipts: {
           select: {
             userId: true,
+            deliveredAt: true,
+            readAt: true,
+          },
+        },
+        envelopes: {
+          select: {
+            id: true,
+            recipientUserId: true,
+            recipientDeviceId: true,
+            senderDeviceId: true,
+            ciphertext: true,
+            iv: true,
+            salt: true,
+            algorithm: true,
+            encryptionVersion: true,
+            createdAt: true,
             deliveredAt: true,
             readAt: true,
           },

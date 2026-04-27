@@ -11,8 +11,8 @@ import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from ".
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
-import { decryptMessage, encryptMessage } from "@/lib/e2ee/utils";
-import { fetchRecipientKeyBundle, getLocalPublicJwk } from "@/lib/e2ee/keys";
+import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
+import { fetchRecipientKeyBundle, getLocalDeviceId, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { storeMessage, getStoredMessage } from "@/lib/e2ee/indexed-db";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
@@ -97,6 +97,7 @@ function normalizeMessage(message: unknown): Message | null {
   if (!m?.id || !m.senderUserId || !m.sender?.id || !m.createdAt) return null;
   if (m.deletedAt) return null; 
   if (!m.receipts) m.receipts = [];
+  if (!m.envelopes) m.envelopes = [];
   return m;
 }
 
@@ -157,6 +158,7 @@ export function ChatMessages({
   const plaintextByClientIdRef = useRef<Map<string, string>>(new Map());
   const [otherMemberPublicKey, setOtherMemberPublicKey] = useState<string | null>(null);
   const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
+  const [localDeviceId, setLocalDeviceId] = useState<string | null>(null);
 
   const sendDeliveryAck = useCallback(async (messageId: string) => {
     try {
@@ -172,6 +174,9 @@ export function ChatMessages({
       fetchRecipientKeyBundle(chatInfo.otherMember.id).then(setOtherMemberPublicKey);
     }
     getLocalPublicJwk().then(setMyPublicKey);
+    registerCurrentDevice()
+      .then((device) => setLocalDeviceId(device.deviceId))
+      .catch(() => getLocalDeviceId().then(setLocalDeviceId).catch(() => setLocalDeviceId(null)));
   }, [chatInfo.otherMember?.id, chatInfo.type]);
 
   // Decrypt messages when they arrive or keys change
@@ -193,7 +198,45 @@ export function ChatMessages({
           continue;
         }
 
-        // If no server payload, cannot decrypt
+        if ((msg.encryptionVersion ?? 0) >= 2) {
+          if (!localDeviceId) continue;
+          const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+          if (!envelope) {
+            newDecrypted[msg.id] = "Сообщение недоступно на этом устройстве";
+            changed = true;
+            continue;
+          }
+
+          const decrypted = await decryptMessageV2({
+            chatId,
+            senderUserId: msg.senderUserId,
+            senderDeviceId: envelope.senderDeviceId,
+            envelope: {
+              recipientUserId: envelope.recipientUserId,
+              recipientDeviceId: envelope.recipientDeviceId,
+              ciphertext: envelope.ciphertext,
+              iv: envelope.iv,
+              salt: envelope.salt,
+              algorithm: envelope.algorithm,
+              encryptionVersion: envelope.encryptionVersion,
+            },
+          });
+
+          if (decrypted) {
+            newDecrypted[msg.id] = decrypted;
+            changed = true;
+            await storeMessage(msg.id, { body: decrypted });
+            if (msg.senderUserId !== currentUserId && !msg.deliveredAt) {
+              void sendDeliveryAck(msg.id);
+            }
+          } else {
+            newDecrypted[msg.id] = "Не удалось расшифровать сообщение";
+            changed = true;
+          }
+          continue;
+        }
+
+        // Legacy v1: If no server payload, cannot decrypt
         if (!msg.ciphertext) continue;
 
         const recipientUserId = msg.senderUserId === currentUserId
@@ -243,12 +286,12 @@ export function ChatMessages({
     }
 
     decryptAll();
-  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, decryptedBodies, sendDeliveryAck]);
+  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, localDeviceId, decryptedBodies, sendDeliveryAck]);
 
   const messagesWithDecrypted = useMemo(() => {
     return messages.map(msg => ({
       ...msg,
-      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? (msg.ciphertext ? "Зашифрованное сообщение" : "Сообщение доставлено и удалено с сервера") : msg.body || "")
+      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? ((msg.encryptionVersion ?? 0) >= 2 ? "Сообщение недоступно на этом устройстве" : msg.ciphertext ? "Зашифрованное сообщение" : "Сообщение доставлено и удалено с сервера") : msg.body || "")
     })) as MessageWithDecrypted[];
   }, [messages, decryptedBodies]);
 
@@ -878,20 +921,20 @@ export function ChatMessages({
     try {
       let payload: Record<string, unknown>;
       if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
-        let encrypted: Awaited<ReturnType<typeof encryptMessage>>;
+        let encrypted: Awaited<ReturnType<typeof encryptMessageForDevices>>;
         try {
-          encrypted = await encryptMessage(trimmedBody, chatInfo.otherMember.id, chatId, currentUserId);
+          encrypted = await encryptMessageForDevices(trimmedBody, chatInfo.otherMember.id, chatId, currentUserId);
         } catch (encryptError) {
           console.error("[e2ee] Encryption failed before message POST", encryptError);
-          const message = encryptError instanceof Error && encryptError.message.startsWith("На этом устройстве")
+          const message = encryptError instanceof Error
             ? encryptError.message
             : "Не удалось зашифровать сообщение на этом устройстве";
           throw new Error(message);
         }
 
         payload = {
-          encrypted: true,
           ...encrypted,
+          type: "TEXT",
           replyToMessageId: replyTarget?.id,
           clientId,
         };
