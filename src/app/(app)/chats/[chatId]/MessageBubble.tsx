@@ -22,6 +22,7 @@ export type Message = {
   deletedAt: string | null;
   editedAt: string | null;
   replyToMessageId: string | null;
+  deliveredAt: string | null;
   createdAt: string;
   sender: {
     id: string;

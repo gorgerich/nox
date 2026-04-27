@@ -24,6 +24,8 @@ export type ChatListItem = {
     type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
     body: string | null;
     isEncrypted?: boolean;
+    ciphertext?: string | null;
+    deliveredAt?: string | null;
     deletedAt: string | null;
     createdAt: string;
     attachments: { id: string; fileName: string; mimeType: string; sizeBytes: number }[];
@@ -192,8 +194,12 @@ export async function getChatsPageData(userId: string) {
           ? {
               id: lastMessage.id,
               type: lastMessage.type,
-              body: lastMessage.isEncrypted ? "Зашифрованное сообщение" : lastMessage.body,
+              body: lastMessage.isEncrypted 
+                ? (lastMessage.ciphertext ? "Зашифрованное сообщение" : "Сообщение доставлено")
+                : lastMessage.body,
               isEncrypted: lastMessage.isEncrypted,
+              ciphertext: lastMessage.ciphertext,
+              deliveredAt: lastMessage.deliveredAt?.toISOString() ?? null,
               deletedAt: lastMessage.deletedAt?.toISOString() ?? null,
               createdAt: lastMessage.createdAt.toISOString(),
               attachments: lastMessage.attachments,

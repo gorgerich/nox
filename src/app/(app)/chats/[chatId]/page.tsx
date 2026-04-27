@@ -15,6 +15,7 @@ type BaseMessage = {
   replyToMessageId: string | null;
   deletedAt: Date | null;
   editedAt: Date | null;
+  deliveredAt: Date | null;
   createdAt: Date;
   sender: {
     id: string;
@@ -62,6 +63,7 @@ function serializeMessage(message: BaseMessage) {
     ...message,
     deletedAt: message.deletedAt?.toISOString() ?? null,
     editedAt: message.editedAt?.toISOString() ?? null,
+    deliveredAt: message.deliveredAt?.toISOString() ?? null,
     createdAt: message.createdAt.toISOString(),
     replyToMessage: message.replyToMessage
       ? {

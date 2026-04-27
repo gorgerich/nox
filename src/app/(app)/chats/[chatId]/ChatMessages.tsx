@@ -13,6 +13,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, encryptMessage } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk } from "@/lib/e2ee/keys";
+import { storeMessage, getStoredMessage } from "@/lib/e2ee/indexed-db";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -61,6 +62,7 @@ function createOptimisticMessage(params: {
     deletedAt: null,
     editedAt: null,
     replyToMessageId: params.replyToMessage?.id ?? null,
+    deliveredAt: null,
     createdAt: new Date().toISOString(),
     sender: {
       id: params.currentUserId,
@@ -155,6 +157,14 @@ export function ChatMessages({
   const [otherMemberPublicKey, setOtherMemberPublicKey] = useState<string | null>(null);
   const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
 
+  const sendDeliveryAck = useCallback(async (messageId: string) => {
+    try {
+      await fetch(`/api/messages/${messageId}/delivery-ack`, { method: "POST" });
+    } catch (err) {
+      console.error("[e2ee] Failed to send delivery ack", err);
+    }
+  }, []);
+
   // Fetch keys for decryption
   useEffect(() => {
     if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
@@ -171,6 +181,19 @@ export function ChatMessages({
 
       for (const msg of messages) {
         if (!msg.isEncrypted || msg.body || decryptedBodies[msg.id]) continue;
+
+        // Try local cache first
+        const cached = await getStoredMessage<{ body: string }>(msg.id);
+        if (cached) {
+          if (newDecrypted[msg.id] !== cached.body) {
+            newDecrypted[msg.id] = cached.body;
+            changed = true;
+          }
+          continue;
+        }
+
+        // If no server payload, cannot decrypt
+        if (!msg.ciphertext) continue;
 
         const senderKey = msg.senderUserId === currentUserId ? myPublicKey : otherMemberPublicKey;
         if (!senderKey) continue;
@@ -189,6 +212,17 @@ export function ChatMessages({
         if (decrypted) {
           newDecrypted[msg.id] = decrypted;
           changed = true;
+
+          // Store in local cache and ack delivery if recipient
+          if (msg.senderUserId !== currentUserId) {
+            await storeMessage(msg.id, { body: decrypted });
+            if (!msg.deliveredAt) {
+              void sendDeliveryAck(msg.id);
+            }
+          } else {
+            // Also store own sent messages for local history
+            await storeMessage(msg.id, { body: decrypted });
+          }
         }
       }
 
@@ -198,12 +232,12 @@ export function ChatMessages({
     }
 
     decryptAll();
-  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, decryptedBodies]);
+  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, decryptedBodies, sendDeliveryAck]);
 
   const messagesWithDecrypted = useMemo(() => {
     return messages.map(msg => ({
       ...msg,
-      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? "Зашифрованное сообщение" : msg.body || "")
+      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? (msg.ciphertext ? "Зашифрованное сообщение" : "Сообщение доставлено и удалено с сервера") : msg.body || "")
     })) as MessageWithDecrypted[];
   }, [messages, decryptedBodies]);
 

@@ -189,6 +189,8 @@ model Message {
   replyToMessageId  String?
   editedAt          DateTime?
   deletedAt         DateTime?
+  deliveredAt       DateTime?
+  expiresAt         DateTime?
   createdAt         DateTime         @default(now())
   attachments       Attachment[]
   pinnedInChat      Chat?            @relation("PinnedChatMessage")

@@ -98,6 +98,11 @@ export async function POST(
   const parsed = messageSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Некорректное сообщение." }, { status: 400 });
 
+  // Hardening: reject body if isEncrypted is true
+  if (parsed.data.isEncrypted && parsed.data.body) {
+    return NextResponse.json({ error: "Зашифрованное сообщение не должно содержать текст в открытом виде." }, { status: 400 });
+  }
+
   if (parsed.data.replyToMessageId) {
     const replyTarget = await prisma.message.findUnique({
       where: { id: parsed.data.replyToMessageId },
@@ -127,6 +132,7 @@ export async function POST(
       algorithm: parsed.data.algorithm,
       encryptionVersion: parsed.data.encryptionVersion || 0,
       replyToMessageId: parsed.data.replyToMessageId,
+      expiresAt: parsed.data.isEncrypted ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
       receipts: {
         create: activeMembers.filter(m => m.userId !== user.id).map(m => ({ userId: m.userId }))
       }
