@@ -160,9 +160,13 @@ export function ChatMessages({
   const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
   const [localDeviceId, setLocalDeviceId] = useState<string | null>(null);
 
-  const sendDeliveryAck = useCallback(async (messageId: string) => {
+  const sendDeliveryAck = useCallback(async (messageId: string, deviceId?: string | null) => {
     try {
-      await fetch(`/api/messages/${messageId}/delivery-ack`, { method: "POST" });
+      await fetch(`/api/messages/${messageId}/delivery-ack`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(deviceId ? { deviceId } : {}),
+      });
     } catch (err) {
       console.error("[e2ee] Failed to send delivery ack", err);
     }
@@ -195,6 +199,12 @@ export function ChatMessages({
             newDecrypted[msg.id] = cached.body;
             changed = true;
           }
+          if ((msg.encryptionVersion ?? 0) >= 2 && localDeviceId) {
+            const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+            if (envelope?.ciphertext && !envelope.encryptedPayloadDeletedAt) {
+              void sendDeliveryAck(msg.id, localDeviceId);
+            }
+          }
           continue;
         }
 
@@ -203,6 +213,12 @@ export function ChatMessages({
           const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
           if (!envelope) {
             newDecrypted[msg.id] = "Сообщение недоступно на этом устройстве";
+            changed = true;
+            continue;
+          }
+
+          if (!envelope.ciphertext || !envelope.iv || !envelope.salt) {
+            newDecrypted[msg.id] = "Сообщение уже доставлено на это устройство и больше не хранится на сервере.";
             changed = true;
             continue;
           }
@@ -226,9 +242,7 @@ export function ChatMessages({
             newDecrypted[msg.id] = decrypted;
             changed = true;
             await storeMessage(msg.id, { body: decrypted });
-            if (msg.senderUserId !== currentUserId && !msg.deliveredAt) {
-              void sendDeliveryAck(msg.id);
-            }
+            void sendDeliveryAck(msg.id, localDeviceId);
           } else {
             newDecrypted[msg.id] = "Не удалось расшифровать сообщение";
             changed = true;
@@ -964,6 +978,9 @@ export function ChatMessages({
             plaintextByClientIdRef.current.delete(clientId);
             setDecryptedBodies((current) => ({ ...current, [normalized.id]: trimmedBody }));
             void storeMessage(normalized.id, { body: trimmedBody });
+            if ((normalized.encryptionVersion ?? 0) >= 2 && localDeviceId) {
+              void sendDeliveryAck(normalized.id, localDeviceId);
+            }
           }
           setMessages((current) => {
             const withoutOptimistic = current.filter((message) => message.id !== optimisticMessage.id);
@@ -1014,7 +1031,7 @@ export function ChatMessages({
     } finally {
       setPending(false);
     }
-  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach, chatInfo.otherMember, chatInfo.type]);
+  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach, chatInfo.otherMember, chatInfo.type, localDeviceId, sendDeliveryAck]);
 
   const startRecording = useCallback(async () => {
     try {

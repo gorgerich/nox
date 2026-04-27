@@ -69,14 +69,15 @@ export type Message = {
     recipientUserId: string;
     recipientDeviceId: string;
     senderDeviceId: string;
-    ciphertext: string;
-    iv: string;
+    ciphertext: string | null;
+    iv: string | null;
     salt: string | null;
     algorithm: string;
     encryptionVersion: number;
     createdAt?: string;
     deliveredAt?: string | null;
     readAt?: string | null;
+    encryptedPayloadDeletedAt?: string | null;
   }[];
 };
 

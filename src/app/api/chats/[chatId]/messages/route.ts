@@ -74,6 +74,7 @@ const messageInclude = {
       createdAt: true,
       deliveredAt: true,
       readAt: true,
+      encryptedPayloadDeletedAt: true,
     },
   },
 } as const;

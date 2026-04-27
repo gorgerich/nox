@@ -68,14 +68,15 @@ type BaseMessage = {
     recipientUserId: string;
     recipientDeviceId: string;
     senderDeviceId: string;
-    ciphertext: string;
-    iv: string;
+    ciphertext: string | null;
+    iv: string | null;
     salt: string | null;
     algorithm: string;
     encryptionVersion: number;
     createdAt: Date;
     deliveredAt: Date | null;
     readAt: Date | null;
+    encryptedPayloadDeletedAt: Date | null;
   }[];
 };
 
@@ -103,6 +104,7 @@ function serializeMessage(message: BaseMessage) {
       createdAt: envelope.createdAt.toISOString(),
       deliveredAt: envelope.deliveredAt?.toISOString() ?? null,
       readAt: envelope.readAt?.toISOString() ?? null,
+      encryptedPayloadDeletedAt: envelope.encryptedPayloadDeletedAt?.toISOString() ?? null,
     })),
   };
 }
@@ -239,6 +241,7 @@ export default async function ChatPage({
                 createdAt: true,
                 deliveredAt: true,
                 readAt: true,
+                encryptedPayloadDeletedAt: true,
               },
             },
           },
@@ -331,6 +334,7 @@ export default async function ChatPage({
             createdAt: true,
             deliveredAt: true,
             readAt: true,
+            encryptedPayloadDeletedAt: true,
           },
         },
       },

@@ -212,14 +212,14 @@ export async function decryptMessageV2(message: {
   envelope: {
     recipientUserId: string;
     recipientDeviceId: string;
-    ciphertext: string;
-    iv: string;
+    ciphertext: string | null;
+    iv: string | null;
     salt: string | null;
     algorithm: string;
     encryptionVersion: number;
   };
 }): Promise<string | null> {
-  if (!message.envelope.salt) return null;
+  if (!message.envelope.ciphertext || !message.envelope.iv || !message.envelope.salt) return null;
 
   try {
     const privateKey = await getLocalDevicePrivateKey();

@@ -248,21 +248,22 @@ model Message {
 }
 
 model MessageEnvelope {
-  id                String    @id @default(cuid())
-  messageId         String
-  recipientUserId   String
-  recipientDeviceId String
-  senderDeviceId    String
-  ciphertext        String
-  iv                String
-  salt              String?
-  algorithm         String
-  encryptionVersion Int       @default(2)
-  createdAt         DateTime  @default(now())
-  deliveredAt       DateTime?
-  readAt            DateTime?
-  message           Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  recipientUser     User      @relation("MessageEnvelopeRecipientUser", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  id                        String    @id @default(cuid())
+  messageId                 String
+  recipientUserId           String
+  recipientDeviceId         String
+  senderDeviceId            String
+  ciphertext                String?
+  iv                        String?
+  salt                      String?
+  algorithm                 String
+  encryptionVersion         Int       @default(2)
+  createdAt                 DateTime  @default(now())
+  deliveredAt               DateTime?
+  readAt                    DateTime?
+  encryptedPayloadDeletedAt DateTime?
+  message                   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipientUser             User      @relation("MessageEnvelopeRecipientUser", fields: [recipientUserId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, recipientDeviceId])
   @@index([recipientUserId])
