@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { requireActiveChatMembership } from "@/lib/chats";
 import { getChatsPageData } from "@/lib/chat-list";
 import { getPrisma } from "@/lib/prisma";
+import { isUserOnline } from "@/lib/realtime";
 import { ChatMessages } from "./ChatMessages";
 import { Prisma } from "@prisma/client";
 
@@ -143,6 +144,7 @@ export default async function ChatPage({
               select: {
                 id: true,
                 username: true,
+                lastSeenAt: true,
                 profile: {
                   select: {
                     displayName: true,
@@ -196,6 +198,7 @@ export default async function ChatPage({
               select: {
                 id: true,
                 username: true,
+                lastSeenAt: true,
                 profile: {
                   select: {
                     displayName: true,
@@ -272,6 +275,7 @@ export default async function ChatPage({
   }
 
   const otherMember = chat.members.find((member) => member.user.id !== user.id);
+  const otherMemberIsOnline = otherMember ? isUserOnline(otherMember.user.id) : false;
   const pinnedMessage = chat.pinnedMessage ? serializeMessage(chat.pinnedMessage as BaseMessage) : null;
   const serializedMessages = rawMessages.reverse().map((m: BaseMessage) => serializeMessage(m));
   const messagesWithPinned = pinnedMessage && !serializedMessages.some((message) => message.id === pinnedMessage.id)
@@ -307,6 +311,8 @@ export default async function ChatPage({
             displayName: otherMember.user.profile?.displayName ?? otherMember.user.username,
             avatarUrl: otherMember.user.profile?.avatarUrl ?? null,
             username: otherMember.user.username,
+            lastSeenAt: otherMember.user.lastSeenAt?.toISOString() ?? null,
+            isOnline: otherMemberIsOnline,
           } : undefined
         }}
       />

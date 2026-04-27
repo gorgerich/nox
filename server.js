@@ -15,6 +15,7 @@ const webpush = require("web-push");
 
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
+const DEBUG_PRESENCE = process.env.DEBUG_PRESENCE === "true";
 const CALL_TIMEOUT_MS = 45_000;
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -58,6 +59,14 @@ function logRealtime(label, data = {}) {
   }
 
   console.log(`[realtime-server] ${label}`, data);
+}
+
+function logPresence(label, data = {}) {
+  if (!DEBUG_PRESENCE) {
+    return;
+  }
+
+  console.log(`[presence] ${label}`, data);
 }
 
 function getUserRoomSize(io, userId) {
@@ -242,6 +251,52 @@ function removeActiveChat(userId, chatId) {
   if (currentChats.size === 0) {
     activeChatsByUser.delete(userId);
   }
+}
+
+async function getRelatedUserIds(userId) {
+  const memberships = await prisma.chatMember.findMany({
+    where: {
+      userId,
+      status: "ACTIVE",
+    },
+    select: {
+      chatId: true,
+    },
+  });
+
+  if (memberships.length === 0) {
+    return [];
+  }
+
+  const relatedMemberships = await prisma.chatMember.findMany({
+    where: {
+      chatId: { in: memberships.map((membership) => membership.chatId) },
+      status: "ACTIVE",
+      userId: { not: userId },
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  return [...new Set(relatedMemberships.map((membership) => membership.userId))];
+}
+
+async function emitPresenceUpdateToRelated(io, userId, status, lastSeenAt = null) {
+  const relatedUserIds = await getRelatedUserIds(userId);
+
+  for (const relatedUserId of relatedUserIds) {
+    io.to(`user:${relatedUserId}`).emit("presence:update", {
+      userId,
+      status,
+      lastSeenAt: lastSeenAt ? lastSeenAt.toISOString() : null,
+    });
+  }
+
+  logPresence(`emit update ${status}`, {
+    userId,
+    relatedCount: relatedUserIds.length,
+  });
 }
 
 function getJwtSecret() {
@@ -432,11 +487,16 @@ app.prepare().then(() => {
     await joinUserChatRooms(socket, userId);
     logRealtime("joined chat rooms", { userId, socketId: socket.id });
 
+    let userBecameOnline = false;
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
-      io.emit("presence:update", { userId, status: "online" });
+      userBecameOnline = true;
     }
     onlineUsers.get(userId).add(socket.id);
+    logPresence("user online", { userId, socketCount: onlineUsers.get(userId)?.size ?? 0 });
+    if (userBecameOnline) {
+      void emitPresenceUpdateToRelated(io, userId, "online");
+    }
 
     socket.on("chat:join", async (chatId, callback) => {
       if (typeof chatId !== "string") {
@@ -769,9 +829,11 @@ app.prepare().then(() => {
             console.error("Failed to update lastSeenAt", error);
           }
 
-          io.emit("presence:update", { userId, status: "offline", lastSeenAt });
+          logPresence("user offline", { userId, lastSeenAt: lastSeenAt.toISOString() });
+          await emitPresenceUpdateToRelated(io, userId, "offline", lastSeenAt);
         } else {
           userStillOnline = true;
+          logPresence("user online", { userId, socketCount: userSockets.size });
         }
       }
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAudioCall } from "../../../calls/CallProvider";
-import { useSocket } from "@/hooks/useSocket";
+import { usePresence } from "@/hooks/usePresence";
 
 interface PartnerProfileProps {
   chatId: string;
@@ -12,6 +12,7 @@ interface PartnerProfileProps {
     id: string;
     username: string;
     lastSeenAt: string | null;
+    isOnline: boolean;
     displayName: string;
     avatarUrl?: string | null;
     bio?: string | null;
@@ -38,25 +39,17 @@ interface SharedMedia {
 export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: PartnerProfileProps) {
   const router = useRouter();
   const { startCall } = useAudioCall();
-  const { socket } = useSocket();
   const [settings, setSettings] = useState(initialSettings);
-  const [isOnline, setIsOnline] = useState(false);
   const [activeTab, setActiveSection] = useState<"media" | "files" | "links">("media");
   const [shared, setShared] = useState<SharedMedia | null>(null);
   const [loadingShared, setLoadingShared] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(settings.nickname || partnerUser.displayName);
-
-  useEffect(() => {
-    if (!socket) return;
-    const handlePresence = ({ userId, status }: { userId: string, status: string }) => {
-      if (userId === partnerUser.id) {
-        setIsOnline(status === "online");
-      }
-    };
-    socket.on("presence:update", handlePresence);
-    return () => { socket.off("presence:update", handlePresence); };
-  }, [socket, partnerUser.id]);
+  const presence = usePresence({
+    userId: partnerUser.id,
+    initialLastSeenAt: partnerUser.lastSeenAt,
+    initialIsOnline: partnerUser.isOnline,
+  });
 
   useEffect(() => {
     fetch(`/api/chats/${chatId}/shared`)
@@ -74,15 +67,6 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
       });
       if (res.ok) setSettings(prev => ({ ...prev, ...patch }));
     } catch (e) { console.error(e); }
-  };
-
-  const formatLastSeen = (dateStr: string | null) => {
-    if (isOnline) return "в сети";
-    if (!dateStr) return "был(а) недавно";
-    const date = new Date(dateStr);
-    const now = new Date();
-    if (now.getTime() - date.getTime() < 60000) return "был(а) только что";
-    return "был(а) недавно";
   };
 
   const muteOptions = [
@@ -112,7 +96,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
         </button>
         <div className="text-center">
           <h1 className="text-sm font-black tracking-tight">{settings.nickname || partnerUser.displayName}</h1>
-          <p className={`text-[10px] font-black uppercase tracking-widest ${isOnline ? "text-primary" : "text-muted"}`}>{formatLastSeen(partnerUser.lastSeenAt)}</p>
+          <p className={`text-[10px] font-black uppercase tracking-widest ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
         </div>
         <div className="w-10" /> 
       </header>
@@ -127,7 +111,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
               <span className="text-5xl font-black text-primary">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
             )}
           </div>
-          {isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full bg-primary border-4 border-background shadow-sm" />}
+          {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full bg-primary border-4 border-background shadow-sm" />}
         </div>
         
         <h2 className="text-3xl font-black tracking-tight text-center">{settings.nickname || partnerUser.displayName}</h2>

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
+import { isUserOnline } from "@/lib/realtime";
 
 import { PartnerProfileContent } from "./PartnerProfileContent";
 
@@ -82,6 +83,7 @@ export default async function ProfilePage({
     partnerMember.user.profile?.displayName ||
     partnerMember.user.username ||
     "Пользователь";
+  const partnerIsOnline = isUserOnline(partnerMember.user.id);
 
   return (
     <div className="chat-screen bg-background transition-smooth overflow-hidden">
@@ -91,6 +93,7 @@ export default async function ProfilePage({
           id: partnerMember.user.id,
           username: partnerMember.user.username,
           lastSeenAt: partnerMember.user.lastSeenAt?.toISOString() ?? null,
+          isOnline: partnerIsOnline,
           displayName,
           avatarUrl: partnerMember.user.profile?.avatarUrl ?? null,
           bio: partnerMember.user.profile?.bio ?? null,

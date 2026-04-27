@@ -10,6 +10,7 @@ import { MessageBubble, Message } from "./MessageBubble";
 import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from "./ChatAppearance";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
+import { usePresence } from "@/hooks/usePresence";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -128,12 +129,19 @@ export function ChatMessages({
       displayName: string;
       avatarUrl: string | null;
       username: string;
+      lastSeenAt?: string | null;
+      isOnline?: boolean;
     };
   };
 }) {
-  const { socket, connected } = useSocket();
+  const { socket } = useSocket();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const partnerPresence = usePresence({
+    userId: chatInfo.type === "DIRECT" ? chatInfo.otherMember?.id : null,
+    initialIsOnline: chatInfo.type === "DIRECT" ? chatInfo.otherMember?.isOnline : false,
+    initialLastSeenAt: chatInfo.type === "DIRECT" ? chatInfo.otherMember?.lastSeenAt ?? null : null,
+  });
   
   const [messages, setMessages] = useState<Message[]>(() =>
     initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
@@ -881,11 +889,11 @@ export function ChatMessages({
       return "печатает...";
     }
     if (chatInfo.type === "DIRECT") {
-      return connected ? "в сети" : "подключение...";
+      return partnerPresence.label;
     }
     const memberCount = chatInfo.memberCount || 0;
     return `${memberCount} ${memberCount === 1 ? 'участник' : (memberCount > 1 && memberCount < 5) ? 'участника' : 'участников'}`;
-  }, [chatInfo.type, chatInfo.memberCount, connected, typingUsers]);
+  }, [chatInfo.type, chatInfo.memberCount, partnerPresence.label, typingUsers]);
 
   const themeVars = getChatAppearanceVars(settings);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
@@ -1098,7 +1106,7 @@ export function ChatMessages({
         avatarUrl={chatInfo.type === "GROUP" ? chatInfo.avatarUrl : chatInfo.otherMember?.avatarUrl}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
         onSearchClick={() => setIsSearchOpen(true)}
-        isConnected={connected}
+        isConnected={chatInfo.type === "DIRECT" ? partnerPresence.isOnline : false}
         currentUser={currentUserInfo}
         partnerId={chatInfo.otherMember?.id}
       />

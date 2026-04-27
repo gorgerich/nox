@@ -3,9 +3,8 @@
 import Image from "next/image";
 import { Video } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type MouseEvent, useEffect, useState } from "react";
+import { type MouseEvent, useEffect } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
-import { useSocket } from "@/hooks/useSocket";
 
 export function ChatHeader({
   chatId,
@@ -32,8 +31,6 @@ export function ChatHeader({
 }) {
   const router = useRouter();
   const { startCall, status } = useAudioCall();
-  const { socket } = useSocket();
-  const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
   const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
   const handleBackToChats = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -67,23 +64,11 @@ export function ChatHeader({
     }
   }, [chatId, chatType, isGroup, partnerId, router]);
 
-  useEffect(() => {
-    if (!socket || !partnerId || chatType !== "DIRECT") return;
-
-    const handlePresence = ({ userId, status }: { userId: string, status: string }) => {
-      if (userId === partnerId) {
-        setOnlineStatus(status === "online" ? "в сети" : "был(а) недавно");
-      }
-    };
-    socket.on("presence:update", handlePresence);
-    return () => { socket.off("presence:update", handlePresence); };
-  }, [socket, partnerId, chatType]);
-
   const fullAvatarUrl = avatarUrl 
     ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
     : null;
 
-  const displaySubtitle = isGroup ? subtitle : (onlineStatus || subtitle || (isConnected ? "в сети" : "подключение..."));
+  const displaySubtitle = isGroup ? subtitle : (subtitle || "Был(а) давно");
 
   return (
     <header
