@@ -133,6 +133,7 @@ function sweepExpiredCalls(io) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function sendPushToUser(userId, payload) {
   if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
     logCall("push skipped for offline callee", { userId, reason: "vapid_not_configured" });
@@ -171,67 +172,6 @@ async function sendPushToUser(userId, payload) {
   return {
     sent: results.filter((result) => result.status === "fulfilled").length,
     total: subscriptions.length,
-  };
-}
-
-function emitStoredIce(io, call, targetUserId) {
-  const queuedCandidates = targetUserId === call.callerId ? call.calleeIceCandidates : call.callerIceCandidates;
-  if (!queuedCandidates || queuedCandidates.length === 0) {
-    return;
-  }
-
-  for (const candidate of queuedCandidates) {
-    io.to(`user:${targetUserId}`).emit("call:ice-candidate", {
-      callId: call.callId,
-      chatId: call.chatId,
-      candidate,
-    });
-  }
-
-  logCall("ICE flushed", {
-    callId: call.callId,
-    toUserId: targetUserId,
-    count: queuedCandidates.length,
-  });
-}
-
-function getCallRemainingMs(call) {
-  return Math.max(1000, call.expiresAt - Date.now());
-}
-
-function emitPendingCallsForUser(io, userId, incomingCallId) {
-  sweepExpiredCalls(io);
-
-  let emitted = 0;
-  let foundIncomingCallId = false;
-
-  for (const call of activeCalls.values()) {
-    if (call.calleeId !== userId || call.status !== "ringing") {
-      continue;
-    }
-
-    if (incomingCallId && call.callId === incomingCallId) {
-      foundIncomingCallId = true;
-    }
-
-    io.to(`user:${userId}`).emit("call:incoming", {
-      callId: call.callId,
-      chatId: call.chatId,
-      mode: call.mode ?? "audio",
-      offer: call.offer,
-      fromUser: call.fromUser,
-      expiresAt: call.expiresAt,
-      timeoutMs: getCallRemainingMs(call),
-    });
-    emitStoredIce(io, call, userId);
-    emitted += 1;
-    logCall("incoming emitted to socket", { callId: call.callId, chatId: call.chatId, userId, source: "sync" });
-  }
-
-  return {
-    emitted,
-    foundIncomingCallId,
-    expiredIncomingCallId: Boolean(incomingCallId && !foundIncomingCallId),
   };
 }
 
@@ -572,17 +512,11 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("call:sync-pending", ({ incomingCallId } = {}, callback) => {
-      const result = emitPendingCallsForUser(io, userId, typeof incomingCallId === "string" ? incomingCallId : undefined);
-      callback?.({ ok: true, ...result });
-    });
-
-    socket.on("call:start", async ({ chatId, mode = "audio", offer }, callback) => {
+    socket.on("call:start", async ({ callId: requestedCallId, chatId, offer }, callback) => {
       sweepExpiredCalls(io);
       logCall("call:start received", { chatId, userId });
 
-      const callMode = mode === "video" ? "video" : mode === "audio" ? "audio" : null;
-      if (typeof chatId !== "string" || !offer || !callMode) {
+      if (typeof chatId !== "string" || !offer) {
         callback?.({ ok: false, error: "Некорректный звонок" });
         return;
       }
@@ -610,7 +544,14 @@ app.prepare().then(() => {
         return;
       }
 
-      const callId = uuidv4();
+      if (!calleeOnline) {
+        callback?.({ ok: false, error: "USER_OFFLINE" });
+        return;
+      }
+
+      const callId = typeof requestedCallId === "string" && requestedCallId.length >= 8 && requestedCallId.length <= 128 && !activeCalls.has(requestedCallId)
+        ? requestedCallId
+        : uuidv4();
       const callerDisplayName = user.profile?.displayName ?? user.username;
       const callerAvatarUrl = user.profile?.avatarUrl ?? null;
       const expiresAt = Date.now() + CALL_TIMEOUT_MS;
@@ -619,82 +560,43 @@ app.prepare().then(() => {
         chatId,
         callerId: context.callerId,
         calleeId: context.calleeId,
-        mode: callMode,
         status: "ringing",
         offer,
         fromUser: {
+          id: user.id,
+          username: user.username,
           displayName: callerDisplayName,
           avatarUrl: callerAvatarUrl,
         },
         createdAt: Date.now(),
         expiresAt,
-        callerIceCandidates: [],
-        calleeIceCandidates: [],
       });
       scheduleCallMissedTimeout(io, callId);
       logCall("active call created", {
         callId,
         chatId,
-        mode: callMode,
         callerId: context.callerId,
         calleeId: context.calleeId,
-        calleeOnline,
         expiresIn: CALL_TIMEOUT_MS,
       });
 
-      if (calleeOnline) {
-        io.to(`user:${context.calleeId}`).emit("call:incoming", {
-          callId,
-          chatId,
-          mode: callMode,
-          offer,
-          fromUser: {
-            displayName: callerDisplayName,
-            avatarUrl: callerAvatarUrl,
-          },
-          expiresAt,
-          timeoutMs: CALL_TIMEOUT_MS,
-        });
-        logCall("incoming emitted to socket", { callId, chatId, calleeId: context.calleeId });
-      } else {
-        sendPushToUser(context.calleeId, {
-          title: callMode === "video" ? "Входящий видеозвонок" : "Входящий звонок",
-          body: callerDisplayName,
-          url: `/chats/${chatId}?incomingCallId=${callId}`,
-          type: "call",
-          chatId,
-          callId,
-          tag: `call-${callId}`,
-        }).then((result) => {
-          logCall("push sent for offline callee", {
-            callId,
-            calleeId: context.calleeId,
-            sent: result.sent,
-            total: result.total,
-          });
-        }).catch((error) => {
-          logCall("push sent for offline callee", {
-            callId,
-            calleeId: context.calleeId,
-            ok: false,
-            error: String(error?.message ?? error),
-          });
-        });
-      }
+      io.to(`user:${context.calleeId}`).emit("call:incoming", {
+        callId,
+        chatId,
+        offer,
+        fromUser: {
+          id: user.id,
+          username: user.username,
+          displayName: callerDisplayName,
+          avatarUrl: callerAvatarUrl,
+        },
+      });
+      logCall("incoming emitted", { callId, chatId, calleeId: context.calleeId });
 
       callback?.({
         ok: true,
         callId,
-        expiresAt,
-        timeoutMs: CALL_TIMEOUT_MS,
-        delivery: calleeOnline ? "socket" : "push",
-        callee: {
-          id: context.callee.id,
-          displayName: context.callee.profile?.displayName ?? context.callee.username,
-          avatarUrl: context.callee.profile?.avatarUrl ?? null,
-        },
       });
-      logCall("offer sent", { callId, chatId, callerId: context.callerId, calleeId: context.calleeId, delivery: calleeOnline ? "socket" : "push" });
     });
 
     socket.on("call:answer", async ({ callId, chatId, answer }, callback) => {
@@ -739,8 +641,6 @@ app.prepare().then(() => {
       call.status = "connecting";
       clearCallExpiryTimer(callId);
       io.to(`user:${call.callerId}`).emit("call:answer", { callId, chatId, answer });
-      emitStoredIce(io, call, call.callerId);
-      emitStoredIce(io, call, call.calleeId);
       logCall("call:answer forwarded", { callId, fromUserId: userId, toUserId: call.callerId });
       callback?.({ ok: true });
     });
@@ -767,17 +667,12 @@ app.prepare().then(() => {
       }
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
-      const targetOnline = getUserRoomSize(io, targetId) > 0;
-      const queue = userId === call.callerId ? call.callerIceCandidates : call.calleeIceCandidates;
-      queue.push(candidate);
-
+      logCall("ice received", { callId, fromUserId: userId });
       io.to(`user:${targetId}`).emit("call:ice-candidate", { callId, chatId, candidate });
       logCall("ice forwarded", {
         callId,
-        fromUserId: userId,
-        toUserId: targetId,
-        targetRoomSize: targetOnline ? getUserRoomSize(io, targetId) : 0,
-        storedCount: queue.length,
+        fromRole: userId === call.callerId ? "caller" : "callee",
+        toRole: targetId === call.callerId ? "caller" : "callee",
       });
       callback?.({ ok: true });
     });
@@ -789,13 +684,12 @@ app.prepare().then(() => {
         return;
       }
 
-      if (userId !== call.callerId && userId !== call.calleeId) {
+      if (userId !== call.calleeId) {
         callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
         return;
       }
 
-      const targetId = userId === call.callerId ? call.calleeId : call.callerId;
-      io.to(`user:${targetId}`).emit("call:declined", { callId, reason: reason ?? "declined" });
+      io.to(`user:${call.callerId}`).emit("call:declined", { callId, reason: reason ?? "declined" });
       deleteCall(callId);
       logCall("call ended", { callId, reason: reason ?? "declined" });
       callback?.({ ok: true });
