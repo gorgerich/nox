@@ -7,7 +7,6 @@ const DB_NAME = "nox-e2ee";
 const KEYS_STORE = "keys";
 const MESSAGES_STORE = "messages";
 const DB_VERSION = 2;
-const LOCAL_MESSAGE_CACHE_KEY = "nox-local-message-cache-key-v1";
 const LOCAL_MESSAGE_CACHE_VERSION = 1;
 const LOCAL_MESSAGE_CACHE_ALGORITHM = "AES-GCM";
 
@@ -32,13 +31,16 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-function toMessageCacheKey(params: { messageId: string; chatId?: string | null; deviceId?: string | null }) {
-  if (!params.chatId || !params.deviceId) return params.messageId;
-  return `${params.chatId}:${params.deviceId}:${params.messageId}`;
+function localMessageCacheKeyId(userId: string) {
+  return `nox:e2ee:${userId}:localMessageCacheKey`;
 }
 
-async function getOrCreateLocalMessageCacheKey(): Promise<CryptoKey> {
-  const existing = await getKey<CryptoKey>(LOCAL_MESSAGE_CACHE_KEY);
+function toMessageCacheKey(params: { userId: string; messageId: string; chatId: string; deviceId: string }) {
+  return `nox:e2ee:${params.userId}:${params.deviceId}:${params.chatId}:${params.messageId}`;
+}
+
+async function getOrCreateLocalMessageCacheKey(userId: string): Promise<CryptoKey> {
+  const existing = await getKey<CryptoKey>(localMessageCacheKeyId(userId));
   if (existing) return existing;
 
   const key = await crypto.subtle.generateKey(
@@ -46,7 +48,7 @@ async function getOrCreateLocalMessageCacheKey(): Promise<CryptoKey> {
     false,
     ["encrypt", "decrypt"],
   );
-  await storeKey(LOCAL_MESSAGE_CACHE_KEY, key);
+  await storeKey(localMessageCacheKeyId(userId), key);
   return key;
 }
 
@@ -61,6 +63,7 @@ type EncryptedLocalMessageRecord = {
   iv: string;
   ciphertext: string;
   messageId: string;
+  userId: string;
   chatId: string | null;
   deviceId: string | null;
   storedAt: string;
@@ -155,12 +158,13 @@ async function getMessageRecord<T>(id: string): Promise<T | null> {
 }
 
 export async function storeLocalEncryptedMessage(params: {
+  userId: string;
   messageId: string;
   chatId: string;
   deviceId: string;
   body: string;
 }): Promise<void> {
-  const key = await getOrCreateLocalMessageCacheKey();
+  const key = await getOrCreateLocalMessageCacheKey(params.userId);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
     { name: LOCAL_MESSAGE_CACHE_ALGORITHM, iv },
@@ -174,6 +178,7 @@ export async function storeLocalEncryptedMessage(params: {
     iv: arrayBufferToBase64(iv.buffer),
     ciphertext: arrayBufferToBase64(ciphertext),
     messageId: params.messageId,
+    userId: params.userId,
     chatId: params.chatId,
     deviceId: params.deviceId,
     storedAt: new Date().toISOString(),
@@ -183,14 +188,18 @@ export async function storeLocalEncryptedMessage(params: {
 }
 
 export async function getLocalEncryptedMessage(params: {
+  userId: string;
   messageId: string;
   chatId: string;
   deviceId: string;
 }): Promise<StoredLocalMessage | null> {
   const record = await getMessageRecord<unknown>(toMessageCacheKey(params));
   if (!isEncryptedLocalMessageRecord(record)) return null;
+  if (record.userId !== params.userId || record.deviceId !== params.deviceId || record.chatId !== params.chatId) {
+    return null;
+  }
 
-  const key = await getOrCreateLocalMessageCacheKey();
+  const key = await getOrCreateLocalMessageCacheKey(params.userId);
   const decrypted = await crypto.subtle.decrypt(
     {
       name: LOCAL_MESSAGE_CACHE_ALGORITHM,

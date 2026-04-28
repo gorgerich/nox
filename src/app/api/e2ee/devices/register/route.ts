@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   });
 
   if (existingDevice && existingDevice.userId !== user.id) {
-    return NextResponse.json({ error: "Device belongs to another user" }, { status: 403 });
+    return NextResponse.json({ error: "DEVICE_BELONGS_TO_ANOTHER_USER" }, { status: 403 });
   }
 
   if (existingDevice?.revokedAt) {

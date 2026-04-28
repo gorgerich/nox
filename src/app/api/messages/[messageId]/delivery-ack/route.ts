@@ -61,10 +61,17 @@ export async function POST(
         deviceId,
         revokedAt: null,
       },
-      select: { deviceId: true },
+      select: { deviceId: true, userId: true, keyBundle: { select: { revokedAt: true } } },
     });
 
-    if (!device) {
+    if (!device || !device.keyBundle || device.keyBundle.revokedAt) {
+      const foreignDevice = await prisma.userDevice.findFirst({
+        where: { deviceId },
+        select: { userId: true },
+      });
+      if (foreignDevice && foreignDevice.userId !== user.id) {
+        return NextResponse.json({ error: "DEVICE_BELONGS_TO_ANOTHER_USER" }, { status: 403 });
+      }
       return NextResponse.json({ error: "Device not found" }, { status: 404 });
     }
 
@@ -73,7 +80,11 @@ export async function POST(
       select: { id: true, recipientUserId: true, recipientDeviceId: true, deliveredAt: true, encryptedPayloadDeletedAt: true, ciphertext: true },
     });
 
-    if (!envelope || envelope.recipientUserId !== user.id) {
+    if (envelope && envelope.recipientUserId !== user.id) {
+      return NextResponse.json({ error: "DEVICE_BELONGS_TO_ANOTHER_USER" }, { status: 403 });
+    }
+
+    if (!envelope) {
       return NextResponse.json({ error: "Envelope not found" }, { status: 404 });
     }
 

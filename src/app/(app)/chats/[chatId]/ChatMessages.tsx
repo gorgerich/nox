@@ -12,7 +12,7 @@ import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
-import { fetchRecipientKeyBundle, getLocalDeviceId, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
+import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { getLocalEncryptedMessage, storeLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
@@ -178,10 +178,10 @@ export function ChatMessages({
       fetchRecipientKeyBundle(chatInfo.otherMember.id).then(setOtherMemberPublicKey);
     }
     getLocalPublicJwk().then(setMyPublicKey);
-    registerCurrentDevice()
+    registerCurrentDevice(currentUserId)
       .then((device) => setLocalDeviceId(device.deviceId))
-      .catch(() => getLocalDeviceId().then(setLocalDeviceId).catch(() => setLocalDeviceId(null)));
-  }, [chatInfo.otherMember?.id, chatInfo.type]);
+      .catch(() => setLocalDeviceId(null));
+  }, [chatInfo.otherMember?.id, chatInfo.type, currentUserId]);
 
   // Decrypt messages when they arrive or keys change
   useEffect(() => {
@@ -194,7 +194,7 @@ export function ChatMessages({
 
         // Try local encrypted cache first. Persistent cache must never store plaintext.
         const cached = localDeviceId
-          ? await getLocalEncryptedMessage({ messageId: msg.id, chatId, deviceId: localDeviceId }).catch(() => null)
+          ? await getLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId }).catch(() => null)
           : null;
         if (cached) {
           if (newDecrypted[msg.id] !== cached.body) {
@@ -244,7 +244,7 @@ export function ChatMessages({
             newDecrypted[msg.id] = decrypted;
             changed = true;
             try {
-              await storeLocalEncryptedMessage({ messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted });
+              await storeLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted });
             } catch (error) {
               console.error("[e2ee] Failed to save local encrypted cache", error);
               newDecrypted[msg.id] = "Не удалось сохранить сообщение на устройстве.";
@@ -291,7 +291,7 @@ export function ChatMessages({
           if (msg.senderUserId !== currentUserId) {
             if (localDeviceId) {
               try {
-                await storeLocalEncryptedMessage({ messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted });
+                await storeLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted });
                 if (!msg.deliveredAt) {
                   void sendDeliveryAck(msg.id);
                 }
@@ -304,7 +304,7 @@ export function ChatMessages({
           } else {
             // Also store own sent messages for local history, encrypted at rest.
             if (localDeviceId) {
-              await storeLocalEncryptedMessage({ messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted }).catch((error) => {
+              await storeLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted }).catch((error) => {
                 console.error("[e2ee] Failed to save local encrypted cache", error);
               });
             }
@@ -703,7 +703,7 @@ export function ChatMessages({
         plaintextByClientIdRef.current.delete(payload.clientId as string);
         setDecryptedBodies((current) => ({ ...current, [normalized.id]: localPlaintext }));
         if (localDeviceId) {
-          void storeLocalEncryptedMessage({ messageId: normalized.id, chatId, deviceId: localDeviceId, body: localPlaintext })
+          void storeLocalEncryptedMessage({ userId: currentUserId, messageId: normalized.id, chatId, deviceId: localDeviceId, body: localPlaintext })
             .then(() => {
               if ((normalized.encryptionVersion ?? 0) >= 2) {
                 return sendDeliveryAck(normalized.id, localDeviceId);
@@ -1025,7 +1025,7 @@ export function ChatMessages({
             setDecryptedBodies((current) => ({ ...current, [normalized.id]: trimmedBody }));
             if ((normalized.encryptionVersion ?? 0) >= 2 && localDeviceId) {
               try {
-                await storeLocalEncryptedMessage({ messageId: normalized.id, chatId, deviceId: localDeviceId, body: trimmedBody });
+                await storeLocalEncryptedMessage({ userId: currentUserId, messageId: normalized.id, chatId, deviceId: localDeviceId, body: trimmedBody });
                 void sendDeliveryAck(normalized.id, localDeviceId);
               } catch (error) {
                 console.error("[e2ee] Failed to save local encrypted cache", error);

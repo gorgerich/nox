@@ -28,7 +28,7 @@ export default async function AppLayout({
 
   return (
     <CallProvider>
-      <E2EEInitializer />
+      <E2EEInitializer userId={user.id} />
       <AccountRecoveryListener />
       <AppShellChrome user={{ role: user.role }} incomingRequestCount={incomingRequestCount}>
         {children}

@@ -1,6 +1,6 @@
 /**
  * Nox E2EE Key Management
- * Handles device-scoped key generation, storage, and registration.
+ * Handles user-scoped device key generation, storage, and registration.
  */
 
 import * as crypto from "./crypto";
@@ -8,9 +8,9 @@ import * as db from "./indexed-db";
 
 const LEGACY_PRIVATE_KEY_ID = "nox-private-key-v1";
 const LEGACY_PUBLIC_KEY_ID = "nox-public-key-v1";
-const DEVICE_ID_KEY = "nox-device-id-v2";
-const DEVICE_PRIVATE_KEY_ID = "nox-device-private-key-v2";
-const DEVICE_PUBLIC_KEY_ID = "nox-device-public-key-v2";
+const LEGACY_DEVICE_ID_KEY = "nox-device-id-v2";
+const LEGACY_DEVICE_PRIVATE_KEY_ID = "nox-device-private-key-v2";
+const LEGACY_DEVICE_PUBLIC_KEY_ID = "nox-device-public-key-v2";
 
 export type KeyUploadResult = {
   ok: boolean;
@@ -34,6 +34,18 @@ export type LocalDeviceKey = {
   privateKey: CryptoKey;
 };
 
+function scopedDeviceIdKey(userId: string) {
+  return `nox:e2ee:${userId}:deviceId`;
+}
+
+function scopedDevicePrivateKey(userId: string) {
+  return `nox:e2ee:${userId}:privateKey`;
+}
+
+function scopedDevicePublicKey(userId: string) {
+  return `nox:e2ee:${userId}:publicKey`;
+}
+
 function getBrowserDeviceName() {
   if (typeof navigator === "undefined") return "Nox device";
   const userAgentData = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
@@ -41,13 +53,52 @@ function getBrowserDeviceName() {
   return `Nox ${platform}`;
 }
 
-export async function getLocalDeviceId(): Promise<string> {
-  const existing = await db.getKey<string>(DEVICE_ID_KEY);
+async function generateDeviceId() {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function clearUserDeviceKeys(userId: string) {
+  await db.deleteKey(scopedDeviceIdKey(userId));
+  await db.deleteKey(scopedDevicePrivateKey(userId));
+  await db.deleteKey(scopedDevicePublicKey(userId));
+}
+
+async function storeScopedDeviceKey(userId: string, local: LocalDeviceKey) {
+  await db.storeKey(scopedDeviceIdKey(userId), local.deviceId);
+  await db.storeKey(scopedDevicePrivateKey(userId), local.privateKey);
+  await db.storeKey(scopedDevicePublicKey(userId), local.publicKey);
+}
+
+async function createScopedDeviceKey(userId: string): Promise<LocalDeviceKey> {
+  const deviceId = await generateDeviceId();
+  const keyPair = await crypto.generateKeyPair();
+  const publicKey = await crypto.exportPublicKey(keyPair.publicKey);
+  const local = { deviceId, publicKey, privateKey: keyPair.privateKey };
+  await storeScopedDeviceKey(userId, local);
+  return local;
+}
+
+async function tryMigrateLegacyDeviceKey(userId: string): Promise<LocalDeviceKey | null> {
+  const legacyDeviceId = await db.getKey<string>(LEGACY_DEVICE_ID_KEY);
+  const legacyPublic = await db.getKey<string>(LEGACY_DEVICE_PUBLIC_KEY_ID);
+  const legacyPrivate = await db.getKey<CryptoKey>(LEGACY_DEVICE_PRIVATE_KEY_ID);
+  if (!legacyDeviceId || !legacyPublic || !legacyPrivate) return null;
+
+  const res = await fetch(`/api/e2ee/devices?deviceId=${encodeURIComponent(legacyDeviceId)}`);
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (data?.device?.userId !== userId || data.device.publicKey !== legacyPublic) return null;
+
+  const local = { deviceId: legacyDeviceId, publicKey: legacyPublic, privateKey: legacyPrivate };
+  await storeScopedDeviceKey(userId, local);
+  return local;
+}
+
+export async function getLocalDeviceId(userId: string): Promise<string> {
+  const existing = await db.getKey<string>(scopedDeviceIdKey(userId));
   if (existing) return existing;
 
-  const generated = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  await db.storeKey(DEVICE_ID_KEY, generated);
-  return generated;
+  return (await ensureDeviceKeys(userId)).deviceId;
 }
 
 /**
@@ -70,22 +121,20 @@ export async function ensureKeys(): Promise<string> {
   return publicJwk;
 }
 
-export async function ensureDeviceKeys(): Promise<LocalDeviceKey> {
-  const deviceId = await getLocalDeviceId();
-  const existingPublic = await db.getKey<string>(DEVICE_PUBLIC_KEY_ID);
-  const existingPrivate = await db.getKey<CryptoKey>(DEVICE_PRIVATE_KEY_ID);
+export async function ensureDeviceKeys(userId: string): Promise<LocalDeviceKey> {
+  const deviceId = await db.getKey<string>(scopedDeviceIdKey(userId));
+  const existingPublic = await db.getKey<string>(scopedDevicePublicKey(userId));
+  const existingPrivate = await db.getKey<CryptoKey>(scopedDevicePrivateKey(userId));
 
-  if (existingPublic && existingPrivate) {
+  if (deviceId && existingPublic && existingPrivate) {
     return { deviceId, publicKey: existingPublic, privateKey: existingPrivate };
   }
 
-  const keyPair = await crypto.generateKeyPair();
-  const publicKey = await crypto.exportPublicKey(keyPair.publicKey);
+  const migrated = await tryMigrateLegacyDeviceKey(userId).catch(() => null);
+  if (migrated) return migrated;
 
-  await db.storeKey(DEVICE_PRIVATE_KEY_ID, keyPair.privateKey);
-  await db.storeKey(DEVICE_PUBLIC_KEY_ID, publicKey);
-
-  return { deviceId, publicKey, privateKey: keyPair.privateKey };
+  await clearUserDeviceKeys(userId);
+  return createScopedDeviceKey(userId);
 }
 
 export async function getLocalPrivateKey(): Promise<CryptoKey | null> {
@@ -96,15 +145,21 @@ export async function getLocalPublicJwk(): Promise<string | null> {
   return db.getKey<string>(LEGACY_PUBLIC_KEY_ID);
 }
 
-export async function getLocalDevicePrivateKey(): Promise<CryptoKey | null> {
-  return db.getKey<CryptoKey>(DEVICE_PRIVATE_KEY_ID);
+export async function getLocalDevicePrivateKey(userId: string): Promise<CryptoKey | null> {
+  return db.getKey<CryptoKey>(scopedDevicePrivateKey(userId));
 }
 
-export async function clearKeys(): Promise<void> {
+export async function clearKeys(userId?: string): Promise<void> {
+  if (userId) {
+    await clearUserDeviceKeys(userId);
+    return;
+  }
+
   await db.deleteKey(LEGACY_PRIVATE_KEY_ID);
   await db.deleteKey(LEGACY_PUBLIC_KEY_ID);
-  await db.deleteKey(DEVICE_PRIVATE_KEY_ID);
-  await db.deleteKey(DEVICE_PUBLIC_KEY_ID);
+  await db.deleteKey(LEGACY_DEVICE_ID_KEY);
+  await db.deleteKey(LEGACY_DEVICE_PRIVATE_KEY_ID);
+  await db.deleteKey(LEGACY_DEVICE_PUBLIC_KEY_ID);
 }
 
 export async function fetchRecipientKeyBundle(userId: string): Promise<string | null> {
@@ -138,9 +193,8 @@ export async function uploadPublicKeys(ecdhPublicKey: string): Promise<KeyUpload
   }
 }
 
-export async function registerCurrentDevice(): Promise<LocalDeviceKey> {
-  const local = await ensureDeviceKeys();
-  const res = await fetch("/api/e2ee/devices/register", {
+async function postDeviceRegistration(local: LocalDeviceKey) {
+  return fetch("/api/e2ee/devices/register", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -154,27 +208,18 @@ export async function registerCurrentDevice(): Promise<LocalDeviceKey> {
         : undefined,
     }),
   });
+}
+
+export async function registerCurrentDevice(userId: string): Promise<LocalDeviceKey> {
+  const local = await ensureDeviceKeys(userId);
+  const res = await postDeviceRegistration(local);
 
   if (!res.ok) {
     const data = await res.json().catch(() => null);
-    if (data?.error === "DEVICE_REVOKED" || data?.error === "DEVICE_KEY_MISMATCH") {
-      // Clear local keys and try again once to generate a new device identity
-      await clearKeys();
-      const newLocal = await ensureDeviceKeys();
-      const retryRes = await fetch("/api/e2ee/devices/register", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          deviceId: newLocal.deviceId,
-          publicKey: newLocal.publicKey,
-          algorithm: crypto.ALGORITHM_NAME,
-          name: getBrowserDeviceName(),
-          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-          platform: typeof navigator !== "undefined"
-            ? ((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform)
-            : undefined,
-        }),
-      });
+    if (["DEVICE_REVOKED", "DEVICE_KEY_MISMATCH", "DEVICE_BELONGS_TO_ANOTHER_USER"].includes(data?.error)) {
+      await clearUserDeviceKeys(userId);
+      const newLocal = await createScopedDeviceKey(userId);
+      const retryRes = await postDeviceRegistration(newLocal);
       if (!retryRes.ok) {
         throw new Error("Не удалось перерегистрировать устройство после сброса");
       }

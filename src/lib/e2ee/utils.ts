@@ -110,7 +110,7 @@ export async function encryptMessageForDevices(
   chatId: string,
   senderUserId: string,
 ): Promise<EncryptedMessageV2Payload> {
-  const local = await registerCurrentDevice();
+  const local = await registerCurrentDevice(senderUserId);
   const [recipientDevices, senderDevices] = await Promise.all([
     fetchUserDeviceBundles(recipientUserId, chatId),
     fetchCurrentUserDeviceBundles(),
@@ -222,7 +222,7 @@ export async function decryptMessageV2(message: {
   if (!message.envelope.ciphertext || !message.envelope.iv || !message.envelope.salt) return null;
 
   try {
-    const privateKey = await getLocalDevicePrivateKey();
+    const privateKey = await getLocalDevicePrivateKey(message.envelope.recipientUserId);
     if (!privateKey) return null;
 
     const senderDevice = await fetchDeviceKeyBundle(message.senderDeviceId);
