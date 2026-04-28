@@ -14,6 +14,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
+import { encryptMediaForDevices } from "@/lib/e2ee/media";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -920,6 +921,8 @@ export function ChatMessages({
     setUploading(true);
     setComposerError(null);
     debugMedia("file selected", { name: file.name, type: file.type, size: file.size, caption });
+    const shouldEncryptMedia = chatInfo.type === "DIRECT";
+    const mediaRecipientUserId = chatInfo.otherMember?.id ?? currentUserId;
 
     // Optimistic message for media
     const clientId = generateClientId();
@@ -945,13 +948,38 @@ export function ChatMessages({
     setMessages((current) => [...current, optimisticMessage]);
     setReplyingToMessage(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    if (caption) {
-      formData.append("body", caption);
-    }
-
     try {
+      const formData = new FormData();
+      if (shouldEncryptMedia) {
+        if (caption?.trim()) {
+          throw new Error("Подписи к зашифрованным медиа пока не поддержаны.");
+        }
+
+        const encryptedMedia = await encryptMediaForDevices({
+          file,
+          recipientUserId: mediaRecipientUserId,
+          chatId,
+          senderUserId: currentUserId,
+        });
+        const encryptedFile = new File([encryptedMedia.encryptedBlob], "encrypted-media.bin", {
+          type: "application/octet-stream",
+        });
+        formData.append("file", encryptedFile);
+        formData.append("encrypted", "true");
+        formData.append("mediaEncryptionVersion", String(encryptedMedia.mediaEncryptionVersion));
+        formData.append("fileIv", encryptedMedia.fileIv);
+        formData.append("fileAlgorithm", encryptedMedia.fileAlgorithm);
+        formData.append("senderDeviceId", encryptedMedia.senderDeviceId);
+        formData.append("mediaKeyEnvelopes", JSON.stringify(encryptedMedia.mediaKeyEnvelopes));
+        formData.append("clientMimeType", file.type);
+        formData.append("originalSizeBytes", String(file.size));
+      } else {
+        formData.append("file", file);
+      }
+      if (caption && !shouldEncryptMedia) {
+        formData.append("body", caption);
+      }
+
       debugMedia("upload started", { chatId, name: file.name });
       const response = await fetch(`/api/chats/${chatId}/attachments`, { method: "POST", body: formData });
       if (!response.ok) {
@@ -979,7 +1007,7 @@ export function ChatMessages({
     } finally {
       setUploading(false);
     }
-  }, [chatId, currentUserId, debugMedia, replyingToMessage]);
+  }, [chatId, chatInfo.otherMember?.id, chatInfo.type, currentUserId, debugMedia, replyingToMessage]);
 
   const handleSend = useCallback(async (body: string, file?: File) => {
     if (!body.trim() && !file) return;
@@ -1238,6 +1266,9 @@ export function ChatMessages({
             isSelected={false}
             onSelect={() => {}}
             isFocused={true}
+            chatId={chatId}
+            currentUserId={currentUserId}
+            localDeviceId={localDeviceId}
           />
         </div>
 
@@ -1509,6 +1540,9 @@ export function ChatMessages({
                   onSelect={toggleSelection}
                   isFocused={menuState?.id === item.message.id}
                   searchQuery={isSearchOpen ? searchQuery : ""}
+                  chatId={chatId}
+                  currentUserId={currentUserId}
+                  localDeviceId={localDeviceId}
                 />
               </div>
             )

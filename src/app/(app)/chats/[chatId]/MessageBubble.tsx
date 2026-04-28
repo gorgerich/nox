@@ -2,8 +2,9 @@
 
 import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
+import { decryptMediaBlob } from "@/lib/e2ee/media";
 
 const SWIPE_REPLY_THRESHOLD = 64;
 const SWIPE_REPLY_MAX = 92;
@@ -39,6 +40,25 @@ export type Message = {
     mimeType: string;
     sizeBytes: number;
     url?: string;
+    encryptedSizeBytes?: number | null;
+    isEncrypted?: boolean;
+    mediaEncryptionVersion?: number | null;
+    fileIv?: string | null;
+    fileAlgorithm?: string | null;
+    mediaKeyEnvelopes?: {
+      id: string;
+      recipientUserId: string;
+      recipientDeviceId: string;
+      senderDeviceId: string;
+      encryptedMediaKey: string;
+      iv: string;
+      salt: string | null;
+      algorithm: string;
+      encryptionVersion: number;
+      createdAt?: string;
+      deliveredAt?: string | null;
+      revokedAt?: string | null;
+    }[];
   }[];
   reactions: {
     emoji: string;
@@ -82,6 +102,193 @@ export type Message = {
   messageUnavailableOnThisDevice?: boolean;
 };
 
+type Attachment = Message["attachments"][number];
+
+function AttachmentPreview({
+  attachment,
+  message,
+  mine,
+  settings,
+  onMediaClick,
+  chatId,
+  localDeviceId,
+}: {
+  attachment: Attachment;
+  message: Message;
+  mine: boolean;
+  settings: AppearanceSettings;
+  onMediaClick: (item: MediaItem) => void;
+  chatId?: string;
+  currentUserId?: string;
+  localDeviceId?: string | null;
+}) {
+  const [decryptedUrl, setDecryptedUrl] = useState<string | null>(attachment.url ?? null);
+  const [decryptError, setDecryptError] = useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted && !attachment.url));
+
+  useEffect(() => {
+    if (!attachment.isEncrypted || attachment.url) {
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function decryptAttachment() {
+      if (!chatId || !localDeviceId || !attachment.fileIv) {
+        setIsDecrypting(false);
+        setDecryptError("Медиа недоступно на этом устройстве");
+        return;
+      }
+
+      const envelope = attachment.mediaKeyEnvelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+      if (!envelope) {
+        setIsDecrypting(false);
+        setDecryptError("Медиа недоступно на этом устройстве");
+        return;
+      }
+
+      setIsDecrypting(true);
+      setDecryptError(null);
+
+      try {
+        const response = await fetch(`/api/attachments/${attachment.id}/download`);
+        if (!response.ok) throw new Error("DOWNLOAD_FAILED");
+        const encryptedBlob = await response.blob();
+        const decryptedBlob = await decryptMediaBlob({
+          encryptedBlob,
+          fileIv: attachment.fileIv,
+          senderUserId: message.senderUserId,
+          senderDeviceId: envelope.senderDeviceId,
+          chatId,
+          envelope,
+          mimeType: attachment.mimeType,
+        });
+
+        if (!decryptedBlob) throw new Error("DECRYPT_FAILED");
+        objectUrl = URL.createObjectURL(decryptedBlob);
+        if (!cancelled) {
+          setDecryptedUrl(objectUrl);
+          setIsDecrypting(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setIsDecrypting(false);
+          setDecryptError("Не удалось расшифровать медиа");
+        }
+      }
+    }
+
+    void decryptAttachment();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [
+    attachment.fileIv,
+    attachment.id,
+    attachment.isEncrypted,
+    attachment.mediaKeyEnvelopes,
+    attachment.mimeType,
+    attachment.url,
+    chatId,
+    localDeviceId,
+    message.senderUserId,
+  ]);
+
+  const sourceUrl = decryptedUrl || (!attachment.isEncrypted ? `/api/attachments/${attachment.id}/download` : null);
+  const isImage = attachment.mimeType.startsWith("image/");
+  const isVideo = attachment.mimeType.startsWith("video/");
+
+  if (isDecrypting) {
+    return (
+      <div className="mt-2 first:mt-0 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[11px] font-semibold text-muted">
+        Расшифровка медиа…
+      </div>
+    );
+  }
+
+  if (decryptError || !sourceUrl) {
+    return (
+      <div className="mt-2 first:mt-0 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[11px] font-semibold text-muted">
+        {decryptError || "Медиа недоступно на этом устройстве"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 first:mt-0 overflow-hidden rounded-lg">
+      {message.type === "VOICE" ? (
+        <VoicePlayer
+          src={sourceUrl}
+          isMine={mine}
+          cornerRadius={settings.bubbleRadius}
+        />
+      ) : isImage ? (
+        <div
+          className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
+          onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "IMAGE", url: sourceUrl, fileName: attachment.fileName }); }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={sourceUrl}
+            alt=""
+            className="max-h-96 w-full object-cover transition-smooth hover:scale-105"
+            loading="lazy"
+          />
+        </div>
+      ) : isVideo ? (
+        <div
+          className="relative overflow-hidden rounded-lg cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center"
+          style={{
+            backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+            border: "1px solid var(--bubble-incoming-border)",
+          }}
+          onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
+        >
+          <video src={sourceUrl} className="max-h-96 w-full object-cover" preload="metadata" muted playsInline />
+          <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
+              <svg className="h-6 w-6" style={{ color: "white" }} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="flex cursor-pointer items-center gap-3 rounded-xl p-4 backdrop-blur-md transition-smooth"
+          style={{
+            backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+            border: "1px solid var(--bubble-incoming-border)",
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            const link = document.createElement("a");
+            link.href = sourceUrl;
+            link.download = attachment.fileName || "nox-file";
+            link.target = "_self";
+            link.click();
+          }}
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-inner" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-black tracking-tight">{attachment.fileName}</p>
+            <p className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-0.5">
+              {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const MessageBubble = memo(function MessageBubble({
   message,
   mine,
@@ -99,6 +306,9 @@ export const MessageBubble = memo(function MessageBubble({
   onSelect,
   isFocused = false,
   searchQuery = "",
+  chatId,
+  currentUserId,
+  localDeviceId,
 }: {
   message: Message;
   mine: boolean;
@@ -116,6 +326,9 @@ export const MessageBubble = memo(function MessageBubble({
   onSelect?: (id: string) => void;
   isFocused?: boolean;
   searchQuery?: string;
+  chatId?: string;
+  currentUserId?: string;
+  localDeviceId?: string | null;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -425,81 +638,19 @@ export const MessageBubble = memo(function MessageBubble({
                 )}
               </p>
             )}
-            {message.attachments?.map((att) => {
-              const downloadUrl = att.url || `/api/attachments/${att.id}/download`;
-              const isImage = att.mimeType.startsWith("image/");
-              const isVideo = att.mimeType.startsWith("video/");
-
-              return (
-                <div key={att.id} className="mt-2 first:mt-0 overflow-hidden rounded-lg">
-                  {message.type === "VOICE" ? (
-                    <VoicePlayer 
-                      src={downloadUrl} 
-                      isMine={mine}
-                      cornerRadius={settings.bubbleRadius}
-                    />
-                  ) : isImage ? (
-                    <div 
-                      className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "IMAGE", url: downloadUrl, fileName: att.fileName }); }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img 
-                        src={downloadUrl} 
-                        alt="" 
-                        className="max-h-96 w-full object-cover transition-smooth hover:scale-105" 
-                        loading="lazy"
-                      />
-                    </div>
-                  ) : isVideo ? (
-                    <div 
-                      className="relative overflow-hidden rounded-lg cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center"
-                      style={{
-                        backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
-                        border: "1px solid var(--bubble-incoming-border)",
-                      }}
-                      onClick={(e) => { e.stopPropagation(); onMediaClick({ id: att.id, type: "VIDEO", url: downloadUrl, fileName: att.fileName }); }}
-                    >
-                      <video src={downloadUrl} className="max-h-96 w-full object-cover" preload="metadata" muted playsInline />
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
-                          <svg className="h-6 w-6" style={{ color: "white" }} fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div 
-                      className="flex cursor-pointer items-center gap-3 rounded-xl p-4 backdrop-blur-md transition-smooth"
-                      style={{
-                        backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
-                        border: "1px solid var(--bubble-incoming-border)",
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const link = document.createElement("a");
-                        link.href = downloadUrl;
-                        link.target = "_self";
-                        link.click();
-                      }}
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-inner" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }}>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-black tracking-tight">{att.fileName}</p>
-                        <p className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-0.5">
-                          {(att.sizeBytes / 1024 / 1024).toFixed(1)} MB
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {message.attachments?.map((att) => (
+              <AttachmentPreview
+                key={att.id}
+                attachment={att}
+                message={message}
+                mine={mine}
+                settings={settings}
+                onMediaClick={onMediaClick}
+                chatId={chatId}
+                currentUserId={currentUserId}
+                localDeviceId={localDeviceId}
+              />
+            ))}
           </>
 
           <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>

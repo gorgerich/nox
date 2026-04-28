@@ -54,7 +54,35 @@ function getPlaintextFields(payload: unknown) {
 
 const messageInclude = {
   sender: { select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true } } } },
-  attachments: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true } },
+  attachments: {
+    select: {
+      id: true,
+      fileName: true,
+      mimeType: true,
+      sizeBytes: true,
+      encryptedSizeBytes: true,
+      isEncrypted: true,
+      mediaEncryptionVersion: true,
+      fileIv: true,
+      fileAlgorithm: true,
+      mediaKeyEnvelopes: {
+        select: {
+          id: true,
+          recipientUserId: true,
+          recipientDeviceId: true,
+          senderDeviceId: true,
+          encryptedMediaKey: true,
+          iv: true,
+          salt: true,
+          algorithm: true,
+          encryptionVersion: true,
+          createdAt: true,
+          deliveredAt: true,
+          revokedAt: true,
+        },
+      },
+    },
+  },
   replyToMessage: {
     include: { sender: { select: { id: true, username: true, profile: { select: { displayName: true } } } } },
   },
@@ -81,12 +109,17 @@ const messageInclude = {
 
 type MessageWithEnvelopes = {
   envelopes?: { recipientUserId: string }[];
+  attachments?: { mediaKeyEnvelopes?: { recipientUserId: string }[] }[];
 };
 
 function filterMessageEnvelopesForUser<T extends MessageWithEnvelopes>(message: T, userId: string): T {
   return {
     ...message,
     envelopes: message.envelopes?.filter((envelope) => envelope.recipientUserId === userId) ?? [],
+    attachments: message.attachments?.map((attachment) => ({
+      ...attachment,
+      mediaKeyEnvelopes: attachment.mediaKeyEnvelopes?.filter((envelope) => envelope.recipientUserId === userId) ?? [],
+    })),
   };
 }
 

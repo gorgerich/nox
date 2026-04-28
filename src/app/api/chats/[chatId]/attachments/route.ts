@@ -2,10 +2,22 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
-import { emitToChat, emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
+import { emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
 import { getAttachmentRule, normalizeAttachmentMimeType, saveObject } from "@/lib/storage";
 
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
+const MEDIA_KEY_ALGORITHM = "ECDH-P256-HKDF-SHA256-AES-GCM-MEDIA-KEY";
+
+type MediaKeyEnvelopeInput = {
+  recipientUserId: string;
+  recipientDeviceId: string;
+  senderDeviceId: string;
+  encryptedMediaKey: string;
+  iv: string;
+  salt: string;
+  algorithm: string;
+  encryptionVersion: 1;
+};
 
 function logRealtime(label: string, data: Record<string, unknown>) {
   if (!DEBUG_REALTIME) {
@@ -13,6 +25,19 @@ function logRealtime(label: string, data: Record<string, unknown>) {
   }
 
   console.log(`[realtime-server] ${label}`, data);
+}
+
+function filterAttachmentEnvelopesForUser<T extends { attachments: { mediaKeyEnvelopes?: { recipientUserId: string }[] }[] }>(
+  message: T,
+  userId: string,
+): T {
+  return {
+    ...message,
+    attachments: message.attachments.map((attachment) => ({
+      ...attachment,
+      mediaKeyEnvelopes: attachment.mediaKeyEnvelopes?.filter((envelope) => envelope.recipientUserId === userId) ?? [],
+    })),
+  };
 }
 
 export async function POST(
@@ -39,24 +64,19 @@ export async function POST(
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
   const body = formData?.get("body") as string | null;
+  const encrypted = formData?.get("encrypted") === "true";
+  const mediaEncryptionVersion = Number(formData?.get("mediaEncryptionVersion") ?? 0);
+  const fileIv = formData?.get("fileIv") as string | null;
+  const fileAlgorithm = formData?.get("fileAlgorithm") as string | null;
+  const senderDeviceId = formData?.get("senderDeviceId") as string | null;
+  const envelopesRaw = formData?.get("mediaKeyEnvelopes") as string | null;
+  const clientMimeType = (formData?.get("clientMimeType") as string | null) || (file instanceof File ? file.type : "");
+  const originalSizeBytes = Number(formData?.get("originalSizeBytes") ?? 0);
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Выберите файл." }, { status: 400 });
   }
 
-  const rule = getAttachmentRule(file.type);
-  const normalizedMimeType = normalizeAttachmentMimeType(file.type);
-
-  if (!rule) {
-    return NextResponse.json({ error: "Тип файла не разрешён." }, { status: 400 });
-  }
-
-  if (file.size <= 0 || file.size > rule.maxSizeBytes) {
-    return NextResponse.json({ error: "Размер файла не разрешён." }, { status: 400 });
-  }
-
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-  const { storageKey } = await saveObject(fileBuffer);
   const prisma = getPrisma();
   const activeMembers = await prisma.chatMember.findMany({
     where: {
@@ -69,13 +89,109 @@ export async function POST(
     },
   });
 
+  const directPeerUserId = membership.chat.type === "DIRECT"
+    ? activeMembers.find((member) => member.userId !== user.id)?.userId ?? null
+    : null;
+  const requiresEncryptedMedia = membership.chat.type === "DIRECT";
+
+  if (requiresEncryptedMedia && !encrypted) {
+    return NextResponse.json({ error: "Direct media messages must be encrypted" }, { status: 400 });
+  }
+
+  if (encrypted && body?.trim()) {
+    return NextResponse.json({ error: "Подписи к зашифрованным медиа пока не поддержаны." }, { status: 400 });
+  }
+
+  const rule = getAttachmentRule(clientMimeType);
+  const normalizedMimeType = normalizeAttachmentMimeType(clientMimeType);
+
+  if (!rule) {
+    return NextResponse.json({ error: "Тип файла не разрешён." }, { status: 400 });
+  }
+
+  const plainSizeBytes = encrypted ? originalSizeBytes : file.size;
+  if (
+    !Number.isFinite(plainSizeBytes) ||
+    plainSizeBytes <= 0 ||
+    plainSizeBytes > rule.maxSizeBytes ||
+    file.size <= 0 ||
+    file.size > rule.maxSizeBytes + 1024 * 1024
+  ) {
+    return NextResponse.json({ error: "Размер файла не разрешён." }, { status: 400 });
+  }
+
+  let mediaKeyEnvelopes: MediaKeyEnvelopeInput[] = [];
+  if (encrypted) {
+    if (mediaEncryptionVersion !== 1 || !fileIv || !fileAlgorithm || !senderDeviceId || !envelopesRaw) {
+      return NextResponse.json({ error: "Некорректные параметры шифрования медиа." }, { status: 400 });
+    }
+
+    try {
+      const parsed = JSON.parse(envelopesRaw);
+      if (!Array.isArray(parsed)) throw new Error("not-array");
+      mediaKeyEnvelopes = parsed as MediaKeyEnvelopeInput[];
+    } catch {
+      return NextResponse.json({ error: "Некорректные media key envelopes." }, { status: 400 });
+    }
+
+    if (mediaKeyEnvelopes.length === 0) {
+      return NextResponse.json({ error: "Некорректные media key envelopes." }, { status: 400 });
+    }
+
+    const allowedUserIds = new Set(activeMembers.map((member) => member.userId));
+    allowedUserIds.add(user.id);
+    if (directPeerUserId) allowedUserIds.add(directPeerUserId);
+
+    const deviceIds = Array.from(new Set(mediaKeyEnvelopes.map((envelope) => envelope.recipientDeviceId).concat(senderDeviceId)));
+    const deviceBundles = await prisma.deviceKeyBundle.findMany({
+      where: {
+        deviceId: { in: deviceIds },
+        revokedAt: null,
+        userDevice: { revokedAt: null },
+      },
+      select: { deviceId: true, userId: true },
+    });
+    const deviceOwnerById = new Map(deviceBundles.map((device) => [device.deviceId, device.userId]));
+
+    if (deviceOwnerById.get(senderDeviceId) !== user.id) {
+      return NextResponse.json({ error: "Invalid sender device" }, { status: 400 });
+    }
+
+    for (const envelope of mediaKeyEnvelopes) {
+      const ownerId = deviceOwnerById.get(envelope.recipientDeviceId);
+      if (!ownerId || ownerId !== envelope.recipientUserId || !allowedUserIds.has(ownerId)) {
+        return NextResponse.json({ error: "Envelope recipient device is not allowed" }, { status: 400 });
+      }
+      if (
+        envelope.senderDeviceId !== senderDeviceId ||
+        envelope.algorithm !== MEDIA_KEY_ALGORITHM ||
+        envelope.encryptionVersion !== 1 ||
+        !envelope.encryptedMediaKey ||
+        !envelope.iv ||
+        !envelope.salt
+      ) {
+        return NextResponse.json({ error: "Invalid media key envelope metadata" }, { status: 400 });
+      }
+    }
+
+    if (directPeerUserId && !mediaKeyEnvelopes.some((envelope) => envelope.recipientUserId === directPeerUserId)) {
+      return NextResponse.json({ error: "Missing recipient media key envelope" }, { status: 400 });
+    }
+  }
+
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const { storageKey } = await saveObject(fileBuffer);
+
   const message = await prisma.$transaction(async (tx) => {
     const createdMessage = await tx.message.create({
       data: {
         chatId,
         senderUserId: user.id,
         type: rule.kind,
-        body: body || null,
+        body: encrypted ? null : body || null,
+        isEncrypted: encrypted,
+        encryptionVersion: encrypted ? 2 : 0,
+        senderKeyId: encrypted ? senderDeviceId : null,
         receipts: {
           create: activeMembers
             .filter((member) => member.userId !== user.id)
@@ -85,9 +201,28 @@ export async function POST(
           create: {
             uploaderUserId: user.id,
             storageKey,
-            fileName: file.name || "file",
+            fileName: encrypted ? "encrypted-file" : file.name || "file",
             mimeType: normalizedMimeType,
-            sizeBytes: file.size,
+            sizeBytes: plainSizeBytes,
+            encryptedSizeBytes: encrypted ? file.size : null,
+            isEncrypted: encrypted,
+            mediaEncryptionVersion: encrypted ? 1 : null,
+            fileIv: encrypted ? fileIv : null,
+            fileAlgorithm: encrypted ? fileAlgorithm : null,
+            mediaKeyEnvelopes: encrypted
+              ? {
+                  create: mediaKeyEnvelopes.map((envelope) => ({
+                    recipientUserId: envelope.recipientUserId,
+                    recipientDeviceId: envelope.recipientDeviceId,
+                    senderDeviceId: envelope.senderDeviceId,
+                    encryptedMediaKey: envelope.encryptedMediaKey,
+                    iv: envelope.iv,
+                    salt: envelope.salt,
+                    algorithm: envelope.algorithm,
+                    encryptionVersion: envelope.encryptionVersion,
+                  })),
+                }
+              : undefined,
           },
         },
       },
@@ -110,6 +245,26 @@ export async function POST(
             fileName: true,
             mimeType: true,
             sizeBytes: true,
+            encryptedSizeBytes: true,
+            isEncrypted: true,
+            mediaEncryptionVersion: true,
+            fileIv: true,
+            fileAlgorithm: true,
+            mediaKeyEnvelopes: {
+              select: {
+                id: true,
+                recipientUserId: true,
+                recipientDeviceId: true,
+                senderDeviceId: true,
+                encryptedMediaKey: true,
+                iv: true,
+                salt: true,
+                algorithm: true,
+                encryptionVersion: true,
+                deliveredAt: true,
+                revokedAt: true,
+              },
+            },
           },
         },
         replyToMessage: {
@@ -163,7 +318,12 @@ export async function POST(
   });
 
   logRealtime("message created", { messageId: message.id, chatId, senderId: user.id, type: message.type });
-  emitToChat(chatId, "message:new", { chatId, message });
+  for (const member of activeMembers) {
+    emitToUsers([member.userId], "message:new", {
+      chatId,
+      message: filterAttachmentEnvelopesForUser(message, member.userId),
+    });
+  }
   logRealtime("emitting message:new", { chatId, messageId: message.id });
   emitToUsers(
     activeMembers.map((member) => member.userId),
@@ -192,7 +352,7 @@ export async function POST(
     if (message.type === "IMAGE") bodyPreview = "Фотография";
     if (message.type === "VIDEO") bodyPreview = "Видео";
     if (message.type === "VOICE") bodyPreview = "Голосовое сообщение";
-    if (message.type === "FILE") bodyPreview = `Файл: ${file.name}`;
+    if (message.type === "FILE") bodyPreview = encrypted ? "Файл" : `Файл: ${file.name}`;
 
     sendPushToUsers(recipients, {
       title: senderName,
@@ -204,5 +364,5 @@ export async function POST(
     }).catch(err => console.error("Push failed:", err));
   }
 
-  return NextResponse.json({ message }, { status: 201 });
+  return NextResponse.json({ message: filterAttachmentEnvelopesForUser(message, user.id) }, { status: 201 });
 }

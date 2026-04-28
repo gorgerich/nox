@@ -37,6 +37,25 @@ type BaseMessage = {
     fileName: string;
     mimeType: string;
     sizeBytes: number;
+    encryptedSizeBytes?: number | null;
+    isEncrypted?: boolean;
+    mediaEncryptionVersion?: number | null;
+    fileIv?: string | null;
+    fileAlgorithm?: string | null;
+    mediaKeyEnvelopes?: {
+      id: string;
+      recipientUserId: string;
+      recipientDeviceId: string;
+      senderDeviceId: string;
+      encryptedMediaKey: string;
+      iv: string;
+      salt: string | null;
+      algorithm: string;
+      encryptionVersion: number;
+      createdAt: Date;
+      deliveredAt: Date | null;
+      revokedAt: Date | null;
+    }[];
   }[];
   reactions: {
     emoji: string;
@@ -99,6 +118,15 @@ function serializeMessage(message: BaseMessage) {
       deliveredAt: r.deliveredAt?.toISOString() ?? null,
       readAt: r.readAt?.toISOString() ?? null,
     })),
+    attachments: message.attachments.map((attachment) => ({
+      ...attachment,
+      mediaKeyEnvelopes: attachment.mediaKeyEnvelopes?.map((envelope) => ({
+        ...envelope,
+        createdAt: envelope.createdAt.toISOString(),
+        deliveredAt: envelope.deliveredAt?.toISOString() ?? null,
+        revokedAt: envelope.revokedAt?.toISOString() ?? null,
+      })) ?? [],
+    })),
     envelopes: message.envelopes.map((envelope) => ({
       ...envelope,
       createdAt: envelope.createdAt.toISOString(),
@@ -109,10 +137,14 @@ function serializeMessage(message: BaseMessage) {
   };
 }
 
-function filterMessageEnvelopesForUser<T extends { envelopes: BaseMessage["envelopes"] }>(message: T, userId: string): T {
+function filterMessageEnvelopesForUser<T extends { envelopes: BaseMessage["envelopes"]; attachments: BaseMessage["attachments"] }>(message: T, userId: string): T {
   return {
     ...message,
     envelopes: message.envelopes.filter((envelope) => envelope.recipientUserId === userId),
+    attachments: message.attachments.map((attachment) => ({
+      ...attachment,
+      mediaKeyEnvelopes: attachment.mediaKeyEnvelopes?.filter((envelope) => envelope.recipientUserId === userId) ?? [],
+    })),
   };
 }
 
@@ -197,6 +229,27 @@ export default async function ChatPage({
                 fileName: true,
                 mimeType: true,
                 sizeBytes: true,
+                encryptedSizeBytes: true,
+                isEncrypted: true,
+                mediaEncryptionVersion: true,
+                fileIv: true,
+                fileAlgorithm: true,
+                mediaKeyEnvelopes: {
+                  select: {
+                    id: true,
+                    recipientUserId: true,
+                    recipientDeviceId: true,
+                    senderDeviceId: true,
+                    encryptedMediaKey: true,
+                    iv: true,
+                    salt: true,
+                    algorithm: true,
+                    encryptionVersion: true,
+                    createdAt: true,
+                    deliveredAt: true,
+                    revokedAt: true,
+                  },
+                },
               },
             },
             replyToMessage: {
@@ -290,6 +343,27 @@ export default async function ChatPage({
             fileName: true,
             mimeType: true,
             sizeBytes: true,
+            encryptedSizeBytes: true,
+            isEncrypted: true,
+            mediaEncryptionVersion: true,
+            fileIv: true,
+            fileAlgorithm: true,
+            mediaKeyEnvelopes: {
+              select: {
+                id: true,
+                recipientUserId: true,
+                recipientDeviceId: true,
+                senderDeviceId: true,
+                encryptedMediaKey: true,
+                iv: true,
+                salt: true,
+                algorithm: true,
+                encryptionVersion: true,
+                createdAt: true,
+                deliveredAt: true,
+                revokedAt: true,
+              },
+            },
           },
         },
         replyToMessage: {

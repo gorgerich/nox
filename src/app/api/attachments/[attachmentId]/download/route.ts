@@ -73,8 +73,12 @@ export async function GET(
   const rangeHeader = request.headers.get("range");
   const baseHeaders = {
     "Accept-Ranges": "bytes",
-    "Content-Disposition": getContentDisposition(attachment.mimeType, attachment.fileName, forceDownload),
-    "Content-Type": attachment.mimeType,
+    "Content-Disposition": getContentDisposition(
+      attachment.isEncrypted ? "application/octet-stream" : attachment.mimeType,
+      attachment.isEncrypted ? "encrypted-media.bin" : attachment.fileName,
+      forceDownload || attachment.isEncrypted,
+    ),
+    "Content-Type": attachment.isEncrypted ? "application/octet-stream" : attachment.mimeType,
     "X-Content-Type-Options": "nosniff",
   };
 
