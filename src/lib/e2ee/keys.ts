@@ -216,7 +216,11 @@ export async function registerCurrentDevice(userId: string): Promise<LocalDevice
 
   if (!res.ok) {
     const data = await res.json().catch(() => null);
-    if (["DEVICE_REVOKED", "DEVICE_KEY_MISMATCH", "DEVICE_BELONGS_TO_ANOTHER_USER"].includes(data?.error)) {
+    if (data?.error === "DEVICE_REVOKED") {
+      throw new Error("Это устройство отозвано. Оно больше не может отправлять и получать новые зашифрованные сообщения.");
+    }
+
+    if (["DEVICE_KEY_MISMATCH", "DEVICE_BELONGS_TO_ANOTHER_USER"].includes(data?.error)) {
       await clearUserDeviceKeys(userId);
       const newLocal = await createScopedDeviceKey(userId);
       const retryRes = await postDeviceRegistration(newLocal);

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAudioCall } from "../../../calls/CallProvider";
 import { usePresence } from "@/hooks/usePresence";
 import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
+import { E2EEContactDevices } from "./E2EEContactDevices";
 
 interface PartnerProfileProps {
   chatId: string;
@@ -156,6 +157,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
             value={settings.mutedUntil ? `До ${new Date(settings.mutedUntil).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : "Включены"}
           />
         </section>
+        <E2EEContactDevices userId={partnerUser.id} chatId={chatId} />
       </div>
 
       {/* Shared Media Tabs */}

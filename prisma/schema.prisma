@@ -38,6 +38,8 @@ model User {
   keyBundle                  UserKeyBundle?
   e2eeDevices                UserDevice[]
   deviceKeyBundles           DeviceKeyBundle[]
+  e2eeTrustOwned             E2EEDeviceTrust[]        @relation("E2EETrustOwner")
+  e2eeTrustTargetingMe       E2EEDeviceTrust[]        @relation("E2EETrustTarget")
   receivedMessageEnvelopes   MessageEnvelope[]        @relation("MessageEnvelopeRecipientUser")
   passwordResetTokens        PasswordResetToken[]
   accountRecoveryRequests    AccountRecoveryRequest[]
@@ -126,6 +128,24 @@ model DeviceKeyBundle {
   @@index([userId])
   @@index([deviceId])
   @@index([revokedAt])
+}
+
+model E2EEDeviceTrust {
+  id                   String    @id @default(cuid())
+  ownerId              String
+  targetUserId         String
+  targetDeviceId       String
+  publicKeyFingerprint String
+  verifiedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  owner                User      @relation("E2EETrustOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetUser           User      @relation("E2EETrustTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, targetDeviceId, publicKeyFingerprint])
+  @@index([ownerId])
+  @@index([targetUserId])
+  @@index([targetDeviceId])
 }
 
 model ContactSettings {

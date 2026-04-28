@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { BackButton } from "./BackButton";
 import { DirectChatButton } from "./DirectChatButton";
+import { E2EEUserDevices } from "./E2EEUserDevices";
 
 export default async function UserProfilePage({
   params,
@@ -82,6 +83,7 @@ export default async function UserProfilePage({
         <div className="mt-10 flex gap-4 w-full max-w-xs">
           <DirectChatButton userId={targetUser.id} />
         </div>
+        <E2EEUserDevices userId={targetUser.id} />
       </div>
     </div>
   );
