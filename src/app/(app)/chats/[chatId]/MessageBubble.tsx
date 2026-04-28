@@ -79,6 +79,7 @@ export type Message = {
     readAt?: string | null;
     encryptedPayloadDeletedAt?: string | null;
   }[];
+  messageUnavailableOnThisDevice?: boolean;
 };
 
 export const MessageBubble = memo(function MessageBubble({
@@ -309,6 +310,16 @@ export const MessageBubble = memo(function MessageBubble({
   const relevantReceipts = message.receipts?.filter((receipt) => receipt.userId !== message.senderUserId) ?? [];
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
+
+  if (message.messageUnavailableOnThisDevice) {
+    return (
+      <div className="relative flex w-full justify-center px-4 py-1.5">
+        <div className="max-w-[82%] rounded-full border border-border-subtle bg-surface-muted/70 px-3 py-1.5 text-center text-[11px] font-semibold text-muted">
+          Сообщение недоступно на этом устройстве
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

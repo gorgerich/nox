@@ -66,6 +66,9 @@ type EncryptedLocalMessageRecord = {
   userId: string;
   chatId: string | null;
   deviceId: string | null;
+  senderId: string;
+  createdAt: string;
+  type: string;
   storedAt: string;
 };
 
@@ -162,6 +165,9 @@ export async function storeLocalEncryptedMessage(params: {
   messageId: string;
   chatId: string;
   deviceId: string;
+  senderId: string;
+  createdAt: string;
+  type: string;
   body: string;
 }): Promise<void> {
   const key = await getOrCreateLocalMessageCacheKey(params.userId);
@@ -181,6 +187,9 @@ export async function storeLocalEncryptedMessage(params: {
     userId: params.userId,
     chatId: params.chatId,
     deviceId: params.deviceId,
+    senderId: params.senderId,
+    createdAt: params.createdAt,
+    type: params.type,
     storedAt: new Date().toISOString(),
   };
 
@@ -210,4 +219,22 @@ export async function getLocalEncryptedMessage(params: {
   );
   const payload = JSON.parse(textDecoder.decode(new Uint8Array(decrypted))) as Partial<StoredLocalMessage>;
   return typeof payload.body === "string" ? { body: payload.body } : null;
+}
+
+export async function storeAndVerifyLocalEncryptedMessage(params: {
+  userId: string;
+  messageId: string;
+  chatId: string;
+  deviceId: string;
+  senderId: string;
+  createdAt: string;
+  type: string;
+  body: string;
+}): Promise<StoredLocalMessage> {
+  await storeLocalEncryptedMessage(params);
+  const recovered = await getLocalEncryptedMessage(params);
+  if (!recovered || recovered.body !== params.body) {
+    throw new Error("LOCAL_ENCRYPTED_CACHE_VERIFY_FAILED");
+  }
+  return recovered;
 }

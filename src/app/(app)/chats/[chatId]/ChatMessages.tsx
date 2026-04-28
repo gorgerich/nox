@@ -13,11 +13,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
-import { getLocalEncryptedMessage, storeLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
+import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
-type MessageWithDecrypted = Message & { body: string };
+type MessageWithDecrypted = Message & { body: string; messageUnavailableOnThisDevice?: boolean };
 
 interface GroupedDate {
   type: "date";
@@ -155,6 +155,7 @@ export function ChatMessages({
   );
 
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
+  const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
   const plaintextByClientIdRef = useRef<Map<string, string>>(new Map());
   const [otherMemberPublicKey, setOtherMemberPublicKey] = useState<string | null>(null);
   const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
@@ -172,6 +173,19 @@ export function ChatMessages({
     }
   }, []);
 
+  const saveVerifiedLocalMessage = useCallback(async (message: Message, body: string, deviceId: string) => {
+    return storeAndVerifyLocalEncryptedMessage({
+      userId: currentUserId,
+      messageId: message.id,
+      chatId,
+      deviceId,
+      senderId: message.senderUserId,
+      createdAt: message.createdAt,
+      type: message.type,
+      body,
+    });
+  }, [chatId, currentUserId]);
+
   // Fetch keys for decryption
   useEffect(() => {
     if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
@@ -187,7 +201,9 @@ export function ChatMessages({
   useEffect(() => {
     async function decryptAll() {
       const newDecrypted: Record<string, string> = { ...decryptedBodies };
+      const newUnavailable: Record<string, true> = { ...unavailableMessageIds };
       let changed = false;
+      let unavailableChanged = false;
 
       for (const msg of messages) {
         if (!msg.isEncrypted || msg.body || decryptedBodies[msg.id]) continue;
@@ -200,6 +216,10 @@ export function ChatMessages({
           if (newDecrypted[msg.id] !== cached.body) {
             newDecrypted[msg.id] = cached.body;
             changed = true;
+          }
+          if (newUnavailable[msg.id]) {
+            delete newUnavailable[msg.id];
+            unavailableChanged = true;
           }
           if ((msg.encryptionVersion ?? 0) >= 2 && localDeviceId) {
             const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
@@ -214,14 +234,18 @@ export function ChatMessages({
           if (!localDeviceId) continue;
           const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
           if (!envelope) {
-            newDecrypted[msg.id] = "Сообщение недоступно на этом устройстве";
-            changed = true;
+            if (!newUnavailable[msg.id]) {
+              newUnavailable[msg.id] = true;
+              unavailableChanged = true;
+            }
             continue;
           }
 
           if (!envelope.ciphertext || !envelope.iv || !envelope.salt) {
-            newDecrypted[msg.id] = "Сообщение уже доставлено на это устройство и больше не хранится на сервере.";
-            changed = true;
+            if (!newUnavailable[msg.id]) {
+              newUnavailable[msg.id] = true;
+              unavailableChanged = true;
+            }
             continue;
           }
 
@@ -243,12 +267,14 @@ export function ChatMessages({
           if (decrypted) {
             newDecrypted[msg.id] = decrypted;
             changed = true;
+            if (newUnavailable[msg.id]) {
+              delete newUnavailable[msg.id];
+              unavailableChanged = true;
+            }
             try {
-              await storeLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted });
+              await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
             } catch (error) {
               console.error("[e2ee] Failed to save local encrypted cache", error);
-              newDecrypted[msg.id] = "Не удалось сохранить сообщение на устройстве.";
-              changed = true;
               continue;
             }
             void sendDeliveryAck(msg.id, localDeviceId);
@@ -291,20 +317,18 @@ export function ChatMessages({
           if (msg.senderUserId !== currentUserId) {
             if (localDeviceId) {
               try {
-                await storeLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted });
+                await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
                 if (!msg.deliveredAt) {
                   void sendDeliveryAck(msg.id);
                 }
               } catch (error) {
                 console.error("[e2ee] Failed to save local encrypted cache", error);
-                newDecrypted[msg.id] = "Не удалось сохранить сообщение на устройстве.";
-                changed = true;
               }
             }
           } else {
             // Also store own sent messages for local history, encrypted at rest.
             if (localDeviceId) {
-              await storeLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId, body: decrypted }).catch((error) => {
+              await saveVerifiedLocalMessage(msg, decrypted, localDeviceId).catch((error) => {
                 console.error("[e2ee] Failed to save local encrypted cache", error);
               });
             }
@@ -318,17 +342,21 @@ export function ChatMessages({
       if (changed) {
         setDecryptedBodies(newDecrypted);
       }
+      if (unavailableChanged) {
+        setUnavailableMessageIds(newUnavailable);
+      }
     }
 
     decryptAll();
-  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, localDeviceId, decryptedBodies, sendDeliveryAck]);
+  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, localDeviceId, decryptedBodies, unavailableMessageIds, saveVerifiedLocalMessage, sendDeliveryAck]);
 
   const messagesWithDecrypted = useMemo(() => {
     return messages.map(msg => ({
       ...msg,
-      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? ((msg.encryptionVersion ?? 0) >= 2 ? "Сообщение недоступно на этом устройстве" : msg.ciphertext ? "Зашифрованное сообщение" : "Сообщение доставлено и удалено с сервера") : msg.body || "")
+      body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? ((msg.encryptionVersion ?? 0) >= 2 ? "" : msg.ciphertext ? "Зашифрованное сообщение" : "") : msg.body || ""),
+      messageUnavailableOnThisDevice: Boolean(unavailableMessageIds[msg.id]),
     })) as MessageWithDecrypted[];
-  }, [messages, decryptedBodies]);
+  }, [messages, decryptedBodies, unavailableMessageIds]);
 
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -703,7 +731,7 @@ export function ChatMessages({
         plaintextByClientIdRef.current.delete(payload.clientId as string);
         setDecryptedBodies((current) => ({ ...current, [normalized.id]: localPlaintext }));
         if (localDeviceId) {
-          void storeLocalEncryptedMessage({ userId: currentUserId, messageId: normalized.id, chatId, deviceId: localDeviceId, body: localPlaintext })
+          void saveVerifiedLocalMessage(normalized, localPlaintext, localDeviceId)
             .then(() => {
               if ((normalized.encryptionVersion ?? 0) >= 2) {
                 return sendDeliveryAck(normalized.id, localDeviceId);
@@ -854,7 +882,7 @@ export function ChatMessages({
       socket.off("typing:update", handleTypingUpdate);
       socket.off("chat:pinned-message-updated", handlePinnedMessageUpdated);
     };
-  }, [chatId, currentUserId, debugRealtime, localDeviceId, markAsRead, sendDeliveryAck, socket]);
+  }, [chatId, currentUserId, debugRealtime, localDeviceId, markAsRead, saveVerifiedLocalMessage, sendDeliveryAck, socket]);
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     try {
@@ -1025,7 +1053,7 @@ export function ChatMessages({
             setDecryptedBodies((current) => ({ ...current, [normalized.id]: trimmedBody }));
             if ((normalized.encryptionVersion ?? 0) >= 2 && localDeviceId) {
               try {
-                await storeLocalEncryptedMessage({ userId: currentUserId, messageId: normalized.id, chatId, deviceId: localDeviceId, body: trimmedBody });
+                await saveVerifiedLocalMessage(normalized, trimmedBody, localDeviceId);
                 void sendDeliveryAck(normalized.id, localDeviceId);
               } catch (error) {
                 console.error("[e2ee] Failed to save local encrypted cache", error);
@@ -1082,7 +1110,7 @@ export function ChatMessages({
     } finally {
       setPending(false);
     }
-  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach, chatInfo.otherMember, chatInfo.type, localDeviceId, sendDeliveryAck]);
+  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach, chatInfo.otherMember, chatInfo.type, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
 
   const startRecording = useCallback(async () => {
     try {
