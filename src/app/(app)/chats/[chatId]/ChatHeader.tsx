@@ -116,7 +116,7 @@ export function ChatHeader({
       <div className="flex items-center gap-2">
         {canCall && (
           <button
-            onClick={() => startCall(chatId)}
+            onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null })}
             disabled={status !== "idle"}
             className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90 disabled:opacity-30 disabled:grayscale"
             style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--message-read)" }}

@@ -41,6 +41,11 @@ type DebugInfo = {
   candidatePair: string | null;
   localCandidateType: string | null;
   remoteCandidateType: string | null;
+  audioSrcObjectAssigned: boolean;
+  audioPlayStatus: "idle" | "pending" | "success" | "failed";
+  turnPresent: boolean;
+  forceRelay: boolean;
+  pushSource: "foreground" | "push" | null;
 };
 
 interface CallContextType {
@@ -52,6 +57,8 @@ interface CallContextType {
   error: string | null;
   debugInfo: DebugInfo;
   startCall: (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }) => Promise<void>;
+  resumePendingCall: (callId: string) => void;
+  markRemoteAudioPlayback: (state: { srcObjectAssigned: boolean; playStatus: "idle" | "pending" | "success" | "failed" }) => void;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
   endCall: () => void;
@@ -63,6 +70,7 @@ interface IncomingPayload {
   chatId: string;
   offer: RTCSessionDescriptionInit;
   fromUser: PeerUser;
+  source?: "foreground" | "push";
 }
 
 interface AnswerPayload {
@@ -81,15 +89,16 @@ interface CallAck {
   ok?: boolean;
   callId?: string;
   error?: string;
+  delivery?: "foreground" | "push";
 }
 
 const CallContext = createContext<CallContextType | null>(null);
 
 function getRtcConfig(): { config: RTCConfiguration; serverUrls: string[] } {
-  const iceServers: RTCIceServer[] = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ];
+  const stunUrls = process.env.NEXT_PUBLIC_STUN_URLS
+    ? process.env.NEXT_PUBLIC_STUN_URLS.split(",").map(u => u.trim()).filter(Boolean)
+    : ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
+  const iceServers: RTCIceServer[] = stunUrls.map((url) => ({ urls: url }));
 
   if (process.env.NEXT_PUBLIC_TURN_URLS) {
     const urls = process.env.NEXT_PUBLIC_TURN_URLS.split(",").map(u => u.trim());
@@ -111,7 +120,12 @@ function getRtcConfig(): { config: RTCConfiguration; serverUrls: string[] } {
     console.warn("[call-debug] TURN not configured; STUN-only may fail across NAT/mobile networks");
   }
 
-  return { config: { iceServers }, serverUrls };
+  const config: RTCConfiguration = { iceServers };
+  if (process.env.NEXT_PUBLIC_FORCE_RELAY === "true") {
+    config.iceTransportPolicy = "relay";
+  }
+
+  return { config, serverUrls };
 }
 
 function generateCallId() {
@@ -158,6 +172,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     candidatePair: null,
     localCandidateType: null,
     remoteCandidateType: null,
+    audioSrcObjectAssigned: false,
+    audioPlayStatus: "idle",
+    turnPresent: false,
+    forceRelay: false,
+    pushSource: null,
   });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -169,6 +188,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const currentCallRef = useRef<CurrentCall | null>(null);
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const statusRef = useRef<CallStatus>("idle");
+  const audioSrcObjectAssignedRef = useRef(false);
+  const remoteAudioPlaybackOkRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -282,6 +303,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     canSendLocalIceRef.current = false;
     currentCallRef.current = null;
     incomingOfferRef.current = null;
+    audioSrcObjectAssignedRef.current = false;
+    remoteAudioPlaybackOkRef.current = false;
 
     setCall(null);
     setLocalStream(null);
@@ -303,6 +326,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       candidatePair: null,
       localCandidateType: null,
       remoteCandidateType: null,
+      audioSrcObjectAssigned: false,
+      audioPlayStatus: "idle",
+      pushSource: null,
     });
   }, [clearCallTimer, debugCall, stopStatsInterval, updateDebugInfo]);
 
@@ -323,10 +349,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const isConnected = pc.connectionState === "connected" || pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed";
     const hasRemoteAudio = (remoteStreamRef.current?.getAudioTracks().length ?? 0) > 0;
+    const audioReady = audioSrcObjectAssignedRef.current && remoteAudioPlaybackOkRef.current;
 
-    debugCall("verifyAndSetActive", { source, isConnected, hasRemoteAudio, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState });
+    debugCall("verifyAndSetActive", { source, isConnected, hasRemoteAudio, audioReady, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState });
 
-    if (isConnected && hasRemoteAudio) {
+    if (isConnected && hasRemoteAudio && audioReady) {
       clearCallTimer();
       setStatus((current) => {
         if (current === "idle" || current === "ended" || current === "failed" || current === "active") {
@@ -343,10 +370,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     clearCallTimer();
     timeoutRef.current = setTimeout(() => {
       if (currentCallRef.current?.callId === callId && (statusRef.current === "connecting" || statusRef.current === "outgoing")) {
+        if ((remoteStreamRef.current?.getAudioTracks().length ?? 0) > 0) {
+          debugCall("media timeout skipped because remote audio exists", { callId });
+          return;
+        }
         failCall(customMessage || "Не удалось установить соединение");
       }
     }, timeoutMs);
-  }, [clearCallTimer, failCall]);
+  }, [clearCallTimer, debugCall, failCall]);
 
   const flushPendingIce = useCallback(async (pc: RTCPeerConnection, reason: string) => {
     const queued = [...pendingIceCandidatesRef.current];
@@ -425,6 +456,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       callId, 
       role, 
       iceServers: serverUrls,
+      turnPresent: serverUrls.some((url) => url.startsWith("turn:") || url.startsWith("turns:")),
+      forceRelay: config.iceTransportPolicy === "relay",
       connectionState: pc.connectionState,
       iceConnectionState: pc.iceConnectionState,
       signalingState: pc.signalingState
@@ -586,13 +619,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.emit("call:start", { callId, chatId, offer }, (ack?: CallAck & { peerUser?: PeerUser }) => {
         debugCall("call:start ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
         if (!ack?.ok) {
-          if (ack?.error === "USER_OFFLINE") {
+          if (ack?.error === "USER_OFFLINE" || ack?.error === "USER_UNREACHABLE") {
             failCall("Пользователь недоступен");
           } else {
             failCall("Не удалось начать звонок");
           }
           return;
         }
+        debugCall("call delivery mode", { delivery: ack.delivery ?? "foreground" });
         canSendLocalIceRef.current = true;
         flushPendingLocalIce(callId, chatId, "call:start ack");
         scheduleMediaTimeout(callId, "Собеседник не ответил", 45000);
@@ -687,12 +721,26 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("mute toggled", { enabled: track.enabled });
   }, [debugCall]);
 
-  useEffect(() => {
-    const handleIncoming = ({ callId, chatId, offer, fromUser }: IncomingPayload) => {
+  const markRemoteAudioPlayback = useCallback((state: {
+    srcObjectAssigned: boolean;
+    playStatus: "idle" | "pending" | "success" | "failed";
+  }) => {
+    audioSrcObjectAssignedRef.current = state.srcObjectAssigned;
+    remoteAudioPlaybackOkRef.current = state.playStatus === "success";
+    updateDebugInfo({
+      audioSrcObjectAssigned: state.srcObjectAssigned,
+      audioPlayStatus: state.playStatus,
+    });
+    if (state.srcObjectAssigned && state.playStatus === "success") {
+      verifyAndSetActive("remote-audio-playback");
+    }
+  }, [updateDebugInfo, verifyAndSetActive]);
+
+  const applyIncomingCall = useCallback(({ callId, chatId, offer, fromUser, source = "foreground" }: IncomingPayload) => {
       debugCall("incoming received", { callId, chatId, status: statusRef.current });
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, chatId, reason: "busy" });
-        return;
+        return false;
       }
 
       const nextCall: CurrentCall = {
@@ -710,6 +758,35 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       setCall(nextCall);
       setCallStatus("incoming");
+      updateDebugInfo({ pushSource: source });
+      return true;
+  }, [debugCall, setCallStatus, socket, updateDebugInfo]);
+
+  const resumePendingCall = useCallback((callId: string) => {
+    if (!callId || statusRef.current !== "idle") return;
+    debugCall("resume pending call", { callId });
+    setError(null);
+    socket.connect();
+    socket.emit("call:resume-pending", { callId }, (ack?: CallAck & { call?: IncomingPayload }) => {
+      debugCall("call:resume-pending ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
+      if (!ack?.ok) {
+        const message = ack?.error === "CALL_EXPIRED" || ack?.error === "CALL_NOT_FOUND"
+          ? "Вызов уже завершён"
+          : "Не удалось открыть входящий вызов";
+        setError(message);
+        setCallStatus("failed");
+        setTimeout(() => {
+          setError(null);
+          setCallStatus("idle");
+        }, 2500);
+        return;
+      }
+    });
+  }, [debugCall, setCallStatus, socket]);
+
+  useEffect(() => {
+    const handleIncoming = (payload: IncomingPayload) => {
+      applyIncomingCall(payload);
     };
 
     const handleAnswer = async ({ callId, answer }: AnswerPayload) => {
@@ -762,6 +839,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       if (!current || current.callId !== callId) return;
       debugCall("remote ended", { callId, reason: reason ?? null });
       cleanup(`remote-ended:${reason ?? "ended"}`);
+      if (reason === "expired") {
+        setError("Нет ответа");
+        setCallStatus("failed");
+        setTimeout(() => {
+          setError(null);
+          setCallStatus("idle");
+        }, 2500);
+        return;
+      }
       setCallStatus("idle");
     };
 
@@ -786,7 +872,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ended", handleEnded);
       socket.off("call:declined", handleDeclined);
     };
-  }, [cleanup, debugCall, failCall, flushPendingIce, scheduleMediaTimeout, setCallStatus, socket]);
+  }, [applyIncomingCall, cleanup, debugCall, failCall, flushPendingIce, scheduleMediaTimeout, setCallStatus, socket]);
 
   return (
     <CallContext.Provider
@@ -799,6 +885,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         error,
         debugInfo,
         startCall,
+        resumePendingCall,
+        markRemoteAudioPlayback,
         acceptCall,
         declineCall,
         endCall,

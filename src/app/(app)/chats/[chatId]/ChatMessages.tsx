@@ -362,6 +362,7 @@ export function ChatMessages({
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, { displayName: string; timeoutId: ReturnType<typeof setTimeout> }>>({});
   const [isTypingLocal, setIsTypingLocal] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -613,16 +614,10 @@ export function ChatMessages({
     setMenuState(null);
   }, []);
 
-  const handleCopy = useCallback((text: string | null) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setMenuState(null);
-  }, []);
-
-  const handleDeleteQuietly = useCallback(async (id: string) => {
+  const handleDeleteQuietly = useCallback((id: string) => {
     setMessages(curr => curr.filter(m => m.id !== id));
     setMenuState(null);
-    try { await fetch(`/api/messages/${id}`, { method: "DELETE" }); } catch {}
+    try { fetch(`/api/messages/${id}`, { method: "DELETE" }); } catch {}
   }, []);
 
   const handleDeleteSelected = useCallback(async () => {
@@ -654,6 +649,27 @@ export function ChatMessages({
       setComposerError(error instanceof Error ? error.message : "Не удалось обновить закреплённое сообщение");
     }
   }, [chatId, pinnedMessage]);
+
+  const handleCopy = useCallback(async (text: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setToastMessage("Скопировано");
+      setTimeout(() => setToastMessage(null), 2000);
+    } catch (e) {
+      setToastMessage("Не удалось скопировать");
+      setTimeout(() => setToastMessage(null), 2000);
+    }
+    setMenuState(null);
+  }, []);
 
   const initiateForward = useCallback((msg: Message | Message[]) => {
     setForwardingMessages(Array.isArray(msg) ? msg : [msg]);
@@ -1316,43 +1332,43 @@ export function ChatMessages({
           </div>
 
           <div
-            className={`action-menu min-w-[220px] overflow-hidden rounded-[2rem] border shadow-2xl backdrop-blur-2xl animate-in slide-in-from-bottom-4 duration-300 ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}
+            className={`action-menu min-w-[220px] overflow-hidden rounded-[2rem] border shadow-2xl backdrop-blur-3xl animate-in slide-in-from-bottom-4 duration-300 ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}
             style={{
-              backgroundColor: "var(--message-menu-bg)",
-              borderColor: "var(--chat-menu-border)",
-              color: "var(--message-menu-fg)",
+              backgroundColor: "var(--surface)",
+              borderColor: "rgba(150,150,150,0.15)",
+              color: "var(--foreground)",
             }}
           >
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => { setReplyingToMessage(focusedMessage); setMenuState(null); }}>
               <span className="font-bold text-sm">Ответить</span>
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
             </button>
             
-            {focusedMessage.body && (
-              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => handleCopy(focusedMessage.body)}>
+            {focusedMessage.body && (!focusedMessage.isEncrypted || !["Зашифрованное сообщение", "Сообщение доставлено и удалено с сервера"].includes(focusedMessage.body)) && (
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => handleCopy(focusedMessage.body!)}>
                 <span className="font-bold text-sm">Копировать</span>
                 <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
               </button>
             )}
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => void togglePin(focusedMessage)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => void togglePin(focusedMessage)}>
               <span className="font-bold text-sm">{pinnedMessage?.id === focusedMessage.id ? "Открепить" : "Закрепить"}</span>
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
             </button>
 
             {focusedMessage.senderUserId === currentUserId && focusedMessage.type === "TEXT" && (
-              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}>
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => { setEditingMessage(focusedMessage); setMenuState(null); }}>
                 <span className="font-bold text-sm">Изменить</span>
                 <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
             )}
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors hover:bg-foreground/5" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => initiateForward(focusedMessage)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => initiateForward(focusedMessage)}>
               <span className="font-bold text-sm">Переслать</span>
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </button>
 
-            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b transition-colors hover:bg-foreground/5" style={{ borderColor: "var(--chat-menu-border)" }} onClick={() => startSelection(focusedMessage.id)}>
+            <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => startSelection(focusedMessage.id)}>
               <span className="font-bold text-sm">Выбрать</span>
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>

@@ -19,7 +19,7 @@ type WindowWithWebkitAudioContext = Window & typeof globalThis & {
 };
 
 export function CallOverlay() {
-  const { call, status, remoteStream, isMuted, error, debugInfo, acceptCall, declineCall, endCall, toggleMute } = useAudioCall();
+  const { call, status, remoteStream, isMuted, error, debugInfo, acceptCall, declineCall, endCall, toggleMute, markRemoteAudioPlayback } = useAudioCall();
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ringbackContextRef = useRef<AudioContext | null>(null);
   const ringbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,6 +44,7 @@ export function CallOverlay() {
     audio.muted = false;
     audio.volume = 1;
     setAudioSrcAssigned(true);
+    markRemoteAudioPlayback({ srcObjectAssigned: true, playStatus: "pending" });
 
     debugCall("audio srcObject assigned", {
       source,
@@ -55,13 +56,15 @@ export function CallOverlay() {
     void audio.play().then(() => {
       setNeedsTapToPlay(false);
       setAudioPlayStatus("success");
+      markRemoteAudioPlayback({ srcObjectAssigned: true, playStatus: "success" });
       debugCall("audio.play success", { source });
     }).catch((playError) => {
       setNeedsTapToPlay(true);
       setAudioPlayStatus("failed");
+      markRemoteAudioPlayback({ srcObjectAssigned: true, playStatus: "failed" });
       debugCall("audio.play failed", { source, error: String(playError) });
     });
-  }, [debugCall, remoteStream]);
+  }, [debugCall, markRemoteAudioPlayback, remoteStream]);
 
   useEffect(() => {
     if (!remoteStream) {
@@ -70,12 +73,13 @@ export function CallOverlay() {
         audio.srcObject = null;
         setAudioSrcAssigned(false);
         setAudioPlayStatus("idle");
+        markRemoteAudioPlayback({ srcObjectAssigned: false, playStatus: "idle" });
       }
       return;
     }
 
     attachAndPlayRemoteAudio("remoteStream effect");
-  }, [attachAndPlayRemoteAudio, remoteStream]);
+  }, [attachAndPlayRemoteAudio, markRemoteAudioPlayback, remoteStream]);
 
   const stopRingback = useCallback((reason: string) => {
     if (ringbackIntervalRef.current) {
@@ -91,11 +95,11 @@ export function CallOverlay() {
     debugCall("ringback stopped", { reason });
   }, [debugCall]);
 
-  const isOutgoing = call?.role === "caller" && status === "outgoing";
+  const isRingingTone = status === "incoming" || (call?.role === "caller" && status === "outgoing");
 
   useEffect(() => {
-    if (!isOutgoing) {
-      stopRingback("not-outgoing");
+    if (!isRingingTone) {
+      stopRingback("not-ringing");
       return;
     }
 
@@ -111,7 +115,7 @@ export function CallOverlay() {
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
       oscillator.type = "sine";
-      oscillator.frequency.value = 425;
+      oscillator.frequency.value = status === "incoming" ? 660 : 425;
       gainNode.gain.value = 0.0001;
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
@@ -134,7 +138,7 @@ export function CallOverlay() {
     return () => {
       stopRingback("effect cleanup");
     };
-  }, [debugCall, isOutgoing, stopRingback]);
+  }, [debugCall, isRingingTone, status, stopRingback]);
 
   useEffect(() => {
     if (!speakerHint) return;
@@ -149,16 +153,19 @@ export function CallOverlay() {
     audio.muted = false;
     audio.volume = 1;
     setAudioPlayStatus("pending");
+    markRemoteAudioPlayback({ srcObjectAssigned: true, playStatus: "pending" });
     void audio.play().then(() => {
       setNeedsTapToPlay(false);
       setAudioPlayStatus("success");
+      markRemoteAudioPlayback({ srcObjectAssigned: true, playStatus: "success" });
       debugCall("tap-to-play success");
     }).catch((playError) => {
       setNeedsTapToPlay(true);
       setAudioPlayStatus("failed");
+      markRemoteAudioPlayback({ srcObjectAssigned: true, playStatus: "failed" });
       debugCall("tap-to-play fail", { error: String(playError) });
     });
-  }, [debugCall, remoteStream]);
+  }, [debugCall, markRemoteAudioPlayback, remoteStream]);
 
   const handleSpeakerToggle = useCallback(async () => {
     const audio = remoteAudioRef.current as SinkAudioElement | null;
@@ -215,6 +222,7 @@ export function CallOverlay() {
           <div>ID: {debugInfo.callId?.slice(0, 8)}...</div>
           <div>Role: {debugInfo.role}</div>
           <div>Status: {debugInfo.status}</div>
+          <div>Source: {debugInfo.pushSource || "foreground"}</div>
           <div>Signaling: {debugInfo.signalingState}</div>
           <div>Conn: {debugInfo.connectionState}</div>
           <div>ICE: {debugInfo.iceConnectionState}</div>
@@ -231,13 +239,15 @@ export function CallOverlay() {
           </div>
           <div>L: {debugInfo.localCandidateType || "N/A"}</div>
           <div>R: {debugInfo.remoteCandidateType || "N/A"}</div>
+          <div>TURN: {debugInfo.turnPresent ? "YES" : "NO"}</div>
+          <div>Relay policy: {debugInfo.forceRelay ? "force" : "all"}</div>
           <div className="mt-1 border-t border-green-500/30 pt-1">
             Stream: {debugInfo.remoteStreamExists ? "YES" : "NO"}
           </div>
-          <div>Audio Src: {audioSrcAssigned ? "YES" : "NO"}</div>
-          <div>Play: {audioPlayStatus}</div>
-          {debugInfo.iceServers.length === 0 && (
-            <div className="mt-1 text-red-500 underline underline-offset-2">NO TURN CONFIGURED</div>
+          <div>Audio Src: {debugInfo.audioSrcObjectAssigned || audioSrcAssigned ? "YES" : "NO"}</div>
+          <div>Play: {debugInfo.audioPlayStatus || audioPlayStatus}</div>
+          {!debugInfo.turnPresent && (
+            <div className="mt-1 text-red-500 underline underline-offset-2">TURN not configured</div>
           )}
         </div>
       )}

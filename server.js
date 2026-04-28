@@ -74,6 +74,11 @@ function getUserRoomSize(io, userId) {
   return room ? room.size : 0;
 }
 
+function isUserSocketReachable(io, userId) {
+  const socketSet = onlineUsers.get(userId);
+  return (socketSet?.size ?? 0) > 0 || getUserRoomSize(io, userId) > 0;
+}
+
 function isCallExpired(call) {
   // Only ringing calls should expire based on expiresAt
   return !call || (call.status === "ringing" && Date.now() > call.expiresAt);
@@ -90,6 +95,25 @@ function clearCallExpiryTimer(callId) {
 function deleteCall(callId) {
   clearCallExpiryTimer(callId);
   activeCalls.delete(callId);
+}
+
+function createCallRecord({ callId, chatId, callerId, calleeId, offer, fromUser, callerSocketId }) {
+  return {
+    callId,
+    chatId,
+    callerId,
+    calleeId,
+    status: "ringing",
+    offer,
+    fromUser,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + CALL_TIMEOUT_MS,
+    callerSocketId,
+    queuedIceByUser: {
+      [callerId]: [],
+      [calleeId]: [],
+    },
+  };
 }
 
 async function saveCallLog(call, status) {
@@ -164,7 +188,6 @@ function sweepExpiredCalls(io) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function sendPushToUser(userId, payload) {
   if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
     logCall("push skipped for offline callee", { userId, reason: "vapid_not_configured" });
@@ -561,7 +584,7 @@ app.prepare().then(() => {
       const calleeSockets = onlineUsers.get(context.calleeId);
       const mapSize = calleeSockets ? calleeSockets.size : 0;
       const roomSize = getUserRoomSize(io, context.calleeId);
-      const calleeOnline = mapSize > 0 || roomSize > 0;
+      const calleeOnline = isUserSocketReachable(io, context.calleeId);
 
       logCall(`callee ${calleeOnline ? "online" : "offline"}`, {
         chatId,
@@ -575,23 +598,16 @@ app.prepare().then(() => {
         return;
       }
 
-      if (!calleeOnline) {
-        callback?.({ ok: false, error: "USER_OFFLINE" });
-        return;
-      }
-
       const callId = typeof requestedCallId === "string" && requestedCallId.length >= 8 && requestedCallId.length <= 128 && !activeCalls.has(requestedCallId)
         ? requestedCallId
         : uuidv4();
       const callerDisplayName = user.profile?.displayName ?? user.username;
       const callerAvatarUrl = user.profile?.avatarUrl ?? null;
-      const expiresAt = Date.now() + CALL_TIMEOUT_MS;
-      activeCalls.set(callId, {
+      const callRecord = createCallRecord({
         callId,
         chatId,
         callerId: context.callerId,
         calleeId: context.calleeId,
-        status: "ringing",
         offer,
         fromUser: {
           id: user.id,
@@ -599,9 +615,9 @@ app.prepare().then(() => {
           displayName: callerDisplayName,
           avatarUrl: callerAvatarUrl,
         },
-        createdAt: Date.now(),
-        expiresAt,
+        callerSocketId: socket.id,
       });
+      activeCalls.set(callId, callRecord);
       scheduleCallMissedTimeout(io, callId);
       logCall("active call created", {
         callId,
@@ -611,23 +627,92 @@ app.prepare().then(() => {
         expiresIn: CALL_TIMEOUT_MS,
       });
 
-      io.to(`user:${context.calleeId}`).emit("call:incoming", {
-        callId,
-        chatId,
-        offer,
-        fromUser: {
-          id: user.id,
-          username: user.username,
-          displayName: callerDisplayName,
-          avatarUrl: callerAvatarUrl,
-        },
-      });
-      logCall("incoming emitted", { callId, chatId, calleeId: context.calleeId });
+      if (calleeOnline) {
+        io.to(`user:${context.calleeId}`).emit("call:incoming", {
+          callId,
+          chatId,
+          offer,
+          fromUser: callRecord.fromUser,
+          source: "foreground",
+        });
+        logCall("incoming emitted", { callId, chatId, calleeId: context.calleeId, source: "foreground" });
+      } else {
+        const pushResult = await sendPushToUser(context.calleeId, {
+          title: "Входящий звонок",
+          body: callerDisplayName,
+          url: `/calls/incoming?callId=${encodeURIComponent(callId)}`,
+          type: "incoming-call",
+          callId,
+          chatId,
+          fromUserId: user.id,
+          tag: `call:${callId}`,
+          requireInteraction: true,
+        });
+
+        logCall("incoming call push attempted", { callId, calleeId: context.calleeId, sent: pushResult.sent, total: pushResult.total });
+        if (!pushResult.total || !pushResult.sent) {
+          await saveCallLog(callRecord, "missed");
+          deleteCall(callId);
+          callback?.({ ok: false, error: "USER_UNREACHABLE" });
+          return;
+        }
+      }
 
       callback?.({
         ok: true,
         callId,
+        delivery: calleeOnline ? "foreground" : "push",
       });
+    });
+
+    socket.on("call:resume-pending", async ({ callId }, callback) => {
+      sweepExpiredCalls(io);
+      const call = activeCalls.get(callId);
+      logCall("call:resume-pending received", { callId, userId, exists: Boolean(call), status: call?.status ?? null });
+
+      if (!call) {
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+
+      if (call.calleeId !== userId) {
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
+        return;
+      }
+
+      if (isCallExpired(call)) {
+        await saveCallLog(call, "missed");
+        deleteCall(callId);
+        callback?.({ ok: false, error: "CALL_EXPIRED" });
+        return;
+      }
+
+      if (call.status !== "ringing") {
+        callback?.({ ok: false, error: "INVALID_STATE" });
+        return;
+      }
+
+      if (!(await isActiveMember(call.chatId, userId))) {
+        callback?.({ ok: false, error: "Нет доступа" });
+        return;
+      }
+
+      const incomingPayload = {
+        callId,
+        chatId: call.chatId,
+        offer: call.offer,
+        fromUser: call.fromUser,
+        source: "push",
+      };
+
+      socket.emit("call:incoming", incomingPayload);
+      const queuedForCallee = call.queuedIceByUser?.[userId] ?? [];
+      for (const candidate of queuedForCallee) {
+        socket.emit("call:ice-candidate", { callId, chatId: call.chatId, candidate });
+      }
+      call.queuedIceByUser[userId] = [];
+      logCall("pending call resumed", { callId, calleeId: userId, queuedIce: queuedForCallee.length });
+      callback?.({ ok: true, call: incomingPayload });
     });
 
     socket.on("call:answer", async ({ callId, chatId, answer }, callback) => {
@@ -673,6 +758,13 @@ app.prepare().then(() => {
       call.answeredAt = Date.now();
       clearCallExpiryTimer(callId);
       io.to(`user:${call.callerId}`).emit("call:answer", { callId, chatId, answer });
+      const queuedForCaller = call.queuedIceByUser?.[call.callerId] ?? [];
+      for (const candidate of queuedForCaller) {
+        io.to(`user:${call.callerId}`).emit("call:ice-candidate", { callId, chatId, candidate });
+      }
+      if (call.queuedIceByUser) {
+        call.queuedIceByUser[call.callerId] = [];
+      }
       logCall("call:answer forwarded", { callId, fromUserId: userId, toUserId: call.callerId });
       callback?.({ ok: true });
     });
@@ -708,7 +800,14 @@ app.prepare().then(() => {
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       logCall("ice received", { callId, fromUserId: userId, fromRole: userId === call.callerId ? "caller" : "callee" });
-      io.to(`user:${targetId}`).emit("call:ice-candidate", { callId, chatId, candidate });
+      if (isUserSocketReachable(io, targetId)) {
+        io.to(`user:${targetId}`).emit("call:ice-candidate", { callId, chatId, candidate });
+      } else {
+        if (!call.queuedIceByUser) call.queuedIceByUser = {};
+        if (!call.queuedIceByUser[targetId]) call.queuedIceByUser[targetId] = [];
+        call.queuedIceByUser[targetId].push(candidate);
+        logCall("ice queued for offline target", { callId, targetId, count: call.queuedIceByUser[targetId].length });
+      }
       logCall("ice forwarded", {
         callId,
         fromRole: userId === call.callerId ? "caller" : "callee",

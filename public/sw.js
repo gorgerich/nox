@@ -3,16 +3,23 @@ self.addEventListener('push', function (event) {
 
   try {
     const data = event.data.json();
-    const title = data.title || 'Новое уведомление';
+    const isIncomingCall = data.type === 'incoming-call' || data.type === 'call';
+    const title = isIncomingCall ? 'Входящий звонок' : (data.title || 'Новое уведомление');
+    const url = isIncomingCall && data.callId
+      ? `/calls/incoming?callId=${encodeURIComponent(data.callId)}`
+      : (data.url || '/chats');
     const options = {
       body: data.body || '',
       icon: data.icon || '/favicon.ico',
       badge: data.badge || '/favicon.ico',
       tag: data.tag || 'nox-notification',
+      requireInteraction: Boolean(isIncomingCall && 'requireInteraction' in Notification.prototype),
       data: {
-        url: data.url || '/chats',
+        type: data.type,
+        url,
         chatId: data.chatId,
-        callId: data.callId
+        callId: data.callId,
+        fromUserId: data.fromUserId
       }
     };
 
