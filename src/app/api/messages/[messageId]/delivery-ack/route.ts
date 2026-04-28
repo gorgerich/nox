@@ -8,9 +8,12 @@ const deliveryAckSchema = z.object({
   deviceId: z.string().min(8).max(120).optional(),
 });
 
+const ENABLE_E2EE_DELETE_AFTER_DELIVERY = false;
+
 /**
  * POST /api/messages/[messageId]/delivery-ack
- * Device confirms successful local decrypt. Server then deletes only that device envelope payload.
+ * Device confirms successful local decrypt.
+ * TODO: delete-after-delivery is disabled until local encrypted cache recovery is stable.
  */
 export async function POST(
   request: Request,
@@ -100,13 +103,17 @@ export async function POST(
 
     const updatedEnvelope = await prisma.messageEnvelope.update({
       where: { id: envelope.id },
-      data: {
-        deliveredAt: envelope.deliveredAt ?? now,
-        encryptedPayloadDeletedAt: envelope.encryptedPayloadDeletedAt ?? now,
-        ciphertext: null,
-        iv: null,
-        salt: null,
-      },
+      data: ENABLE_E2EE_DELETE_AFTER_DELIVERY
+        ? {
+            deliveredAt: envelope.deliveredAt ?? now,
+            encryptedPayloadDeletedAt: envelope.encryptedPayloadDeletedAt ?? now,
+            ciphertext: null,
+            iv: null,
+            salt: null,
+          }
+        : {
+            deliveredAt: envelope.deliveredAt ?? now,
+          },
       select: {
         recipientDeviceId: true,
         deliveredAt: true,

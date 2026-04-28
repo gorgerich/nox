@@ -321,6 +321,16 @@ export const MessageBubble = memo(function MessageBubble({
     );
   }
 
+  if (message.isEncrypted && !message.body && message.attachments.length === 0) {
+    return (
+      <div className="relative flex w-full justify-center px-4 py-1.5">
+        <div className="max-w-[82%] rounded-full border border-border-subtle bg-surface-muted/70 px-3 py-1.5 text-center text-[11px] font-semibold text-muted">
+          Загрузка зашифрованного сообщения…
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       ref={rowRef}
