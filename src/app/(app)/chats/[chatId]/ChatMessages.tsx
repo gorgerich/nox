@@ -15,6 +15,7 @@ import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/li
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
 import { encryptMediaForDevices } from "@/lib/e2ee/media";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -105,9 +106,30 @@ function normalizeMessage(message: unknown): Message | null {
 const ALLOWED_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "👎"];
 const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === "true";
 const DEBUG_MEDIA = process.env.NEXT_PUBLIC_DEBUG_MEDIA === "true" || DEBUG_REALTIME;
+const NON_COPYABLE_MESSAGE_TEXTS = new Set([
+  "Зашифрованное сообщение",
+  "Загрузка зашифрованного сообщения…",
+  "Не удалось расшифровать сообщение",
+  "Сообщение недоступно на этом устройстве",
+  "Сообщение доставлено",
+  "Сообщение доставлено и удалено с сервера",
+]);
 
 function generateClientId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getCopyableMessageText(message: Message | MessageWithDecrypted | null) {
+  if (!message || message.type !== "TEXT" || message.deletedAt || message.messageUnavailableOnThisDevice) {
+    return null;
+  }
+
+  const text = message.body?.trim();
+  if (!text || (message.isEncrypted && NON_COPYABLE_MESSAGE_TEXTS.has(text))) {
+    return null;
+  }
+
+  return text;
 }
 
 export function ChatMessages({
@@ -657,14 +679,20 @@ export function ChatMessages({
       } else {
         const textarea = document.createElement("textarea");
         textarea.value = text;
+        textarea.readOnly = true;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
         document.body.appendChild(textarea);
+        textarea.focus();
         textarea.select();
+        textarea.setSelectionRange(0, text.length);
         document.execCommand("copy");
         document.body.removeChild(textarea);
       }
       setToastMessage("Скопировано");
       setTimeout(() => setToastMessage(null), 2000);
-    } catch (e) {
+    } catch {
       setToastMessage("Не удалось скопировать");
       setTimeout(() => setToastMessage(null), 2000);
     }
@@ -1224,6 +1252,10 @@ export function ChatMessages({
 
   const themeVars = getChatAppearanceVars(settings);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
+  const focusedMessageCopyText = useMemo(() => {
+    if (!menuState) return null;
+    return getCopyableMessageText(messagesWithDecrypted.find((message) => message.id === menuState.id) ?? null);
+  }, [menuState, messagesWithDecrypted]);
 
   // Safe Area Insets for positioning
   const envTop = typeof window !== 'undefined' ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0') : 0;
@@ -1308,7 +1340,7 @@ export function ChatMessages({
                    {menuState.readers?.slice(0, 3).map((r, i) => (
                      <div key={i} className="h-5 w-5 rounded-full border-2 border-[var(--message-menu-bg)] bg-primary/20 flex items-center justify-center overflow-hidden shrink-0 relative">
                        {r.avatarUrl ? (
-                         <Image src={r.avatarUrl.startsWith('http') ? r.avatarUrl : `/api/avatars/${r.avatarUrl}`} fill className="object-cover" alt={r.name} />
+                         <Image src={normalizeAvatarUrl(r.avatarUrl) || ""} fill className="object-cover" alt={r.name} />
                        ) : (
                          <span className="text-[9px] font-black text-primary">{r.name[0]?.toUpperCase()}</span>
                        )}
@@ -1344,8 +1376,8 @@ export function ChatMessages({
               <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
             </button>
             
-            {focusedMessage.body && (!focusedMessage.isEncrypted || !["Зашифрованное сообщение", "Сообщение доставлено и удалено с сервера"].includes(focusedMessage.body)) && (
-              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => handleCopy(focusedMessage.body!)}>
+            {focusedMessageCopyText && (
+              <button className="action-item w-full flex items-center justify-between px-6 py-4 border-b border-border-subtle transition-colors hover:bg-foreground/5" onClick={() => handleCopy(focusedMessageCopyText)}>
                 <span className="font-bold text-sm">Копировать</span>
                 <svg className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
               </button>
@@ -1600,6 +1632,12 @@ export function ChatMessages({
       )}
 
       {renderOverlay()}
+
+      {toastMessage ? (
+        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] z-[1000] -translate-x-1/2 rounded-full border border-border-subtle bg-surface-elevated/95 px-4 py-2 text-xs font-bold text-foreground shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2">
+          {toastMessage}
+        </div>
+      ) : null}
 
       {showForwardPicker && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-xl p-6 animate-in fade-in">

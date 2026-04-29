@@ -17,8 +17,7 @@ export async function GET(request: Request) {
     include: { keyBundle: true },
   });
 
-  return NextResponse.json({
-    devices: devices.map((device) => {
+  const mappedDevices = devices.map((device) => {
       const fingerprint = device.keyBundle?.publicKey ? createPublicKeyFingerprint(device.keyBundle.publicKey) : null;
       return {
         deviceId: device.deviceId,
@@ -32,6 +31,15 @@ export async function GET(request: Request) {
         fingerprint,
         fingerprintShort: fingerprint ? formatFingerprint(fingerprint) : null,
       };
-    }),
+    });
+
+  mappedDevices.sort((a, b) => {
+    if (a.isCurrentDevice !== b.isCurrentDevice) return a.isCurrentDevice ? -1 : 1;
+    if (Boolean(a.revokedAt) !== Boolean(b.revokedAt)) return a.revokedAt ? 1 : -1;
+    return new Date(b.lastSeenAt ?? b.createdAt).getTime() - new Date(a.lastSeenAt ?? a.createdAt).getTime();
+  });
+
+  return NextResponse.json({
+    devices: mappedDevices,
   });
 }

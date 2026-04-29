@@ -4,10 +4,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { useTheme } from "@/components/ThemeProvider";
+import { ACCENT_OPTIONS, useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type UserWithProfile = {
   id: string;
@@ -24,9 +25,9 @@ type UserWithProfile = {
 
 export function ProfileContent({ user }: { user: UserWithProfile }) {
   const router = useRouter();
-  
-  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "security">("main");
-  
+
+  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security">("main");
+
   const [displayName, setDisplayName] = useState(user.profile?.displayName || "");
   const [username, setUsername] = useState(user.username);
   const [bio, setBio] = useState(user.profile?.bio || "");
@@ -39,7 +40,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
   const { isSubscribed, subscribe, unsubscribe } = usePushNotifications();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, accent, setAccent } = useTheme();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -53,9 +54,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   const [trustedError, setTrustedError] = useState("");
   const [trustedMessage, setTrustedMessage] = useState("");
 
-  const fullAvatarUrl = avatarUrl 
-    ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
-    : null;
+  const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
   async function handleTrustedReset(e: React.FormEvent) {
     e.preventDefault();
@@ -219,7 +218,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
           <section className="flex flex-col items-center text-center mt-6">
             <div className="group relative mb-6">
-              <button 
+              <button
                 onClick={() => {
                   if (fullAvatarUrl) setShowFullscreenAvatar(true);
                   else fileInputRef.current?.click();
@@ -241,27 +240,27 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                   </svg>
                 </div>
               </button>
-              
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleAvatarUpload} 
-                accept="image/*" 
-                className="hidden" 
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarUpload}
+                accept="image/*"
+                className="hidden"
               />
-              
-              <button 
+
+              <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-1 -left-1 h-9 w-9 bg-primary text-white border-4 border-surface rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-smooth z-10"
+                className="absolute -bottom-1 -left-1 h-9 w-9 bg-primary text-primary-foreground border-4 border-surface rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-smooth z-10"
                 title="Изменить фото"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 </svg>
               </button>
-              
+
               {avatarUrl && (
-                <button 
+                <button
                   onClick={handleAvatarDelete}
                   className="absolute -bottom-2 -right-2 h-10 w-10 bg-surface border border-border-subtle rounded-2xl flex items-center justify-center text-red-400 shadow-xl active:scale-90 transition-smooth"
                 >
@@ -271,32 +270,39 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 </button>
               )}
             </div>
-            
+
             <h2 className="text-3xl font-black tracking-tight text-foreground">{displayName || username}</h2>
             <p className="text-sm font-bold text-primary tracking-widest uppercase mt-1">@{username}</p>
           </section>
 
           <div className="space-y-6 px-4 mt-10">
             <section className="card-premium p-1 flex flex-col">
-              <SettingsMenuButton 
-                label="Мой профиль" 
-                subtitle="Имя и username" 
-                onClick={() => setActiveScreen("profile")} 
-                icon={<ProfileIcon />} 
+              <SettingsMenuButton
+                label="Мой профиль"
+                subtitle="Имя и username"
+                onClick={() => setActiveScreen("profile")}
+                icon={<ProfileIcon />}
               />
               <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton 
-                label="Устройства" 
-                subtitle="Активные сеансы" 
-                onClick={() => setActiveScreen("devices")} 
-                icon={<DevicesIcon />} 
+              <SettingsMenuButton
+                label="Устройства"
+                subtitle="Активные сеансы"
+                onClick={() => setActiveScreen("devices")}
+                icon={<DevicesIcon />}
               />
               <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton 
-                label="Безопасность" 
-                subtitle="Пароль и восстановление" 
-                onClick={() => setActiveScreen("security")} 
-                icon={<SecurityIcon />} 
+              <SettingsMenuButton
+                label="Оформление"
+                subtitle="Тема и акцент"
+                onClick={() => setActiveScreen("appearance")}
+                icon={<AppearanceIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Безопасность"
+                subtitle="Пароль и восстановление"
+                onClick={() => setActiveScreen("security")}
+                icon={<SecurityIcon />}
               />
             </section>
 
@@ -305,33 +311,14 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                  <div className="min-w-0">
                    <p className="text-sm font-bold text-foreground mb-1">Push-уведомления</p>
                  </div>
-                 <button 
+                 <button
                    onClick={isSubscribed ? unsubscribe : subscribe}
                    className={`h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
-                     isSubscribed ? "bg-primary/10 text-primary border border-primary/20" : "bg-primary text-white shadow-lg shadow-primary/20"
+                     isSubscribed ? "bg-primary/10 text-primary border border-primary/20" : "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                    }`}
                  >
                    {isSubscribed ? "Отключить" : "Включить"}
                  </button>
-              </div>
-            </section>
-
-            <section className="card-premium p-1">
-              <div className="p-4 flex flex-col gap-4">
-                 <p className="text-sm font-bold text-foreground">Оформление</p>
-                 <div className="flex gap-2">
-                   {(["light", "dark", "system"] as const).map((t) => (
-                     <button
-                       key={t}
-                       onClick={() => setTheme(t)}
-                       className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-smooth ${
-                         theme === t ? "bg-primary/20 text-primary border border-primary/30 shadow-sm" : "bg-surface-muted text-muted hover:text-foreground border border-border-subtle/50"
-                       }`}
-                     >
-                       {t === "light" ? "Светлая" : t === "dark" ? "Тёмная" : "Система"}
-                     </button>
-                   ))}
-                 </div>
               </div>
             </section>
 
@@ -365,7 +352,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
              <h1 className="text-base font-black tracking-tight">Мой профиль</h1>
              <div className="w-10" />
           </header>
-          
+
           <form onSubmit={handleUpdate} className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
              <div className="space-y-4">
                 <div className="space-y-2">
@@ -404,7 +391,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                <button
                  type="submit"
                  disabled={pending}
-                 className="btn-nox w-full bg-primary text-neutral-950 shadow-xl shadow-primary/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95 disabled:opacity-50"
+                 className="btn-nox w-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95 disabled:opacity-50"
                >
                  {pending ? "Сохранение..." : "Сохранить изменения"}
                </button>
@@ -422,9 +409,69 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
              <h1 className="text-base font-black tracking-tight">Устройства</h1>
              <div className="w-10" />
           </header>
-          
+
           <div className="animate-in fade-in zoom-in-95 duration-500">
             <E2EEDevicesPanel userId={user.id} />
+          </div>
+        </div>
+      )}
+
+      {activeScreen === "appearance" && (
+        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+          <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 py-3 border-b border-border-subtle/50">
+             <button onClick={() => setActiveScreen("main")} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+             </button>
+             <h1 className="text-base font-black tracking-tight">Оформление</h1>
+             <div className="w-10" />
+          </header>
+
+          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            <section className="space-y-3">
+              <div className="px-1">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Тема приложения</h2>
+                <p className="mt-2 text-sm font-medium text-muted leading-relaxed">Базовые поверхности остаются нейтральными, акцент применяется только к выбранным действиям и состояниям.</p>
+              </div>
+              <div className="card-premium p-1 grid grid-cols-3 gap-1">
+                {(["light", "dark", "system"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    className={`rounded-[1.15rem] px-3 py-4 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
+                      theme === t ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted hover:bg-foreground/5 hover:text-foreground"
+                    }`}
+                  >
+                    {t === "light" ? "Светлая" : t === "dark" ? "Тёмная" : "Системная"}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="px-1">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Акцентный цвет</h2>
+                <p className="mt-2 text-sm font-medium text-muted leading-relaxed">Акцент меняет активную вкладку, кнопки действия, selected state и бейджи. Фон и карточки остаются чёрно-бело-серыми.</p>
+              </div>
+              <div className="card-premium p-2 grid grid-cols-2 gap-2">
+                {ACCENT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setAccent(option.value)}
+                    className={`flex items-center gap-3 rounded-[1.25rem] px-4 py-4 text-left transition-smooth active:scale-[0.98] ${
+                      accent === option.value ? "bg-primary/10 ring-1 ring-primary/25" : "hover:bg-foreground/5"
+                    }`}
+                  >
+                    <span className="h-8 w-8 rounded-full border border-black/10 shadow-inner" style={{ backgroundColor: option.swatch }} />
+                    <span className="min-w-0 flex-1 text-sm font-black text-foreground">{option.label}</span>
+                    {accent === option.value ? (
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </section>
           </div>
         </div>
       )}
@@ -467,11 +514,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
                {passwordError && <p className="text-center text-xs font-bold text-red-400 py-1">{passwordError}</p>}
                {passwordMessage && <p className="text-center text-xs font-bold text-primary py-1">{passwordMessage}</p>}
-              
+
                <button
                  type="submit"
                  disabled={passwordPending || !currentPassword || newPassword.length < 8}
-                 className="btn-nox w-full bg-primary text-neutral-950 shadow-xl shadow-primary/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95 disabled:opacity-50"
+                 className="btn-nox w-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95 disabled:opacity-50"
                >
                  {passwordPending ? "Сохранение..." : "Изменить пароль"}
                </button>
@@ -499,12 +546,12 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
       {/* Trusted Reset Modal */}
       {showTrustedReset && (
-        <div 
+        <div
           className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-200 p-6"
           onClick={() => setShowTrustedReset(false)}
         >
-          <div 
-            className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl relative" 
+          <div
+            className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl relative"
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-xl font-black mb-2 text-center">Сброс пароля</h3>
@@ -527,16 +574,16 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               {trustedMessage && <p className="text-center text-xs font-bold text-primary">{trustedMessage}</p>}
 
               <div className="flex gap-4 mt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setShowTrustedReset(false)} 
+                <button
+                  type="button"
+                  onClick={() => setShowTrustedReset(false)}
                   className="flex-1 py-4 font-black uppercase text-muted text-xs tracking-widest transition-smooth active:scale-95"
                 >
                   Отмена
                 </button>
-                <button 
+                <button
                   type="submit"
-                  disabled={trustedPending || trustedNewPassword.length < 8} 
+                  disabled={trustedPending || trustedNewPassword.length < 8}
                   className="flex-1 py-4 font-black uppercase text-primary text-xs tracking-widest disabled:opacity-50 transition-smooth active:scale-95"
                 >
                   {trustedPending ? "..." : "Сохранить"}
@@ -549,11 +596,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
       {/* Fullscreen Avatar Modal */}
       {showFullscreenAvatar && fullAvatarUrl && (
-        <div 
+        <div
           className="fixed inset-0 z-[1000] flex items-center justify-center bg-black animate-in fade-in duration-200"
           onClick={() => setShowFullscreenAvatar(false)}
         >
-           <button 
+           <button
              className="absolute top-10 right-6 z-10 h-12 w-12 flex items-center justify-center rounded-2xl bg-white/10 text-white backdrop-blur-md active:scale-90 transition-smooth"
              onClick={() => setShowFullscreenAvatar(false)}
            >
@@ -568,10 +615,10 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       )}
 
       {cropImage && (
-        <AvatarCropModal 
-          imageSrc={cropImage} 
-          onCrop={uploadCroppedAvatar} 
-          onCancel={() => setCropImage(null)} 
+        <AvatarCropModal
+          imageSrc={cropImage}
+          onCrop={uploadCroppedAvatar}
+          onCancel={() => setCropImage(null)}
         />
       )}
     </>
@@ -597,6 +644,7 @@ function SettingsMenuButton({ label, subtitle, icon, onClick }: { label: string,
 
 function ProfileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>; }
 function DevicesIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
+function AppearanceIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
 function SecurityIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
 
 type E2EEDevice = {
@@ -611,11 +659,61 @@ type E2EEDevice = {
   fingerprintShort: string | null;
 };
 
+function getBrowserName(userAgent: string | null) {
+  if (!userAgent) return "браузер не определён";
+  if (/Edg\//.test(userAgent)) return "Edge";
+  if (/CriOS|Chrome\//.test(userAgent) && !/Edg\//.test(userAgent)) return "Chrome";
+  if (/Firefox\//.test(userAgent)) return "Firefox";
+  if (/Safari\//.test(userAgent) && !/Chrome\//.test(userAgent) && !/CriOS/.test(userAgent)) return "Safari";
+  return "Web";
+}
+
+function getDeviceName(device: E2EEDevice) {
+  const source = `${device.platform || ""} ${device.userAgent || ""}`;
+  if (/iPhone/i.test(source)) return "iPhone";
+  if (/iPad/i.test(source)) return "iPad";
+  if (/Android/i.test(source)) return "Android";
+  if (/Mac/i.test(source)) return "Mac";
+  if (/Windows/i.test(source)) return "Windows PC";
+  if (/Linux/i.test(source)) return "Linux";
+  return device.name || "Nox Web";
+}
+
+function getPlatformName(device: E2EEDevice) {
+  const source = `${device.platform || ""} ${device.userAgent || ""}`;
+  const browser = getBrowserName(device.userAgent);
+  let os = device.platform || "Web";
+  if (/iPhone|iPad|iPod/i.test(source)) os = "iOS";
+  else if (/Android/i.test(source)) os = "Android";
+  else if (/Mac/i.test(source)) os = "macOS";
+  else if (/Windows/i.test(source)) os = "Windows";
+  else if (/Linux/i.test(source)) os = "Linux";
+  return `${os} / ${browser}`;
+}
+
+function formatDeviceActivity(device: E2EEDevice) {
+  if (device.isCurrentDevice) return "Это устройство";
+  if (device.revokedAt) return `отозвано ${new Date(device.revokedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+  if (!device.lastSeenAt) return "активность неизвестна";
+
+  const date = new Date(device.lastSeenAt);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+
+  if (date.toDateString() === now.toDateString()) return `сегодня в ${time}`;
+  if (date.toDateString() === yesterday.toDateString()) return `вчера в ${time}`;
+  return date.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
 function E2EEDevicesPanel({ userId }: { userId: string }) {
   const [devices, setDevices] = useState<E2EEDevice[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pendingDeviceId, setPendingDeviceId] = useState<string | null>(null);
+  const [revokeAllPending, setRevokeAllPending] = useState(false);
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -647,44 +745,179 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
   const revokeDevice = async (device: E2EEDevice) => {
     if (device.isCurrentDevice || device.deviceId === currentDeviceId) return;
     if (!confirm("Отозвать это устройство? Оно больше не сможет получать новые зашифрованные сообщения.")) return;
-    const res = await fetch(`/api/e2ee/devices/${encodeURIComponent(device.deviceId)}/revoke`, { method: "PATCH" });
+    setError("");
+    setPendingDeviceId(device.deviceId);
+    const previous = devices;
+    const now = new Date().toISOString();
+    setDevices((current) => current.map((item) => item.deviceId === device.deviceId ? { ...item, revokedAt: now } : item));
+    const res = await fetch(`/api/e2ee/devices/${encodeURIComponent(device.deviceId)}/revoke`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...(currentDeviceId ? { "x-nox-device-id": currentDeviceId } : {}) },
+      body: JSON.stringify({ currentDeviceId }),
+    });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
+      setDevices(previous);
       setError(data?.error || "Не удалось отозвать устройство");
+      setPendingDeviceId(null);
       return;
     }
+    setPendingDeviceId(null);
     await loadDevices();
   };
 
+  const revokeOtherDevices = async () => {
+    if (!currentDeviceId) {
+      setError("Не удалось определить текущее устройство");
+      return;
+    }
+    const activeOthers = devices.filter((device) => !device.isCurrentDevice && device.deviceId !== currentDeviceId && !device.revokedAt);
+    if (activeOthers.length === 0) return;
+    if (!confirm("Завершить все остальные сеансы? Они больше не смогут получать новые зашифрованные сообщения.")) return;
+
+    setError("");
+    setRevokeAllPending(true);
+    const previous = devices;
+    const now = new Date().toISOString();
+    setDevices((current) => current.map((device) => (
+      device.isCurrentDevice || device.deviceId === currentDeviceId || device.revokedAt
+        ? device
+        : { ...device, revokedAt: now }
+    )));
+
+    const res = await fetch("/api/e2ee/devices/revoke-others", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-nox-device-id": currentDeviceId },
+      body: JSON.stringify({ currentDeviceId }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setDevices(previous);
+      setError(data?.error || "Не удалось завершить остальные сеансы");
+      setRevokeAllPending(false);
+      return;
+    }
+
+    setRevokeAllPending(false);
+    await loadDevices();
+  };
+
+  const currentDevice = devices.find((device) => device.isCurrentDevice || device.deviceId === currentDeviceId) ?? null;
+  const activeOtherDevices = devices.filter((device) => device.deviceId !== currentDevice?.deviceId && !device.revokedAt);
+  const revokedDevices = devices.filter((device) => device.deviceId !== currentDevice?.deviceId && device.revokedAt);
+
   return (
-    <div className="mt-4">
+    <div className="space-y-8 px-6 py-6">
       {loading ? <p className="py-4 text-sm font-bold text-muted text-center">Загрузка...</p> : null}
-      {error ? <p className="mb-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs font-bold text-red-500 mx-6 text-center">{error}</p> : null}
-      <div className="space-y-3 px-6">
-        {devices.map((device) => {
-          const revoked = Boolean(device.revokedAt);
-          const title = device.name || device.platform || "Nox device";
-          return (
-            <div key={device.deviceId} className={`rounded-3xl border border-border-subtle p-4 transition-smooth ${device.isCurrentDevice ? "bg-primary/10 border-primary/20 shadow-sm" : "bg-surface"}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-base font-bold text-foreground">{title}</p>
-                    {device.isCurrentDevice ? <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[9px] font-black uppercase text-primary tracking-widest">Это устройство</span> : null}
-                    {revoked ? <span className="rounded-full bg-red-500/10 px-2.5 py-0.5 text-[9px] font-black uppercase text-red-500 tracking-widest">Отозвано</span> : null}
-                  </div>
-                  <p className="mt-1 text-xs font-semibold text-muted">{device.platform || "Web"} · {device.lastSeenAt ? `был(а) ${new Date(device.lastSeenAt).toLocaleString("ru-RU", {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}` : "нет активности"}</p>
-                  {device.fingerprintShort ? <p className="mt-1.5 break-all text-[10px] font-mono text-muted/60">{device.fingerprintShort}</p> : null}
-                </div>
-                {!device.isCurrentDevice && !revoked ? (
-                  <button onClick={() => void revokeDevice(device)} className="shrink-0 rounded-xl bg-danger/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-danger active:scale-95 transition-smooth">
-                    Отозвать
+      {error ? <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-xs font-bold text-red-500 text-center">{error}</p> : null}
+
+      <section className="space-y-3">
+        <div className="px-1">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Это устройство</h2>
+        </div>
+        {currentDevice ? (
+          <DeviceSessionCard device={currentDevice} current />
+        ) : !loading ? (
+          <div className="rounded-3xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
+            Текущее устройство пока не определено.
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => void revokeOtherDevices()}
+          disabled={revokeAllPending || activeOtherDevices.length === 0}
+          className="w-full rounded-3xl border border-danger/15 bg-danger/10 px-5 py-4 text-left transition-smooth active:scale-[0.98] disabled:opacity-45"
+        >
+          <span className="block text-sm font-black text-danger">Завершить все остальные сеансы</span>
+          <span className="mt-1 block text-xs font-semibold text-danger/70">
+            {activeOtherDevices.length > 0 ? "Отозвать ключи всех устройств, кроме текущего." : "Других активных сеансов нет."}
+          </span>
+        </button>
+      </section>
+
+      <section className="space-y-3">
+        <div className="px-1">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Активные сеансы</h2>
+        </div>
+        {activeOtherDevices.length > 0 ? (
+          <div className="space-y-3">
+            {activeOtherDevices.map((device) => (
+              <DeviceSessionCard
+                key={device.deviceId}
+                device={device}
+                action={
+                  <button
+                    onClick={() => void revokeDevice(device)}
+                    disabled={pendingDeviceId === device.deviceId}
+                    className="shrink-0 rounded-xl bg-danger/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-danger active:scale-95 transition-smooth disabled:opacity-50"
+                  >
+                    {pendingDeviceId === device.deviceId ? "..." : "Завершить"}
                   </button>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
+            Других активных сеансов нет.
+          </div>
+        )}
+      </section>
+
+      {revokedDevices.length > 0 ? (
+        <section className="space-y-3">
+          <div className="px-1">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Отозванные</h2>
+          </div>
+          <div className="space-y-3 opacity-75">
+            {revokedDevices.map((device) => (
+              <DeviceSessionCard key={device.deviceId} device={device} revoked />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <p className="px-1 text-[11px] font-semibold leading-relaxed text-muted/70">
+        Геолокация сеанса не отображается: сервер сейчас не хранит город или страну устройства. Nox показывает только реальные данные устройства, платформы, браузера и последней активности.
+      </p>
+    </div>
+  );
+}
+
+function DeviceSessionCard({
+  device,
+  current = false,
+  revoked = false,
+  action,
+}: {
+  device: E2EEDevice;
+  current?: boolean;
+  revoked?: boolean;
+  action?: React.ReactNode;
+}) {
+  const isRevoked = revoked || Boolean(device.revokedAt);
+  return (
+    <div className={`rounded-[1.75rem] border p-4 transition-smooth ${current ? "border-primary/25 bg-primary/10 shadow-sm" : "border-border-subtle bg-surface"}`}>
+      <div className="flex items-start gap-4">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${current ? "bg-primary text-primary-foreground" : isRevoked ? "bg-danger/10 text-danger" : "bg-foreground/5 text-foreground"}`}>
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9.75 17 9 20l-1 1h8l-1-1-.75-3M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
+          </svg>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-base font-black text-foreground">{getDeviceName(device)}</p>
+            {current ? <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">Это устройство</span> : null}
+            {isRevoked ? <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-danger">Отозвано</span> : null}
+          </div>
+          <p className="mt-1 text-xs font-bold text-muted">{getPlatformName(device)}</p>
+          <p className="mt-1 text-xs font-semibold text-muted/80">{formatDeviceActivity(device)}</p>
+          <p className="mt-1 text-xs font-semibold text-muted/70">Местоположение недоступно</p>
+          {device.fingerprintShort ? <p className="mt-2 break-all font-mono text-[10px] text-muted/55">{device.fingerprintShort}</p> : null}
+        </div>
+        {action}
       </div>
     </div>
   );

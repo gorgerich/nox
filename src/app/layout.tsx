@@ -58,8 +58,13 @@ export default function RootLayout({
                 const effectiveTheme = theme === 'system'
                   ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                   : theme;
+                const storedAccent = localStorage.getItem('nox:accent');
+                const accent = ['blue', 'graphite', 'gray', 'purple', 'cyan', 'green'].includes(storedAccent)
+                  ? storedAccent
+                  : 'graphite';
                 document.documentElement.dataset.theme = effectiveTheme;
                 document.documentElement.dataset.themeMode = theme;
+                document.documentElement.dataset.accent = accent;
                 document.documentElement.classList.toggle('dark', effectiveTheme === 'dark');
                 document.documentElement.classList.remove('light');
                 document.documentElement.style.colorScheme = effectiveTheme;

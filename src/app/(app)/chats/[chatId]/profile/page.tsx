@@ -89,6 +89,7 @@ export default async function ProfilePage({
     <div className="chat-screen bg-background transition-smooth overflow-hidden">
       <PartnerProfileContent
         chatId={chat.id}
+        currentUserId={user.id}
         partnerUser={{
           id: partnerMember.user.id,
           username: partnerMember.user.username,

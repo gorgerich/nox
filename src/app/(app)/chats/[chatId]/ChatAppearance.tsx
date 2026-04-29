@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 export type AppearanceSettings = {
-  preset: "midnight" | "graphite" | "ocean" | "ice" | "emerald" | "milk";
+  preset: "system" | "midnight" | "graphite" | "ocean" | "ice" | "emerald" | "milk";
   bubbleRadius: "soft" | "round";
   outgoingColor: string;
   incomingStyle: "filled" | "glass" | "minimal";
@@ -43,6 +43,26 @@ export type OutgoingBubbleTokens = {
 };
 
 export const CHAT_PRESET_TOKENS: Record<ChatPresetKey, ChatPresetTokens> = {
+  system: {
+    isDark: false,
+    bg: "var(--background)",
+    surface: "var(--surface)",
+    headerBg: "var(--chat-header)",
+    headerFg: "var(--foreground)",
+    composerBg: "var(--chat-composer)",
+    inputBg: "var(--chat-input-bg)",
+    inputFg: "var(--foreground)",
+    inputPlaceholder: "var(--placeholder)",
+    incomingBg: "var(--bubble-incoming)",
+    incomingFg: "var(--bubble-incoming-text)",
+    incomingMuted: "var(--muted)",
+    incomingBorder: "var(--border-subtle)",
+    dateBg: "var(--surface-muted)",
+    dateFg: "var(--muted)",
+    menuBg: "var(--surface-elevated)",
+    menuFg: "var(--foreground)",
+    menuMuted: "var(--muted)",
+  },
   midnight: {
     isDark: true,
     bg: "#05070A",
@@ -199,7 +219,14 @@ export const OUTGOING_BUBBLE_TOKENS: Record<string, OutgoingBubbleTokens> = {
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.76)",
     tick: "rgba(255,255,255,0.84)",
-    read: "#A7F3D0",
+    read: "#E5E7EB",
+  },
+  cyan: {
+    bg: "#0EA5E9",
+    fg: "#FFFFFF",
+    muted: "rgba(255,255,255,0.76)",
+    tick: "rgba(255,255,255,0.84)",
+    read: "#BAE6FD",
   },
   orange: {
     bg: "#F97316",
@@ -215,6 +242,7 @@ const OUTGOING_COLOR_ALIAS: Record<string, string> = {
   "#3b82f6": "blue",
   "#8b5cf6": "violet",
   "#f43f5e": "rose",
+  "#0ea5e9": "cyan",
   "#2c2e33": "graphite",
   "#3f3f46": "graphite",
   "#f97316": "orange",
@@ -223,10 +251,12 @@ const OUTGOING_COLOR_ALIAS: Record<string, string> = {
   violet: "violet",
   rose: "rose",
   graphite: "graphite",
+  cyan: "cyan",
   orange: "orange",
 };
 
 export const PRESETS = {
+  system: { id: "system", name: "System", isDark: false },
   midnight: { id: "midnight", name: "Midnight", isDark: true },
   graphite: { id: "graphite", name: "Graphite", isDark: true },
   ocean: { id: "ocean", name: "Ocean", isDark: true },
@@ -236,17 +266,17 @@ export const PRESETS = {
 } as const;
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
-  preset: "midnight",
+  preset: "system",
   bubbleRadius: "round",
-  outgoingColor: "#10b981",
+  outgoingColor: "#3f3f46",
   incomingStyle: "filled",
   background: "midnight",
   density: "comfortable",
 };
 
 function resolveOutgoingToken(color: string) {
-  const key = OUTGOING_COLOR_ALIAS[color.toLowerCase()] ?? "emerald";
-  return OUTGOING_BUBBLE_TOKENS[key] ?? OUTGOING_BUBBLE_TOKENS.emerald;
+  const key = OUTGOING_COLOR_ALIAS[color.toLowerCase()] ?? "graphite";
+  return OUTGOING_BUBBLE_TOKENS[key] ?? OUTGOING_BUBBLE_TOKENS.graphite;
 }
 
 export function getChatAppearanceVars(settings: AppearanceSettings): Record<string, string> {
@@ -312,6 +342,14 @@ export function useChatAppearance(chatId: string) {
 
     try {
       const parsed = JSON.parse(saved);
+      const isOldGreenDefault =
+        parsed.preset === "midnight" &&
+        parsed.outgoingColor === "#10b981" &&
+        (parsed.background === "midnight" || !parsed.background) &&
+        (parsed.incomingStyle === "filled" || parsed.incomingStyle === "solid" || !parsed.incomingStyle);
+      if (isOldGreenDefault) {
+        return DEFAULT_APPEARANCE;
+      }
       return {
         ...DEFAULT_APPEARANCE,
         ...parsed,
@@ -408,7 +446,7 @@ export function ChatAppearanceSheet({
           <section>
             <h3 className="mb-5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Цвет сообщений</h3>
             <div className="flex flex-wrap gap-4 px-1">
-              {["#10b981", "#3b82f6", "#8b5cf6", "#f43f5e", "#3f3f46", "#f97316"].map((color) => (
+              {["#3f3f46", "#3b82f6", "#8b5cf6", "#0ea5e9", "#10b981", "#f97316"].map((color) => (
                 <button
                   key={color}
                   onClick={() => onUpdate({ outgoingColor: color })}

@@ -182,7 +182,7 @@ export function NewChatForm() {
             value={username}
           />
           <button
-            className="btn-nox h-14 px-6 bg-primary text-neutral-950 font-black shrink-0"
+            className="btn-nox h-14 px-6 bg-primary text-primary-foreground font-black shrink-0"
             disabled={pendingAction !== ""}
             type="submit"
           >

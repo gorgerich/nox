@@ -5,6 +5,7 @@ import { getPrisma } from "@/lib/prisma";
 import { BackButton } from "./BackButton";
 import { DirectChatButton } from "./DirectChatButton";
 import { E2EEUserDevices } from "./E2EEUserDevices";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 export default async function UserProfilePage({
   params,
@@ -47,11 +48,7 @@ export default async function UserProfilePage({
   const username = targetUser.username || "Без username";
   const bio = targetUser.profile?.bio || "";
   const avatarUrl = targetUser.profile?.avatarUrl ?? null;
-  const fullAvatarUrl = avatarUrl
-    ? avatarUrl.startsWith("http")
-      ? avatarUrl
-      : `/api/avatars/${avatarUrl}`
-    : null;
+  const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
       return (
     <div className="app-section animate-in fade-in duration-300">

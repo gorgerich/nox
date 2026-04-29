@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import Image from "next/image";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type User = {
   id: string;
@@ -150,7 +151,7 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                 )}
                 {Array.from(displayUsers.values()).map(u => {
                     const isSelected = selectedUsers.has(u.id);
-                    const fullAvatarUrl = u.avatarUrl ? (u.avatarUrl.startsWith("http") ? u.avatarUrl : `/api/avatars/${u.avatarUrl}`) : null;
+                    const fullAvatarUrl = normalizeAvatarUrl(u.avatarUrl);
                     return (
                       <div 
                           key={u.id} 

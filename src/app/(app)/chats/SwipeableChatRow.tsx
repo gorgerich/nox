@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Bookmark, Pin } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 const SWIPE_OPEN_THRESHOLD = 72;
 
@@ -193,9 +194,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
   
   const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
-  const fullAvatarUrl = avatarToDisplay
-    ? (avatarToDisplay.startsWith("http") ? avatarToDisplay : `/api/avatars/${avatarToDisplay}`)
-    : null;
+  const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
 
   const leftActionsVisible = translateX > 8;
   const rightActionsVisible = translateX < -8;

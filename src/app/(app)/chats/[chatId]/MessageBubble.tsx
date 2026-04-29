@@ -122,12 +122,14 @@ function AttachmentPreview({
   currentUserId?: string;
   localDeviceId?: string | null;
 }) {
-  const [decryptedUrl, setDecryptedUrl] = useState<string | null>(attachment.url ?? null);
+  const [decryptedUrl, setDecryptedUrl] = useState<string | null>(() => (
+    attachment.isEncrypted ? null : attachment.url ?? null
+  ));
   const [decryptError, setDecryptError] = useState<string | null>(null);
-  const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted && !attachment.url));
+  const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted));
 
   useEffect(() => {
-    if (!attachment.isEncrypted || attachment.url) {
+    if (!attachment.isEncrypted) {
       return;
     }
 
@@ -197,7 +199,9 @@ function AttachmentPreview({
     message.senderUserId,
   ]);
 
-  const sourceUrl = decryptedUrl || (!attachment.isEncrypted ? `/api/attachments/${attachment.id}/download` : null);
+  const sourceUrl = attachment.isEncrypted
+    ? decryptedUrl
+    : decryptedUrl || `/api/attachments/${attachment.id}/download`;
   const isImage = attachment.mimeType.startsWith("image/");
   const isVideo = attachment.mimeType.startsWith("video/");
 

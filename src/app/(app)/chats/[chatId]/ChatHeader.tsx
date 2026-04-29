@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 export function ChatHeader({
   chatId,
@@ -60,9 +61,7 @@ export function ChatHeader({
     }
   }, [chatId, chatType, isGroup, partnerId, router]);
 
-  const fullAvatarUrl = avatarUrl 
-    ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
-    : null;
+  const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
   const displaySubtitle = isGroup ? subtitle : (subtitle || "Был(а) давно");
 

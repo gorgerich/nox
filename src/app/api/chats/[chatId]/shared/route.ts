@@ -23,7 +23,13 @@ export async function GET(
       deletedAt: null,
     },
     include: {
-      attachments: true,
+      attachments: {
+        include: {
+          mediaKeyEnvelopes: {
+            where: { recipientUserId: user.id },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 100, // Limit for MVP
@@ -40,7 +46,18 @@ export async function GET(
     // Collect attachments
     for (const att of msg.attachments) {
       if (att.mimeType.startsWith("image/") || att.mimeType.startsWith("video/")) {
-        photos.push({ id: att.id, url: `/api/attachments/${att.id}/download`, type: att.mimeType.startsWith("image/") ? "IMAGE" : "VIDEO", createdAt: att.createdAt });
+        photos.push({
+          id: att.id,
+          url: `/api/attachments/${att.id}/download`,
+          type: att.mimeType.startsWith("image/") ? "IMAGE" : "VIDEO",
+          createdAt: att.createdAt,
+          mimeType: att.mimeType,
+          senderUserId: msg.senderUserId,
+          isEncrypted: att.isEncrypted,
+          fileIv: att.fileIv,
+          fileAlgorithm: att.fileAlgorithm,
+          mediaKeyEnvelopes: att.mediaKeyEnvelopes,
+        });
       } else if (att.mimeType.startsWith("audio/") || msg.type === "VOICE") {
         audio.push({ id: att.id, url: `/api/attachments/${att.id}/download`, fileName: att.fileName, createdAt: att.createdAt });
       } else {

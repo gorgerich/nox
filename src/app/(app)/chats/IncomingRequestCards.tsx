@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type IncomingRequest = {
   id: string;
@@ -73,9 +74,7 @@ export function IncomingRequestCards({
       {visibleRequests.map((request) => {
         const displayName = request.fromUser.profile?.displayName ?? request.fromUser.username;
         const avatarUrl = request.fromUser.profile?.avatarUrl;
-        const fullAvatarUrl = avatarUrl 
-          ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
-          : null;
+        const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
         return (
           <article

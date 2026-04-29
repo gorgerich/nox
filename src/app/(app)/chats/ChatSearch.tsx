@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type SearchResult = {
   people: { id: string; username: string; displayName: string; isSelf?: boolean; profile?: { avatarUrl: string | null } }[];
@@ -122,8 +123,8 @@ export function ChatSearch() {
                         className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
                       >
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105 relative">
-                          {person.profile?.avatarUrl ? (
-                            <Image src={person.profile.avatarUrl.startsWith('http') ? person.profile.avatarUrl : `/api/avatars/${person.profile.avatarUrl}`} alt={person.displayName} fill className="object-cover" />
+                          {normalizeAvatarUrl(person.profile?.avatarUrl) ? (
+                            <Image src={normalizeAvatarUrl(person.profile?.avatarUrl) || ""} alt={person.displayName} fill className="object-cover" />
                           ) : (
                             <span className="text-lg font-black text-primary uppercase">{person.displayName[0]}</span>
                           )}
@@ -159,8 +160,8 @@ export function ChatSearch() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                               </svg>
                             </div>
-                          ) : chat.avatarUrl ? (
-                            <Image src={chat.avatarUrl.startsWith('http') ? chat.avatarUrl : `/api/avatars/${chat.avatarUrl}`} alt={chat.title || "Чат"} fill className="object-cover" />
+                          ) : normalizeAvatarUrl(chat.avatarUrl) ? (
+                            <Image src={normalizeAvatarUrl(chat.avatarUrl) || ""} alt={chat.title || "Чат"} fill className="object-cover" />
                           ) : (
                             <span className="text-lg font-black text-primary uppercase">{(chat.title || "C")[0]}</span>
                           )}

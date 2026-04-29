@@ -7,9 +7,13 @@ import { useAudioCall } from "../../../calls/CallProvider";
 import { usePresence } from "@/hooks/usePresence";
 import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
 import { E2EEContactDevices } from "./E2EEContactDevices";
+import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
+import { decryptMediaBlob } from "@/lib/e2ee/media";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 interface PartnerProfileProps {
   chatId: string;
+  currentUserId: string;
   partnerUser: {
     id: string;
     username: string;
@@ -26,7 +30,26 @@ interface PartnerProfileProps {
   };
 }
 
-interface PhotoItem { id: string; url: string; type: "IMAGE" | "VIDEO"; createdAt: string }
+interface PhotoItem {
+  id: string;
+  url: string;
+  type: "IMAGE" | "VIDEO";
+  createdAt: string;
+  mimeType?: string;
+  senderUserId?: string;
+  fileIv?: string | null;
+  isEncrypted?: boolean;
+  mediaKeyEnvelopes?: {
+    recipientUserId: string;
+    recipientDeviceId: string;
+    senderDeviceId: string;
+    encryptedMediaKey: string;
+    iv: string;
+    salt: string | null;
+    algorithm: string;
+    encryptionVersion: number;
+  }[];
+}
 interface AudioItem { id: string; url: string; fileName: string; createdAt: string }
 interface FileItem { id: string; fileName: string; size: number; createdAt: string }
 interface LinkItem { url: string; createdAt: string }
@@ -38,7 +61,7 @@ interface SharedMedia {
   links: LinkItem[];
 }
 
-export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: PartnerProfileProps) {
+export function PartnerProfileContent({ chatId, currentUserId, partnerUser, initialSettings }: PartnerProfileProps) {
   const router = useRouter();
   const { startCall } = useAudioCall();
   const [settings, setSettings] = useState(initialSettings);
@@ -88,9 +111,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
     updateContact({ mutedUntil });
   };
 
-  const fullAvatarUrl = partnerUser.avatarUrl 
-    ? (partnerUser.avatarUrl.startsWith('http') ? partnerUser.avatarUrl : `/api/avatars/${partnerUser.avatarUrl}`)
-    : null;
+  const fullAvatarUrl = normalizeAvatarUrl(partnerUser.avatarUrl);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
@@ -172,7 +193,7 @@ export function PartnerProfileContent({ chatId, partnerUser, initialSettings }: 
           {loadingShared ? (
             <div className="flex justify-center py-10"><div className="h-6 w-6 border-2 border-primary border-t-transparent animate-spin rounded-full" /></div>
           ) : (
-            <SharedContent type={activeTab} data={shared} />
+            <SharedContent type={activeTab} data={shared} chatId={chatId} currentUserId={currentUserId} />
           )}
         </div>
       </div>
@@ -259,7 +280,7 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
 
 type GenericSharedItem = PhotoItem | AudioItem | FileItem | LinkItem;
 
-function SharedContent({ type, data }: { type: string, data: SharedMedia | null }) {
+function SharedContent({ type, data, chatId, currentUserId }: { type: string, data: SharedMedia | null, chatId: string, currentUserId: string }) {
   if (!data) return null;
   
   if (type === "media") {
@@ -268,9 +289,7 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
     return (
       <div className="grid grid-cols-3 gap-1">
         {items.map((m) => (
-          <div key={m.id} className="aspect-square bg-surface-muted rounded-md overflow-hidden active:scale-95 transition-smooth relative">
-            <Image src={m.url} fill className="object-cover" alt="" />
-          </div>
+          <SharedMediaTile key={m.id} item={m} chatId={chatId} currentUserId={currentUserId} />
         ))}
       </div>
     );
@@ -296,6 +315,66 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
           </a>
         );
       })}
+    </div>
+  );
+}
+
+function SharedMediaTile({ item, chatId, currentUserId }: { item: PhotoItem, chatId: string, currentUserId: string }) {
+  const [src, setSrc] = useState<string | null>(() => item.isEncrypted ? null : item.url);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!item.isEncrypted) {
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function decryptPreview() {
+      try {
+        const device = await registerCurrentDevice(currentUserId).catch(async () => ({ deviceId: await getLocalDeviceId(currentUserId) }));
+        const envelope = item.mediaKeyEnvelopes?.find((entry) => entry.recipientDeviceId === device.deviceId);
+        if (!envelope || !item.fileIv || !item.senderUserId) throw new Error("NO_MEDIA_ENVELOPE");
+
+        const response = await fetch(item.url);
+        if (!response.ok) throw new Error("DOWNLOAD_FAILED");
+        const decrypted = await decryptMediaBlob({
+          encryptedBlob: await response.blob(),
+          fileIv: item.fileIv,
+          senderUserId: item.senderUserId,
+          senderDeviceId: envelope.senderDeviceId,
+          chatId,
+          envelope,
+          mimeType: item.mimeType || (item.type === "VIDEO" ? "video/mp4" : "image/jpeg"),
+        });
+        if (!decrypted) throw new Error("DECRYPT_FAILED");
+        objectUrl = URL.createObjectURL(decrypted);
+        if (!cancelled) setSrc(objectUrl);
+      } catch {
+        if (!cancelled) setError(true);
+      }
+    }
+
+    void decryptPreview();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [chatId, currentUserId, item]);
+
+  return (
+    <div className="aspect-square bg-surface-muted rounded-md overflow-hidden active:scale-95 transition-smooth relative">
+      {src && !error && item.type === "VIDEO" ? (
+        <video src={src} className="h-full w-full object-cover" preload="metadata" muted playsInline />
+      ) : src && !error ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} className="h-full w-full object-cover" alt="" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-bold text-muted">
+          {error ? "Медиа недоступно" : "Расшифровка…"}
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type Contact = {
   id: string;
@@ -159,9 +160,7 @@ export default function ContactsPage() {
             const isMe = me && contact!.id === me.id;
             const displayName = isMe ? "Избранное" : (contact!.profile?.displayName || contact!.username);
             const avatarUrl = contact!.profile?.avatarUrl;
-            const fullAvatarUrl = avatarUrl 
-              ? (avatarUrl.startsWith('http') ? avatarUrl : `/api/avatars/${avatarUrl}`)
-              : null;
+            const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
             return (
               <Link 
                 key={contact!.id} 

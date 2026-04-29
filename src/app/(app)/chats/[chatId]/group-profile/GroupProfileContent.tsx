@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 interface GroupMember {
   userId: string;
@@ -160,9 +161,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
     } catch {}
   };
 
-  const fullAvatarUrl = chat.avatarUrl 
-    ? (chat.avatarUrl.startsWith('http') ? chat.avatarUrl : `/api/avatars/${chat.avatarUrl}`)
-    : null;
+  const fullAvatarUrl = normalizeAvatarUrl(chat.avatarUrl);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
@@ -256,8 +255,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
               <div key={m.userId} className="flex items-center justify-between p-3 group">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 relative">
-                    {m.avatarUrl ? (
-                      <Image src={m.avatarUrl.startsWith('http') ? m.avatarUrl : `/api/avatars/${m.avatarUrl}`} fill className="object-cover" alt={m.name} />
+                    {normalizeAvatarUrl(m.avatarUrl) ? (
+                      <Image src={normalizeAvatarUrl(m.avatarUrl) || ""} fill className="object-cover" alt={m.name} />
                     ) : (
                       <span className="text-xs font-black text-primary">{m.name[0]?.toUpperCase()}</span>
                     )}
@@ -321,8 +320,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                 <div key={u.userId} className="flex items-center justify-between py-3 border-b border-border-subtle/10">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 relative">
-                        {u.avatarUrl ? (
-                          <Image src={u.avatarUrl} alt={u.name} fill className="object-cover" />
+                        {normalizeAvatarUrl(u.avatarUrl) ? (
+                          <Image src={normalizeAvatarUrl(u.avatarUrl) || ""} alt={u.name} fill className="object-cover" />
                         ) : (
                           <span className="text-xs font-black text-primary">{u.name[0]}</span>
                         )}
