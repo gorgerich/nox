@@ -8,6 +8,7 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
 import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from "./ChatAppearance";
+import { MediaPreviewComposer, MediaPreviewItem } from "./MediaPreviewComposer";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
@@ -392,6 +393,7 @@ export function ChatMessages({
   const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect; readers?: { name: string; avatarUrl: string | null }[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [previewFiles, setPreviewFiles] = useState<File[]>([]);
 
   const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     if (scrollContainerRef.current) {
@@ -961,10 +963,10 @@ export function ChatMessages({
     }
   }, [chatId, isTypingLocal, socket]);
 
-  const handleAttach = useCallback(async (file: File, caption?: string) => {
+  const handleAttach = useCallback(async (file: File) => {
     setUploading(true);
     setComposerError(null);
-    debugMedia("file selected", { name: file.name, type: file.type, size: file.size, caption });
+    debugMedia("file selected", { name: file.name, type: file.type, size: file.size });
     const shouldEncryptMedia = chatInfo.type === "DIRECT";
     const mediaRecipientUserId = chatInfo.otherMember?.id ?? currentUserId;
 
@@ -975,7 +977,7 @@ export function ChatMessages({
     const optimisticMessage: Message = {
       ...createOptimisticMessage({
         clientId,
-        body: caption || null,
+        body: null,
         currentUserId,
         replyToMessage: replyingToMessage,
       }),
@@ -995,10 +997,6 @@ export function ChatMessages({
     try {
       const formData = new FormData();
       if (shouldEncryptMedia) {
-        if (caption?.trim()) {
-          throw new Error("Подписи к зашифрованным медиа пока не поддержаны.");
-        }
-
         const encryptedMedia = await encryptMediaForDevices({
           file,
           recipientUserId: mediaRecipientUserId,
@@ -1019,9 +1017,6 @@ export function ChatMessages({
         formData.append("originalSizeBytes", String(file.size));
       } else {
         formData.append("file", file);
-      }
-      if (caption && !shouldEncryptMedia) {
-        formData.append("body", caption);
       }
 
       debugMedia("upload started", { chatId, name: file.name });
@@ -1053,13 +1048,8 @@ export function ChatMessages({
     }
   }, [chatId, chatInfo.otherMember?.id, chatInfo.type, currentUserId, debugMedia, replyingToMessage]);
 
-  const handleSend = useCallback(async (body: string, file?: File) => {
-    if (!body.trim() && !file) return;
-
-    if (file) {
-      await handleAttach(file, body.trim());
-      return;
-    }
+  const handleSend = useCallback(async (body: string) => {
+    if (!body.trim()) return;
 
     const trimmedBody = body.trim();
     const replyTarget = replyingToMessage;
@@ -1182,7 +1172,21 @@ export function ChatMessages({
     } finally {
       setPending(false);
     }
-  }, [chatId, currentUserId, editingMessage, replyingToMessage, handleAttach, chatInfo.otherMember, chatInfo.type, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
+  }, [chatId, currentUserId, editingMessage, replyingToMessage, chatInfo.otherMember, chatInfo.type, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
+
+  const handleSendFromPreview = useCallback(async (items: MediaPreviewItem[], caption: string) => {
+    setPreviewFiles([]); // hide composer
+    
+    // Send items one by one
+    for (const item of items) {
+      await handleAttach(item.file);
+    }
+    
+    // Send caption as a separate message to maintain E2EE text guarantees
+    if (caption.trim()) {
+      await handleSend(caption);
+    }
+  }, [handleAttach, handleSend]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -1620,6 +1624,7 @@ export function ChatMessages({
             onVoiceStart={startRecording}
             onVoiceStop={stopRecording}
             onVoiceCancel={cancelRecording}
+            onFilesSelected={setPreviewFiles}
             isRecording={isRecording}
             recordingDuration={recordingDuration}
             isLocked={isLocked && currentRole === "MEMBER"}
@@ -1665,6 +1670,14 @@ export function ChatMessages({
 
       <ChatAppearanceSheet isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} settings={settings} onUpdate={updateSettings} onReset={resetSettings} />
       <MediaViewer item={selectedMedia} onClose={() => setSelectedMedia(null)} />
+
+      {previewFiles.length > 0 && (
+        <MediaPreviewComposer
+          initialFiles={previewFiles}
+          onSend={handleSendFromPreview}
+          onCancel={() => setPreviewFiles([])}
+        />
+      )}
     </div>
   );
 }
