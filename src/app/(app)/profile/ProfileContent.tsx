@@ -211,11 +211,6 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
     <>
       {activeScreen === "main" && (
         <div className="pb-32 animate-in fade-in slide-in-from-bottom-4 duration-500 safe-top">
-          {/* Header */}
-          <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl flex items-center justify-between px-6 py-4">
-             <h1 className="text-xl font-black tracking-tight">Настройки</h1>
-          </header>
-
           <section className="flex flex-col items-center text-center mt-6">
             <div className="group relative mb-6">
               <button
