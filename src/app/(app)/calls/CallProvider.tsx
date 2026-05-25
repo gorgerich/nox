@@ -120,7 +120,12 @@ function getRtcConfig(): { config: RTCConfiguration; serverUrls: string[] } {
     console.warn("[call-debug] TURN not configured; STUN-only may fail across NAT/mobile networks");
   }
 
-  const config: RTCConfiguration = { iceServers };
+  const config: RTCConfiguration = {
+    iceServers,
+    // Pre-gather a candidate so ICE connects faster once signaling completes.
+    iceCandidatePoolSize: 1,
+    bundlePolicy: "max-bundle",
+  };
   if (process.env.NEXT_PUBLIC_FORCE_RELAY === "true") {
     config.iceTransportPolicy = "relay";
   }
@@ -349,11 +354,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const isConnected = pc.connectionState === "connected" || pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed";
     const hasRemoteAudio = (remoteStreamRef.current?.getAudioTracks().length ?? 0) > 0;
-    const audioReady = audioSrcObjectAssignedRef.current && remoteAudioPlaybackOkRef.current;
 
-    debugCall("verifyAndSetActive", { source, isConnected, hasRemoteAudio, audioReady, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState });
+    debugCall("verifyAndSetActive", { source, isConnected, hasRemoteAudio, connectionState: pc.connectionState, iceConnectionState: pc.iceConnectionState });
 
-    if (isConnected && hasRemoteAudio && audioReady) {
+    // The call is established once the peer connection is up and remote audio is flowing.
+    // Audio element playback (autoplay policy) is handled separately via tap-to-play and must
+    // not gate the call state, otherwise a blocked autoplay leaves the call stuck "connecting".
+    if (isConnected && hasRemoteAudio) {
       clearCallTimer();
       setStatus((current) => {
         if (current === "idle" || current === "ended" || current === "failed" || current === "active") {
@@ -511,7 +518,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const acquireLocalAudio = useCallback(async (source: string) => {
     debugCall("getUserMedia start", { source });
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       const audioTracks = stream.getAudioTracks();
       debugCall("local audio tracks count", { source, count: audioTracks.length });
 
