@@ -7,6 +7,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ACCENT_OPTIONS, useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
 import { AvatarCropModal } from "./AvatarCropModal";
+import { CacheSettings } from "./CacheSettings";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
@@ -316,6 +317,8 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                  </button>
               </div>
             </section>
+
+            <CacheSettings />
 
             {isAdmin && (
               <Link

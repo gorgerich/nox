@@ -221,6 +221,77 @@ export async function getLocalEncryptedMessage(params: {
   return typeof payload.body === "string" ? { body: payload.body } : null;
 }
 
+export const NOX_E2EE_DB_NAME = DB_NAME;
+export const NOX_MESSAGES_STORE = MESSAGES_STORE;
+export const NOX_KEYS_STORE = KEYS_STORE;
+
+/** Count records in an object store. */
+async function countStore(storeName: string): Promise<number> {
+  const db = await openDb();
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(storeName, "readonly");
+      const req = tx.objectStore(storeName).count();
+      req.onsuccess = () => resolve(req.result ?? 0);
+      req.onerror = () => resolve(0);
+    } catch {
+      resolve(0);
+    }
+  });
+}
+
+/** Wipe every record in an object store. */
+async function clearStore(storeName: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const req = tx.objectStore(storeName).clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** Number of cached (encrypted) message bodies on this device. */
+export function countCachedMessages(): Promise<number> {
+  return countStore(MESSAGES_STORE);
+}
+
+/** Remove ALL locally cached message bodies. Safe: they are re-decrypted on demand. */
+export function clearCachedMessages(): Promise<void> {
+  return clearStore(MESSAGES_STORE);
+}
+
+/** Remove cached message bodies for a single chat only. Returns how many were removed. */
+export async function clearCachedMessagesForChat(chatId: string): Promise<number> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(MESSAGES_STORE, "readwrite");
+    const store = tx.objectStore(MESSAGES_STORE);
+    const keysReq = store.getAllKeys();
+    keysReq.onsuccess = () => {
+      const keys = (keysReq.result as IDBValidKey[]).filter(
+        (k) => typeof k === "string" && k.includes(`:${chatId}:`),
+      );
+      let removed = 0;
+      if (keys.length === 0) { resolve(0); return; }
+      keys.forEach((k) => {
+        const del = store.delete(k);
+        del.onsuccess = () => { removed += 1; if (removed === keys.length) resolve(removed); };
+        del.onerror = () => { removed += 1; if (removed === keys.length) resolve(removed); };
+      });
+    };
+    keysReq.onerror = () => reject(keysReq.error);
+  });
+}
+
+/**
+ * DANGER: wipes the device's E2EE keys (identity + local cache key). After this the
+ * device must re-register its keys / re-establish trust. Only for "reset this device".
+ */
+export function clearCryptoKeys(): Promise<void> {
+  return clearStore(KEYS_STORE);
+}
+
 export async function storeAndVerifyLocalEncryptedMessage(params: {
   userId: string;
   messageId: string;
