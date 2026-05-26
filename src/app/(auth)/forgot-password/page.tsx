@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      setMessage(data?.message || "Если аккаунт существует, мы отправили инструкции или запрос на активное устройство.");
+      setMessage(data?.message || "Если аккаунт существует, мы создали запрос. Его может подтвердить активное устройство или администратор.");
       setStep("verify");
     } catch {
       setError("Произошла ошибка при отправке запроса.");
@@ -84,7 +84,7 @@ export default function ForgotPasswordPage() {
           </div>
           <h1 className="text-3xl font-black tracking-tight text-foreground">Восстановление доступа</h1>
           <p className="mt-3 text-sm text-muted font-medium">
-            {step === "request" ? "Введите логин или email. Если аккаунт существует, мы отправим инструкции или запрос на активное устройство." : "Проверьте активное устройство Nox. Если оно открыто, там появится запрос на восстановление."}
+            {step === "request" ? "Введите логин или email. Если аккаунт существует, мы создадим запрос на восстановление." : "Попросите владельца или администратора подтвердить запрос и назвать код. Если у вас открыто доверенное устройство Nox, запрос появится там."}
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export default function ForgotPasswordPage() {
                 className="input-nox h-14 uppercase tracking-[0.2em] font-black text-center"
                 name="publicCode"
                 type="text"
-                placeholder="Код с устройства"
+                placeholder="Код подтверждения"
                 required
                 value={publicCode}
                 onChange={(e) => setPublicCode(e.target.value)}
@@ -170,7 +170,7 @@ export default function ForgotPasswordPage() {
             </button>
 
             <p className="text-center text-[10px] font-bold text-muted mt-6 px-4">
-              Получили ссылку на email? Перейдите по ней для сброса пароля без кода устройства.
+              Код можно получить у администратора после подтверждения заявки или на доверенном устройстве Nox.
             </p>
           </form>
         )}

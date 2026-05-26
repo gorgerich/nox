@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type AdminSection = "users" | "invites" | "security" | "audit";
+type AdminSection = "users" | "invites" | "recovery" | "security" | "audit";
 
 type UserItem = {
   id: string;
@@ -48,6 +48,25 @@ type AuditItem = {
   };
 };
 
+type RecoveryRequestItem = {
+  id: string;
+  publicCode: string;
+  status: "PENDING" | "APPROVED" | "DENIED" | "EXPIRED" | "USED";
+  requesterUserAgent: string | null;
+  createdAt: string;
+  expiresAt: string;
+  approvedAt: string | null;
+  deniedAt: string | null;
+  usedAt: string | null;
+  user: {
+    id: string;
+    login: string | null;
+    username: string;
+    email: string | null;
+    profile: { displayName: string } | null;
+  };
+};
+
 type InviteFormState = {
   maxUses: string;
   expiresAt: string;
@@ -58,6 +77,7 @@ type InviteFormState = {
 const sections: { id: AdminSection; label: string }[] = [
   { id: "users", label: "Люди" },
   { id: "invites", label: "Коды" },
+  { id: "recovery", label: "Доступ" },
   { id: "security", label: "Защита" },
   { id: "audit", label: "Логи" },
 ];
@@ -87,10 +107,36 @@ function getActionLabel(action: string) {
     USER_ADMIN_REMOVED: "Снят админ",
     INVITE_CREATED: "Код создан",
     INVITE_REVOKED: "Код отозван",
+    ACCOUNT_RECOVERY_APPROVED: "Сброс разрешен",
+    ACCOUNT_RECOVERY_DENIED: "Сброс отклонен",
+    ACCOUNT_RECOVERY_ADMIN_APPROVED: "Сброс разрешен админом",
+    ACCOUNT_RECOVERY_ADMIN_DENIED: "Сброс отклонен админом",
+    PASSWORD_RESET_FROM_REQUEST: "Пароль сброшен",
+    PASSWORD_RESET: "Пароль сброшен",
     EMERGENCY_LOCK_ENABLED: "Lock включен",
     EMERGENCY_LOCK_DISABLED: "Lock выключен",
   };
   return labels[action] ?? action;
+}
+
+function getRecoveryStatusLabel(status: RecoveryRequestItem["status"], expiresAt: string) {
+  if (status === "PENDING" && new Date(expiresAt).getTime() <= Date.now()) {
+    return "Истек";
+  }
+
+  const labels: Record<RecoveryRequestItem["status"], string> = {
+    PENDING: "Ожидает",
+    APPROVED: "Разрешен",
+    DENIED: "Отклонен",
+    EXPIRED: "Истек",
+    USED: "Использован",
+  };
+
+  return labels[status] ?? status;
+}
+
+function isRecoveryActionable(request: RecoveryRequestItem) {
+  return request.status === "PENDING" && new Date(request.expiresAt).getTime() > Date.now();
 }
 
 async function readJson<T>(url: string, init?: RequestInit) {
@@ -104,6 +150,7 @@ export function AdminPanel() {
   const [activeSection, setActiveSection] = useState<AdminSection>("users");
   const [users, setUsers] = useState<UserItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
+  const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequestItem[]>([]);
   const [system, setSystem] = useState<SystemState | null>(null);
   const [auditLog, setAuditLog] = useState<AuditItem[]>([]);
   const [rawInviteCode, setRawInviteCode] = useState("");
@@ -120,14 +167,16 @@ export function AdminPanel() {
 
   async function loadAdminData() {
     try {
-      const [usersData, invitesData, systemData, auditData] = await Promise.all([
+      const [usersData, invitesData, recoveryData, systemData, auditData] = await Promise.all([
         readJson<{ users: UserItem[] }>("/api/admin/users"),
         readJson<{ invites: InviteItem[] }>("/api/admin/invites"),
+        readJson<{ requests: RecoveryRequestItem[] }>("/api/admin/recovery-requests"),
         readJson<SystemState>("/api/admin/system"),
         readJson<{ actions: AuditItem[] }>("/api/admin/audit-log"),
       ]);
       setUsers(usersData.users);
       setInvites(invitesData.invites);
+      setRecoveryRequests(recoveryData.requests);
       setSystem(systemData);
       setAuditLog(auditData.actions);
     } catch (reason) {
@@ -141,15 +190,17 @@ export function AdminPanel() {
     let active = true;
     const load = async () => {
       try {
-        const [usersData, invitesData, systemData, auditData] = await Promise.all([
+        const [usersData, invitesData, recoveryData, systemData, auditData] = await Promise.all([
           readJson<{ users: UserItem[] }>("/api/admin/users"),
           readJson<{ invites: InviteItem[] }>("/api/admin/invites"),
+          readJson<{ requests: RecoveryRequestItem[] }>("/api/admin/recovery-requests"),
           readJson<SystemState>("/api/admin/system"),
           readJson<{ actions: AuditItem[] }>("/api/admin/audit-log"),
         ]);
         if (!active) return;
         setUsers(usersData.users);
         setInvites(invitesData.invites);
+        setRecoveryRequests(recoveryData.requests);
         setSystem(systemData);
         setAuditLog(auditData.actions);
       } catch (reason) {
@@ -340,6 +391,85 @@ export function AdminPanel() {
                   </article>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeSection === "recovery" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+                <p className="text-xs font-bold leading-relaxed text-amber-600 dark:text-amber-400">
+                  Разрешайте сброс только если лично убедились, что запрос сделал владелец аккаунта.
+                  После разрешения передайте ему код из карточки: он введет его на странице восстановления.
+                </p>
+              </div>
+
+              {recoveryRequests.length === 0 && (
+                <p className="py-12 text-center text-xs font-bold uppercase tracking-widest text-muted">
+                  Заявок нет
+                </p>
+              )}
+
+              {recoveryRequests.map((request) => {
+                const actionable = isRecoveryActionable(request);
+
+                return (
+                  <article key={request.id} className="card-clean p-5">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-bold">
+                            {request.user.profile?.displayName ?? request.user.username}
+                          </h3>
+                          <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${
+                            actionable ? "bg-amber-500/10 text-amber-500" : "bg-surface-hover text-muted"
+                          }`}>
+                            {getRecoveryStatusLabel(request.status, request.expiresAt)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted">
+                          @{request.user.username}
+                          {request.user.login ? ` • login: ${request.user.login}` : ""}
+                          {request.user.email ? ` • ${request.user.email}` : ""}
+                        </p>
+                        <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-muted/70">
+                          Создан: {formatDate(request.createdAt)} • до {formatDate(request.expiresAt)}
+                        </p>
+                        {request.requesterUserAgent && (
+                          <p className="mt-2 truncate text-[10px] text-muted/60">
+                            {request.requesterUserAgent}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="shrink-0 rounded-2xl border border-border-subtle bg-foreground/5 px-4 py-3 text-center">
+                        <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-muted">Код</p>
+                        <code className="select-all font-mono text-xl font-black tracking-[0.2em] text-primary">
+                          {request.publicCode}
+                        </code>
+                      </div>
+                    </div>
+
+                    {actionable && (
+                      <div className="mt-5 flex gap-3">
+                        <button
+                          className="flex-1 rounded-xl bg-red-500/10 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 transition-smooth active:scale-95 disabled:opacity-50"
+                          disabled={pendingAction !== ""}
+                          onClick={() => runAction(`deny-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/deny`)}
+                        >
+                          {pendingAction === `deny-recovery-${request.id}` ? "..." : "Отклонить"}
+                        </button>
+                        <button
+                          className="flex-1 rounded-xl bg-primary py-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-50"
+                          disabled={pendingAction !== ""}
+                          onClick={() => runAction(`approve-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/approve`)}
+                        >
+                          {pendingAction === `approve-recovery-${request.id}` ? "..." : "Разрешить"}
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           )}
 

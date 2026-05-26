@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
+          { login: identifier },
           { email: identifier },
           { username: identifier },
         ],
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
 
     // Always return the same generic success message
     const genericSuccessResponse = NextResponse.json({
-      message: "Если аккаунт существует, мы отправили инструкции или запрос на активное устройство.",
+      message: "Если аккаунт существует, мы создали запрос. Его может подтвердить активное устройство или администратор.",
     });
 
     if (!user) {
