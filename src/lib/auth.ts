@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { jwtVerify, SignJWT } from "jose";
 import { getPrisma } from "@/lib/prisma";
@@ -60,7 +61,10 @@ export async function getSession() {
   return verifySessionToken(token);
 }
 
-export async function getCurrentUser() {
+// Wrapped in React cache() so multiple calls within the same server request
+// (layout + page + nested server components + route handler) share one result
+// instead of re-querying the database each time.
+export const getCurrentUser = cache(async () => {
   const session = await getSession();
 
   if (!session) {
@@ -68,36 +72,39 @@ export async function getCurrentUser() {
   }
 
   const prisma = getPrisma();
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      profile: {
-        select: {
-          displayName: true,
-          avatarUrl: true,
+  // Both queries are independent — run them concurrently so we don't add an
+  // extra sequential DB round-trip to every authenticated request/page render.
+  const [user, emergencyLocked] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        profile: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
         },
       },
-    },
-  });
+    }),
+    isEmergencyLocked(),
+  ]);
 
   if (!user) {
     return null;
   }
-
-  const emergencyLocked = await isEmergencyLocked();
 
   if (!canUseApp(user, emergencyLocked)) {
     return null;
   }
 
   return user;
-}
+});
 
 export function getSessionCookieOptions() {
   return {

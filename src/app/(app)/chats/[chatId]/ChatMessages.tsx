@@ -638,6 +638,13 @@ export function ChatMessages({
     setMenuState(null);
   }, []);
 
+  // Stable reference so memo() on MessageBubble isn't defeated (otherwise every
+  // bubble re-renders on each parent state change — typing, scroll, etc.).
+  const handleSwipeReply = useCallback((message: Message) => {
+    setEditingMessage(null);
+    setReplyingToMessage(message);
+  }, []);
+
   const handleDeleteQuietly = useCallback((id: string) => {
     setMessages(curr => curr.filter(m => m.id !== id));
     setMenuState(null);
@@ -1579,10 +1586,7 @@ export function ChatMessages({
                   onLongPress={handleLongPress}
                   onReaction={toggleReaction}
                   onMediaClick={setSelectedMedia}
-                  onSwipeReply={(message) => {
-                    setEditingMessage(null);
-                    setReplyingToMessage(message);
-                  }}
+                  onSwipeReply={handleSwipeReply}
                   onReplyPreviewClick={jumpToMessage}
                   isGroupStart={item.isGroupStart}
                   isGroupEnd={item.isGroupEnd}
