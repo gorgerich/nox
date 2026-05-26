@@ -377,14 +377,26 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     clearCallTimer();
     timeoutRef.current = setTimeout(() => {
       if (currentCallRef.current?.callId === callId && (statusRef.current === "connecting" || statusRef.current === "outgoing")) {
-        if ((remoteStreamRef.current?.getAudioTracks().length ?? 0) > 0) {
-          debugCall("media timeout skipped because remote audio exists", { callId });
+        const pc = pcRef.current;
+        const connected = !!pc && (
+          pc.connectionState === "connected" ||
+          pc.iceConnectionState === "connected" ||
+          pc.iceConnectionState === "completed"
+        );
+        // Only keep waiting if the peer connection is genuinely established —
+        // then let verifyAndSetActive flip us to "active". A remote audio *track*
+        // existing is NOT enough: ontrack can fire before/without a working media
+        // path (e.g. dead TURN across networks), which previously left the call
+        // stuck on "Соединение..." forever. If we're not connected, fail clearly.
+        if (connected) {
+          debugCall("media timeout: connection established, confirming active", { callId });
+          verifyAndSetActive("media-timeout-connected");
           return;
         }
         failCall(customMessage || "Не удалось установить соединение");
       }
     }, timeoutMs);
-  }, [clearCallTimer, debugCall, failCall]);
+  }, [clearCallTimer, debugCall, failCall, verifyAndSetActive]);
 
   const flushPendingIce = useCallback(async (pc: RTCPeerConnection, reason: string) => {
     const queued = [...pendingIceCandidatesRef.current];
