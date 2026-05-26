@@ -135,11 +135,31 @@ export async function GET(
   if (!membership) return NextResponse.json({ error: "Чат не найден." }, { status: 404 });
 
   const prisma = getPrisma();
+  // History loads only need THIS user's envelopes. Filter at the DB instead of
+  // fetching every recipient/device envelope and discarding them in JS — a real
+  // payload/latency win in group chats with many devices.
+  const historyInclude = {
+    ...messageInclude,
+    attachments: {
+      select: {
+        ...messageInclude.attachments.select,
+        mediaKeyEnvelopes: {
+          ...messageInclude.attachments.select.mediaKeyEnvelopes,
+          where: { recipientUserId: user.id },
+        },
+      },
+    },
+    envelopes: {
+      ...messageInclude.envelopes,
+      where: { recipientUserId: user.id },
+    },
+  };
+
   const messages = await prisma.message.findMany({
     where: { chatId, deletedAt: null },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: messageInclude,
+    include: historyInclude,
   });
 
   return NextResponse.json({
