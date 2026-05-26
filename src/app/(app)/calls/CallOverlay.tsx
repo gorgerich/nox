@@ -19,8 +19,10 @@ type WindowWithWebkitAudioContext = Window & typeof globalThis & {
 };
 
 export function CallOverlay() {
-  const { call, status, remoteStream, isMuted, error, debugInfo, acceptCall, declineCall, endCall, toggleMute, markRemoteAudioPlayback } = useAudioCall();
+  const { call, status, remoteStream, localStream, isMuted, isCameraOff, isVideo, error, debugInfo, acceptCall, declineCall, endCall, toggleMute, toggleCamera, markRemoteAudioPlayback } = useAudioCall();
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
   const ringbackContextRef = useRef<AudioContext | null>(null);
   const ringbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
@@ -81,6 +83,23 @@ export function CallOverlay() {
 
     attachAndPlayRemoteAudio("remoteStream effect");
   }, [attachAndPlayRemoteAudio, markRemoteAudioPlayback, remoteStream]);
+
+  // Bind the remote stream to the (muted) video element for picture — audio still
+  // plays through the <audio> element above so we never double up the sound.
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+    if (!video) return;
+    video.srcObject = remoteStream ?? null;
+    if (remoteStream) void video.play().catch(() => undefined);
+  }, [remoteStream, isVideo]);
+
+  // Bind our own camera to the local preview.
+  useEffect(() => {
+    const video = localVideoRef.current;
+    if (!video) return;
+    video.srcObject = localStream ?? null;
+    if (localStream) void video.play().catch(() => undefined);
+  }, [localStream, isVideo]);
 
   // Keep the call alive when the app is backgrounded / screen is about to lock.
   // Mobile browsers (esp. iOS) suspend a backgrounded tab's media — this is a
@@ -274,6 +293,29 @@ export function CallOverlay() {
     <div className="fixed inset-0 z-1000 flex flex-col items-center justify-between bg-neutral-950/95 p-8 pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] backdrop-blur-xl animate-in fade-in duration-200 pointer-events-auto">
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
+      {isVideo && (
+        <>
+          {/* Remote camera, full-screen background. Muted: sound comes from <audio> above. */}
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`absolute inset-0 z-0 h-full w-full bg-black object-cover transition-opacity duration-300 ${remoteStream ? "opacity-100" : "opacity-0"}`}
+          />
+          {/* Legibility gradient over the video for the name/controls. */}
+          <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-black/50 via-transparent to-black/75" />
+          {/* Local camera preview (picture-in-picture). */}
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`absolute right-4 top-24 z-20 h-44 w-32 -scale-x-100 rounded-2xl border border-white/15 bg-neutral-900 object-cover shadow-2xl transition-opacity ${isCameraOff ? "opacity-0" : "opacity-100"}`}
+          />
+        </>
+      )}
+
       {DEBUG_CALLS && (
         <div className="absolute left-4 top-24 z-50 max-w-[200px] rounded-lg bg-black/80 p-3 text-[10px] font-mono text-green-500 shadow-xl backdrop-blur-md">
           <div className="mb-1 border-b border-green-500/30 pb-1 font-bold">CALL DEBUG</div>
@@ -310,19 +352,21 @@ export function CallOverlay() {
         </div>
       )}
 
-      <div className="mt-20 flex flex-col items-center text-center">
-        <div className="relative mb-6 h-32 w-32">
-          <div className={`absolute inset-0 rounded-[3rem] bg-primary/20 ${status === "incoming" || status === "outgoing" ? "animate-ping" : ""}`} />
-          <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[3rem] border-4 border-white/10 bg-neutral-900 shadow-2xl">
-            {fullAvatarUrl ? (
-              <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
-            ) : (
-              <span className="text-5xl font-black text-primary">{peer.displayName[0] ?? "?"}</span>
-            )}
+      <div className="relative z-10 mt-20 flex flex-col items-center text-center">
+        {!(isVideo && remoteStream) && (
+          <div className="relative mb-6 h-32 w-32">
+            <div className={`absolute inset-0 rounded-[3rem] bg-primary/20 ${status === "incoming" || status === "outgoing" ? "animate-ping" : ""}`} />
+            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[3rem] border-4 border-white/10 bg-neutral-900 shadow-2xl">
+              {fullAvatarUrl ? (
+                <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
+              ) : (
+                <span className="text-5xl font-black text-primary">{peer.displayName[0] ?? "?"}</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        <h2 className="mb-2 text-3xl font-black tracking-tight text-white">{peer.displayName}</h2>
+        <h2 className="mb-2 text-3xl font-black tracking-tight text-white drop-shadow-lg">{peer.displayName}</h2>
         <p className="text-sm font-black uppercase tracking-[0.2em] text-primary/80">
           {status === "incoming" ? "Входящий звонок..." : null}
           {status === "outgoing" ? "Вызов..." : null}
@@ -396,6 +440,20 @@ export function CallOverlay() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>
               </button>
+
+              {isVideo && (
+                <button
+                  onClick={toggleCamera}
+                  className={`flex h-16 w-16 items-center justify-center rounded-3xl border-2 transition-smooth active:scale-90 ${
+                    isCameraOff ? "border-white bg-white text-black" : "border-white/10 bg-white/5 text-white"
+                  }`}
+                  title={isCameraOff ? "Включить камеру" : "Выключить камеру"}
+                >
+                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 6h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             <button onClick={endCall} className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-2xl shadow-danger/40 transition-smooth active:scale-90">

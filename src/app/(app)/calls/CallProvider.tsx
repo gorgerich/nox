@@ -21,6 +21,7 @@ type CurrentCall = {
   chatId: string;
   role: CallRole;
   peerUser: PeerUser;
+  video: boolean;
 };
 
 type DebugInfo = {
@@ -54,15 +55,18 @@ interface CallContextType {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   isMuted: boolean;
+  isCameraOff: boolean;
+  isVideo: boolean;
   error: string | null;
   debugInfo: DebugInfo;
-  startCall: (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }) => Promise<void>;
+  startCall: (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }, options?: { video?: boolean }) => Promise<void>;
   resumePendingCall: (callId: string) => void;
   markRemoteAudioPlayback: (state: { srcObjectAssigned: boolean; playStatus: "idle" | "pending" | "success" | "failed" }) => void;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
+  toggleCamera: () => void;
 }
 
 interface IncomingPayload {
@@ -71,6 +75,7 @@ interface IncomingPayload {
   offer: RTCSessionDescriptionInit;
   fromUser: PeerUser;
   source?: "foreground" | "push";
+  video?: boolean;
 }
 
 interface AnswerPayload {
@@ -157,6 +162,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isVideo, setIsVideo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
@@ -192,6 +199,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const canSendLocalIceRef = useRef(false);
   const currentCallRef = useRef<CurrentCall | null>(null);
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
+  const incomingVideoRef = useRef<boolean>(false);
   const statusRef = useRef<CallStatus>("idle");
   const audioSrcObjectAssignedRef = useRef(false);
   const remoteAudioPlaybackOkRef = useRef(false);
@@ -308,6 +316,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     canSendLocalIceRef.current = false;
     currentCallRef.current = null;
     incomingOfferRef.current = null;
+    incomingVideoRef.current = false;
     audioSrcObjectAssignedRef.current = false;
     remoteAudioPlaybackOkRef.current = false;
 
@@ -315,6 +324,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setLocalStream(null);
     setRemoteStream(null);
     setIsMuted(false);
+    setIsCameraOff(false);
+    setIsVideo(false);
     updateDebugInfo({
       callId: null,
       role: null,
@@ -433,7 +444,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       streams: event.streams.length,
     });
 
-    if (event.track.kind !== "audio") {
+    if (event.track.kind !== "audio" && event.track.kind !== "video") {
       return;
     }
 
@@ -442,17 +453,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       stream = new MediaStream();
     }
 
-    if (!stream.getAudioTracks().some((track) => track.id === event.track.id)) {
+    if (!stream.getTracks().some((track) => track.id === event.track.id)) {
       stream.addTrack(event.track);
     }
 
-    remoteStreamRef.current = stream;
-    setRemoteStream(stream);
-    const trackCount = stream.getAudioTracks().length;
-    debugCall("remoteStream audioTracks count", { count: trackCount });
-    updateDebugInfo({ remoteAudioTracks: trackCount, remoteStreamExists: true });
-    
-    if (trackCount > 0) {
+    // A new MediaStream reference forces dependent <video>/<audio> elements to re-bind.
+    const merged = new MediaStream(stream.getTracks());
+    remoteStreamRef.current = merged;
+    setRemoteStream(merged);
+    const audioCount = merged.getAudioTracks().length;
+    debugCall("remoteStream tracks count", { audio: audioCount, video: merged.getVideoTracks().length });
+    updateDebugInfo({ remoteAudioTracks: audioCount, remoteStreamExists: true });
+
+    if (audioCount > 0) {
       verifyAndSetActive("remote-audio-track");
     }
   }, [debugCall, updateDebugInfo, verifyAndSetActive]);
@@ -525,8 +538,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     return pc;
   }, [debugCall, failCall, handleRemoteTrack, sendIceCandidate, startStatsInterval, updateDebugInfo, verifyAndSetActive]);
 
-  const acquireLocalAudio = useCallback(async (source: string) => {
-    debugCall("getUserMedia start", { source });
+  const acquireLocalAudio = useCallback(async (source: string, withVideo = false) => {
+    debugCall("getUserMedia start", { source, withVideo });
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -534,6 +547,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           noiseSuppression: true,
           autoGainControl: true,
         },
+        video: withVideo
+          ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+          : false,
       });
       const audioTracks = stream.getAudioTracks();
       debugCall("local audio tracks count", { source, count: audioTracks.length });
@@ -545,10 +561,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
 
       audioTrack.enabled = true;
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) videoTrack.enabled = true;
       debugCall("local track enabled readyState", {
         source,
         enabled: audioTrack.enabled,
         readyState: audioTrack.readyState,
+        video: Boolean(videoTrack),
       });
 
       localStreamRef.current = stream;
@@ -582,9 +601,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       pc.addTrack(audioTrack, stream);
     }
 
-    // Belt-and-suspenders: make sure every audio transceiver actually sends.
+    // Add the video track too (if this is a video call).
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      const existingVideoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+      if (existingVideoSender) {
+        void existingVideoSender.replaceTrack(videoTrack);
+      } else {
+        pc.addTrack(videoTrack, stream);
+      }
+      debugCall("video track added", { source });
+    }
+
+    // Belt-and-suspenders: make sure our send transceivers actually send.
     for (const t of pc.getTransceivers()) {
-      if ((t.sender.track?.kind === "audio") && t.direction !== "sendrecv") {
+      const kind = t.sender.track?.kind;
+      if ((kind === "audio" || kind === "video") && t.direction !== "sendrecv") {
         try { t.direction = "sendrecv"; } catch { /* direction may be immutable in some states */ }
       }
     }
@@ -595,21 +627,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     });
   }, [debugCall]);
 
-  const startCall = useCallback(async (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }) => {
+  const startCall = useCallback(async (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }, options?: { video?: boolean }) => {
     if (statusRef.current !== "idle") return;
 
+    const wantVideo = options?.video === true;
     const callId = generateCallId();
     const nextCall: CurrentCall = {
       callId,
       chatId,
       role: "caller",
       peerUser: normalizePeerUser(peerUser),
+      video: wantVideo,
     };
 
-    debugCall("startCall", { chatId });
+    debugCall("startCall", { chatId, video: wantVideo });
     debugCall("generated callId", { callId });
     currentCallRef.current = nextCall;
     setCall(nextCall);
+    setIsVideo(wantVideo);
+    setIsCameraOff(false);
     setCallStatus("outgoing");
     setError(null);
     setRemoteStream(null);
@@ -619,7 +655,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     canSendLocalIceRef.current = false;
 
     try {
-      const stream = await acquireLocalAudio("startCall");
+      const stream = await acquireLocalAudio("startCall", wantVideo);
       const pc = createPeerConnection(callId, chatId, "caller");
       addLocalTracks(pc, stream, "startCall");
 
@@ -628,7 +664,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       await pc.setLocalDescription(offer);
       debugCall("setLocalDescription offer", { callId });
 
-      socket.emit("call:start", { callId, chatId, offer }, (ack?: CallAck & { peerUser?: PeerUser }) => {
+      socket.emit("call:start", { callId, chatId, offer, video: wantVideo }, (ack?: CallAck & { peerUser?: PeerUser }) => {
         debugCall("call:start ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
         if (!ack?.ok) {
           if (ack?.error === "USER_OFFLINE" || ack?.error === "USER_UNREACHABLE") {
@@ -647,7 +683,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       debugCall("startCall failed", { error: String(startError) });
       const err = startError as Error;
       if (err.message === "PERMISSION_DENIED") {
-        failCall("Нет доступа к микрофону. Разрешите микрофон в настройках браузера.");
+        failCall(wantVideo ? "Нет доступа к камере/микрофону. Разрешите их в настройках браузера." : "Нет доступа к микрофону. Разрешите микрофон в настройках браузера.");
       } else if (err.message === "NO_AUDIO_TRACK") {
         failCall("Микрофон недоступен");
       } else {
@@ -668,7 +704,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const stream = await acquireLocalAudio("acceptCall");
+      const stream = await acquireLocalAudio("acceptCall", incomingVideoRef.current);
       const pc = createPeerConnection(current.callId, current.chatId, "callee");
 
       // Order matters: apply the remote offer first so the audio transceiver exists,
@@ -736,6 +772,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("mute toggled", { enabled: track.enabled });
   }, [debugCall]);
 
+  const toggleCamera = useCallback(() => {
+    const track = localStreamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    setIsCameraOff(!track.enabled);
+    debugCall("camera toggled", { enabled: track.enabled });
+  }, [debugCall]);
+
   const markRemoteAudioPlayback = useCallback((state: {
     srcObjectAssigned: boolean;
     playStatus: "idle" | "pending" | "success" | "failed";
@@ -751,8 +795,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [updateDebugInfo, verifyAndSetActive]);
 
-  const applyIncomingCall = useCallback(({ callId, chatId, offer, fromUser, source = "foreground" }: IncomingPayload) => {
-      debugCall("incoming received", { callId, chatId, status: statusRef.current });
+  const applyIncomingCall = useCallback(({ callId, chatId, offer, fromUser, source = "foreground", video = false }: IncomingPayload) => {
+      debugCall("incoming received", { callId, chatId, status: statusRef.current, video });
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, chatId, reason: "busy" });
         return false;
@@ -763,15 +807,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         chatId,
         role: "callee",
         peerUser: normalizePeerUser(fromUser),
+        video,
       };
 
       currentCallRef.current = nextCall;
       incomingOfferRef.current = offer;
+      incomingVideoRef.current = video;
       pendingIceCandidatesRef.current = [];
       remoteStreamRef.current = null;
       setRemoteStream(null);
       setError(null);
       setCall(nextCall);
+      setIsVideo(video);
+      setIsCameraOff(false);
       setCallStatus("incoming");
       updateDebugInfo({ pushSource: source });
       return true;
@@ -897,6 +945,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         localStream,
         remoteStream,
         isMuted,
+        isCameraOff,
+        isVideo,
         error,
         debugInfo,
         startCall,
@@ -906,6 +956,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         declineCall,
         endCall,
         toggleMute,
+        toggleCamera,
       }}
     >
       {children}

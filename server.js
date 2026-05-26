@@ -97,7 +97,7 @@ function deleteCall(callId) {
   activeCalls.delete(callId);
 }
 
-function createCallRecord({ callId, chatId, callerId, calleeId, offer, fromUser, callerSocketId }) {
+function createCallRecord({ callId, chatId, callerId, calleeId, offer, fromUser, callerSocketId, video }) {
   return {
     callId,
     chatId,
@@ -105,6 +105,7 @@ function createCallRecord({ callId, chatId, callerId, calleeId, offer, fromUser,
     calleeId,
     status: "ringing",
     offer,
+    video: video === true,
     fromUser,
     createdAt: Date.now(),
     expiresAt: Date.now() + CALL_TIMEOUT_MS,
@@ -566,9 +567,9 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("call:start", async ({ callId: requestedCallId, chatId, offer }, callback) => {
+    socket.on("call:start", async ({ callId: requestedCallId, chatId, offer, video }, callback) => {
       sweepExpiredCalls(io);
-      logCall("call:start received", { chatId, userId });
+      logCall("call:start received", { chatId, userId, video: video === true });
 
       if (typeof chatId !== "string" || !offer) {
         callback?.({ ok: false, error: "Некорректный звонок" });
@@ -616,6 +617,7 @@ app.prepare().then(() => {
           avatarUrl: callerAvatarUrl,
         },
         callerSocketId: socket.id,
+        video,
       });
       activeCalls.set(callId, callRecord);
       scheduleCallMissedTimeout(io, callId);
@@ -634,6 +636,7 @@ app.prepare().then(() => {
           offer,
           fromUser: callRecord.fromUser,
           source: "foreground",
+          video: callRecord.video,
         });
         logCall("incoming emitted", { callId, chatId, calleeId: context.calleeId, source: "foreground" });
       } else {
@@ -703,6 +706,7 @@ app.prepare().then(() => {
         offer: call.offer,
         fromUser: call.fromUser,
         source: "push",
+        video: call.video === true,
       };
 
       socket.emit("call:incoming", incomingPayload);
