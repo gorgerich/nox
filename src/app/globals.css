@@ -7,11 +7,11 @@
   --app-muted: #7b8494;
   --app-border: rgba(15, 23, 42, 0.08);
 
-  --glass-bg: rgba(255, 255, 255, 0.58);
-  --glass-bg-strong: rgba(255, 255, 255, 0.76);
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-bg-strong: rgba(255, 255, 255, 0.94);
   --glass-border: rgba(255, 255, 255, 0.72);
   --glass-highlight: rgba(255, 255, 255, 0.82);
-  --glass-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+  --glass-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
   --glass-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), inset 0 -1px 0 rgba(15, 23, 42, 0.04);
 
   --dock-bg: rgba(255, 255, 255, 0.62);
@@ -109,11 +109,11 @@
   --app-fg: #f8fafc;
   --app-muted: rgba(248, 250, 252, 0.58);
   --app-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(12, 14, 18, 0.58);
-  --glass-bg-strong: rgba(18, 20, 26, 0.78);
+  --glass-bg: rgba(15, 18, 24, 0.86);
+  --glass-bg-strong: rgba(20, 24, 31, 0.94);
   --glass-border: rgba(255, 255, 255, 0.13);
   --glass-highlight: rgba(255, 255, 255, 0.18);
-  --glass-shadow: 0 18px 54px rgba(0, 0, 0, 0.48);
+  --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.36);
   --glass-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
   --dock-bg: rgba(12, 14, 18, 0.66);
   --dock-border: rgba(255, 255, 255, 0.14);
@@ -314,7 +314,7 @@
 }
 
 @utility transition-smooth {
-  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms cubic-bezier(0.4, 0, 0.2, 1), background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms cubic-bezier(0.22, 1, 0.36, 1), border-color 160ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes animate-fade-in {
@@ -404,6 +404,11 @@ body::before {
     radial-gradient(60% 45% at 84% 0%, var(--ambient-3), transparent 72%);
 }
 
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
 /* --- Base Layout Classes --- */
 @layer utilities {
   .glass-header {
@@ -444,11 +449,9 @@ body::before {
 
   .card-premium {
     @apply border border-border-subtle rounded-2xl transition-smooth;
-    background:
-      linear-gradient(160deg, var(--glass-soft-highlight), var(--glass-overlay-clear)),
-      var(--surface);
-    backdrop-filter: blur(16px) saturate(1.28);
-    -webkit-backdrop-filter: blur(16px) saturate(1.28);
+    background: var(--surface);
+    backdrop-filter: blur(8px) saturate(1.08);
+    -webkit-backdrop-filter: blur(8px) saturate(1.08);
     box-shadow:
       var(--glass-panel-shadow),
       var(--glass-inner-shadow);
@@ -483,8 +486,23 @@ body::before {
   .btn-nox {
     @apply flex items-center justify-center font-bold rounded-2xl transition-smooth active:scale-[0.97] disabled:opacity-50;
     min-height: 44px;
-    backdrop-filter: blur(10px) saturate(1.15);
-    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+    backdrop-filter: blur(6px) saturate(1.08);
+    -webkit-backdrop-filter: blur(6px) saturate(1.08);
+  }
+
+  .btn-primary {
+    @apply flex items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 transition-smooth active:scale-[0.97] disabled:opacity-50;
+    min-height: 48px;
+    padding-left: 18px;
+    padding-right: 18px;
+    backdrop-filter: blur(6px) saturate(1.08);
+    -webkit-backdrop-filter: blur(6px) saturate(1.08);
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 360px;
+    animation: animate-fade-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .chat-screen {
@@ -534,11 +552,17 @@ body::before {
   }
 
   .app-section-title {
-    font-size: clamp(38px, 10vw, 56px);
-    line-height: 0.95;
+    font-size: 2.5rem;
+    line-height: 1;
     font-weight: 900;
-    letter-spacing: -0.05em;
+    letter-spacing: 0;
     color: var(--foreground);
+  }
+
+  @media (min-width: 768px) {
+    .app-section-title {
+      font-size: 3rem;
+    }
   }
 
   .app-bottom-dock-shell {
@@ -570,8 +594,8 @@ body::before {
     box-shadow:
       var(--dock-shadow),
       var(--glass-inner-shadow);
-    backdrop-filter: blur(22px) saturate(1.55);
-    -webkit-backdrop-filter: blur(22px) saturate(1.55);
+    backdrop-filter: blur(12px) saturate(1.16);
+    -webkit-backdrop-filter: blur(12px) saturate(1.16);
   }
 
   .liquid-dock-frame::before {
@@ -598,16 +622,7 @@ body::before {
   }
 
   .liquid-dock-distortion {
-    position: absolute;
-    inset: 3px;
-    border-radius: 28px;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.22;
-    background:
-      radial-gradient(90% 120% at 0% 0%, var(--dock-distortion-start), var(--glass-overlay-clear) 55%),
-      radial-gradient(140% 130% at 100% 100%, var(--dock-distortion-end), transparent 62%);
-    filter: url(#nox-liquid-glass-distortion);
+    display: none;
   }
 
   .liquid-dock-highlight {

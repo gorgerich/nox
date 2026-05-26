@@ -44,9 +44,9 @@ export default function LoginPage() {
 
   return (
     <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
-      <div className="w-full max-w-[360px] animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <div className="auth-card">
         <div className="mb-12 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary/10 text-primary shadow-2xl shadow-primary/5 border border-primary/20">
+          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
             <span className="text-3xl font-black">N</span>
           </div>
           <h1 className="text-4xl font-black tracking-tight text-foreground">Вход</h1>
@@ -57,6 +57,7 @@ export default function LoginPage() {
           <div className="space-y-3">
             <input
               className="input-nox h-14"
+              aria-label="Логин"
               name="login"
               type="text"
               placeholder="Логин"
@@ -67,6 +68,7 @@ export default function LoginPage() {
             />
             <input
               className="input-nox h-14"
+              aria-label="Пароль"
               name="password"
               type="password"
               placeholder="Пароль"
@@ -84,7 +86,7 @@ export default function LoginPage() {
           )}
 
           <button 
-            className="btn-nox w-full bg-primary h-14 rounded-[1.25rem] text-sm font-black text-neutral-950 shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-30" 
+            className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30" 
             disabled={pending} 
             type="submit"
           >

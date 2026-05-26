@@ -3,7 +3,6 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import { MessageCircle, Phone, UserRound, Contact2 } from "lucide-react";
 
 const LIQUID_FILTER_ID = "nox-liquid-glass-distortion";
@@ -18,14 +17,6 @@ const tabs = [
 
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
-  const [optimisticPath, setOptimisticPath] = useState<string | null>(pathname);
-  const [prevPathname, setPrevPathname] = useState<string | null>(pathname);
-
-  if (pathname !== prevPathname) {
-    setOptimisticPath(pathname);
-    setPrevPathname(pathname);
-  }
-
   const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new");
   const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
 
@@ -34,8 +25,6 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
   if (isChatRoom || !isMainAppScreen) {
     return null;
   }
-
-  const currentPath = optimisticPath || pathname;
 
   return (
     <nav className="app-bottom-dock-shell lg:hidden" aria-label="Нижняя навигация">
@@ -65,7 +54,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <div className="app-bottom-dock" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = currentPath === tab.href;
+            const isActive = pathname === tab.href;
             const isChatsTab = tab.href === "/chats";
             const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
 
@@ -77,8 +66,6 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 data-active={isActive ? "true" : "false"}
                 href={tab.href}
                 prefetch={true}
-                onClick={() => setOptimisticPath(tab.href)}
-                onPointerDown={() => setOptimisticPath(tab.href)}
               >
                 <span className="liquid-dock-pill">
                   <span className="relative">

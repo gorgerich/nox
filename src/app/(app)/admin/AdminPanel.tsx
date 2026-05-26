@@ -476,7 +476,7 @@ export function AdminPanel() {
           {activeSection === "security" && (
             <div className="space-y-6">
               <article className={`card-clean p-8 text-center border-2 transition-colors ${system?.emergencyLocked ? "border-red-500/50 bg-red-500/5" : "border-primary/20 bg-primary/5"}`}>
-                <div className={`mx-auto mb-6 h-16 w-16 rounded-full flex items-center justify-center text-2xl ${system?.emergencyLocked ? "bg-red-500 text-white animate-pulse" : "bg-primary text-primary-foreground"}`}>
+                  <div className={`mx-auto mb-6 h-16 w-16 rounded-full flex items-center justify-center text-2xl ${system?.emergencyLocked ? "bg-danger text-primary-foreground animate-pulse" : "bg-primary text-primary-foreground"}`}>
                   {system?.emergencyLocked ? "🔒" : "🛡️"}
                 </div>
                 <h2 className="text-2xl font-bold">Экстренная блокировка</h2>
@@ -486,7 +486,7 @@ export function AdminPanel() {
                     : "Система работает в штатном режиме. Все пользователи имеют доступ."}
                 </p>
                 <button
-                  className={`mt-8 btn-primary w-full md:w-auto md:px-12 ${system?.emergencyLocked ? "bg-primary" : "bg-red-500 hover:bg-red-600 text-white"}`}
+                  className={`mt-8 btn-primary w-full md:w-auto md:px-12 ${system?.emergencyLocked ? "bg-primary" : "bg-danger hover:opacity-90 text-primary-foreground"}`}
                   disabled={pendingAction !== ""}
                   onClick={() => runAction(
                     system?.emergencyLocked ? "unlock" : "lock",

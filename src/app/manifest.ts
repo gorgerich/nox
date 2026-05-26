@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Закрытый приватный мессенджер',
     start_url: '/chats',
     display: 'standalone',
-    background_color: '#000000',
-    theme_color: '#000000',
+    background_color: '#050608',
+    theme_color: '#050608',
     icons: [
       {
         src: '/favicon.ico',

@@ -50,17 +50,21 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="flex min-h-[100svh] flex-col items-center justify-center bg-background px-6 py-12">
-      <div className="w-full max-w-[360px]">
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold tracking-tighter text-foreground">{"\u041f\u0440\u0438\u0441\u043e\u0435\u0434\u0438\u043d\u0438\u0442\u044c\u0441\u044f"}</h1>
-          <p className="mt-2 text-sm text-muted">{"\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0434\u043b\u044f \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f."}</p>
+    <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
+      <div className="auth-card">
+        <div className="mb-12 text-center">
+          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
+            <span className="text-3xl font-black">N</span>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-foreground">Присоединиться</h1>
+          <p className="mt-3 text-sm text-muted font-medium">Введите данные и код приглашения.</p>
         </div>
 
-        <form className="space-y-4" id="join-form" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="space-y-6" id="join-form" onSubmit={handleSubmit}>
+          <div className="space-y-3">
             <input
-              className="input-nox"
+              className="input-nox h-14"
+              aria-label="Логин"
               name="login"
               type="text"
               placeholder={"\u041b\u043e\u0433\u0438\u043d"}
@@ -70,7 +74,8 @@ export default function JoinPage() {
               onChange={(e) => setLogin(e.target.value)}
             />
             <input
-              className="input-nox"
+              className="input-nox h-14"
+              aria-label="Username"
               name="username"
               type="text"
               placeholder="Username"
@@ -80,7 +85,8 @@ export default function JoinPage() {
               onChange={(e) => setUsername(e.target.value)}
             />
             <input
-              className="input-nox"
+              className="input-nox h-14"
+              aria-label="Пароль"
               name="password"
               type="password"
               placeholder={"\u041f\u0430\u0440\u043e\u043b\u044c"}
@@ -91,7 +97,8 @@ export default function JoinPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
             <input
-              className="input-nox"
+              className="input-nox h-14"
+              aria-label="Код приглашения"
               name="inviteCode"
               type="text"
               placeholder={"\u041a\u043e\u0434 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u044f"}
@@ -102,17 +109,19 @@ export default function JoinPage() {
             />
           </div>
 
-          <p className="text-center text-xs text-red-400" id="join-error">
-            {error}
-          </p>
+          {error && (
+            <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95" id="join-error">
+              {error}
+            </p>
+          )}
 
-          <button className="btn-primary w-full" disabled={pending} type="submit">
-            {pending ? "..." : "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c"}
+          <button className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black" disabled={pending} type="submit">
+            {pending ? "ПОДОЖДИТЕ..." : "СОЗДАТЬ ПРОФИЛЬ"}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
-          <Link className="text-sm font-medium text-muted transition hover:text-primary" href="/login">
+        <div className="mt-10 text-center">
+          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95 mx-auto" href="/login">
             {"\u0423\u0436\u0435 \u0435\u0441\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c? \u0412\u043e\u0439\u0442\u0438"}
           </Link>
         </div>

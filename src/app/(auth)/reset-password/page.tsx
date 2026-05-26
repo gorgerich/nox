@@ -98,7 +98,7 @@ function ResetPasswordForm() {
       )}
 
       <button 
-        className="btn-nox w-full bg-primary h-14 rounded-[1.25rem] text-sm font-black text-neutral-950 shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-30 uppercase tracking-widest" 
+        className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30 uppercase tracking-widest" 
         disabled={pending || password.length < 8} 
         type="submit"
       >
@@ -111,9 +111,9 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
-      <div className="w-full max-w-[360px] animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <div className="auth-card">
         <div className="mb-12 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary/10 text-primary shadow-2xl shadow-primary/5 border border-primary/20">
+          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           </div>
           <h1 className="text-3xl font-black tracking-tight text-foreground">Новый пароль</h1>

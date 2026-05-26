@@ -77,9 +77,9 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
-      <div className="w-full max-w-[360px] animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <div className="auth-card">
         <div className="mb-12 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary/10 text-primary shadow-2xl shadow-primary/5 border border-primary/20">
+          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
           </div>
           <h1 className="text-3xl font-black tracking-tight text-foreground">Восстановление доступа</h1>
@@ -93,6 +93,7 @@ export default function ForgotPasswordPage() {
             <div className="space-y-3">
               <input
                 className="input-nox h-14"
+                aria-label="Логин или email"
                 name="identifier"
                 type="text"
                 placeholder="Логин или Email"
@@ -118,7 +119,7 @@ export default function ForgotPasswordPage() {
             )}
 
             <button 
-              className="btn-nox w-full bg-primary h-14 rounded-[1.25rem] text-sm font-black text-neutral-950 shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-30 uppercase tracking-widest" 
+              className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30 uppercase tracking-widest" 
               disabled={pending || !identifier.trim()} 
               type="submit"
             >
@@ -136,6 +137,7 @@ export default function ForgotPasswordPage() {
             <div className="space-y-3">
               <input
                 className="input-nox h-14 uppercase tracking-[0.2em] font-black text-center"
+                aria-label="Код подтверждения"
                 name="publicCode"
                 type="text"
                 placeholder="Код подтверждения"
@@ -145,6 +147,7 @@ export default function ForgotPasswordPage() {
               />
               <input
                 className="input-nox h-14"
+                aria-label="Новый пароль"
                 name="newPassword"
                 type="password"
                 placeholder="Новый пароль (минимум 8 символов)"
@@ -162,7 +165,7 @@ export default function ForgotPasswordPage() {
             )}
 
             <button 
-              className="btn-nox w-full bg-primary h-14 rounded-[1.25rem] text-sm font-black text-neutral-950 shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-30 uppercase tracking-widest" 
+              className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30 uppercase tracking-widest" 
               disabled={pending || !publicCode.trim() || newPassword.length < 8} 
               type="submit"
             >

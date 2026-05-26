@@ -397,7 +397,7 @@ export function ChatsPageClient({
             Здесь будут отображаться ваши диалоги с другими пользователями.
           </p>
           <Link
-            className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-primary px-10 text-sm font-black text-white shadow-xl shadow-primary/20 transition-smooth active:scale-95"
+            className="btn-primary mt-10 inline-flex h-14 items-center rounded-3xl px-10 text-sm font-black"
             href="/chats/new"
             prefetch
           >

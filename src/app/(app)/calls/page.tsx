@@ -130,7 +130,7 @@ export default async function CallsPage() {
 
                 <Link 
                   href={`/chats/${log.chatId}`}
-                  className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth hover:bg-primary hover:text-white active:scale-90"
+                  className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth hover:bg-primary hover:text-primary-foreground active:scale-90"
                 >
                   <ArrowRight className="h-5 w-5" />
                 </Link>

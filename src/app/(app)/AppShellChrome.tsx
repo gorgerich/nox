@@ -20,6 +20,13 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
   const isChatsList = pathname === "/chats";
   const isMainDockScreen = pathname === "/chats" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
+  const desktopLinks = [
+    { href: "/contacts", label: "Контакты" },
+    { href: "/chats", label: "Чаты" },
+    { href: "/calls", label: "Звонки" },
+    ...(isAdmin ? [{ href: "/admin", label: "Админ" }] : []),
+    { href: "/profile", label: "Профиль" },
+  ];
 
   useEffect(() => {
     router.prefetch("/contacts");
@@ -42,14 +49,23 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
               <span className="text-2xl font-black tracking-tighter text-primary">Nox</span>
             </Link>
 
-            <nav className="flex items-center gap-6">
-              <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/contacts">Контакты</Link>
-              <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/chats">Чаты</Link>
-              <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/calls">Звонки</Link>
-              {isAdmin && (
-                <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/admin">Админ</Link>
-              )}
-              <Link className="text-sm font-bold text-muted transition-smooth hover:text-foreground active:scale-95" href="/profile">Профиль</Link>
+            <nav className="flex items-center gap-2" aria-label="Основная навигация">
+              {desktopLinks.map((link) => {
+                const isActive = pathname === link.href || (link.href !== "/chats" && pathname.startsWith(`${link.href}/`));
+
+                return (
+                  <Link
+                    key={link.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`rounded-xl px-3 py-2 text-sm font-bold transition-smooth active:scale-95 ${
+                      isActive ? "bg-primary/10 text-primary" : "text-muted hover:bg-foreground/5 hover:text-foreground"
+                    }`}
+                    href={link.href}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         </header>
