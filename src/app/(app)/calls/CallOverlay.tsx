@@ -23,6 +23,7 @@ export function CallOverlay() {
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ringbackContextRef = useRef<AudioContext | null>(null);
   const ringbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [speakerHint, setSpeakerHint] = useState<string | null>(null);
   const [speakerMode, setSpeakerMode] = useState<"default" | "alternate">("default");
@@ -80,6 +81,63 @@ export function CallOverlay() {
 
     attachAndPlayRemoteAudio("remoteStream effect");
   }, [attachAndPlayRemoteAudio, markRemoteAudioPlayback, remoteStream]);
+
+  // Keep the call alive when the app is backgrounded / screen is about to lock.
+  // Mobile browsers (esp. iOS) suspend a backgrounded tab's media — this is a
+  // best-effort mitigation: a screen Wake Lock, a MediaSession "playing" hint so
+  // the OS treats it as an ongoing call, and resuming remote audio on return.
+  const isCallLive = status === "active" || status === "connecting" || status === "outgoing";
+  useEffect(() => {
+    if (!isCallLive) return;
+    let cancelled = false;
+
+    const requestWakeLock = async () => {
+      if (!("wakeLock" in navigator)) return;
+      try {
+        const sentinel = await navigator.wakeLock.request("screen");
+        if (cancelled) { void sentinel.release().catch(() => undefined); return; }
+        wakeLockRef.current = sentinel;
+      } catch { /* denied / not allowed in background — ignore */ }
+    };
+    void requestWakeLock();
+
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: "Звонок Nox",
+          artist: call?.peerUser?.displayName ?? "Собеседник",
+        });
+        navigator.mediaSession.playbackState = "playing";
+        // Don't let the OS media controls pause/stop our call audio.
+        navigator.mediaSession.setActionHandler("pause", () => undefined);
+      } catch { /* ignore */ }
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const audio = remoteAudioRef.current;
+      if (audio && audio.srcObject && audio.paused) {
+        void audio.play().catch(() => undefined);
+      }
+      if (!wakeLockRef.current) void requestWakeLock();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (wakeLockRef.current) {
+        void wakeLockRef.current.release().catch(() => undefined);
+        wakeLockRef.current = null;
+      }
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.playbackState = "none";
+          navigator.mediaSession.setActionHandler("pause", null);
+        } catch { /* ignore */ }
+      }
+    };
+  }, [isCallLive, call?.peerUser?.displayName]);
 
   const stopRingback = useCallback((reason: string) => {
     if (ringbackIntervalRef.current) {
