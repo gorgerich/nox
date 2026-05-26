@@ -402,21 +402,37 @@ export function ChatMessages({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<File[]>([]);
 
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const [unseenCount, setUnseenCount] = useState(0);
+  const prevMessageCountRef = useRef(messages.length);
+
   const forceScrollBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     if (scrollContainerRef.current) {
       const container = scrollContainerRef.current;
       container.scrollTo({ top: container.scrollHeight, behavior });
     }
+    setShowScrollDown(false);
+    setUnseenCount(0);
   }, []);
 
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 100;
+    isAtBottomRef.current = atBottom;
+    setShowScrollDown(scrollHeight - scrollTop - clientHeight > 400);
+    if (atBottom) setUnseenCount(0);
   }, []);
 
   useEffect(() => {
-    if (isAtBottomRef.current) forceScrollBottom("smooth");
+    const grew = messages.length - prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+    if (isAtBottomRef.current) {
+      forceScrollBottom("smooth");
+    } else if (grew > 0) {
+      // New messages arrived while the user is scrolled up — count them.
+      setUnseenCount((n) => n + grew);
+    }
   }, [messages, forceScrollBottom]);
 
   const handleLongPress = useCallback(async (id: string, rect: DOMRect) => {
@@ -1650,6 +1666,23 @@ export function ChatMessages({
         </div>
       </div>
 
+      {showScrollDown && !isSelectionMode ? (
+        <button
+          onClick={() => forceScrollBottom("smooth")}
+          aria-label="Вниз к последним сообщениям"
+          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/40 bg-surface shadow-xl transition-smooth active:scale-90 animate-in fade-in zoom-in-90"
+        >
+          <svg className="h-6 w-6 text-foreground/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+          {unseenCount > 0 ? (
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black text-primary-foreground shadow">
+              {unseenCount > 99 ? "99+" : unseenCount}
+            </span>
+          ) : null}
+        </button>
+      ) : null}
+
       {isSelectionMode ? (
         <div className="glass-composer px-6 py-4 flex items-center justify-between animate-in slide-in-from-bottom-full duration-300">
            <button onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} className="text-sm font-black uppercase text-primary">Отмена</button>
@@ -1666,6 +1699,7 @@ export function ChatMessages({
             </div>
           ) : null}
           <ChatComposer
+            chatId={chatId}
             onSend={handleSend}
             onTyping={handleTyping}
             onVoiceStart={startRecording}

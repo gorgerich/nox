@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 
 export function ChatComposer({
+  chatId,
   onSend,
   onTyping,
   onVoiceStart,
@@ -17,6 +18,7 @@ export function ChatComposer({
   editingTo,
   onCancelAction,
 }: {
+  chatId: string;
   onSend: (text: string) => void;
   onTyping: (text: string) => void;
   onVoiceStart: () => void;
@@ -35,6 +37,33 @@ export function ChatComposer({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editingIdRef = useRef<string | null>(null);
+  const draftKey = `nox:draft:${chatId}`;
+
+  // Restore a saved draft for this chat (client-only to avoid hydration mismatch).
+  useEffect(() => {
+    if (editingTo) return;
+    try {
+      const draft = localStorage.getItem(draftKey);
+      if (draft) {
+        setText(draft);
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+        }
+      }
+    } catch { /* localStorage unavailable */ }
+    // Only when switching chats.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId]);
+
+  // Persist the draft as the user types (but not while editing an existing message).
+  useEffect(() => {
+    if (editingTo) return;
+    try {
+      if (text.trim()) localStorage.setItem(draftKey, text);
+      else localStorage.removeItem(draftKey);
+    } catch { /* ignore */ }
+  }, [text, editingTo, draftKey]);
 
   useEffect(() => {
     if (editingTo && editingTo.id !== editingIdRef.current) {
