@@ -440,7 +440,11 @@ export function ChatMessages({
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [pinnedMessage, setPinnedMessage] = useState<Message | null>(initialPinnedMessage);
   const [forwardingMessages, setForwardingMessages] = useState<Message[] | null>(null);
-  const [recentChats] = useState<ForwardChatOption[]>(initialForwardChats);
+  // Forward-target list is loaded lazily (only when the forward picker opens) so the
+  // chat page no longer pays a heavy "all chats" query on every open.
+  const [recentChats, setRecentChats] = useState<ForwardChatOption[]>(initialForwardChats);
+  const [recentChatsLoading, setRecentChatsLoading] = useState(false);
+  const recentChatsLoadedRef = useRef(initialForwardChats.length > 0);
   const [showForwardPicker, setShowForwardPicker] = useState(false);
   const [isForwarding, setIsForwarding] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -715,11 +719,43 @@ export function ChatMessages({
     setMenuState(null);
   }, []);
 
+  const loadForwardChats = useCallback(async () => {
+    if (recentChatsLoadedRef.current) return;
+    recentChatsLoadedRef.current = true;
+    setRecentChatsLoading(true);
+    try {
+      const res = await fetch("/api/chats", { cache: "no-store" });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      type ApiChat = {
+        id: string;
+        type: "DIRECT" | "GROUP";
+        title: string | null;
+        otherMember: { displayName?: string | null; username?: string | null; avatarUrl: string | null } | null;
+      };
+      const options: ForwardChatOption[] = ((data.chats ?? []) as ApiChat[])
+        .filter((c) => c.id !== chatId)
+        .map((c) => ({
+          id: c.id,
+          title: c.type === "DIRECT"
+            ? (c.otherMember?.displayName ?? c.otherMember?.username ?? "Чат")
+            : (c.title ?? "Группа"),
+          avatarUrl: c.type === "DIRECT" ? (c.otherMember?.avatarUrl ?? null) : null,
+        }));
+      setRecentChats(options);
+    } catch {
+      recentChatsLoadedRef.current = false; // allow retry on next open
+    } finally {
+      setRecentChatsLoading(false);
+    }
+  }, [chatId]);
+
   const initiateForward = useCallback((msg: Message | Message[]) => {
     setForwardingMessages(Array.isArray(msg) ? msg : [msg]);
     setShowForwardPicker(true);
     setMenuState(null);
-  }, []);
+    void loadForwardChats();
+  }, [loadForwardChats]);
 
   const confirmForward = useCallback(async (targetChatId: string) => {
     if (!forwardingMessages || forwardingMessages.length === 0) return;
@@ -1660,7 +1696,12 @@ export function ChatMessages({
            <div className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl">
               <h2 className="text-xl font-black mb-6 px-2">Переслать в...</h2>
               <div className="max-h-80 overflow-y-auto space-y-2 pr-2 scrollbar-hide">
-                 {recentChats.length === 0 ? (
+                 {recentChatsLoading && recentChats.length === 0 ? (
+                   <div className="flex items-center justify-center gap-3 p-6 text-sm font-medium text-muted">
+                     <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                     Загрузка чатов…
+                   </div>
+                 ) : recentChats.length === 0 ? (
                    <div className="rounded-2xl border border-border-subtle/40 bg-surface/60 p-5 text-center text-sm font-medium text-muted">
                      Нет доступных чатов для пересылки.
                    </div>

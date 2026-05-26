@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { requireActiveChatMembership } from "@/lib/chats";
-import { getChatsPageData } from "@/lib/chat-list";
 import { getPrisma } from "@/lib/prisma";
 import { isUserOnline } from "@/lib/realtime";
 import { ChatMessages } from "./ChatMessages";
@@ -148,11 +147,6 @@ function filterMessageEnvelopesForUser<T extends { envelopes: BaseMessage["envel
   };
 }
 
-type ForwardChatOption = {
-  id: string;
-  title: string;
-  avatarUrl: string | null;
-};
 
 export default async function ChatPage({
   params,
@@ -204,7 +198,7 @@ export default async function ChatPage({
     }
   }
 
-  const [chat, rawMessages, chatsPageData] = await Promise.all([
+  const [chat, rawMessages] = await Promise.all([
     prisma.chat.findUnique({
       where: { id: chatId },
       include: {
@@ -413,7 +407,6 @@ export default async function ChatPage({
         },
       },
     }),
-    getChatsPageData(user.id),
   ]);
 
   if (!chat) {
@@ -431,16 +424,9 @@ export default async function ChatPage({
   const messagesWithPinned = pinnedMessage && !serializedMessages.some((message) => message.id === pinnedMessage.id)
     ? [...serializedMessages, pinnedMessage].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
     : serializedMessages;
-  const forwardChats: ForwardChatOption[] = chatsPageData.chats
-    .filter((candidate) => candidate.id !== chatId)
-    .map((candidate) => ({
-      id: candidate.id,
-      title: candidate.type === "DIRECT"
-        ? candidate.otherMember?.displayName ?? candidate.otherMember?.username ?? "Чат"
-        : candidate.title ?? "Группа",
-      avatarUrl: candidate.type === "DIRECT" ? candidate.otherMember?.avatarUrl ?? null : null,
-    }));
-  
+  // Forward-target list is loaded lazily on the client when the user opens the
+  // forward picker (see ChatMessages.loadForwardChats), so we no longer run the
+  // heavy "all chats" query here — that was slowing down every chat open.
   return (
     <div className="chat-screen bg-background transition-smooth overflow-hidden">
       <ChatMessages
@@ -449,7 +435,7 @@ export default async function ChatPage({
         currentUserId={user.id}
         initialMessages={messagesWithPinned}
         initialPinnedMessage={pinnedMessage}
-        initialForwardChats={forwardChats}
+        initialForwardChats={[]}
         isLocked={chat.isLocked}
         chatInfo={{
           type: chat.type,
