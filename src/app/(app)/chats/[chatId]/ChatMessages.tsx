@@ -178,6 +178,13 @@ export function ChatMessages({
     initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
   );
 
+  // Messages present on first render shouldn't replay the entrance animation —
+  // otherwise opening a chat fires 50 slide-ins at once. Only messages that
+  // arrive afterwards animate in.
+  const initialMessageIdsRef = useRef<Set<string>>(
+    new Set(initialMessages.map((m) => (m as { id: string }).id))
+  );
+
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
   const plaintextByClientIdRef = useRef<Map<string, string>>(new Map());
@@ -1574,10 +1581,10 @@ export function ChatMessages({
                 </span>
               </div>
             ) : (
-              <div 
-                key={item.message.id} 
+              <div
+                key={item.message.id}
                 ref={el => { messageRefs.current[item.message.id] = el; }}
-                className={`animate-in fade-in slide-in-from-bottom-2 duration-180 ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-200" : ""}`}
+                className={`${initialMessageIdsRef.current.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-200" : ""}`}
               >
                 <MessageBubble
                   message={item.message}
