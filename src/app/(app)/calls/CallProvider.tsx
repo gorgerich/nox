@@ -463,15 +463,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     pcRef.current = pc;
     debugCall("pc created role", { callId, chatId, role });
 
-    // Explicitly add audio transceiver with sendrecv direction
-    try {
-      pc.addTransceiver("audio", { direction: "sendrecv" });
-      debugCall("transceiver created audio sendrecv");
-    } catch (err) {
-      debugCall("addTransceiver failed, falling back to addTrack later", { error: String(err) });
-    }
+    // NB: do NOT pre-create a transceiver here. addLocalTracks uses addTrack(),
+    // which creates a sendrecv transceiver for the caller and — crucially — on the
+    // callee REUSES the recvonly transceiver that setRemoteDescription(offer) created,
+    // flipping it to sendrecv. Pre-adding a transceiver here caused the callee's
+    // outgoing audio to end up on a mismatched/recvonly m-line → one-way audio.
 
-    updateDebugInfo({ 
+    updateDebugInfo({
       callId, 
       role, 
       iceServers: serverUrls,
@@ -572,33 +570,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Modern approach: if we have transceivers, use the audio one
-    const transceivers = pc.getTransceivers();
-    const audioTransceiver = transceivers.find(t => 
-      t.sender.track?.kind === "audio" || 
-      t.receiver.track.kind === "audio" ||
-      (t.sender.track === null && t.receiver.track.kind === "audio")
-    );
-
-    if (audioTransceiver && audioTransceiver.sender) {
-      debugCall("using transceiver sender", { source, mid: audioTransceiver.mid });
-      void audioTransceiver.sender.replaceTrack(audioTrack).then(() => {
-        debugCall("sender replaceTrack audio success", { source });
-      }).catch(err => {
-        debugCall("sender replaceTrack failed, trying addTrack", { source, error: String(err) });
-        pc.addTrack(audioTrack, stream);
-      });
+    // If a sender already carries an audio track (defensive: avoid double-add), swap it.
+    const existingSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+    if (existingSender) {
+      debugCall("replaceTrack on existing audio sender", { source });
+      void existingSender.replaceTrack(audioTrack);
     } else {
-      // Fallback for older browsers or if transceiver not found
-      const senders = pc.getSenders();
-      const existingSender = senders.find(s => s.track?.kind === "audio");
-      
-      if (existingSender) {
-        debugCall("using existing sender", { source });
-        void existingSender.replaceTrack(audioTrack);
-      } else {
-        debugCall("addTrack fallback", { source });
-        pc.addTrack(audioTrack, stream);
+      // addTrack creates a sendrecv transceiver (caller) or reuses the recvonly one
+      // created by setRemoteDescription(offer) and flips it to sendrecv (callee).
+      debugCall("addTrack", { source });
+      pc.addTrack(audioTrack, stream);
+    }
+
+    // Belt-and-suspenders: make sure every audio transceiver actually sends.
+    for (const t of pc.getTransceivers()) {
+      if ((t.sender.track?.kind === "audio") && t.direction !== "sendrecv") {
+        try { t.direction = "sendrecv"; } catch { /* direction may be immutable in some states */ }
       }
     }
 
@@ -683,10 +670,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     try {
       const stream = await acquireLocalAudio("acceptCall");
       const pc = createPeerConnection(current.callId, current.chatId, "callee");
-      addLocalTracks(pc, stream, "acceptCall");
 
+      // Order matters: apply the remote offer first so the audio transceiver exists,
+      // THEN attach our local track (addTrack reuses that transceiver as sendrecv).
+      // Adding the track before setRemoteDescription left the callee sending nothing.
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       debugCall("setRemoteDescription offer", { callId: current.callId });
+      addLocalTracks(pc, stream, "acceptCall");
       await flushPendingIce(pc, "after-setRemoteDescription-offer");
 
       const answer = await pc.createAnswer();
