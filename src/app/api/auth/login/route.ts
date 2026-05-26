@@ -20,26 +20,30 @@ export async function POST(request: Request) {
 
   const loginInput = parsed.data.login.toLowerCase();
   const prisma = getPrisma();
-  
-  // Search for user by login, username or email
-  const user = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { login: loginInput },
-        { username: loginInput },
-        { email: loginInput },
-      ],
-    },
-    select: {
-      id: true,
-      login: true,
-      email: true,
-      username: true,
-      passwordHash: true,
-      role: true,
-      status: true,
-    },
-  });
+
+  // Run the user lookup and the emergency-lock check in parallel — they are
+  // independent, so this avoids an extra sequential DB round-trip on every login.
+  const [user, emergencyLocked] = await Promise.all([
+    prisma.user.findFirst({
+      where: {
+        OR: [
+          { login: loginInput },
+          { username: loginInput },
+          { email: loginInput },
+        ],
+      },
+      select: {
+        id: true,
+        login: true,
+        email: true,
+        username: true,
+        passwordHash: true,
+        role: true,
+        status: true,
+      },
+    }),
+    isEmergencyLocked(),
+  ]);
 
   if (!user || !user.passwordHash) {
     return NextResponse.json({ error: "Неверный логин или пароль." }, { status: 401 });
@@ -56,15 +60,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Неверный логин или пароль." }, { status: 401 });
   }
 
-  const emergencyLocked = await isEmergencyLocked();
-
   if (!canUseApp(user, emergencyLocked)) {
     return NextResponse.json({ error: "Доступ временно ограничен." }, { status: 403 });
   }
 
-  await prisma.user.update({
+  // Non-blocking: lastSeenAt is presence metadata, not required for the login
+  // response. Awaiting it added a full round-trip to the critical path. The custom
+  // long-lived server keeps the event loop alive, so the write still completes.
+  void prisma.user.update({
     where: { id: user.id },
     data: { lastSeenAt: new Date() },
+  }).catch((error) => {
+    console.error("Failed to update lastSeenAt on login", error);
   });
 
   const token = await createSessionToken({ userId: user.id, role: user.role });
