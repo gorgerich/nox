@@ -9,6 +9,45 @@ import { decryptMediaBlob } from "@/lib/e2ee/media";
 const SWIPE_REPLY_THRESHOLD = 64;
 const SWIPE_REPLY_MAX = 92;
 
+// Lightweight inline formatting + clickable links for message text.
+// Supports **bold**, __italic__, `code`, and http(s) URLs.
+const RICH_TEXT_RE = /(\*\*[^*\n]+\*\*|__[^_\n]+__|`[^`\n]+`|https?:\/\/[^\s]+)/g;
+
+function renderRichText(text: string): React.ReactNode {
+  const parts = text.split(RICH_TEXT_RE);
+  return parts.map((part, i) => {
+    if (!part) return null;
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 break-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+    if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.length > 4 && part.startsWith("__") && part.endsWith("__")) {
+      return <em key={i}>{part.slice(2, -2)}</em>;
+    }
+    if (part.length > 2 && part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code key={i} className="rounded bg-black/20 px-1 py-0.5 font-mono text-[13px]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
 export type Message = {
   id: string;
   body: string | null;
@@ -638,7 +677,7 @@ export const MessageBubble = memo(function MessageBubble({
                     )
                   )
                 ) : (
-                  message.body
+                  renderRichText(message.body)
                 )}
               </p>
             )}
