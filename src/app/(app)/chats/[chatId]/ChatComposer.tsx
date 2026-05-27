@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import { VideoMessageRecorder } from "./VideoMessageRecorder";
 
 const EMOJIS = [
   "😀","😁","😂","🤣","😊","😍","😘","😎","🤔","🙄","😴","😭","😡","🥳","😅","😉",
@@ -43,6 +44,7 @@ export function ChatComposer({
 }) {
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editingIdRef = useRef<string | null>(null);
@@ -268,6 +270,20 @@ export function ChatComposer({
           )}
         </div>
 
+        {!isRecording && !text.trim() && (
+          <button
+            type="button"
+            onClick={() => setShowVideoRecorder(true)}
+            disabled={pending}
+            className="touch-target h-[48px] w-12 flex shrink-0 items-center justify-center rounded-xl opacity-40 hover:opacity-100 hover:text-primary transition-smooth active:scale-90"
+            title="Видеосообщение"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 6h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+            </svg>
+          </button>
+        )}
+
         <button
           onClick={isRecording ? onVoiceStop : (text.trim()) ? handleSend : onVoiceStart}
           disabled={pending}
@@ -300,6 +316,16 @@ export function ChatComposer({
           )}
         </button>
       </div>
+
+      {showVideoRecorder && (
+        <VideoMessageRecorder
+          onClose={() => setShowVideoRecorder(false)}
+          onCapture={(file) => {
+            setShowVideoRecorder(false);
+            onFilesSelected?.([file]);
+          }}
+        />
+      )}
     </div>
   );
 }
