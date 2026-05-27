@@ -185,6 +185,18 @@ export function ChatMessages({
     new Set(initialMessages.map((m) => (m as { id: string }).id))
   );
 
+  // First message that was unread by me when the chat opened — we render an
+  // "unread messages" divider above it (computed once, kept for the session).
+  const [firstUnreadId] = useState<string | null>(() => {
+    for (const m of initialMessages) {
+      const msg = m as { id: string; senderUserId: string; receipts?: { userId: string; readAt: string | null }[] };
+      if (msg.senderUserId !== currentUserId && (msg.receipts ?? []).some((r) => r.userId === currentUserId && !r.readAt)) {
+        return msg.id;
+      }
+    }
+    return null;
+  });
+
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
   const plaintextByClientIdRef = useRef<Map<string, string>>(new Map());
@@ -1638,6 +1650,13 @@ export function ChatMessages({
                 ref={el => { messageRefs.current[item.message.id] = el; }}
                 className={`${initialMessageIdsRef.current.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-200" : ""}`}
               >
+                {firstUnreadId === item.message.id ? (
+                  <div className="my-3 flex items-center gap-3 px-2">
+                    <div className="h-px flex-1 bg-primary/30" />
+                    <span className="rounded-full bg-primary/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">Непрочитанные</span>
+                    <div className="h-px flex-1 bg-primary/30" />
+                  </div>
+                ) : null}
                 <MessageBubble
                   message={item.message}
                   mine={item.mine}

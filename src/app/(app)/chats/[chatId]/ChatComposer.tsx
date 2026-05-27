@@ -2,6 +2,14 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 
+const EMOJIS = [
+  "😀","😁","😂","🤣","😊","😍","😘","😎","🤔","🙄","😴","😭","😡","🥳","😅","😉",
+  "👍","👎","👏","🙏","💪","🤝","✌️","🤞","👌","🫶","🔥","💯","🎉","✨","⭐","🌟",
+  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💋","💕","😻","🥰","😱","😬","🤯",
+  "😇","🤗","🤤","😋","😜","🤪","😏","😶","🫡","🤐","🥶","🤒","🤧","🥹","🫠","💀",
+  "👋","🙌","🤙","👇","👆","👀","🧠","🫀","🍕","☕","🍺","🎁","💰","📎","✅","❌",
+];
+
 export function ChatComposer({
   chatId,
   onSend,
@@ -34,10 +42,31 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
+  const [showEmoji, setShowEmoji] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editingIdRef = useRef<string | null>(null);
   const draftKey = `nox:draft:${chatId}`;
+
+  const insertEmoji = useCallback((emoji: string) => {
+    setText((prev) => {
+      const el = inputRef.current;
+      const start = el?.selectionStart ?? prev.length;
+      const end = el?.selectionEnd ?? prev.length;
+      const next = prev.slice(0, start) + emoji + prev.slice(end);
+      onTyping(next);
+      requestAnimationFrame(() => {
+        if (el) {
+          el.focus();
+          const pos = start + emoji.length;
+          el.setSelectionRange(pos, pos);
+          el.style.height = "auto";
+          el.style.height = el.scrollHeight + "px";
+        }
+      });
+      return next;
+    });
+  }, [onTyping]);
 
   // Restore a saved draft for this chat (client-only to avoid hydration mismatch).
   useEffect(() => {
@@ -94,6 +123,7 @@ export function ChatComposer({
         await onSend(text);
         // Clear only on success
         setText("");
+        setShowEmoji(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
         editingIdRef.current = null;
         if (inputRef.current) inputRef.current.style.height = "auto";
@@ -177,7 +207,7 @@ export function ChatComposer({
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
               />
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="touch-target h-[48px] w-12 flex shrink-0 items-center justify-center opacity-40 hover:opacity-100 hover:text-primary transition-smooth active:scale-90"
               >
@@ -185,7 +215,35 @@ export function ChatComposer({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
               </button>
-              
+
+              <button
+                type="button"
+                onClick={() => setShowEmoji((v) => !v)}
+                className={`touch-target h-[48px] w-10 flex shrink-0 items-center justify-center transition-smooth active:scale-90 ${showEmoji ? "text-primary opacity-100" : "opacity-40 hover:opacity-100 hover:text-primary"}`}
+                title="Эмодзи"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+
+              {showEmoji && (
+                <div
+                  className="absolute bottom-[calc(100%+8px)] left-0 z-30 grid w-[min(20rem,calc(100vw-2rem))] grid-cols-8 gap-1 rounded-2xl border border-border-subtle/50 bg-surface-elevated p-3 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150"
+                >
+                  {EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => insertEmoji(emoji)}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-xl transition-smooth hover:bg-foreground/10 active:scale-90"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <textarea
                 ref={inputRef}
                 className="w-full max-h-32 min-h-[48px] resize-none bg-transparent py-3.5 pr-4 text-[15px] outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
