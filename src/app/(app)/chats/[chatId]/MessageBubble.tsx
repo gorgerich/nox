@@ -58,7 +58,7 @@ export type Message = {
   encryptionVersion?: number | null;
   isEncrypted?: boolean;
   senderKeyId?: string | null;
-  type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
+  type: "TEXT" | "IMAGE" | "VIDEO" | "VIDEO_NOTE" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
   deletedAt: string | null;
   editedAt: string | null;
@@ -243,6 +243,9 @@ function AttachmentPreview({
     : decryptedUrl || `/api/attachments/${attachment.id}/download`;
   const isImage = attachment.mimeType.startsWith("image/");
   const isVideo = attachment.mimeType.startsWith("video/");
+  // Round video messages ("кружочки") are flagged by the message type (survives E2EE,
+  // unlike the filename which is hidden for encrypted media).
+  const isRoundVideo = isVideo && message.type === "VIDEO_NOTE";
 
   if (isDecrypting) {
     return (
@@ -280,6 +283,16 @@ function AttachmentPreview({
             className="max-h-96 w-full object-cover transition-smooth hover:scale-105"
             loading="lazy"
           />
+        </div>
+      ) : isRoundVideo ? (
+        <div
+          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full border border-white/10 shadow-lg active:opacity-90"
+          onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
+        >
+          <video src={sourceUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline preload="metadata" />
+          <div className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold text-white">
+            <svg className="inline h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+          </div>
         </div>
       ) : isVideo ? (
         <div

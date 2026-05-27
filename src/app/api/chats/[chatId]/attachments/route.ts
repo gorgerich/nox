@@ -72,6 +72,7 @@ export async function POST(
   const envelopesRaw = formData?.get("mediaKeyEnvelopes") as string | null;
   const clientMimeType = (formData?.get("clientMimeType") as string | null) || (file instanceof File ? file.type : "");
   const originalSizeBytes = Number(formData?.get("originalSizeBytes") ?? 0);
+  const isVideoNote = (formData?.get("videoNote") as string | null) === "true";
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Выберите файл." }, { status: 400 });
@@ -187,7 +188,7 @@ export async function POST(
       data: {
         chatId,
         senderUserId: user.id,
-        type: rule.kind,
+        type: isVideoNote && rule.kind === "VIDEO" ? "VIDEO_NOTE" : rule.kind,
         body: encrypted ? null : body || null,
         isEncrypted: encrypted,
         encryptionVersion: encrypted ? 2 : 0,
@@ -351,6 +352,7 @@ export async function POST(
     let bodyPreview = "Вложение";
     if (message.type === "IMAGE") bodyPreview = "Фотография";
     if (message.type === "VIDEO") bodyPreview = "Видео";
+    if (message.type === "VIDEO_NOTE") bodyPreview = "Видеосообщение";
     if (message.type === "VOICE") bodyPreview = "Голосовое сообщение";
     if (message.type === "FILE") bodyPreview = encrypted ? "Файл" : `Файл: ${file.name}`;
 

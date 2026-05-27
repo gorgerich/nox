@@ -16,7 +16,7 @@ type BaseMessage = {
   encryptionVersion: number | null;
   isEncrypted: boolean;
   senderKeyId: string | null;
-  type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
+  type: "TEXT" | "IMAGE" | "VIDEO" | "VIDEO_NOTE" | "FILE" | "VOICE" | "SYSTEM";
   senderUserId: string;
   replyToMessageId: string | null;
   deletedAt: Date | null;

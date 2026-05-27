@@ -21,7 +21,7 @@ export type ChatListItem = {
   } | null;
   lastMessage: {
     id: string;
-    type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "VOICE" | "SYSTEM";
+    type: "TEXT" | "IMAGE" | "VIDEO" | "VIDEO_NOTE" | "FILE" | "VOICE" | "SYSTEM";
     body: string | null;
     isEncrypted?: boolean;
     ciphertext?: string | null;

@@ -8,6 +8,8 @@ export type AllowedAttachmentMimeType =
   | "image/png"
   | "image/webp"
   | "video/mp4"
+  | "video/webm"
+  | "video/quicktime"
   | "application/pdf"
   | "text/plain"
   | "application/zip"
@@ -30,6 +32,8 @@ export const attachmentRules: Record<
   "image/png": { maxSizeBytes: 20 * MB, kind: "IMAGE" },
   "image/webp": { maxSizeBytes: 20 * MB, kind: "IMAGE" },
   "video/mp4": { maxSizeBytes: 150 * MB, kind: "VIDEO" },
+  "video/webm": { maxSizeBytes: 150 * MB, kind: "VIDEO" },
+  "video/quicktime": { maxSizeBytes: 150 * MB, kind: "VIDEO" },
   "application/pdf": { maxSizeBytes: 50 * MB, kind: "FILE" },
   "text/plain": { maxSizeBytes: 5 * MB, kind: "FILE" },
   "application/zip": { maxSizeBytes: 50 * MB, kind: "FILE" },

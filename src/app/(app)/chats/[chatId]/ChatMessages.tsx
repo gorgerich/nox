@@ -1074,6 +1074,8 @@ export function ChatMessages({
 
     try {
       const formData = new FormData();
+      // Round video messages ("кружочки") are recorded with this filename prefix.
+      if (file.name.startsWith("video-message-")) formData.append("videoNote", "true");
       if (shouldEncryptMedia) {
         const encryptedMedia = await encryptMediaForDevices({
           file,

@@ -96,6 +96,16 @@ export function VideoMessageRecorder({
     setRecording(false);
   }, []);
 
+  // Start recording automatically as soon as the camera is ready — one tap to
+  // open, one tap to send (no separate "start" press).
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (ready && !startedRef.current && !error) {
+      startedRef.current = true;
+      startRecording();
+    }
+  }, [ready, error, startRecording]);
+
   const cancel = useCallback(() => {
     if (recorderRef.current?.state === "recording") {
       recorderRef.current.onstop = null;

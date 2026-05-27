@@ -538,6 +538,7 @@ enum MessageType {
   TEXT
   IMAGE
   VIDEO
+  VIDEO_NOTE
   FILE
   VOICE
   SYSTEM
