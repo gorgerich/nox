@@ -19,7 +19,7 @@ type WindowWithWebkitAudioContext = Window & typeof globalThis & {
 };
 
 export function CallOverlay() {
-  const { call, status, remoteStream, localStream, isMuted, isCameraOff, isVideo, error, debugInfo, acceptCall, declineCall, endCall, toggleMute, toggleCamera, markRemoteAudioPlayback } = useAudioCall();
+  const { call, status, remoteStream, localStream, isMuted, isCameraOff, isVideo, isScreenSharing, error, debugInfo, acceptCall, declineCall, endCall, toggleMute, toggleCamera, toggleScreenShare, markRemoteAudioPlayback } = useAudioCall();
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -451,6 +451,20 @@ export function CallOverlay() {
                 >
                   <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 6h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                  </svg>
+                </button>
+              )}
+
+              {isVideo && (
+                <button
+                  onClick={() => void toggleScreenShare()}
+                  className={`flex h-16 w-16 items-center justify-center rounded-3xl border-2 transition-smooth active:scale-90 ${
+                    isScreenSharing ? "border-primary/80 bg-primary/20 text-primary" : "border-white/10 bg-white/5 text-white"
+                  }`}
+                  title={isScreenSharing ? "Остановить демонстрацию" : "Демонстрация экрана"}
+                >
+                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </button>
               )}

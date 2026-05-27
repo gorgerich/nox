@@ -57,6 +57,7 @@ interface CallContextType {
   isMuted: boolean;
   isCameraOff: boolean;
   isVideo: boolean;
+  isScreenSharing: boolean;
   error: string | null;
   debugInfo: DebugInfo;
   startCall: (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }, options?: { video?: boolean }) => Promise<void>;
@@ -67,6 +68,7 @@ interface CallContextType {
   endCall: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  toggleScreenShare: () => void;
 }
 
 interface IncomingPayload {
@@ -164,6 +166,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isVideo, setIsVideo] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
@@ -200,6 +203,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const currentCallRef = useRef<CurrentCall | null>(null);
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const incomingVideoRef = useRef<boolean>(false);
+  const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
   const statusRef = useRef<CallStatus>("idle");
   const audioSrcObjectAssignedRef = useRef(false);
   const remoteAudioPlaybackOkRef = useRef(false);
@@ -317,6 +322,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     currentCallRef.current = null;
     incomingOfferRef.current = null;
     incomingVideoRef.current = false;
+    screenTrackRef.current?.stop();
+    screenTrackRef.current = null;
+    cameraTrackRef.current = null;
     audioSrcObjectAssignedRef.current = false;
     remoteAudioPlaybackOkRef.current = false;
 
@@ -326,6 +334,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setIsMuted(false);
     setIsCameraOff(false);
     setIsVideo(false);
+    setIsScreenSharing(false);
     updateDebugInfo({
       callId: null,
       role: null,
@@ -780,6 +789,66 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("camera toggled", { enabled: track.enabled });
   }, [debugCall]);
 
+  const restoreCameraInLocalStream = useCallback((cam: MediaStreamTrack) => {
+    const ls = localStreamRef.current;
+    if (!ls) return;
+    ls.getVideoTracks().forEach((t) => { if (t !== cam) ls.removeTrack(t); });
+    if (!ls.getVideoTracks().includes(cam)) ls.addTrack(cam);
+    setLocalStream(new MediaStream(ls.getTracks()));
+  }, []);
+
+  const toggleScreenShare = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+    if (!videoSender) {
+      setError("Демонстрация доступна только в видеозвонке");
+      setTimeout(() => setError(null), 2500);
+      return;
+    }
+
+    // Already sharing → stop and restore the camera (replaceTrack needs no renegotiation).
+    if (screenTrackRef.current) {
+      screenTrackRef.current.stop();
+      screenTrackRef.current = null;
+      const cam = cameraTrackRef.current;
+      if (cam && cam.readyState === "live") {
+        await videoSender.replaceTrack(cam).catch(() => undefined);
+        restoreCameraInLocalStream(cam);
+      }
+      setIsScreenSharing(false);
+      return;
+    }
+
+    try {
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const screenTrack = display.getVideoTracks()[0];
+      if (!screenTrack) return;
+      cameraTrackRef.current = videoSender.track ?? null; // keep camera alive for restore
+      screenTrackRef.current = screenTrack;
+      await videoSender.replaceTrack(screenTrack);
+      const ls = localStreamRef.current;
+      if (ls) {
+        ls.getVideoTracks().forEach((t) => ls.removeTrack(t));
+        ls.addTrack(screenTrack);
+        setLocalStream(new MediaStream(ls.getTracks()));
+      }
+      // Browser "Stop sharing" button ends the track — restore the camera then.
+      screenTrack.onended = () => {
+        screenTrackRef.current = null;
+        const cam = cameraTrackRef.current;
+        if (cam && cam.readyState === "live") {
+          void videoSender.replaceTrack(cam).catch(() => undefined);
+          restoreCameraInLocalStream(cam);
+        }
+        setIsScreenSharing(false);
+      };
+      setIsScreenSharing(true);
+    } catch {
+      // user cancelled the share picker / denied — no-op
+    }
+  }, [restoreCameraInLocalStream]);
+
   const markRemoteAudioPlayback = useCallback((state: {
     srcObjectAssigned: boolean;
     playStatus: "idle" | "pending" | "success" | "failed";
@@ -947,6 +1016,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         isMuted,
         isCameraOff,
         isVideo,
+        isScreenSharing,
         error,
         debugInfo,
         startCall,
@@ -957,6 +1027,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         endCall,
         toggleMute,
         toggleCamera,
+        toggleScreenShare,
       }}
     >
       {children}
