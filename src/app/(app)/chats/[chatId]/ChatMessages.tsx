@@ -141,6 +141,7 @@ export function ChatMessages({
   initialMessages,
   initialPinnedMessage,
   initialForwardChats,
+  initialDisappearingSeconds = null,
   chatInfo,
 }: {
   chatId: string;
@@ -150,6 +151,7 @@ export function ChatMessages({
   initialMessages: unknown[];
   initialPinnedMessage: Message | null;
   initialForwardChats: ForwardChatOption[];
+  initialDisappearingSeconds?: number | null;
   chatInfo: {
     type: string;
     title: string | null;
@@ -196,6 +198,22 @@ export function ChatMessages({
     }
     return null;
   });
+
+  const [disappearingSeconds, setDisappearingSeconds] = useState<number | null>(initialDisappearingSeconds);
+  const changeDisappearing = useCallback(async (seconds: number | null) => {
+    const prev = disappearingSeconds;
+    setDisappearingSeconds(seconds); // optimistic
+    try {
+      const res = await fetch(`/api/chats/${chatId}/disappearing`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seconds: seconds ?? 0 }),
+      });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      setDisappearingSeconds(prev); // revert on failure
+    }
+  }, [chatId, disappearingSeconds]);
 
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
@@ -995,6 +1013,10 @@ export function ChatMessages({
     socket.on("message:receipts-updated", handleReceiptsUpdated);
     socket.on("typing:update", handleTypingUpdate);
     socket.on("chat:pinned-message-updated", handlePinnedMessageUpdated);
+    const handleDisappearingUpdated = (payload: { chatId: string; disappearingSeconds: number | null }) => {
+      if (payload?.chatId === chatId) setDisappearingSeconds(payload.disappearingSeconds ?? null);
+    };
+    socket.on("chat:disappearing-updated", handleDisappearingUpdated);
     return () => {
       socket.emit("chat:inactive", { chatId });
       socket.emit("chat:leave", chatId);
@@ -1006,6 +1028,7 @@ export function ChatMessages({
       socket.off("message:receipts-updated", handleReceiptsUpdated);
       socket.off("typing:update", handleTypingUpdate);
       socket.off("chat:pinned-message-updated", handlePinnedMessageUpdated);
+      socket.off("chat:disappearing-updated", handleDisappearingUpdated);
     };
   }, [chatId, currentUserId, debugRealtime, localDeviceId, markAsRead, saveVerifiedLocalMessage, sendDeliveryAck, socket]);
 
@@ -1564,6 +1587,8 @@ export function ChatMessages({
         isConnected={chatInfo.type === "DIRECT" ? partnerPresence.isOnline : false}
         currentUser={currentUserInfo}
         partnerId={chatInfo.otherMember?.id}
+        disappearingSeconds={disappearingSeconds}
+        onSetDisappearing={changeDisappearing}
       />
 
       {isSearchOpen && (

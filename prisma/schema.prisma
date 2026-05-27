@@ -235,6 +235,7 @@ model Chat {
   avatarUrl       String?
   createdByUserId String
   isLocked        Boolean       @default(false)
+  disappearingSeconds Int?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   pinnedMessageId String?       @unique

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { type MouseEvent, useEffect } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
@@ -14,6 +14,8 @@ export function ChatHeader({
   avatarUrl,
   isConnected,
   partnerId,
+  disappearingSeconds = null,
+  onSetDisappearing,
 }: {
   chatId: string;
   chatType: string;
@@ -25,9 +27,18 @@ export function ChatHeader({
   currentUser: { displayName: string; avatarUrl: string | null };
   partnerId?: string;
   onSearchClick?: () => void;
+  disappearingSeconds?: number | null;
+  onSetDisappearing?: (seconds: number | null) => void;
 }) {
   const router = useRouter();
   const { startCall, status } = useAudioCall();
+  const [timerMenuOpen, setTimerMenuOpen] = useState(false);
+  const DISAPPEARING_OPTIONS: { label: string; seconds: number | null }[] = [
+    { label: "Выключить", seconds: null },
+    { label: "1 час", seconds: 3600 },
+    { label: "1 день", seconds: 86400 },
+    { label: "1 неделя", seconds: 604800 },
+  ];
   const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
   const handleBackToChats = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -113,6 +124,47 @@ export function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        {onSetDisappearing && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setTimerMenuOpen((v) => !v)}
+              className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90"
+              style={{
+                backgroundColor: "var(--chat-focus-ring)",
+                color: disappearingSeconds ? "var(--message-read)" : "var(--chat-header-fg)",
+                opacity: disappearingSeconds ? 1 : 0.55,
+              }}
+              title="Исчезающие сообщения"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            {timerMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
+                <div className="absolute right-0 top-12 z-[201] w-44 overflow-hidden rounded-2xl border border-border-subtle/50 bg-surface-elevated shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                  <p className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted">Исчезающие</p>
+                  {DISAPPEARING_OPTIONS.map((opt) => {
+                    const active = (disappearingSeconds ?? null) === opt.seconds;
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => { onSetDisappearing(opt.seconds); setTimerMenuOpen(false); }}
+                        className={`flex w-full items-center justify-between px-4 py-2.5 text-sm font-bold transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
+                      >
+                        {opt.label}
+                        {active ? <span className="text-primary">✓</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {canCall && (
           <>
             <button

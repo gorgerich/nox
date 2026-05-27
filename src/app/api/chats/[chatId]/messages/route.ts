@@ -156,7 +156,12 @@ export async function GET(
   };
 
   const messages = await prisma.message.findMany({
-    where: { chatId, deletedAt: null },
+    where: {
+      chatId,
+      deletedAt: null,
+      // Hide disappearing messages whose timer has elapsed.
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
     include: historyInclude,
@@ -182,6 +187,13 @@ export async function POST(
   if (membership.chat.isLocked && !isChatAdminRole(membership.role)) {
     return NextResponse.json({ error: "Чат закрыт." }, { status: 403 });
   }
+
+  // Per-chat disappearing-messages timer (seconds). When set, every new message
+  // gets an expiry and is hidden once it elapses.
+  const disappearingSeconds = membership.chat.disappearingSeconds;
+  const disappearingExpiry = disappearingSeconds && disappearingSeconds > 0
+    ? new Date(Date.now() + disappearingSeconds * 1000)
+    : null;
 
   let directPeerUserId: string | null = null;
   if (membership.chat.type === "DIRECT") {
@@ -279,6 +291,7 @@ export async function POST(
         encryptionVersion: 2,
         senderKeyId: parsed.data.senderDeviceId,
         replyToMessageId: parsed.data.replyToMessageId,
+        expiresAt: disappearingExpiry,
         receipts: {
           create: activeMembers.filter((member) => member.userId !== user.id).map((member) => ({ userId: member.userId })),
         },
@@ -369,7 +382,7 @@ export async function POST(
       encryptionVersion: parsed.data.encryptionVersion || 0,
       senderKeyId: parsed.data.senderKeyId,
       replyToMessageId: parsed.data.replyToMessageId,
-      expiresAt: isEncrypted ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
+      expiresAt: disappearingExpiry ?? (isEncrypted ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null),
       receipts: {
         create: activeMembers.filter((member) => member.userId !== user.id).map((member) => ({ userId: member.userId })),
       },

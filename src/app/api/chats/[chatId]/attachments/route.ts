@@ -193,6 +193,9 @@ export async function POST(
         isEncrypted: encrypted,
         encryptionVersion: encrypted ? 2 : 0,
         senderKeyId: encrypted ? senderDeviceId : null,
+        expiresAt: membership.chat.disappearingSeconds
+          ? new Date(Date.now() + membership.chat.disappearingSeconds * 1000)
+          : null,
         receipts: {
           create: activeMembers
             .filter((member) => member.userId !== user.id)

@@ -198,6 +198,12 @@ export default async function ChatPage({
     }
   }
 
+  // Hide disappearing messages whose timer has elapsed.
+  messageWhereClause = {
+    ...messageWhereClause,
+    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+  };
+
   const [chat, rawMessages] = await Promise.all([
     prisma.chat.findUnique({
       where: { id: chatId },
@@ -437,6 +443,7 @@ export default async function ChatPage({
         initialPinnedMessage={pinnedMessage}
         initialForwardChats={[]}
         isLocked={chat.isLocked}
+        initialDisappearingSeconds={chat.disappearingSeconds ?? null}
         chatInfo={{
           type: chat.type,
           title: chat.title,
