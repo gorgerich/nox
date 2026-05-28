@@ -79,8 +79,14 @@ export function ChatHeader({
 
   return (
     <header
-      className="sticky top-0 z-50 flex h-14 items-center justify-between border-b px-2 transition-smooth"
-      style={{ backgroundColor: "var(--chat-header-bg)", color: "var(--chat-header-fg)", borderColor: "var(--border-subtle)" }}
+      className="sticky top-0 z-50 flex items-center justify-between border-b px-2 transition-smooth"
+      style={{
+        backgroundColor: "var(--chat-header-bg)",
+        color: "var(--chat-header-fg)",
+        borderColor: "var(--border-subtle)",
+        minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+      }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <button
