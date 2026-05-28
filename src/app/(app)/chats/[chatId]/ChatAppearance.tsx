@@ -268,9 +268,9 @@ export const PRESETS = {
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   preset: "system",
   bubbleRadius: "round",
-  outgoingColor: "#3f3f46",
+  outgoingColor: "#3b82f6",
   incomingStyle: "filled",
-  background: "midnight",
+  background: "system",
   density: "comfortable",
 };
 
@@ -401,42 +401,42 @@ export function ChatAppearanceSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-end justify-center bg-black/60 backdrop-blur-sm transition-smooth animate-in fade-in"
+      className="fixed inset-0 z-[300] flex items-end justify-center bg-black/40 transition-smooth animate-in fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-[2.5rem] bg-surface p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-300 ease-out safe-bottom border-t border-border-subtle"
+        className="w-full max-w-lg rounded-t-3xl border-t border-border-subtle bg-surface p-6 shadow-lg animate-in slide-in-from-bottom-full duration-300 ease-out safe-bottom"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-8 h-1.5 w-12 rounded-full bg-border-subtle active:bg-muted transition-smooth" onClick={onClose} />
+        <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-border-subtle active:bg-muted transition-smooth" onClick={onClose} />
 
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-2xl font-black tracking-tight text-foreground">Оформление</h2>
-          <button onClick={onReset} className="touch-target text-xs font-black uppercase tracking-widest text-primary hover:opacity-80 transition-smooth active:scale-90">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Оформление</h2>
+          <button onClick={onReset} className="touch-target text-sm font-semibold text-primary transition-smooth hover:opacity-80 active:scale-95">
             Сброс
           </button>
         </div>
 
-        <div className="max-h-[60vh] space-y-10 overflow-y-auto pb-8 pr-2 scrollbar-hide overscroll-contain">
+        <div className="max-h-[60vh] space-y-8 overflow-y-auto pb-6 pr-2 scrollbar-hide overscroll-contain">
           <section>
-            <h3 className="mb-5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Пресеты</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <h3 className="mb-3 ml-1 text-sm font-semibold text-muted">Пресеты</h3>
+            <div className="grid grid-cols-3 gap-3">
               {(Object.keys(PRESETS) as ChatPresetKey[]).map((id) => {
                 const preset = CHAT_PRESET_TOKENS[id];
                 return (
                   <button
                     key={id}
                     onClick={() => onUpdate({ preset: id, background: id })}
-                    className={`relative group flex flex-col items-center gap-3 rounded-3xl border-2 p-1.5 transition-smooth active:scale-95 ${
+                    className={`relative group flex flex-col items-center gap-2 rounded-2xl border p-1.5 transition-smooth active:scale-95 ${
                       settings.preset === id ? "border-primary bg-primary/5" : "border-border-subtle hover:border-muted"
                     }`}
                   >
-                    <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-black/5 shadow-inner" style={{ backgroundColor: preset.bg }}>
+                    <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-black/5" style={{ backgroundColor: preset.bg }}>
                       <div className="absolute left-2 top-2 h-3 w-2/3 rounded-full" style={{ backgroundColor: preset.headerBg }} />
                       <div className="absolute right-2 top-7 h-3 w-2/3 rounded-full bg-primary/40" />
                       <div className="absolute left-2 top-12 h-3 w-1/2 rounded-full" style={{ backgroundColor: preset.incomingBg }} />
                     </div>
-                    <span className="mb-1 text-[10px] font-black uppercase tracking-tighter text-foreground/80">{PRESETS[id].name}</span>
+                    <span className="mb-1 text-xs font-medium text-foreground/80">{PRESETS[id].name}</span>
                   </button>
                 );
               })}
@@ -444,14 +444,14 @@ export function ChatAppearanceSheet({
           </section>
 
           <section>
-            <h3 className="mb-5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Цвет сообщений</h3>
-            <div className="flex flex-wrap gap-4 px-1">
+            <h3 className="mb-3 ml-1 text-sm font-semibold text-muted">Цвет сообщений</h3>
+            <div className="flex flex-wrap gap-3 px-1">
               {["#3f3f46", "#3b82f6", "#8b5cf6", "#0ea5e9", "#10b981", "#f97316"].map((color) => (
                 <button
                   key={color}
                   onClick={() => onUpdate({ outgoingColor: color })}
-                  className={`h-11 w-11 rounded-full border-2 transition-smooth active:scale-75 ${
-                    settings.outgoingColor.toLowerCase() === color ? "border-foreground scale-110 shadow-lg" : "border-transparent"
+                  className={`h-11 w-11 rounded-full border-2 transition-smooth active:scale-90 ${
+                    settings.outgoingColor.toLowerCase() === color ? "scale-105 border-foreground" : "border-transparent"
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -460,7 +460,7 @@ export function ChatAppearanceSheet({
           </section>
 
           <section>
-            <h3 className="mb-5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Стиль входящих</h3>
+            <h3 className="mb-3 ml-1 text-sm font-semibold text-muted">Стиль входящих</h3>
             <div className="grid grid-cols-3 gap-3">
               {([
                 { id: "filled", label: "Заливка" },
@@ -470,7 +470,7 @@ export function ChatAppearanceSheet({
                 <button
                   key={style.id}
                   onClick={() => onUpdate({ incomingStyle: style.id })}
-                  className={`touch-target h-12 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
+                  className={`touch-target h-11 rounded-xl border text-sm font-semibold transition-smooth active:scale-95 ${
                     settings.incomingStyle === style.id ? "border-primary bg-primary/5 text-primary" : "border-border-subtle text-muted"
                   }`}
                 >
@@ -481,7 +481,7 @@ export function ChatAppearanceSheet({
           </section>
 
           <section>
-            <h3 className="mb-5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Радиус углов</h3>
+            <h3 className="mb-3 ml-1 text-sm font-semibold text-muted">Радиус углов</h3>
             <div className="grid grid-cols-2 gap-3">
               {([
                 { id: "soft", label: "Мягкий" },
@@ -490,7 +490,7 @@ export function ChatAppearanceSheet({
                 <button
                   key={r.id}
                   onClick={() => onUpdate({ bubbleRadius: r.id })}
-                  className={`touch-target h-12 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
+                  className={`touch-target h-11 rounded-xl border text-sm font-semibold transition-smooth active:scale-95 ${
                     settings.bubbleRadius === r.id ? "border-primary bg-primary/5 text-primary" : "border-border-subtle text-muted"
                   }`}
                 >
@@ -501,7 +501,7 @@ export function ChatAppearanceSheet({
           </section>
         </div>
 
-        <button onClick={onClose} className="btn-nox mt-6 h-14 w-full rounded-3xl bg-foreground text-sm font-black uppercase tracking-widest text-background transition-smooth active:scale-[0.98] shadow-xl">
+        <button onClick={onClose} className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.98]">
           Готово
         </button>
       </div>

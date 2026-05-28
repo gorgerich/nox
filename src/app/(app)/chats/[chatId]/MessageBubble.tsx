@@ -2,6 +2,7 @@
 
 import { AppearanceSettings } from "./ChatAppearance";
 import { VoicePlayer } from "./VoicePlayer";
+import { FileText, Play } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
@@ -39,7 +40,7 @@ function renderRichText(text: string): React.ReactNode {
     }
     if (part.length > 2 && part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={i} className="rounded bg-black/20 px-1 py-0.5 font-mono text-[13px]">
+        <code key={i} className="rounded bg-foreground/10 px-1 py-0.5 font-mono text-[13px]">
           {part.slice(1, -1)}
         </code>
       );
@@ -249,7 +250,7 @@ function AttachmentPreview({
 
   if (isDecrypting) {
     return (
-      <div className="mt-2 first:mt-0 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[11px] font-semibold text-muted">
+      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
         Расшифровка медиа…
       </div>
     );
@@ -257,14 +258,14 @@ function AttachmentPreview({
 
   if (decryptError || !sourceUrl) {
     return (
-      <div className="mt-2 first:mt-0 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[11px] font-semibold text-muted">
+      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
         {decryptError || "Медиа недоступно на этом устройстве"}
       </div>
     );
   }
 
   return (
-    <div className="mt-2 first:mt-0 overflow-hidden rounded-lg">
+    <div className="mt-2 first:mt-0 overflow-hidden rounded-xl">
       {message.type === "VOICE" ? (
         <VoicePlayer
           src={sourceUrl}
@@ -273,20 +274,20 @@ function AttachmentPreview({
         />
       ) : isImage ? (
         <div
-          className="relative overflow-hidden rounded-lg border border-black/5 cursor-pointer active:opacity-90 transition-opacity"
+          className="relative cursor-pointer overflow-hidden rounded-xl border border-black/5 transition-opacity active:opacity-90"
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "IMAGE", url: sourceUrl, fileName: attachment.fileName }); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={sourceUrl}
             alt=""
-            className="max-h-96 w-full object-cover transition-smooth hover:scale-105"
+            className="max-h-96 w-full object-cover transition-smooth hover:scale-[1.02]"
             loading="lazy"
           />
         </div>
       ) : isRoundVideo ? (
         <div
-          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full border border-white/10 shadow-lg active:opacity-90"
+          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full border border-black/5 active:opacity-90"
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
         >
           <video src={sourceUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline preload="metadata" />
@@ -296,7 +297,7 @@ function AttachmentPreview({
         </div>
       ) : isVideo ? (
         <div
-          className="relative overflow-hidden rounded-lg cursor-pointer active:opacity-90 transition-opacity flex items-center justify-center"
+          className="relative flex cursor-pointer items-center justify-center overflow-hidden rounded-xl transition-opacity active:opacity-90"
           style={{
             backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
             border: "1px solid var(--bubble-incoming-border)",
@@ -305,16 +306,14 @@ function AttachmentPreview({
         >
           <video src={sourceUrl} className="max-h-96 w-full object-cover" preload="metadata" muted playsInline />
           <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
-              <svg className="h-6 w-6" style={{ color: "white" }} fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/35 text-white">
+              <Play className="ml-0.5 h-6 w-6" fill="currentColor" strokeWidth={0} />
             </div>
           </div>
         </div>
       ) : (
         <div
-          className="flex cursor-pointer items-center gap-3 rounded-xl p-4 backdrop-blur-md transition-smooth"
+          className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-smooth active:opacity-85"
           style={{
             backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
             border: "1px solid var(--bubble-incoming-border)",
@@ -328,14 +327,12 @@ function AttachmentPreview({
             link.click();
           }}
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-inner" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }}>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--chat-focus-ring)", color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }}>
+            <FileText className="h-5 w-5" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-black tracking-tight">{attachment.fileName}</p>
-            <p className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-0.5">
+            <p className="truncate text-sm font-semibold">{attachment.fileName}</p>
+            <p className="mt-0.5 text-[11px] font-medium opacity-60">
               {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
             </p>
           </div>
@@ -534,8 +531,8 @@ export const MessageBubble = memo(function MessageBubble({
   const time = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt));
 
   const isRound = settings.bubbleRadius === "round";
-  const rBase = isRound ? "var(--radius-2xl)" : "var(--radius-lg)";
-  const rSmall = "var(--radius-xs)";
+  const rBase = isRound ? "18px" : "14px";
+  const rSmall = "6px";
   
   const radiusStyle = mine 
     ? {
@@ -583,7 +580,7 @@ export const MessageBubble = memo(function MessageBubble({
   if (message.messageUnavailableOnThisDevice) {
     return (
       <div className="relative flex w-full justify-center px-4 py-1.5">
-        <div className="max-w-[82%] rounded-full border border-border-subtle bg-surface-muted/70 px-3 py-1.5 text-center text-[11px] font-semibold text-muted">
+        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
           Сообщение недоступно на этом устройстве
         </div>
       </div>
@@ -593,7 +590,7 @@ export const MessageBubble = memo(function MessageBubble({
   if (message.isEncrypted && !message.body && message.attachments.length === 0) {
     return (
       <div className="relative flex w-full justify-center px-4 py-1.5">
-        <div className="max-w-[82%] rounded-full border border-border-subtle bg-surface-muted/70 px-3 py-1.5 text-center text-[11px] font-semibold text-muted">
+        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
           Загрузка зашифрованного сообщения…
         </div>
       </div>
@@ -603,18 +600,18 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <div 
       ref={rowRef}
-      className={`relative flex items-center w-full mb-1 transition-colors duration-200 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "bg-primary/5" : ""} touch-pan-y no-select`}
+      className={`relative flex w-full items-center transition-colors duration-200 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "bg-primary/5" : ""} touch-pan-y no-select`}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
     >
-      <div className={`flex items-center gap-3 w-full px-4 ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""}`}>
+      <div className={`flex w-full items-center gap-3 px-2 ${isSelected ? "opacity-100" : selectionMode ? "opacity-60" : ""}`}>
         {selectionMode && (
-          <div className={`flex shrink-0 items-center justify-center h-6 w-6 rounded-full border-2 transition-smooth ${isSelected ? "bg-primary border-primary shadow-lg shadow-primary/20 scale-110" : "border-muted/30"}`}>
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-smooth ${isSelected ? "scale-110 border-primary bg-primary" : "border-muted/30"}`}>
             {isSelected && (
-              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
               </svg>
             )}
@@ -623,16 +620,16 @@ export const MessageBubble = memo(function MessageBubble({
 
         <div className={`flex flex-col flex-1 ${mine ? "items-end" : "items-start"}`}>
           {showDisplayName && !mine && (
-            <span className="mb-1 ml-3 text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--bubble-incoming-muted)" }}>
+            <span className="mb-1 ml-3 text-xs font-semibold" style={{ color: "var(--bubble-incoming-muted)" }}>
               {message.sender.profile?.displayName ?? message.sender.username}
             </span>
           )}
 
-          <div className="relative max-w-[85%]">
+          <div className="relative max-w-[78%] sm:max-w-[70%]">
             {canSwipeReply ? (
               <div 
                 ref={replyIconRef}
-                className="absolute right-full mr-4 flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle/50 bg-surface/80 text-primary shadow-sm transition-opacity duration-150"
+                className="absolute right-full mr-3 flex h-9 w-9 items-center justify-center rounded-full bg-surface-elevated text-primary shadow-sm transition-opacity duration-150"
                 style={{ opacity: 0, top: '50%', transform: 'translateY(-50%)' }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -643,9 +640,9 @@ export const MessageBubble = memo(function MessageBubble({
 
             <div
               ref={bubbleRef}
-              className={`group relative px-4 py-2.5 cursor-default active:scale-[0.99] no-select ${
+              className={`group relative cursor-default px-3 py-2 active:scale-[0.99] no-select ${
                 isFocused ? "focused-message" : ""
-              } shadow-sm ${mine ? "" : incomingClass}`}
+              } ${mine ? "" : incomingClass}`}
               style={{
                 ...bubbleStyle,
                 willChange: "transform",
@@ -656,7 +653,7 @@ export const MessageBubble = memo(function MessageBubble({
             >
           {message.replyToMessage && (
             <div
-              className={`mb-2 border-l-2 py-0.5 pl-2.5 text-[11px] leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
+              className={`mb-2 border-l-2 py-0.5 pl-2.5 text-xs leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
               style={{
                 borderColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
                 color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
@@ -669,7 +666,7 @@ export const MessageBubble = memo(function MessageBubble({
                 onReplyPreviewClick?.(message.replyToMessage.id);
               }}
             >
-              <p className="font-black truncate tracking-tight">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
+              <p className="truncate font-semibold">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
               <p className="truncate line-clamp-1 italic opacity-70">
                 {message.replyToMessage.deletedAt ? "Исходное сообщение удалено" : (message.replyToMessage.body || "Вложение")}
               </p>
@@ -678,7 +675,7 @@ export const MessageBubble = memo(function MessageBubble({
 
           <>
             {message.body && (
-              <p className="whitespace-pre-wrap text-[15px] leading-snug font-medium break-words mb-2 last:mb-0">
+              <p className="mb-1.5 whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.32] last:mb-0">
                 {searchQuery ? (
                   message.body.split(new RegExp(`(${searchQuery})`, "gi")).map((part, i) =>
                     part.toLowerCase() === searchQuery.toLowerCase() ? (
@@ -709,9 +706,9 @@ export const MessageBubble = memo(function MessageBubble({
             ))}
           </>
 
-          <div className={`mt-1 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+          <div className={`mt-0.5 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
             <span
-              className="text-[9px] font-black uppercase tracking-tighter"
+              className="text-[11px] font-medium"
               style={{ color: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
             >
               {message.editedAt && "изм. "}{time}
@@ -753,7 +750,7 @@ export const MessageBubble = memo(function MessageBubble({
               <button
                 key={emoji}
                 onClick={(e) => { e.stopPropagation(); onReaction(message.id, emoji); }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border-subtle text-xs font-black text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-90 shadow-sm"
+                className="flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-muted px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-95"
               >
                 <span>{emoji}</span>
                 <span className="text-[10px]">{info.count}</span>

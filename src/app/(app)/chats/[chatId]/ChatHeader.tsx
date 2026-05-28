@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ArrowLeft, Check, Clock3, Phone, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
@@ -78,74 +79,72 @@ export function ChatHeader({
 
   return (
     <header
-      className="glass-header flex items-center justify-between border-b px-4 py-3 transition-smooth"
-      style={{ backgroundColor: "var(--chat-header-bg)", color: "var(--chat-header-fg)", borderColor: "var(--chat-focus-ring)" }}
+      className="sticky top-0 z-50 flex h-14 items-center justify-between border-b px-2 transition-smooth"
+      style={{ backgroundColor: "var(--chat-header-bg)", color: "var(--chat-header-fg)", borderColor: "var(--border-subtle)" }}
     >
-      <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1">
         <button
           type="button"
+          aria-label="Назад к чатам"
           onClick={handleBackToChats}
-          className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl transition-smooth active:scale-90"
-          style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--chat-header-fg)" }}
+          className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />
         </button>
         
-        <div 
-          className="flex items-center gap-3 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
+        <button
+          type="button"
+          aria-label="Открыть профиль чата"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 pr-2 text-left transition-opacity active:opacity-70"
           onClick={handleHeaderClick}
         >
           <div className="relative shrink-0">
             {fullAvatarUrl ? (
-              <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-white/10 ring-1 ring-black/5 transition-smooth group-active:scale-95 shadow-sm">
+              <div className="relative h-10 w-10 overflow-hidden rounded-full bg-surface-muted transition-smooth">
                 <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl transition-smooth shadow-sm" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
-                <span className="text-sm font-black uppercase tracking-tighter">{title.substring(0, 1)}</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full transition-smooth" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
+                <span className="text-sm font-semibold">{title.substring(0, 1).toUpperCase()}</span>
               </div>
             )}
             {!isGroup && isConnected && (
-              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary border-2 border-surface shadow-sm" />
+              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface bg-primary" />
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-black tracking-tight leading-tight text-[var(--chat-header-fg)]">{title}</h1>
+            <h1 className="truncate text-[16px] font-semibold leading-tight text-[var(--chat-header-fg)]">{title}</h1>
             <p
-              className="truncate text-[10px] font-black uppercase tracking-widest"
+              className="truncate text-xs font-normal leading-tight"
               style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
             >
               {displaySubtitle}
             </p>
           </div>
-        </div>
+        </button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {onSetDisappearing && (
           <div className="relative">
             <button
               type="button"
+              aria-label="Исчезающие сообщения"
               onClick={() => setTimerMenuOpen((v) => !v)}
-              className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90"
+              className="touch-target flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 active:scale-95"
               style={{
-                backgroundColor: "var(--chat-focus-ring)",
                 color: disappearingSeconds ? "var(--message-read)" : "var(--chat-header-fg)",
-                opacity: disappearingSeconds ? 1 : 0.55,
+                opacity: disappearingSeconds ? 1 : 0.62,
               }}
               title="Исчезающие сообщения"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Clock3 className="h-5 w-5" strokeWidth={2.1} />
             </button>
             {timerMenuOpen && (
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
-                <div className="absolute right-0 top-12 z-[201] w-44 overflow-hidden rounded-2xl border border-border-subtle/50 bg-surface-elevated shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-                  <p className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted">Исчезающие</p>
+                <div className="absolute right-0 top-12 z-[201] w-48 overflow-hidden rounded-xl border border-border-subtle bg-surface-elevated shadow-lg animate-in fade-in zoom-in-95 duration-150">
+                  <p className="px-4 pt-3 pb-1 text-xs font-medium text-muted">Исчезающие</p>
                   {DISAPPEARING_OPTIONS.map((opt) => {
                     const active = (disappearingSeconds ?? null) === opt.seconds;
                     return (
@@ -153,10 +152,10 @@ export function ChatHeader({
                         key={opt.label}
                         type="button"
                         onClick={() => { onSetDisappearing(opt.seconds); setTimerMenuOpen(false); }}
-                        className={`flex w-full items-center justify-between px-4 py-2.5 text-sm font-bold transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
+                        className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
                       >
                         {opt.label}
-                        {active ? <span className="text-primary">✓</span> : null}
+                        {active ? <Check className="h-4 w-4 text-primary" strokeWidth={2.4} /> : null}
                       </button>
                     );
                   })}
@@ -168,26 +167,24 @@ export function ChatHeader({
         {canCall && (
           <>
             <button
+              type="button"
+              aria-label="Аудиозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null })}
               disabled={status !== "idle"}
-              className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90 disabled:opacity-30 disabled:grayscale"
-              style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--message-read)" }}
+              className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
               title="Аудиозвонок"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
+              <Phone className="h-5 w-5" strokeWidth={2.1} />
             </button>
             <button
+              type="button"
+              aria-label="Видеозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null }, { video: true })}
               disabled={status !== "idle"}
-              className="touch-target h-10 w-10 flex items-center justify-center rounded-xl transition-smooth active:scale-90 disabled:opacity-30 disabled:grayscale"
-              style={{ backgroundColor: "var(--chat-focus-ring)", color: "var(--message-read)" }}
+              className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
               title="Видеозвонок"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 6h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
-              </svg>
+              <Video className="h-5 w-5" strokeWidth={2.1} />
             </button>
           </>
         )}
