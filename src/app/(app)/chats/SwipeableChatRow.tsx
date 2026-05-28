@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Bookmark, Pin } from "lucide-react";
+import { Archive, BellOff, Bookmark, Pin, Trash2 } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -200,8 +200,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const rightActionsVisible = translateX < -8;
 
   return (
-    <div ref={rowRef} className="relative isolate overflow-hidden rounded-[2rem]">
-      {/* Left Actions (visible when swiping right) */}
+    <div ref={rowRef} className="relative isolate overflow-hidden">
+      {/* Left Actions (visible when swiping right) — iOS/Telegram-style solid blocks */}
       <div
         className="absolute inset-y-0 left-0 z-0 flex items-stretch transition-opacity duration-150"
         style={{ opacity: leftActionsVisible ? 1 : 0, pointerEvents: leftActionsVisible ? "auto" : "none" }}
@@ -210,16 +210,18 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
           <button
             type="button"
             onClick={() => { onPin?.(chat); onOpen(null); }}
-            className="w-[74px] bg-sky-500/14 text-sky-600 dark:text-sky-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
+            className="flex w-[74px] flex-col items-center justify-center gap-1 bg-sky-500 text-[11px] font-medium text-white active:opacity-80 fast-tap"
           >
-            {pinned ? "Откреп." : "Закреп."}
+            <Pin className="h-5 w-5" />
+            {pinned ? "Открепить" : "Закрепить"}
           </button>
         ) : null}
         <button
           type="button"
           onClick={() => { onArchive(chat); onOpen(null); }}
-          className="w-[74px] bg-primary/12 text-primary text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
+          className="flex w-[74px] flex-col items-center justify-center gap-1 bg-slate-500 text-[11px] font-medium text-white active:opacity-80 fast-tap"
         >
+          <Archive className="h-5 w-5" />
           {isArchiveMode ? "Вернуть" : "Архив"}
         </button>
       </div>
@@ -232,16 +234,18 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         <button
           type="button"
           onClick={() => { onMute(chat); onOpen(null); }}
-          className="w-[74px] bg-amber-500/14 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap disabled:opacity-40"
+          className="flex w-[74px] flex-col items-center justify-center gap-1 bg-amber-500 text-[11px] font-medium text-white active:opacity-80 fast-tap disabled:opacity-40"
           disabled={isArchiveMode}
         >
-          {muted ? "Тише" : "Без звука"}
+          <BellOff className="h-5 w-5" />
+          {muted ? "Звук" : "Без звука"}
         </button>
         <button
           type="button"
           onClick={() => { onDelete(chat); onOpen(null); }}
-          className="w-[74px] bg-danger/14 text-danger text-[10px] font-black uppercase tracking-widest active:scale-[0.98] fast-tap"
+          className="flex w-[74px] flex-col items-center justify-center gap-1 bg-danger text-[11px] font-medium text-white active:opacity-80 fast-tap"
         >
+          <Trash2 className="h-5 w-5" />
           Удалить
         </button>
       </div>
@@ -257,48 +261,43 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         <button
           type="button"
           onClick={handleOpenChat}
-          className="group relative flex w-full items-center gap-4 rounded-[2rem] border border-border-subtle/30 p-4 text-left transition-[transform,background-color,border-color] duration-150 hover:bg-surface-hover active:scale-[0.99] active:bg-surface-muted/50"
+          className="group relative flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 active:bg-surface-hover"
           style={{
-            backgroundColor: chat.isSelfChat ? "color-mix(in srgb, var(--glass-bg-strong) 82%, var(--accent) 18%)" : "var(--glass-bg-strong)",
+            backgroundColor: pinned || chat.isSelfChat ? "var(--surface-muted)" : "var(--background)",
           }}
         >
-          <div className="relative flex h-15 w-15 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-subtle/30 bg-surface-muted shadow-sm transition-smooth group-hover:scale-105">
+          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
             {chat.isSelfChat ? (
               <div className="flex h-full w-full items-center justify-center bg-primary/15 text-primary">
-                <Bookmark className="h-7 w-7" />
+                <Bookmark className="h-6 w-6" />
               </div>
             ) : fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
             ) : (
-              <span className="text-2xl font-black uppercase text-primary">{title[0]}</span>
+              <span className="text-xl font-semibold uppercase text-primary">{title[0]}</span>
             )}
           </div>
-          <div className="min-w-0 flex-1 border-b border-border-subtle/20 pb-4 group-last:border-none">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <p className={`truncate text-base font-black tracking-tight ${chat.unreadCount > 0 ? "text-foreground" : "text-foreground/80"}`}>{title}</p>
-                {pinned ? (
-                  <Pin className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-                ) : null}
-                {chat.isSelfChat ? (
-                  <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-primary">
-                    Saved
-                  </span>
-                ) : null}
+          <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-2 group-last:border-none">
+            <div className="mb-0.5 flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <p className="truncate text-[16px] font-semibold text-foreground">{title}</p>
                 {muted ? (
-                  <span className="shrink-0 text-[11px] text-muted/70">🔕</span>
+                  <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/50" />
                 ) : null}
               </div>
-              <span className="shrink-0 text-[10px] font-black uppercase tracking-tighter text-muted/50">
+              <span className="shrink-0 text-[13px] font-normal tabular-nums text-muted/60">
                 {formatChatTime(chat.lastMessage?.createdAt ?? chat.createdAt)}
               </span>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <p className={`truncate text-sm leading-snug font-medium ${chat.unreadCount > 0 ? "font-black text-foreground/70" : "text-muted/60"}`}>
+            <div className="flex items-center gap-2">
+              <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
                 {preview}
               </p>
+              {pinned && chat.unreadCount === 0 ? (
+                <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/40" />
+              ) : null}
               {chat.unreadCount > 0 ? (
-                <span className="flex h-5.5 min-w-5.5 items-center justify-center rounded-full bg-primary px-2 text-[10px] font-black text-white shadow-lg shadow-primary/30">
+                <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[12px] font-semibold text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
                   {chat.unreadCount}
                 </span>
               ) : null}

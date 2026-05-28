@@ -81,10 +81,10 @@ export function ChatSearch() {
 
   return (
     <div className="relative" ref={containerRef}>
-      <div className="relative group transition-smooth">
+      <div className="relative group">
         <input
-          className="input-nox h-14 !pr-5 !pl-14 bg-surface-muted border-border-subtle/50 focus:bg-surface focus:border-primary/40 transition-smooth"
-          placeholder="Поиск людей, чатов и сообщений"
+          className="h-10 w-full rounded-xl border border-transparent bg-surface-muted pl-11 pr-4 text-[15px] text-foreground outline-none transition-colors duration-150 placeholder:text-muted/60 focus:border-border-subtle/60 focus:bg-surface"
+          placeholder="Поиск"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -92,37 +92,37 @@ export function ChatSearch() {
           }}
           onFocus={() => setIsOpen(true)}
         />
-        <div className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2">
-          <svg className="h-5 w-5 text-muted transition-smooth group-focus-within:text-primary group-focus-within:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2">
+          <svg className="h-[18px] w-[18px] text-muted/60 transition-colors group-focus-within:text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
       </div>
 
       {isOpen && (query.trim() || loading) && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-4 max-h-[70vh] overflow-y-auto rounded-[2rem] border border-border-subtle/50 bg-surface p-3 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 backdrop-blur-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-border-subtle/50 bg-surface-elevated p-2 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200 backdrop-blur-xl">
           {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH ? (
             <div className="p-10 text-center">
-              <p className="text-sm font-black uppercase tracking-widest text-muted/40">Минимум 3 символа</p>
+              <p className="text-[14px] text-muted/50">Минимум 3 символа</p>
             </div>
           ) : loading ? (
             <div className="p-10 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">Ищем в Nox...</p>
+              <p className="text-[14px] text-primary animate-pulse">Поиск…</p>
             </div>
           ) : results && Object.values(results).some((arr) => arr.length > 0) ? (
             <div className="space-y-6 p-1">
               {results.people.length > 0 && (
                 <section>
-                  <h3 className="mb-3 px-3 text-[10px] font-black uppercase tracking-widest text-muted/50">Пользователи</h3>
+                  <h3 className="mb-2 px-3 text-[13px] font-semibold text-muted/60">Пользователи</h3>
                   <div className="space-y-1">
                     {results.people.map((person) => (
                       <Link
                         key={person.id}
                         href={person.isSelf ? "/profile" : `/users/${person.id}`}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
+                        className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-surface-muted"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105 relative">
+                        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
                           {normalizeAvatarUrl(person.profile?.avatarUrl) ? (
                             <Image src={normalizeAvatarUrl(person.profile?.avatarUrl) || ""} alt={person.displayName} fill className="object-cover" />
                           ) : (
@@ -132,9 +132,9 @@ export function ChatSearch() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-sm font-bold text-foreground tracking-tight">{highlightText(person.displayName, query)}</p>
-                            {person.isSelf && <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-[9px] font-black uppercase text-primary tracking-widest">Вы</span>}
+                            {person.isSelf && <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">Вы</span>}
                           </div>
-                          <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">@{highlightText(person.username, query)}</p>
+                          <p className="truncate text-[13px] text-muted/60">@{highlightText(person.username, query)}</p>
                         </div>
                       </Link>
                     ))}
@@ -144,16 +144,16 @@ export function ChatSearch() {
 
               {results.chats.length > 0 && (
                 <section>
-                  <h3 className="mb-3 px-3 text-[10px] font-black uppercase tracking-widest text-muted/50">Диалоги</h3>
+                  <h3 className="mb-2 px-3 text-[13px] font-semibold text-muted/60">Диалоги</h3>
                   <div className="space-y-1">
                     {results.chats.map((chat) => (
                       <Link
                         key={chat.id}
                         href={`/chats/${chat.id}`}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-4 rounded-2xl p-3 transition-smooth hover:bg-surface-muted active:scale-[0.98]"
+                        className="flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-surface-muted"
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-muted overflow-hidden shadow-sm border border-border-subtle/50 transition-smooth group-hover:scale-105 relative">
+                        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
                           {chat.isSelfChat ? (
                             <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
                               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -170,7 +170,7 @@ export function ChatSearch() {
                           <p className={`truncate text-sm font-bold tracking-tight ${chat.isSelfChat ? "text-primary" : "text-foreground"}`}>
                             {chat.isSelfChat ? "Избранное" : highlightText(chat.title || "Личный чат", query)}
                           </p>
-                          <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted/60">Открыть</p>
+                          <p className="truncate text-[13px] text-muted/60">Открыть</p>
                         </div>
                       </Link>
                     ))}
@@ -180,20 +180,20 @@ export function ChatSearch() {
 
               {results.messages.length > 0 && (
                 <section>
-                  <h3 className="mb-3 px-3 text-[10px] font-black uppercase tracking-widest text-muted/50">Сообщения</h3>
+                  <h3 className="mb-2 px-3 text-[13px] font-semibold text-muted/60">Сообщения</h3>
                   <div className="space-y-1">
                     {results.messages.map((msg) => (
                       <Link
                         key={msg.id}
                         href={`/chats/${msg.chatId}?highlightMessageId=${msg.id}`}
                         onClick={() => setIsOpen(false)}
-                        className="block rounded-2xl p-4 transition-smooth hover:bg-surface-muted active:scale-[0.98] border border-transparent hover:border-border-subtle/50"
+                        className="block rounded-xl p-3 transition-colors hover:bg-surface-muted"
                       >
-                        <div className="mb-1.5 flex items-center justify-between">
-                          <p className="truncate text-xs font-black uppercase tracking-widest text-primary">{msg.senderName}</p>
-                          <p className="text-[9px] font-black uppercase tracking-tighter text-muted/50">{new Date(msg.createdAt).toLocaleDateString("ru-RU")}</p>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <p className="truncate text-[14px] font-semibold text-foreground">{msg.senderName}</p>
+                          <p className="shrink-0 text-[12px] tabular-nums text-muted/50">{new Date(msg.createdAt).toLocaleDateString("ru-RU")}</p>
                         </div>
-                        <p className="truncate text-sm font-medium text-muted leading-snug">{highlightText(msg.body, query)}</p>
+                        <p className="truncate text-[14px] text-muted leading-snug">{highlightText(msg.body, query)}</p>
                       </Link>
                     ))}
                   </div>
@@ -202,7 +202,7 @@ export function ChatSearch() {
             </div>
           ) : (
             <div className="p-10 text-center animate-in fade-in zoom-in-95 duration-300">
-              <p className="text-sm font-black uppercase tracking-widest text-muted/40">Ничего не найдено</p>
+              <p className="text-[14px] text-muted/50">Ничего не найдено</p>
             </div>
           )}
         </div>

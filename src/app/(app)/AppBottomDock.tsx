@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageCircle, Phone, UserRound, Contact2 } from "lucide-react";
 
-const LIQUID_FILTER_ID = "nox-liquid-glass-distortion";
 const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/profile"]);
 
 const tabs = [
@@ -27,61 +26,49 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
   }
 
   return (
-    <nav className="app-bottom-dock-shell lg:hidden" aria-label="Нижняя навигация">
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute h-0 w-0 overflow-hidden"
-        focusable="false"
+    <nav
+      className="fixed inset-x-0 bottom-0 z-60 border-t border-border-subtle/60 lg:hidden"
+      style={{
+        backgroundColor: "var(--nav-background)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        backdropFilter: "blur(20px) saturate(1.2)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.2)",
+      }}
+      aria-label="Нижняя навигация"
+    >
+      <div
+        className="mx-auto grid w-full max-w-lg"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
-        <defs>
-          <filter id={LIQUID_FILTER_ID} x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence
-              baseFrequency="0.008 0.012"
-              numOctaves="2"
-              result="noise"
-              seed="17"
-              type="fractalNoise"
-            />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="32" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-      </svg>
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = pathname === tab.href;
+          const isChatsTab = tab.href === "/chats";
+          const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
 
-      <div className="liquid-dock-frame">
-        <div className="liquid-dock-distortion" aria-hidden="true" />
-        <div className="liquid-dock-highlight" aria-hidden="true" />
-
-        <div className="app-bottom-dock" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = pathname === tab.href;
-            const isChatsTab = tab.href === "/chats";
-            const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
-
-            return (
-              <Link
-                key={tab.href}
-                aria-current={isActive ? "page" : undefined}
-                className="liquid-dock-item"
-                data-active={isActive ? "true" : "false"}
-                href={tab.href}
-                prefetch={true}
-              >
-                <span className="liquid-dock-pill">
-                  <span className="relative">
-                    <Icon className="liquid-dock-icon" strokeWidth={2.2} />
-                    {shouldShowBadge ? (
-                      <span className={clsx("liquid-dock-badge", isActive && "liquid-dock-badge-active")}>
-                        {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
-                      </span>
-                    ) : null}
+          return (
+            <Link
+              key={tab.href}
+              aria-current={isActive ? "page" : undefined}
+              className={clsx(
+                "flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 transition-colors duration-150 fast-tap",
+                isActive ? "text-primary" : "text-muted/70",
+              )}
+              href={tab.href}
+              prefetch={true}
+            >
+              <span className="relative">
+                <Icon className="h-6 w-6" strokeWidth={isActive ? 2.4 : 2} />
+                {shouldShowBadge ? (
+                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
+                    {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                   </span>
-                  <span className="liquid-dock-label">{tab.label}</span>
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+                ) : null}
+              </span>
+              <span className="text-[10px] font-medium tracking-tight">{tab.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

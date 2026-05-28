@@ -83,7 +83,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   });
   const [accent, setAccentState] = useState<AccentPreference>(() => {
     if (typeof document === "undefined") {
-      return "graphite";
+      return "blue";
     }
 
     const rootAccent = document.documentElement.dataset.accent ?? null;
@@ -92,7 +92,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const storedAccent = localStorage.getItem(ACCENT_STORAGE_KEY);
-    return isAccentPreference(storedAccent) ? storedAccent : "graphite";
+    return isAccentPreference(storedAccent) ? storedAccent : "blue";
   });
   const systemPrefersDark = useSyncExternalStore(
     subscribeToSystemTheme,

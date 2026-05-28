@@ -21,11 +21,11 @@
   --dock-active-fg: #0f172a;
   --dock-shadow: 0 20px 54px rgba(15, 23, 42, 0.18);
 
-  --accent: #334155;
-  --accent-hover: #1f2937;
-  --accent-soft: rgba(51, 65, 85, 0.1);
-  --accent-ring: rgba(51, 65, 85, 0.2);
-  --accent-shadow: rgba(51, 65, 85, 0.24);
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent-ring: rgba(37, 99, 235, 0.24);
+  --accent-shadow: rgba(37, 99, 235, 0.28);
 
   --background: var(--app-bg);
   --foreground: var(--app-fg);
@@ -121,11 +121,11 @@
   --dock-active-bg: rgba(255, 255, 255, 0.16);
   --dock-active-fg: #ffffff;
   --dock-shadow: 0 20px 64px rgba(0, 0, 0, 0.55);
-  --accent: #64748b;
-  --accent-hover: #94a3b8;
-  --accent-soft: rgba(100, 116, 139, 0.16);
-  --accent-ring: rgba(100, 116, 139, 0.28);
-  --accent-shadow: rgba(100, 116, 139, 0.32);
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-soft: rgba(59, 130, 246, 0.16);
+  --accent-ring: rgba(59, 130, 246, 0.3);
+  --accent-shadow: rgba(59, 130, 246, 0.32);
 
   --background: var(--app-bg);
   --foreground: var(--app-fg);
@@ -373,11 +373,10 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(130% 90% at 10% -20%, var(--ambient-1), transparent 58%),
-    radial-gradient(100% 80% at 95% 10%, var(--ambient-2), transparent 60%),
-    radial-gradient(120% 100% at 50% 120%, var(--ambient-4), transparent 66%),
-    var(--app-bg);
+  /* Flat background — Telegram-style minimalism. A single solid fill repaints
+     far cheaper than stacked radial gradients, which helps scroll/transition
+     smoothness on mobile. */
+  background: var(--app-bg);
   color: var(--app-fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -391,17 +390,6 @@ body {
     box-shadow 220ms ease;
   position: relative;
   min-height: 100dvh;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(70% 50% at 15% 12%, var(--ambient-3), transparent 75%),
-    radial-gradient(60% 45% at 84% 0%, var(--ambient-3), transparent 72%);
 }
 
 :where(a, button, input, textarea, select):focus-visible {
@@ -552,16 +540,16 @@ body::before {
   }
 
   .app-section-title {
-    font-size: 2.5rem;
-    line-height: 1;
-    font-weight: 900;
-    letter-spacing: 0;
+    font-size: 2rem;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--foreground);
   }
 
   @media (min-width: 768px) {
     .app-section-title {
-      font-size: 3rem;
+      font-size: 2.25rem;
     }
   }
 

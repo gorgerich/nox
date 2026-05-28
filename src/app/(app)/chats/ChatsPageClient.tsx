@@ -326,23 +326,23 @@ export function ChatsPageClient({
 
       <div className="app-section-header px-2">
         <h1 className="app-section-title">Чаты</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1">
           <button
-            className="touch-target flex h-14 w-14 items-center justify-center rounded-[1.5rem] border border-primary/20 bg-primary/10 text-primary shadow-sm transition-smooth active:scale-90 hover:bg-primary/20 fast-tap"
+            className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors active:opacity-60 hover:bg-surface-muted fast-tap"
             onClick={() => setIsGroupPickerOpen(true)}
             title="Новая группа"
           >
-            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </button>
           <Link
-            className="touch-target flex h-14 w-14 items-center justify-center rounded-[1.5rem] border border-primary/20 bg-primary/10 text-primary shadow-sm transition-smooth active:scale-90 hover:bg-primary/20 fast-tap"
+            className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors active:opacity-60 hover:bg-surface-muted fast-tap"
             href="/chats/new"
             prefetch
           >
-            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
             </svg>
           </Link>
         </div>
@@ -361,7 +361,7 @@ export function ChatsPageClient({
 
       {incomingRequests.length > 0 ? (
         <div className="mb-10 animate-in slide-in-from-top-2 duration-200">
-          <h2 className="mb-5 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Запросы на переписку</h2>
+          <h2 className="mb-3 px-3 text-[13px] font-semibold text-muted/60">Запросы на переписку</h2>
           <IncomingRequestCards requests={incomingRequests} onChange={() => { void syncChats(); }} />
         </div>
       ) : null}
@@ -376,8 +376,8 @@ export function ChatsPageClient({
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Архив</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted">{archivedCount} {archivedCount === 1 ? 'чат' : (archivedCount > 1 && archivedCount < 5) ? 'чата' : 'чатов'}</p>
+                <p className="text-[16px] font-semibold text-foreground">Архив</p>
+                <p className="text-[13px] text-muted">{archivedCount} {archivedCount === 1 ? 'чат' : (archivedCount > 1 && archivedCount < 5) ? 'чата' : 'чатов'}</p>
               </div>
             </div>
             <svg className="h-4 w-4 text-muted/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -405,7 +405,7 @@ export function ChatsPageClient({
           </Link>
         </div>
       ) : (
-        <div className="space-y-1 animate-in fade-in duration-180">
+        <div className="-mx-5 animate-in fade-in duration-180">
           {chats.map((chat) => (
             <SwipeableChatRow
               key={chat.id}
