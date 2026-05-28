@@ -217,6 +217,15 @@ export function ChatMessages({
 
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
+  // Mirror the decryption maps in refs so the decrypt effect can read the
+  // current state WITHOUT listing it as a dependency. Otherwise every decrypted
+  // message re-triggers the effect, which then re-scans all messages (and hits
+  // IndexedDB again) — a re-render storm that made opening a chat with history
+  // feel slow. With refs the effect runs once per `messages` change.
+  const decryptedBodiesRef = useRef(decryptedBodies);
+  const unavailableMessageIdsRef = useRef(unavailableMessageIds);
+  useEffect(() => { decryptedBodiesRef.current = decryptedBodies; }, [decryptedBodies]);
+  useEffect(() => { unavailableMessageIdsRef.current = unavailableMessageIds; }, [unavailableMessageIds]);
   const plaintextByClientIdRef = useRef<Map<string, string>>(new Map());
   const [otherMemberPublicKey, setOtherMemberPublicKey] = useState<string | null>(null);
   const [myPublicKey, setMyPublicKey] = useState<string | null>(null);
@@ -261,13 +270,13 @@ export function ChatMessages({
   // Decrypt messages when they arrive or keys change
   useEffect(() => {
     async function decryptAll() {
-      const newDecrypted: Record<string, string> = { ...decryptedBodies };
-      const newUnavailable: Record<string, true> = { ...unavailableMessageIds };
+      const newDecrypted: Record<string, string> = { ...decryptedBodiesRef.current };
+      const newUnavailable: Record<string, true> = { ...unavailableMessageIdsRef.current };
       let changed = false;
       let unavailableChanged = false;
 
       for (const msg of messages) {
-        if (!msg.isEncrypted || msg.body || decryptedBodies[msg.id]) continue;
+        if (!msg.isEncrypted || msg.body || newDecrypted[msg.id]) continue;
 
         // Try local encrypted cache first. Persistent cache must never store plaintext.
         const cached = localDeviceId
@@ -409,7 +418,9 @@ export function ChatMessages({
     }
 
     decryptAll();
-  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, localDeviceId, decryptedBodies, unavailableMessageIds, saveVerifiedLocalMessage, sendDeliveryAck]);
+    // decryptedBodies/unavailableMessageIds are intentionally read via refs (not
+    // deps) to avoid a re-run storm — see the refs declared above.
+  }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
 
   const messagesWithDecrypted = useMemo(() => {
     return messages.map(msg => ({
