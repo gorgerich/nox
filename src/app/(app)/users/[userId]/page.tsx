@@ -50,34 +50,34 @@ export default async function UserProfilePage({
   const avatarUrl = targetUser.profile?.avatarUrl ?? null;
   const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
-      return (
+  return (
     <div className="app-section animate-in fade-in duration-300">
       <header className="app-section-header flex items-center gap-3">
         <BackButton />
-        <h1 className="app-section-title">Профиль</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Профиль</h1>
       </header>
 
-      <div className="flex flex-col items-center mt-10">
-        <div className="relative h-32 w-32 overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-xl">
+      <div className="mt-6 flex flex-col items-center">
+        <div className="relative h-32 w-32 overflow-hidden rounded-full bg-primary/10 text-primary">
           {fullAvatarUrl ? (
             <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-4xl font-black">
+            <div className="flex h-full w-full items-center justify-center text-4xl font-semibold">
               {displayName[0].toUpperCase()}
             </div>
           )}
         </div>
         
-        <h2 className="mt-6 text-2xl font-black text-foreground tracking-tight">{displayName}</h2>
-        <p className="mt-1 text-sm font-bold text-muted-foreground">@{username}</p>
+        <h2 className="mt-5 text-2xl font-semibold text-foreground tracking-tight">{displayName}</h2>
+        <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
 
         {bio ? (
-          <p className="mt-4 text-center text-sm font-medium text-foreground/80 max-w-sm">
+          <p className="mt-4 max-w-sm text-center text-sm font-normal leading-relaxed text-foreground/80">
             {bio}
           </p>
         ) : null}
 
-        <div className="mt-10 flex gap-4 w-full max-w-xs">
+        <div className="mt-8 flex w-full max-w-xs gap-4">
           <DirectChatButton userId={targetUser.id} />
         </div>
         <E2EEUserDevices userId={targetUser.id} />

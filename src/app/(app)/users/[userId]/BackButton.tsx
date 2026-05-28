@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 export function BackButton() {
   const router = useRouter();
@@ -16,11 +17,10 @@ export function BackButton() {
 
         router.push("/chats");
       }}
-      className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-foreground transition-smooth active:scale-90"
+      className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
+      aria-label="Назад"
     >
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-      </svg>
+      <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />
     </button>
   );
 }

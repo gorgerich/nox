@@ -211,21 +211,21 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   return (
     <>
       {activeScreen === "main" && (
-        <div className="pb-32 animate-in fade-in slide-in-from-bottom-4 duration-500 safe-top">
-          <section className="flex flex-col items-center text-center mt-6">
-            <div className="group relative mb-6">
+        <div className="pb-32 animate-in fade-in slide-in-from-bottom-4 duration-300 safe-top">
+          <section className="mt-4 flex flex-col items-center text-center">
+            <div className="group relative mb-5">
               <button
                 onClick={() => {
                   if (fullAvatarUrl) setShowFullscreenAvatar(true);
                   else fileInputRef.current?.click();
                 }}
                 disabled={pending}
-                className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] border-4 border-surface shadow-2xl transition-smooth group-hover:scale-105 active:scale-95 overflow-hidden bg-surface-muted relative"
+                className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-95"
               >
                 {fullAvatarUrl ? (
                   <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
                 ) : (
-                  <span className="text-4xl font-black text-primary">
+                  <span className="text-4xl font-semibold text-primary">
                     {displayName[0]?.toUpperCase() || username[0]?.toUpperCase()}
                   </span>
                 )}
@@ -247,7 +247,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-1 -left-1 h-9 w-9 bg-primary text-primary-foreground border-4 border-surface rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-smooth z-10"
+                className="absolute bottom-0 left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-surface bg-primary text-primary-foreground transition-smooth active:scale-95"
                 title="Изменить фото"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -258,7 +258,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               {avatarUrl && (
                 <button
                   onClick={handleAvatarDelete}
-                  className="absolute -bottom-2 -right-2 h-10 w-10 bg-surface border border-border-subtle rounded-2xl flex items-center justify-center text-red-400 shadow-xl active:scale-90 transition-smooth"
+                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-red-400 transition-smooth active:scale-95"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -267,12 +267,12 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               )}
             </div>
 
-            <h2 className="text-3xl font-black tracking-tight text-foreground">{displayName || username}</h2>
-            <p className="text-sm font-bold text-primary tracking-widest uppercase mt-1">@{username}</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground">{displayName || username}</h2>
+            <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
           </section>
 
-          <div className="space-y-6 px-4 mt-10">
-            <section className="card-premium p-1 flex flex-col">
+          <div className="mt-8 space-y-6 px-4">
+            <section className="flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface">
               <SettingsMenuButton
                 label="Мой профиль"
                 subtitle="Имя и username"
@@ -302,15 +302,15 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               />
             </section>
 
-            <section className="card-premium p-1">
-              <div className="p-4 flex items-center justify-between gap-4">
+            <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+              <div className="flex items-center justify-between gap-4 p-4">
                  <div className="min-w-0">
-                   <p className="text-sm font-bold text-foreground mb-1">Push-уведомления</p>
+                   <p className="mb-1 text-sm font-semibold text-foreground">Push-уведомления</p>
                  </div>
                  <button
                    onClick={isSubscribed ? unsubscribe : subscribe}
-                   className={`h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
-                     isSubscribed ? "bg-primary/10 text-primary border border-primary/20" : "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                   className={`h-10 rounded-full px-4 text-sm font-semibold transition-smooth active:scale-95 ${
+                     isSubscribed ? "border border-primary/20 bg-primary/10 text-primary" : "bg-primary text-primary-foreground"
                    }`}
                  >
                    {isSubscribed ? "Отключить" : "Включить"}
@@ -323,7 +323,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             {isAdmin && (
               <Link
                 href="/admin"
-                className="btn-nox w-full bg-surface-muted text-muted hover:text-foreground border border-border-subtle/50 uppercase tracking-widest text-xs flex justify-center items-center h-14 rounded-2xl"
+                className="flex h-12 w-full items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95"
               >
                 Админ-панель
               </Link>
@@ -333,7 +333,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               type="button"
               onClick={handleLogout}
               disabled={pending}
-              className="btn-nox w-full bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 uppercase tracking-widest text-xs h-14 rounded-2xl transition-smooth active:scale-95"
+              className="h-12 w-full rounded-full border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-95 disabled:opacity-50"
             >
               {pending ? "Выход..." : "Выйти из аккаунта"}
             </button>
@@ -343,18 +343,18 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
       {activeScreen === "profile" && (
         <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 py-3 border-b border-border-subtle/50">
-             <button onClick={() => setActiveScreen("main")} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-black tracking-tight">Мой профиль</h1>
+             <h1 className="text-base font-semibold tracking-tight">Мой профиль</h1>
              <div className="w-10" />
           </header>
 
           <form onSubmit={handleUpdate} className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">Имя</label>
+                  <label className="ml-4 text-sm font-medium text-muted">Имя</label>
                   <input
                     className="input-nox h-14"
                     value={displayName}
@@ -364,7 +364,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">Username</label>
+                  <label className="ml-4 text-sm font-medium text-muted">Username</label>
                   <input
                     className="input-nox h-14"
                     value={username}
@@ -374,7 +374,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">О себе</label>
+                  <label className="ml-4 text-sm font-medium text-muted">О себе</label>
                   <textarea
                     className="input-nox min-h-[120px] resize-none py-4"
                     value={bio}
@@ -385,11 +385,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
              </div>
 
              <div className="pt-4">
-               {message && <p className="text-center text-xs font-bold text-primary animate-in fade-in py-2 mb-4">{message}</p>}
+               {message && <p className="mb-4 py-2 text-center text-sm font-semibold text-primary animate-in fade-in">{message}</p>}
                <button
                  type="submit"
                  disabled={pending}
-                 className="btn-nox w-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95 disabled:opacity-50"
+                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-50"
                >
                  {pending ? "Сохранение..." : "Сохранить изменения"}
                </button>
@@ -400,11 +400,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
       {activeScreen === "devices" && (
         <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 py-3 border-b border-border-subtle/50">
-             <button onClick={() => setActiveScreen("main")} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-black tracking-tight">Устройства</h1>
+             <h1 className="text-base font-semibold tracking-tight">Устройства</h1>
              <div className="w-10" />
           </header>
 
@@ -416,27 +416,27 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
       {activeScreen === "appearance" && (
         <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 py-3 border-b border-border-subtle/50">
-             <button onClick={() => setActiveScreen("main")} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-black tracking-tight">Оформление</h1>
+             <h1 className="text-base font-semibold tracking-tight">Оформление</h1>
              <div className="w-10" />
           </header>
 
           <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <section className="space-y-3">
               <div className="px-1">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Тема приложения</h2>
+                <h2 className="text-sm font-semibold text-muted">Тема приложения</h2>
                 <p className="mt-2 text-sm font-medium text-muted leading-relaxed">Базовые поверхности остаются нейтральными, акцент применяется только к выбранным действиям и состояниям.</p>
               </div>
-              <div className="card-premium p-1 grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-border-subtle bg-surface p-1">
                 {(["light", "dark", "system"] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setTheme(t)}
-                    className={`rounded-[1.15rem] px-3 py-4 text-[10px] font-black uppercase tracking-widest transition-smooth active:scale-95 ${
-                      theme === t ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted hover:bg-foreground/5 hover:text-foreground"
+                    className={`rounded-xl px-3 py-3 text-sm font-semibold transition-smooth active:scale-95 ${
+                      theme === t ? "bg-primary text-primary-foreground" : "text-muted hover:bg-foreground/5 hover:text-foreground"
                     }`}
                   >
                     {t === "light" ? "Светлая" : t === "dark" ? "Тёмная" : "Системная"}
@@ -447,20 +447,20 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
             <section className="space-y-3">
               <div className="px-1">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Акцентный цвет</h2>
+                <h2 className="text-sm font-semibold text-muted">Акцентный цвет</h2>
                 <p className="mt-2 text-sm font-medium text-muted leading-relaxed">Акцент меняет активную вкладку, кнопки действия, selected state и бейджи. Фон и карточки остаются чёрно-бело-серыми.</p>
               </div>
-              <div className="card-premium p-2 grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border-subtle bg-surface p-2">
                 {ACCENT_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setAccent(option.value)}
-                    className={`flex items-center gap-3 rounded-[1.25rem] px-4 py-4 text-left transition-smooth active:scale-[0.98] ${
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-smooth active:scale-[0.98] ${
                       accent === option.value ? "bg-primary/10 ring-1 ring-primary/25" : "hover:bg-foreground/5"
                     }`}
                   >
                     <span className="h-8 w-8 rounded-full border border-black/10 shadow-inner" style={{ backgroundColor: option.swatch }} />
-                    <span className="min-w-0 flex-1 text-sm font-black text-foreground">{option.label}</span>
+                    <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{option.label}</span>
                     {accent === option.value ? (
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -476,11 +476,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
       {activeScreen === "security" && (
         <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 py-3 border-b border-border-subtle/50">
-             <button onClick={() => setActiveScreen("main")} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-black tracking-tight">Безопасность</h1>
+             <h1 className="text-base font-semibold tracking-tight">Безопасность</h1>
              <div className="w-10" />
           </header>
 
@@ -488,7 +488,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             <form onSubmit={handlePasswordChange} className="space-y-6">
                <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">Текущий пароль</label>
+                    <label className="ml-4 text-sm font-medium text-muted">Текущий пароль</label>
                     <input
                       className="input-nox h-14"
                       type="password"
@@ -499,7 +499,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted/80 ml-4">Новый пароль</label>
+                    <label className="ml-4 text-sm font-medium text-muted">Новый пароль</label>
                     <input
                       className="input-nox h-14"
                       type="password"
@@ -510,13 +510,13 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                   </div>
                </div>
 
-               {passwordError && <p className="text-center text-xs font-bold text-red-400 py-1">{passwordError}</p>}
-               {passwordMessage && <p className="text-center text-xs font-bold text-primary py-1">{passwordMessage}</p>}
+               {passwordError && <p className="py-1 text-center text-sm font-semibold text-red-400">{passwordError}</p>}
+               {passwordMessage && <p className="py-1 text-center text-sm font-semibold text-primary">{passwordMessage}</p>}
 
                <button
                  type="submit"
                  disabled={passwordPending || !currentPassword || newPassword.length < 8}
-                 className="btn-nox w-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95 disabled:opacity-50"
+                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-50"
                >
                  {passwordPending ? "Сохранение..." : "Изменить пароль"}
                </button>
@@ -524,17 +524,17 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                <button
                  type="button"
                  onClick={() => setShowTrustedReset(true)}
-                 className="btn-nox w-full bg-transparent text-primary hover:bg-primary/5 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] transition-smooth active:scale-95"
+                 className="h-12 w-full rounded-full bg-transparent text-sm font-semibold text-primary transition-smooth hover:bg-primary/5 active:scale-95"
                >
                  Не помню текущий пароль
                </button>
             </form>
 
-            <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-6 mt-12">
-               <p className="text-xs font-bold text-amber-600 dark:text-amber-400/90 leading-relaxed text-center mb-4">
+            <div className="mt-12 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
+               <p className="mb-4 text-center text-sm font-medium leading-relaxed text-amber-600 dark:text-amber-400/90">
                  Nox не хранит ключи от ваших сообщений. После сброса пароля на новом устройстве старые сообщения могут быть недоступны без доверенного устройства.
                </p>
-               <Link href="/forgot-password" className="btn-nox w-full bg-amber-500 text-neutral-950 shadow-xl shadow-amber-500/20 uppercase tracking-widest text-xs h-14 rounded-[1.25rem] flex items-center justify-center transition-smooth active:scale-95 font-black">
+               <Link href="/forgot-password" className="flex h-12 w-full items-center justify-center rounded-full bg-amber-500 text-sm font-semibold text-neutral-950 transition-smooth active:scale-95">
                  Сбросить пароль полностью
                </Link>
             </div>
@@ -545,14 +545,14 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       {/* Trusted Reset Modal */}
       {showTrustedReset && (
         <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-200 p-6"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/55 p-6 animate-in fade-in duration-200"
           onClick={() => setShowTrustedReset(false)}
         >
           <div
-            className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl relative"
+            className="relative w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-xl font-black mb-2 text-center">Сброс пароля</h3>
+            <h3 className="mb-2 text-center text-xl font-semibold">Сброс пароля</h3>
             <p className="text-xs text-muted text-center mb-6 leading-relaxed">
               Это устройство уже авторизовано. После смены пароля ваши сообщения на этом устройстве останутся доступны.
             </p>
@@ -568,21 +568,21 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 minLength={8}
               />
 
-              {trustedError && <p className="text-center text-xs font-bold text-red-400">{trustedError}</p>}
-              {trustedMessage && <p className="text-center text-xs font-bold text-primary">{trustedMessage}</p>}
+              {trustedError && <p className="text-center text-sm font-semibold text-red-400">{trustedError}</p>}
+              {trustedMessage && <p className="text-center text-sm font-semibold text-primary">{trustedMessage}</p>}
 
               <div className="flex gap-4 mt-2">
                 <button
                   type="button"
                   onClick={() => setShowTrustedReset(false)}
-                  className="flex-1 py-4 font-black uppercase text-muted text-xs tracking-widest transition-smooth active:scale-95"
+                  className="flex-1 py-3 text-sm font-semibold text-muted transition-smooth active:scale-95"
                 >
                   Отмена
                 </button>
                 <button
                   type="submit"
                   disabled={trustedPending || trustedNewPassword.length < 8}
-                  className="flex-1 py-4 font-black uppercase text-primary text-xs tracking-widest disabled:opacity-50 transition-smooth active:scale-95"
+                  className="flex-1 py-3 text-sm font-semibold text-primary transition-smooth active:scale-95 disabled:opacity-50"
                 >
                   {trustedPending ? "..." : "Сохранить"}
                 </button>
@@ -599,13 +599,13 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
           onClick={() => setShowFullscreenAvatar(false)}
         >
            <button
-             className="absolute top-10 right-6 z-10 h-12 w-12 flex items-center justify-center rounded-2xl bg-white/10 text-white backdrop-blur-md active:scale-90 transition-smooth"
+             className="absolute right-6 top-10 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white transition-smooth active:scale-95"
              onClick={() => setShowFullscreenAvatar(false)}
            >
              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
            </button>
            <div className="relative w-full aspect-square max-w-2xl px-4" onClick={e => e.stopPropagation()}>
-              <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+              <div className="relative h-full w-full overflow-hidden rounded-2xl ring-1 ring-white/10">
                 <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" priority />
               </div>
            </div>
@@ -625,13 +625,13 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
 function SettingsMenuButton({ label, subtitle, icon, onClick }: { label: string, subtitle: string, icon: React.ReactNode, onClick: () => void }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-foreground/5 rounded-[1.25rem] transition-smooth group active:scale-[0.98]">
-      <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
+    <button onClick={onClick} className="group flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform">
         {icon}
       </div>
       <div className="min-w-0 flex-1 text-left">
-        <p className="text-sm font-bold text-foreground truncate">{label}</p>
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted/60 mt-0.5 truncate">{subtitle}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+        <p className="mt-0.5 truncate text-xs font-normal text-muted">{subtitle}</p>
       </div>
       <div className="shrink-0 text-muted opacity-50 group-hover:opacity-100 transition-opacity">
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
@@ -812,12 +812,12 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
 
       <section className="space-y-3">
         <div className="px-1">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Это устройство</h2>
+          <h2 className="text-sm font-semibold text-muted">Это устройство</h2>
         </div>
         {currentDevice ? (
           <DeviceSessionCard device={currentDevice} current />
         ) : !loading ? (
-          <div className="rounded-3xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
+          <div className="rounded-2xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
             Текущее устройство пока не определено.
           </div>
         ) : null}
@@ -826,7 +826,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
           type="button"
           onClick={() => void revokeOtherDevices()}
           disabled={revokeAllPending || activeOtherDevices.length === 0}
-          className="w-full rounded-3xl border border-danger/15 bg-danger/10 px-5 py-4 text-left transition-smooth active:scale-[0.98] disabled:opacity-45"
+          className="w-full rounded-2xl border border-danger/15 bg-danger/10 px-5 py-4 text-left transition-smooth active:scale-[0.98] disabled:opacity-45"
         >
           <span className="block text-sm font-black text-danger">Завершить все остальные сеансы</span>
           <span className="mt-1 block text-xs font-semibold text-danger/70">
@@ -837,7 +837,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
 
       <section className="space-y-3">
         <div className="px-1">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Активные сеансы</h2>
+          <h2 className="text-sm font-semibold text-muted">Активные сеансы</h2>
         </div>
         {activeOtherDevices.length > 0 ? (
           <div className="space-y-3">
@@ -849,7 +849,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
                   <button
                     onClick={() => void revokeDevice(device)}
                     disabled={pendingDeviceId === device.deviceId}
-                    className="shrink-0 rounded-xl bg-danger/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-danger active:scale-95 transition-smooth disabled:opacity-50"
+                    className="shrink-0 rounded-full bg-danger/10 px-4 py-2.5 text-xs font-semibold text-danger transition-smooth active:scale-95 disabled:opacity-50"
                   >
                     {pendingDeviceId === device.deviceId ? "..." : "Завершить"}
                   </button>
@@ -858,7 +858,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
             ))}
           </div>
         ) : (
-          <div className="rounded-3xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
+          <div className="rounded-2xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
             Других активных сеансов нет.
           </div>
         )}
@@ -867,7 +867,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
       {revokedDevices.length > 0 ? (
         <section className="space-y-3">
           <div className="px-1">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Отозванные</h2>
+            <h2 className="text-sm font-semibold text-muted">Отозванные</h2>
           </div>
           <div className="space-y-3 opacity-75">
             {revokedDevices.map((device) => (
@@ -897,18 +897,18 @@ function DeviceSessionCard({
 }) {
   const isRevoked = revoked || Boolean(device.revokedAt);
   return (
-    <div className={`rounded-[1.75rem] border p-4 transition-smooth ${current ? "border-primary/25 bg-primary/10 shadow-sm" : "border-border-subtle bg-surface"}`}>
+    <div className={`rounded-2xl border p-4 transition-smooth ${current ? "border-primary/25 bg-primary/10" : "border-border-subtle bg-surface"}`}>
       <div className="flex items-start gap-4">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${current ? "bg-primary text-primary-foreground" : isRevoked ? "bg-danger/10 text-danger" : "bg-foreground/5 text-foreground"}`}>
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${current ? "bg-primary text-primary-foreground" : isRevoked ? "bg-danger/10 text-danger" : "bg-foreground/5 text-foreground"}`}>
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9.75 17 9 20l-1 1h8l-1-1-.75-3M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
           </svg>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-base font-black text-foreground">{getDeviceName(device)}</p>
-            {current ? <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">Это устройство</span> : null}
-            {isRevoked ? <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-danger">Отозвано</span> : null}
+            <p className="truncate text-base font-semibold text-foreground">{getDeviceName(device)}</p>
+            {current ? <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-semibold text-primary">Это устройство</span> : null}
+            {isRevoked ? <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-[10px] font-semibold text-danger">Отозвано</span> : null}
           </div>
           <p className="mt-1 text-xs font-bold text-muted">{getPlatformName(device)}</p>
           <p className="mt-1 text-xs font-semibold text-muted/80">{formatDeviceActivity(device)}</p>

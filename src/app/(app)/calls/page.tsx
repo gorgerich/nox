@@ -56,26 +56,26 @@ export default async function CallsPage() {
 
   return (
     <div className="app-section transition-smooth">
-      <div className="app-section-header px-2">
+      <div className="app-section-header">
         <div>
           <h1 className="app-section-title">Звонки</h1>
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Ваша история аудиовызовов</p>
+          <p className="mt-1 text-sm font-medium text-muted">История аудио и видеовызовов</p>
         </div>
       </div>
 
       {logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-700">
-          <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-[2.5rem] bg-surface-muted border border-border-subtle/50 shadow-inner">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-surface-muted text-muted">
             <Phone className="h-10 w-10 text-muted/40" strokeWidth={1.5} />
           </div>
           
-          <h2 className="text-xl font-bold tracking-tight text-foreground/80">Список звонков пуст</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground/80">Список звонков пуст</h2>
           <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-muted/50 font-medium">
             Вы можете позвонить любому пользователю прямо из личного чата. История звонков появится в этом разделе позже.
           </p>
         </div>
       ) : (
-        <div className="space-y-3 px-2 pb-24">
+        <div className="-mx-5 divide-y divide-border-subtle border-y border-border-subtle bg-surface pb-24 md:mx-0 md:rounded-2xl md:border">
           {logs.map((log) => {
             const isOutgoing = log.callerId === user.id;
             const partner = isOutgoing ? log.callee : log.caller;
@@ -100,13 +100,13 @@ export default async function CallsPage() {
             return (
               <div 
                 key={log.id} 
-                className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-smooth hover:bg-surface-elevated active:scale-[0.99] shadow-sm"
+                className="group flex min-h-[72px] items-center gap-3 px-5 py-2.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10"
               >
-                <Link href={`/users/${partner.id}`} className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-primary/10 text-primary transition-smooth active:scale-95">
+                <Link href={`/users/${partner.id}`} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 text-primary transition-smooth active:scale-95">
                   {fullAvatarUrl ? (
                     <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xl font-black">
+                    <div className="flex h-full w-full items-center justify-center text-lg font-semibold">
                       {displayName[0].toUpperCase()}
                     </div>
                   )}
@@ -114,14 +114,14 @@ export default async function CallsPage() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-base font-bold text-foreground">{displayName}</p>
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-tighter text-muted/40">
+                    <p className="truncate text-[17px] font-semibold leading-tight text-foreground">{displayName}</p>
+                    <span className="shrink-0 text-xs font-medium text-muted">
                       {formatTime(log.startedAt)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <StatusIcon className={`h-3 w-3 ${statusColor}`} />
-                    <p className={`text-xs font-bold ${statusColor} opacity-80`}>
+                  <div className="mt-1 flex items-center gap-2">
+                    <StatusIcon className={`h-3.5 w-3.5 ${statusColor}`} />
+                    <p className={`text-sm font-normal ${statusColor}`}>
                       {statusLabel}
                       {log.durationSec ? ` • ${formatDuration(log.durationSec)}` : ""}
                     </p>
@@ -130,9 +130,10 @@ export default async function CallsPage() {
 
                 <Link 
                   href={`/chats/${log.chatId}`}
-                  className="touch-target h-10 w-10 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-smooth hover:bg-primary hover:text-primary-foreground active:scale-90"
+                  className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth hover:bg-primary hover:text-primary-foreground active:scale-95"
+                  aria-label="Открыть чат"
                 >
-                  <ArrowRight className="h-5 w-5" />
+                  <ArrowRight className="h-5 w-5" strokeWidth={2.1} />
                 </Link>
               </div>
             );

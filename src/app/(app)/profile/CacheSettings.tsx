@@ -36,7 +36,7 @@ export function CacheSettings() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => void refresh());
   }, [refresh]);
 
   const runClear = useCallback(
@@ -69,10 +69,10 @@ export function CacheSettings() {
   );
 
   return (
-    <section className="card-premium p-4 space-y-4">
+    <section className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">Хранилище и кэш</p>
+          <p className="text-sm font-semibold text-foreground">Хранилище и кэш</p>
           <p className="text-xs text-muted mt-0.5">
             {messageCount === null ? "Подсчёт…" : `Сообщений в кэше: ${messageCount}`}
             {usageMB ? ` · ${usageMB} МБ на устройстве` : ""}
@@ -81,7 +81,7 @@ export function CacheSettings() {
         <button
           type="button"
           onClick={() => void refresh()}
-          className="h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-foreground/5 text-muted hover:text-foreground transition-smooth active:scale-95"
+          className="h-9 rounded-full bg-foreground/5 px-3 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95"
         >
           Обновить
         </button>
@@ -92,7 +92,7 @@ export function CacheSettings() {
           type="button"
           disabled={busy !== null}
           onClick={() => void runClear("messages")}
-          className="h-11 rounded-xl text-xs font-black uppercase tracking-widest bg-foreground/5 text-foreground hover:bg-foreground/10 transition-smooth active:scale-[0.98] disabled:opacity-50"
+          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.98] disabled:opacity-50"
         >
           {busy === "messages" ? "Очистка…" : "Очистить кэш сообщений"}
         </button>
@@ -101,7 +101,7 @@ export function CacheSettings() {
           type="button"
           disabled={busy !== null}
           onClick={() => void runClear("browser")}
-          className="h-11 rounded-xl text-xs font-black uppercase tracking-widest bg-foreground/5 text-foreground hover:bg-foreground/10 transition-smooth active:scale-[0.98] disabled:opacity-50"
+          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.98] disabled:opacity-50"
         >
           {busy === "browser" ? "Очистка…" : "Очистить медиа и кэш приложения"}
         </button>
@@ -110,7 +110,7 @@ export function CacheSettings() {
           type="button"
           disabled={busy !== null}
           onClick={() => void runClear("all")}
-          className="h-11 rounded-xl text-xs font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-smooth active:scale-[0.98] disabled:opacity-50"
+          className="h-11 rounded-xl border border-primary/20 bg-primary/10 text-sm font-semibold text-primary transition-smooth hover:bg-primary/20 active:scale-[0.98] disabled:opacity-50"
         >
           {busy === "all" ? "Очистка…" : "Очистить весь кэш (без ключей)"}
         </button>
@@ -118,7 +118,7 @@ export function CacheSettings() {
 
       {/* Danger zone — wiping E2EE keys */}
       <div className="rounded-xl border border-danger/20 bg-danger/5 p-3 space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-danger">Опасная зона</p>
+        <p className="text-sm font-semibold text-danger">Опасная зона</p>
         <p className="text-xs text-muted">
           Сброс ключей шифрования удалит криптоидентичность этого устройства. Переписка
           перестанет расшифровываться, пока устройство не переустановит ключи.
@@ -129,7 +129,7 @@ export function CacheSettings() {
               type="button"
               disabled={busy !== null}
               onClick={() => void runClear("keys")}
-              className="flex-1 h-11 rounded-xl text-xs font-black uppercase tracking-widest bg-danger text-white transition-smooth active:scale-[0.98] disabled:opacity-50"
+              className="h-11 flex-1 rounded-xl bg-danger text-sm font-semibold text-white transition-smooth active:scale-[0.98] disabled:opacity-50"
             >
               {busy === "keys" ? "Сброс…" : "Да, сбросить ключи"}
             </button>
@@ -137,7 +137,7 @@ export function CacheSettings() {
               type="button"
               disabled={busy !== null}
               onClick={() => setConfirmKeys(false)}
-              className="h-11 px-4 rounded-xl text-xs font-black uppercase tracking-widest bg-foreground/5 text-muted transition-smooth active:scale-95"
+              className="h-11 rounded-xl bg-foreground/5 px-4 text-sm font-semibold text-muted transition-smooth active:scale-95"
             >
               Отмена
             </button>
@@ -147,7 +147,7 @@ export function CacheSettings() {
             type="button"
             disabled={busy !== null}
             onClick={() => setConfirmKeys(true)}
-            className="h-11 w-full rounded-xl text-xs font-black uppercase tracking-widest bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20 transition-smooth active:scale-[0.98] disabled:opacity-50"
+            className="h-11 w-full rounded-xl border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.98] disabled:opacity-50"
           >
             Сбросить ключи шифрования
           </button>

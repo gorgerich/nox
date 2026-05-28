@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MessageCircle, Search, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type Contact = {
@@ -135,27 +136,29 @@ export default function ContactsPage() {
 
   return (
     <div className="app-section animate-in fade-in duration-300">
-      <header className="app-section-header">
-        <h1 className="app-section-title">Контакты</h1>
+      <header className="app-section-header items-center">
+        <div>
+          <h1 className="app-section-title">Контакты</h1>
+          <p className="mt-1 text-sm font-medium text-muted">Люди из ваших личных чатов</p>
+        </div>
       </header>
 
       {contacts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center animate-in zoom-in-95 duration-500 delay-100">
-          <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-surface-elevated shadow-xl ring-1 ring-border-subtle/50">
-            <svg className="h-10 w-10 text-muted/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-surface-muted text-muted">
+            <UsersRound className="h-9 w-9" strokeWidth={1.7} />
           </div>
-          <h2 className="mb-2 text-xl font-black tracking-tight text-foreground/80">Контактов пока нет</h2>
+          <h2 className="mb-2 text-xl font-semibold tracking-tight text-foreground/80">Контактов пока нет</h2>
           <p className="max-w-xs text-sm font-medium text-muted-foreground leading-relaxed">
             Начните новый чат, чтобы контакт появился здесь.
           </p>
-          <Link href="/chats/new" className="mt-8 btn-nox bg-primary text-primary-foreground px-8 shadow-xl shadow-primary/20 hover:scale-105 active:scale-95">
+          <Link href="/chats/new" className="mt-8 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-95">
+            <Search className="h-4 w-4" strokeWidth={2.2} />
             Найти людей
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="-mx-5 divide-y divide-border-subtle border-y border-border-subtle bg-surface md:mx-0 md:rounded-2xl md:border">
           {contacts.map((contact) => {
             const isMe = me && contact!.id === me.id;
             const displayName = isMe ? "Избранное" : (contact!.profile?.displayName || contact!.username);
@@ -165,22 +168,22 @@ export default function ContactsPage() {
               <Link 
                 key={contact!.id} 
                 href={isMe ? "/profile" : `/users/${contact!.id}`}
-                className="group flex items-center gap-4 rounded-3xl bg-surface p-4 border border-border-subtle transition-smooth hover:bg-surface-elevated hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md fast-tap"
+                className="group flex min-h-[72px] items-center gap-3 px-5 py-2.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10 fast-tap"
               >
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 text-primary">
                   {fullAvatarUrl ? (
                     <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xl font-black">
+                    <div className="flex h-full w-full items-center justify-center text-lg font-semibold">
                       {displayName[0].toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[17px] font-bold text-foreground group-hover:text-primary transition-colors">
+                  <p className="truncate text-[17px] font-semibold leading-tight text-foreground">
                     {displayName}
                   </p>
-                  <p className="truncate text-sm font-medium text-muted-foreground">
+                  <p className="mt-0.5 truncate text-sm font-normal text-muted">
                     {isMe ? `@${contact!.username} (вы)` : `@${contact!.username}`}
                   </p>
                 </div>
@@ -188,9 +191,14 @@ export default function ContactsPage() {
                   <button
                     onClick={(e) => handleWriteClick(e, contact!.id)}
                     disabled={actionPending === contact!.id}
-                    className="flex h-10 px-4 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider group-hover:bg-primary group-hover:text-primary-foreground transition-smooth fast-tap disabled:opacity-50"
+                    className="flex h-10 min-w-10 items-center justify-center rounded-full bg-primary/10 px-3 text-primary transition-smooth hover:bg-primary hover:text-primary-foreground active:scale-95 fast-tap disabled:opacity-50"
+                    aria-label={isMe ? "Открыть избранное" : "Написать"}
                   >
-                    {actionPending === contact!.id ? "..." : (isMe ? "Чат" : "Написать")}
+                    {actionPending === contact!.id ? (
+                      <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    ) : (
+                      <MessageCircle className="h-5 w-5" strokeWidth={2.1} />
+                    )}
                   </button>
                 </div>
               </Link>

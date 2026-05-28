@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MessageCircle } from "lucide-react";
 
 export function DirectChatButton({ userId }: { userId: string }) {
   const router = useRouter();
@@ -33,9 +34,19 @@ export function DirectChatButton({ userId }: { userId: string }) {
     <button
       onClick={handleClick}
       disabled={pending}
-      className="btn-nox flex-1 bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary-hover fast-tap disabled:opacity-50"
+      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth hover:bg-primary-hover active:scale-95 fast-tap disabled:opacity-50"
     >
-      {pending ? "Загрузка..." : "Написать"}
+      {pending ? (
+        <>
+          <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          Загрузка...
+        </>
+      ) : (
+        <>
+          <MessageCircle className="h-5 w-5" strokeWidth={2.1} />
+          Написать
+        </>
+      )}
     </button>
   );
 }

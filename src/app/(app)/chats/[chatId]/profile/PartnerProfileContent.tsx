@@ -114,42 +114,45 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const fullAvatarUrl = normalizeAvatarUrl(partnerUser.avatarUrl);
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
+    <div className="flex h-full flex-col overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
       {/* Top Header */}
-      <header className="sticky top-0 z-50 glass-header flex items-center justify-between px-4 py-3">
-        <button onClick={() => router.back()} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+      <header
+        className="sticky top-0 z-50 flex items-center justify-between border-b border-border-subtle bg-background px-3 py-2"
+        style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95" aria-label="Назад">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="text-center">
-          <h1 className="text-sm font-black tracking-tight">{settings.nickname || partnerUser.displayName}</h1>
-          <p className={`text-[10px] font-black uppercase tracking-widest ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
+          <h1 className="text-sm font-semibold tracking-tight">{settings.nickname || partnerUser.displayName}</h1>
+          <p className={`text-xs font-normal ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
         </div>
         <div className="w-10" /> 
       </header>
 
       {/* Hero Section */}
-      <section className="flex flex-col items-center pt-8 pb-10 px-6">
-        <div className="relative mb-6 h-32 w-32 group">
-          <div className="absolute inset-0 rounded-[3rem] border-4 border-surface shadow-2xl overflow-hidden bg-surface-muted flex items-center justify-center">
+      <section className="flex flex-col items-center px-6 pb-8 pt-7">
+        <div className="group relative mb-5 h-32 w-32">
+          <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted">
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
-              <span className="text-5xl font-black text-primary">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
+              <span className="text-5xl font-semibold text-primary">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
             )}
           </div>
-          {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full bg-primary border-4 border-background shadow-sm" />}
+          {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-background bg-primary" />}
         </div>
         
-        <h2 className="text-3xl font-black tracking-tight text-center">{settings.nickname || partnerUser.displayName}</h2>
-        <p className="text-sm font-bold text-primary tracking-[0.2em] uppercase mt-1">@{partnerUser.username}</p>
+        <h2 className="text-center text-3xl font-semibold tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
+        <p className="mt-1 text-sm font-medium text-primary">@{partnerUser.username}</p>
         
         {partnerUser.bio && (
-          <p className="mt-6 text-center text-muted text-sm leading-relaxed max-w-xs">{partnerUser.bio}</p>
+          <p className="mt-5 max-w-xs text-center text-sm leading-relaxed text-muted">{partnerUser.bio}</p>
         )}
       </section>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-5 gap-1 px-4 mb-10">
+      <div className="mb-8 grid grid-cols-5 gap-1 px-4">
         <ActionButton 
           onClick={() => {
             const currentU = { displayName: "Я", avatarUrl: null };
@@ -165,14 +168,14 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       </div>
 
       {/* Settings List */}
-      <div className="px-6 space-y-2 mb-10">
-        <section className="card-premium p-1">
+      <div className="mb-8 space-y-3 px-4">
+        <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
           <SettingsItem 
             label="Переименовать" 
             value={settings.nickname || "Не задано"} 
             onClick={() => setIsEditingName(true)}
           />
-          <div className="h-px bg-border-subtle/30 mx-4" />
+          <div className="mx-4 h-px bg-border-subtle" />
           <SettingsItem 
             label="Уведомления" 
             value={settings.mutedUntil ? `До ${new Date(settings.mutedUntil).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : "Включены"}
@@ -182,8 +185,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       </div>
 
       {/* Shared Media Tabs */}
-      <div className="flex-1 flex flex-col px-4">
-        <div className="flex gap-6 border-b border-border-subtle/30 px-2 mb-4">
+      <div className="flex flex-1 flex-col px-4">
+        <div className="mb-4 flex gap-6 border-b border-border-subtle px-2">
           <TabButton active={activeTab === "media"} onClick={() => setActiveSection("media")} label="Медиа" />
           <TabButton active={activeTab === "files"} onClick={() => setActiveSection("files")} label="Файлы" />
           <TabButton active={activeTab === "links"} onClick={() => setActiveSection("links")} label="Ссылки" />
@@ -200,9 +203,9 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
 
       {/* Rename Dialog */}
       {isEditingName && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-xl p-6 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl">
-            <h3 className="text-xl font-black mb-6">Переименовать</h3>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
+            <h3 className="mb-5 text-xl font-semibold">Переименовать</h3>
             <input 
               className="input-nox mb-6" 
               value={newName} 
@@ -211,8 +214,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
               autoFocus
             />
             <div className="flex gap-4">
-              <button onClick={() => setIsEditingName(false)} className="flex-1 py-4 font-black uppercase text-muted">Отмена</button>
-              <button onClick={() => { updateContact({ nickname: newName }); setIsEditingName(false); }} className="flex-1 py-4 font-black uppercase text-primary">Сохранить</button>
+              <button onClick={() => setIsEditingName(false)} className="flex-1 py-3 text-sm font-semibold text-muted">Отмена</button>
+              <button onClick={() => { updateContact({ nickname: newName }); setIsEditingName(false); }} className="flex-1 py-3 text-sm font-semibold text-primary">Сохранить</button>
             </div>
           </div>
         </div>
@@ -231,11 +234,11 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
 
 function ActionButton({ label, icon, onClick, destructive }: { label: string, icon: React.ReactNode, onClick: () => void, destructive?: boolean }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 group">
-      <div className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-smooth active:scale-90 ${destructive ? "bg-danger/10 text-danger" : "bg-primary/10 text-primary"} group-hover:scale-105`}>
+    <button onClick={onClick} className="group flex flex-col items-center gap-2">
+      <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-95 ${destructive ? "bg-danger/10 text-danger" : "bg-primary/10 text-primary"}`}>
         {icon}
       </div>
-      <span className={`text-[10px] font-black uppercase tracking-widest ${destructive ? "text-danger" : "text-primary"} opacity-80`}>{label}</span>
+      <span className={`text-[11px] font-semibold ${destructive ? "text-danger" : "text-primary"} opacity-90`}>{label}</span>
     </button>
   );
 }
@@ -247,9 +250,9 @@ function ActionMenuButton({ label, icon, options, onSelect }: { label: string, i
       <ActionButton onClick={() => setIsOpen(!isOpen)} label={label} icon={icon} />
       {isOpen && (
         <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)}>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 rounded-3xl bg-surface p-2 shadow-2xl border border-border-subtle animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+          <div className="absolute left-1/2 top-1/2 w-64 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border-subtle bg-surface p-2 shadow-lg animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             {options.map((opt) => (
-              <button key={opt.value} onClick={() => { onSelect(opt.value); setIsOpen(false); }} className="w-full text-left px-5 py-3.5 text-sm font-bold hover:bg-foreground/5 rounded-2xl transition-smooth">
+              <button key={opt.value} onClick={() => { onSelect(opt.value); setIsOpen(false); }} className="w-full rounded-xl px-5 py-3.5 text-left text-sm font-medium transition-smooth hover:bg-foreground/5">
                 {opt.label}
               </button>
             ))}
@@ -262,18 +265,18 @@ function ActionMenuButton({ label, icon, options, onSelect }: { label: string, i
 
 function SettingsItem({ label, value, onClick }: { label: string, value: string, onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-smooth group active:scale-[0.98]">
-      <span className="text-sm font-bold text-foreground/80">{label}</span>
-      <span className="text-sm font-bold text-primary truncate max-w-[120px]">{value}</span>
+    <button onClick={onClick} className="group flex w-full items-center justify-between px-5 py-4 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
+      <span className="text-sm font-semibold text-foreground/80">{label}</span>
+      <span className="max-w-[140px] truncate text-sm font-medium text-primary">{value}</span>
     </button>
   );
 }
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button onClick={onClick} className={`pb-3 text-xs font-black uppercase tracking-[0.2em] transition-smooth relative ${active ? "text-primary" : "text-muted"}`}>
+    <button onClick={onClick} className={`relative pb-3 text-sm font-semibold transition-smooth ${active ? "text-primary" : "text-muted"}`}>
       {label}
-      {active && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />}
+      {active && <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />}
     </button>
   );
 }
@@ -285,7 +288,7 @@ function SharedContent({ type, data, chatId, currentUserId }: { type: string, da
   
   if (type === "media") {
     const items = data.photos || [];
-    if (items.length === 0) return <div className="py-20 text-center text-muted font-bold text-sm">Ничего не найдено</div>;
+    if (items.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
     return (
       <div className="grid grid-cols-3 gap-1">
         {items.map((m) => (
@@ -296,7 +299,7 @@ function SharedContent({ type, data, chatId, currentUserId }: { type: string, da
   }
 
   const items: GenericSharedItem[] = type === "files" ? data.files : data.links;
-  if (items.length === 0) return <div className="py-20 text-center text-muted font-bold text-sm">Ничего не найдено</div>;
+  if (items.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
 
   return (
     <div className="space-y-4">
@@ -304,13 +307,13 @@ function SharedContent({ type, data, chatId, currentUserId }: { type: string, da
         const url = 'url' in item ? item.url : '#';
         const fileName = 'fileName' in item ? item.fileName : ('url' in item ? item.url : 'Link');
         return (
-          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-2 hover:bg-foreground/5 rounded-xl transition-smooth">
-            <div className="h-10 w-10 rounded-lg bg-surface-muted flex items-center justify-center text-primary shrink-0">
+          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-xl p-2 transition-smooth hover:bg-foreground/5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
               {type === "files" ? <FileIcon /> : <LinkIcon />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold truncate">{fileName}</p>
-              <p className="text-[10px] font-black uppercase text-muted">{'createdAt' in item ? new Date(item.createdAt).toLocaleDateString() : ''}</p>
+              <p className="truncate text-sm font-semibold">{fileName}</p>
+              <p className="text-xs font-normal text-muted">{'createdAt' in item ? new Date(item.createdAt).toLocaleDateString() : ''}</p>
             </div>
           </a>
         );
