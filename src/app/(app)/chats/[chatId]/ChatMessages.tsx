@@ -1086,6 +1086,7 @@ export function ChatMessages({
     const clientId = generateClientId();
     const tempUrl = URL.createObjectURL(file);
     const isAudio = file.type.startsWith("audio/");
+    const isVideoNote = file.name.startsWith("video-message-") && file.type.startsWith("video/");
     const optimisticMessage: Message = {
       ...createOptimisticMessage({
         clientId,
@@ -1093,7 +1094,7 @@ export function ChatMessages({
         currentUserId,
         replyToMessage: replyingToMessage,
       }),
-      type: file.type.startsWith("image/") ? "IMAGE" : file.type.startsWith("video/") ? "VIDEO" : (isAudio ? "VOICE" : "FILE"),
+      type: file.type.startsWith("image/") ? "IMAGE" : isVideoNote ? "VIDEO_NOTE" : file.type.startsWith("video/") ? "VIDEO" : (isAudio ? "VOICE" : "FILE"),
       attachments: [{
         id: `temp-${clientId}`,
         fileName: file.name,
@@ -1108,8 +1109,7 @@ export function ChatMessages({
 
     try {
       const formData = new FormData();
-      // Round video messages ("кружочки") are recorded with this filename prefix.
-      if (file.name.startsWith("video-message-")) formData.append("videoNote", "true");
+      if (isVideoNote) formData.append("videoNote", "true");
       if (shouldEncryptMedia) {
         const encryptedMedia = await encryptMediaForDevices({
           file,
@@ -1763,6 +1763,7 @@ export function ChatMessages({
             onVoiceStop={stopRecording}
             onVoiceCancel={cancelRecording}
             onFilesSelected={setPreviewFiles}
+            onVideoMessageCaptured={handleAttach}
             isRecording={isRecording}
             recordingDuration={recordingDuration}
             isLocked={isLocked && currentRole === "MEMBER"}

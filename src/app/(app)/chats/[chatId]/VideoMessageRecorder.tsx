@@ -41,7 +41,7 @@ export function VideoMessageRecorder({
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 640 } },
+          video: { facingMode: "user", width: { ideal: 360 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } },
           audio: { echoCancellation: true, noiseSuppression: true },
         });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
@@ -63,7 +63,11 @@ export function VideoMessageRecorder({
     if (!stream || recording) return;
     const mimeType = pickMimeType();
     try {
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 32_000,
+        videoBitsPerSecond: 450_000,
+      });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = () => {
@@ -81,7 +85,9 @@ export function VideoMessageRecorder({
       timerRef.current = setInterval(() => {
         setSeconds((s) => {
           if (s + 1 >= MAX_DURATION_SEC) {
-            recorderRef.current?.state === "recording" && recorderRef.current.stop();
+            if (recorderRef.current?.state === "recording") {
+              recorderRef.current.stop();
+            }
           }
           return s + 1;
         });

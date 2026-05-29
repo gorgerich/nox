@@ -20,6 +20,7 @@ export function ChatComposer({
   onVoiceStop,
   onVoiceCancel,
   onFilesSelected,
+  onVideoMessageCaptured,
   isRecording,
   recordingDuration,
   isLocked,
@@ -29,12 +30,13 @@ export function ChatComposer({
   onCancelAction,
 }: {
   chatId: string;
-  onSend: (text: string) => void;
+  onSend: (text: string) => Promise<void> | void;
   onTyping: (text: string) => void;
   onVoiceStart: () => void;
   onVoiceStop: () => void;
   onVoiceCancel: () => void;
   onFilesSelected?: (files: File[]) => void;
+  onVideoMessageCaptured?: (file: File) => Promise<void> | void;
   isRecording: boolean;
   recordingDuration: number;
   isLocked: boolean;
@@ -126,21 +128,37 @@ export function ChatComposer({
     }
   }, [editingTo, replyingTo]);
 
+  const resetInputHeight = useCallback(() => {
+    if (inputRef.current) inputRef.current.style.height = "auto";
+  }, []);
+
   const handleSend = useCallback(async () => {
-    if (text.trim()) {
+    const draft = text;
+    if (draft.trim()) {
+      setText("");
+      setShowEmoji(false);
+      onTyping("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      editingIdRef.current = null;
+      resetInputHeight();
+
       try {
-        await onSend(text);
-        // Clear only on success
-        setText("");
-        setShowEmoji(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        editingIdRef.current = null;
-        if (inputRef.current) inputRef.current.style.height = "auto";
+        await onSend(draft);
       } catch (error) {
         console.error("Failed to send message:", error);
+        if (!editingTo) {
+          setText(draft);
+          requestAnimationFrame(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+              inputRef.current.style.height = "auto";
+              inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+            }
+          });
+        }
       }
     }
-  }, [text, onSend]);
+  }, [editingTo, onSend, onTyping, resetInputHeight, text]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -299,7 +317,7 @@ export function ChatComposer({
           type="button"
           aria-label={isRecording ? "Завершить запись" : text.trim() ? "Отправить сообщение" : "Голосовое сообщение"}
           onClick={isRecording ? onVoiceStop : (text.trim()) ? handleSend : onVoiceStart}
-          disabled={pending}
+          disabled={pending && !text.trim() && !isRecording}
           className={`touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${
             isRecording || text.trim() ? "shadow-sm" : ""
           }`}
@@ -312,7 +330,7 @@ export function ChatComposer({
             color: (text.trim()) || isRecording ? "var(--bubble-outgoing-fg)" : "var(--muted)",
           }}
         >
-          {pending ? (
+          {pending && !text.trim() && !isRecording ? (
             <div className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
           ) : isRecording ? (
             <Check className="h-5 w-5" strokeWidth={2.4} />
@@ -329,7 +347,11 @@ export function ChatComposer({
           onClose={() => setShowVideoRecorder(false)}
           onCapture={(file) => {
             setShowVideoRecorder(false);
-            onFilesSelected?.([file]);
+            if (onVideoMessageCaptured) {
+              void onVideoMessageCaptured(file);
+            } else {
+              onFilesSelected?.([file]);
+            }
           }}
         />
       )}
