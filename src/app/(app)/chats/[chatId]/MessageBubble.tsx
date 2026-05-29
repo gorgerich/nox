@@ -167,6 +167,7 @@ function AttachmentPreview({
   ));
   const [decryptError, setDecryptError] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted));
+  const [roundExpanded, setRoundExpanded] = useState(false);
 
   useEffect(() => {
     if (!attachment.isEncrypted) {
@@ -287,8 +288,13 @@ function AttachmentPreview({
         </div>
       ) : isRoundVideo ? (
         <div
-          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full active:opacity-90"
-          onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
+          className={`relative mx-auto my-1 cursor-pointer overflow-hidden rounded-full shadow-sm transition-all duration-300 active:opacity-90 ${
+            roundExpanded ? "h-[min(78vw,26rem)] w-[min(78vw,26rem)]" : "h-56 w-56"
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setRoundExpanded((value) => !value);
+          }}
         >
           <video src={sourceUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline preload="metadata" />
           <div className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -576,6 +582,7 @@ export const MessageBubble = memo(function MessageBubble({
   const relevantReceipts = message.receipts?.filter((receipt) => receipt.userId !== message.senderUserId) ?? [];
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
+  const isPendingLocal = mine && message.id.startsWith("temp-");
   const visualOnlyMessage = !message.body && !message.replyToMessage && message.attachments.length > 0
     && message.attachments.every((attachment) => attachment.mimeType.startsWith("image/") || attachment.mimeType.startsWith("video/"));
   const visualOnlyStyle: React.CSSProperties = {
@@ -723,7 +730,13 @@ export const MessageBubble = memo(function MessageBubble({
             </span>
             {mine && !message.deletedAt && (
               <div className="flex items-center ml-0.5">
-                {isRead ? (
+                {isPendingLocal ? (
+                  <span
+                    className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin"
+                    style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }}
+                    aria-label="Отправляется"
+                  />
+                ) : isRead ? (
                   <div className="flex -space-x-1.5">
                     <svg className="h-3 w-3 animate-in fade-in" style={{ color: visualOnlyMessage ? "white" : "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { Camera, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -29,11 +30,19 @@ export function VideoMessageRecorder({
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }, []);
+
+  const bindPreview = useCallback((stream: MediaStream) => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      void videoRef.current.play().catch(() => undefined);
+    }
   }, []);
 
   useEffect(() => {
@@ -46,17 +55,14 @@ export function VideoMessageRecorder({
         });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          void videoRef.current.play().catch(() => undefined);
-        }
+        bindPreview(stream);
         setReady(true);
       } catch {
         setError("Нет доступа к камере. Разрешите камеру и микрофон.");
       }
     })();
     return () => { cancelled = true; stopStream(); };
-  }, [stopStream]);
+  }, [bindPreview, stopStream]);
 
   const startRecording = useCallback(() => {
     const stream = streamRef.current;
@@ -121,12 +127,42 @@ export function VideoMessageRecorder({
     onClose();
   }, [onClose, stopStream]);
 
+  const switchCamera = useCallback(async () => {
+    const stream = streamRef.current;
+    if (!stream) return;
+    const nextFacingMode = facingMode === "user" ? "environment" : "user";
+
+    try {
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: nextFacingMode, width: { ideal: 360 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } },
+        audio: false,
+      });
+      const nextVideoTrack = nextStream.getVideoTracks()[0];
+      if (!nextVideoTrack) {
+        nextStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      stream.getVideoTracks().forEach((track) => {
+        stream.removeTrack(track);
+        track.stop();
+      });
+      stream.addTrack(nextVideoTrack);
+      streamRef.current = stream;
+      bindPreview(stream);
+      setFacingMode(nextFacingMode);
+    } catch {
+      setError("Не удалось переключить камеру.");
+      setTimeout(() => setError(null), 2200);
+    }
+  }, [bindPreview, facingMode]);
+
   if (typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex flex-col items-center justify-center bg-neutral-950/95 p-8 backdrop-blur-xl animate-in fade-in">
       <div className="relative mb-8 h-72 w-72 overflow-hidden rounded-full border-4 border-white/15 bg-neutral-900 shadow-2xl">
-        <video ref={videoRef} autoPlay playsInline muted className="h-full w-full -scale-x-100 object-cover" />
+        <video ref={videoRef} autoPlay playsInline muted className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`} />
         {recording && (
           <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1">
             <span className="h-2 w-2 animate-ping rounded-full bg-danger" />
@@ -167,7 +203,15 @@ export function VideoMessageRecorder({
           </button>
         )}
 
-        <div className="h-16 w-16" aria-hidden />
+        <button
+          onClick={() => void switchCamera()}
+          disabled={!ready}
+          className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-90 disabled:opacity-40"
+          title="Переключить камеру"
+        >
+          <RotateCcw className="h-7 w-7" strokeWidth={2.3} />
+          <Camera className="absolute h-3.5 w-3.5 translate-x-1.5 translate-y-1.5" strokeWidth={2.4} />
+        </button>
       </div>
     </div>,
     document.body,

@@ -68,6 +68,7 @@ interface CallContextType {
   endCall: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  switchCamera: () => Promise<void>;
   toggleScreenShare: () => void;
 }
 
@@ -204,6 +205,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const incomingVideoRef = useRef<boolean>(false);
   const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
+  const cameraFacingModeRef = useRef<"user" | "environment">("user");
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
   const statusRef = useRef<CallStatus>("idle");
   const audioSrcObjectAssignedRef = useRef(false);
@@ -325,6 +327,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     screenTrackRef.current?.stop();
     screenTrackRef.current = null;
     cameraTrackRef.current = null;
+    cameraFacingModeRef.current = "user";
     audioSrcObjectAssignedRef.current = false;
     remoteAudioPlaybackOkRef.current = false;
 
@@ -557,7 +560,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           autoGainControl: true,
         },
         video: withVideo
-          ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+          ? { facingMode: cameraFacingModeRef.current, width: { ideal: 1280 }, height: { ideal: 720 } }
           : false,
       });
       const audioTracks = stream.getAudioTracks();
@@ -640,6 +643,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     if (statusRef.current !== "idle") return;
 
     const wantVideo = options?.video === true;
+    cameraFacingModeRef.current = "user";
     const callId = generateCallId();
     const nextCall: CurrentCall = {
       callId,
@@ -789,6 +793,46 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("camera toggled", { enabled: track.enabled });
   }, [debugCall]);
 
+  const switchCamera = useCallback(async () => {
+    const pc = pcRef.current;
+    const stream = localStreamRef.current;
+    if (!pc || !stream || !isVideo || isScreenSharing) return;
+
+    const nextFacingMode = cameraFacingModeRef.current === "user" ? "environment" : "user";
+    try {
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: nextFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      const nextVideoTrack = nextStream.getVideoTracks()[0];
+      if (!nextVideoTrack) {
+        nextStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      nextVideoTrack.enabled = !isCameraOff;
+      const videoSender = pc.getSenders().find((sender) => sender.track?.kind === "video");
+      if (videoSender) {
+        await videoSender.replaceTrack(nextVideoTrack);
+      }
+
+      stream.getVideoTracks().forEach((track) => {
+        stream.removeTrack(track);
+        track.stop();
+      });
+      stream.addTrack(nextVideoTrack);
+      localStreamRef.current = stream;
+      cameraTrackRef.current = nextVideoTrack;
+      cameraFacingModeRef.current = nextFacingMode;
+      setLocalStream(new MediaStream(stream.getTracks()));
+      debugCall("camera switched", { facingMode: nextFacingMode });
+    } catch (switchError) {
+      debugCall("camera switch failed", { error: String(switchError) });
+      setError("Не удалось переключить камеру");
+      setTimeout(() => setError(null), 2500);
+    }
+  }, [debugCall, isCameraOff, isScreenSharing, isVideo]);
+
   const restoreCameraInLocalStream = useCallback((cam: MediaStreamTrack) => {
     const ls = localStreamRef.current;
     if (!ls) return;
@@ -882,6 +926,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       currentCallRef.current = nextCall;
       incomingOfferRef.current = offer;
       incomingVideoRef.current = video;
+      cameraFacingModeRef.current = "user";
       pendingIceCandidatesRef.current = [];
       remoteStreamRef.current = null;
       setRemoteStream(null);
@@ -1027,6 +1072,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         endCall,
         toggleMute,
         toggleCamera,
+        switchCamera,
         toggleScreenShare,
       }}
     >

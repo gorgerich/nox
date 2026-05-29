@@ -48,6 +48,7 @@ export function ChatComposer({
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
+  const [showCaptureMenu, setShowCaptureMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editingIdRef = useRef<string | null>(null);
@@ -137,6 +138,7 @@ export function ChatComposer({
     if (draft.trim()) {
       setText("");
       setShowEmoji(false);
+      setShowCaptureMenu(false);
       onTyping("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       editingIdRef.current = null;
@@ -213,6 +215,31 @@ export function ChatComposer({
       )}
 
       <div className="flex items-end gap-2">
+        {!isRecording && (
+          <button
+            type="button"
+            aria-label="Прикрепить файл"
+            onClick={() => fileInputRef.current?.click()}
+            className="touch-target flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/86 text-foreground shadow-sm transition-smooth hover:text-primary active:scale-95 dark:bg-white/10 dark:text-white"
+          >
+            <Paperclip className="h-6 w-6" strokeWidth={2.35} />
+          </button>
+        )}
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0 && onFilesSelected) {
+              onFilesSelected(Array.from(files));
+            }
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+        />
+
         <div className="relative flex-1">
           {isRecording ? (
             <div className="flex min-h-11 items-center justify-between rounded-[22px] border border-danger/20 bg-danger/10 px-4 animate-pulse">
@@ -224,41 +251,8 @@ export function ChatComposer({
             </div>
           ) : (
             <div 
-              className="relative flex items-end rounded-[22px] border transition-smooth focus-within:border-primary/40"
-              style={{ backgroundColor: "var(--chat-input-bg)", borderColor: "var(--chat-composer-border)" }}
+              className="relative flex items-end rounded-full border border-white/70 bg-white/86 pl-5 pr-1 transition-smooth focus-within:border-primary/35 dark:border-white/10 dark:bg-white/10"
             >
-              <input
-                type="file"
-                ref={fileInputRef}
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const files = e.target.files;
-                  if (files && files.length > 0 && onFilesSelected) {
-                    onFilesSelected(Array.from(files));
-                  }
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Прикрепить файл"
-                onClick={() => fileInputRef.current?.click()}
-                className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-smooth hover:text-primary active:scale-95"
-              >
-                <Paperclip className="h-5 w-5" strokeWidth={2.1} />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Эмодзи"
-                onClick={() => setShowEmoji((v) => !v)}
-                className={`touch-target flex h-11 w-10 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
-                title="Эмодзи"
-              >
-                <Smile className="h-5 w-5" strokeWidth={2.1} />
-              </button>
-
               {showEmoji && (
                 <div
                   className="absolute bottom-[calc(100%+8px)] left-0 z-30 grid w-[min(20rem,calc(100vw-2rem))] grid-cols-8 gap-1 rounded-xl border border-border-subtle bg-surface-elevated p-3 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150"
@@ -278,7 +272,7 @@ export function ChatComposer({
 
               <textarea
                 ref={inputRef}
-                className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-4 text-[15px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
+                className="max-h-32 min-h-12 w-full resize-none bg-transparent py-3.5 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 style={{ color: "var(--chat-input-fg)" }}
                 placeholder="Сообщение..."
                 rows={1}
@@ -296,50 +290,79 @@ export function ChatComposer({
                   }
                 }}
               />
+              <button
+                type="button"
+                aria-label="Эмодзи"
+                onClick={() => {
+                  setShowEmoji((v) => !v);
+                  setShowCaptureMenu(false);
+                }}
+                className={`touch-target mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
+                title="Эмодзи"
+              >
+                <Smile className="h-6 w-6" strokeWidth={2.1} />
+              </button>
             </div>
           )}
         </div>
 
-        {!isRecording && !text.trim() && (
+        <div className="relative">
+          {showCaptureMenu && !text.trim() && !isRecording ? (
+            <div className="absolute bottom-[calc(100%+10px)] right-0 z-30 flex min-w-44 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated p-1 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCaptureMenu(false);
+                  onVoiceStart();
+                }}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5 active:scale-[0.98]"
+              >
+                <Mic className="h-5 w-5 text-primary" strokeWidth={2.2} />
+                Голосовое
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCaptureMenu(false);
+                  setShowVideoRecorder(true);
+                }}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5 active:scale-[0.98]"
+              >
+                <Video className="h-5 w-5 text-primary" strokeWidth={2.2} />
+                Кружок
+              </button>
+            </div>
+          ) : null}
+
           <button
             type="button"
-            aria-label="Видеосообщение"
-            onClick={() => setShowVideoRecorder(true)}
-            disabled={pending}
-            className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-smooth hover:bg-foreground/5 hover:text-primary active:scale-95 disabled:opacity-40"
-            title="Видеосообщение"
+            aria-label={isRecording ? "Завершить запись" : text.trim() ? "Отправить сообщение" : "Выбрать запись"}
+            onClick={isRecording ? onVoiceStop : (text.trim()) ? handleSend : () => {
+              setShowCaptureMenu((value) => !value);
+              setShowEmoji(false);
+            }}
+            disabled={pending && !text.trim() && !isRecording}
+            className={`touch-target flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${
+              isRecording || text.trim() ? "shadow-sm" : "bg-white/86 text-foreground shadow-sm dark:bg-white/10 dark:text-white"
+            } disabled:opacity-45`}
+            style={{
+              backgroundColor: isRecording
+                ? "var(--danger)"
+                : (text.trim())
+                  ? "var(--bubble-outgoing-bg)"
+                  : undefined,
+              color: (text.trim()) || isRecording ? "var(--bubble-outgoing-fg)" : undefined,
+            }}
           >
-            <Video className="h-5 w-5" strokeWidth={2.1} />
+            {isRecording ? (
+              <Check className="h-5 w-5" strokeWidth={2.4} />
+            ) : (text.trim()) ? (
+              <Send className="ml-0.5 h-5 w-5" strokeWidth={2.3} />
+            ) : (
+              <Mic className="h-6 w-6" strokeWidth={2.25} />
+            )}
           </button>
-        )}
-
-        <button
-          type="button"
-          aria-label={isRecording ? "Завершить запись" : text.trim() ? "Отправить сообщение" : "Голосовое сообщение"}
-          onClick={isRecording ? onVoiceStop : (text.trim()) ? handleSend : onVoiceStart}
-          disabled={pending && !text.trim() && !isRecording}
-          className={`touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${
-            isRecording || text.trim() ? "shadow-sm" : ""
-          }`}
-          style={{
-            backgroundColor: isRecording
-              ? "var(--danger)"
-              : (text.trim())
-                ? "var(--bubble-outgoing-bg)"
-                : "transparent",
-            color: (text.trim()) || isRecording ? "var(--bubble-outgoing-fg)" : "var(--muted)",
-          }}
-        >
-          {pending && !text.trim() && !isRecording ? (
-            <div className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
-          ) : isRecording ? (
-            <Check className="h-5 w-5" strokeWidth={2.4} />
-          ) : (text.trim()) ? (
-            <Send className="ml-0.5 h-5 w-5" strokeWidth={2.3} />
-          ) : (
-            <Mic className="h-5 w-5" strokeWidth={2.1} />
-          )}
-        </button>
+        </div>
       </div>
 
       {showVideoRecorder && (
