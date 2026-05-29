@@ -7,6 +7,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ACCENT_OPTIONS, useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
 import { AvatarCropModal } from "./AvatarCropModal";
+import { AvatarViewer } from "./AvatarViewer";
 import { CacheSettings } from "./CacheSettings";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -27,7 +28,7 @@ type UserWithProfile = {
 export function ProfileContent({ user }: { user: UserWithProfile }) {
   const router = useRouter();
 
-  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security">("main");
+  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security" | "data">("main");
 
   const [displayName, setDisplayName] = useState(user.profile?.displayName || "");
   const [username, setUsername] = useState(user.username);
@@ -300,6 +301,13 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 onClick={() => setActiveScreen("security")}
                 icon={<SecurityIcon />}
               />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Данные и кэш"
+                subtitle="Хранилище и кэш"
+                onClick={() => setActiveScreen("data")}
+                icon={<DataIcon />}
+              />
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
@@ -317,8 +325,6 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                  </button>
               </div>
             </section>
-
-            <CacheSettings />
 
             {isAdmin && (
               <Link
@@ -542,6 +548,22 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
         </div>
       )}
 
+      {activeScreen === "data" && (
+        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
+               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+             </button>
+             <h1 className="text-base font-semibold tracking-tight">Данные и кэш</h1>
+             <div className="w-10" />
+          </header>
+
+          <div className="p-6 animate-in fade-in zoom-in-95 duration-500">
+            <CacheSettings />
+          </div>
+        </div>
+      )}
+
       {/* Trusted Reset Modal */}
       {showTrustedReset && (
         <div
@@ -592,25 +614,12 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
         </div>
       )}
 
-      {/* Fullscreen Avatar Modal */}
-      {showFullscreenAvatar && fullAvatarUrl && (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black animate-in fade-in duration-200"
-          onClick={() => setShowFullscreenAvatar(false)}
-        >
-           <button
-             className="absolute right-6 top-10 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white transition-smooth active:scale-95"
-             onClick={() => setShowFullscreenAvatar(false)}
-           >
-             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-           </button>
-           <div className="relative w-full aspect-square max-w-2xl px-4" onClick={e => e.stopPropagation()}>
-              <div className="relative h-full w-full overflow-hidden rounded-2xl ring-1 ring-white/10">
-                <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" priority />
-              </div>
-           </div>
-        </div>
-      )}
+      <AvatarViewer
+        src={showFullscreenAvatar ? fullAvatarUrl : null}
+        alt={displayName || username}
+        fileName={`${username || "profile"}-avatar.jpg`}
+        onClose={() => setShowFullscreenAvatar(false)}
+      />
 
       {cropImage && (
         <AvatarCropModal
@@ -644,6 +653,7 @@ function ProfileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 
 function DevicesIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
 function AppearanceIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
 function SecurityIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
+function DataIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
 
 type E2EEDevice = {
   deviceId: string;

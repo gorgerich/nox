@@ -274,7 +274,7 @@ function AttachmentPreview({
         />
       ) : isImage ? (
         <div
-          className="relative cursor-pointer overflow-hidden rounded-xl border border-black/5 transition-opacity active:opacity-90"
+          className="relative cursor-pointer overflow-hidden rounded-xl transition-opacity active:opacity-90"
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "IMAGE", url: sourceUrl, fileName: attachment.fileName }); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -287,7 +287,7 @@ function AttachmentPreview({
         </div>
       ) : isRoundVideo ? (
         <div
-          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full border border-black/5 active:opacity-90"
+          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full active:opacity-90"
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
         >
           <video src={sourceUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline preload="metadata" />
@@ -576,6 +576,14 @@ export const MessageBubble = memo(function MessageBubble({
   const relevantReceipts = message.receipts?.filter((receipt) => receipt.userId !== message.senderUserId) ?? [];
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
+  const visualOnlyMessage = !message.body && !message.replyToMessage && message.attachments.length > 0
+    && message.attachments.every((attachment) => attachment.mimeType.startsWith("image/") || attachment.mimeType.startsWith("video/"));
+  const visualOnlyStyle: React.CSSProperties = {
+    backgroundColor: "transparent",
+    color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
+    border: "none",
+    borderRadius: 0,
+  };
 
   if (message.messageUnavailableOnThisDevice) {
     return (
@@ -640,11 +648,11 @@ export const MessageBubble = memo(function MessageBubble({
 
             <div
               ref={bubbleRef}
-              className={`group relative cursor-default px-3 py-2 active:scale-[0.99] no-select ${
+              className={`group relative cursor-default active:scale-[0.99] no-select ${visualOnlyMessage ? "px-0 py-0" : "px-3 py-2"} ${
                 isFocused ? "focused-message" : ""
-              } ${mine ? "" : incomingClass}`}
+              } ${!visualOnlyMessage && !mine ? incomingClass : ""}`}
               style={{
-                ...bubbleStyle,
+                ...(visualOnlyMessage ? visualOnlyStyle : bubbleStyle),
                 willChange: "transform",
               }}
               onContextMenu={(e) => { 
@@ -706,10 +714,10 @@ export const MessageBubble = memo(function MessageBubble({
             ))}
           </>
 
-          <div className={`mt-0.5 flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+          <div className={`${visualOnlyMessage ? "absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-white" : "mt-0.5"} flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
             <span
               className="text-[11px] font-medium"
-              style={{ color: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
+              style={{ color: visualOnlyMessage ? "white" : mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
             >
               {message.editedAt && "изм. "}{time}
             </span>
@@ -717,24 +725,24 @@ export const MessageBubble = memo(function MessageBubble({
               <div className="flex items-center ml-0.5">
                 {isRead ? (
                   <div className="flex -space-x-1.5">
-                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: visualOnlyMessage ? "white" : "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: visualOnlyMessage ? "white" : "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : isDelivered ? (
                   <div className="flex -space-x-1.5">
-                    <svg className="h-3 w-3" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3" style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-3 w-3" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3" style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : (
-                  <svg className="h-3 w-3" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3" style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}

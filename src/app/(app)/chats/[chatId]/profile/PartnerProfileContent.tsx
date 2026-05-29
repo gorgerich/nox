@@ -7,6 +7,7 @@ import { useAudioCall } from "../../../calls/CallProvider";
 import { usePresence } from "@/hooks/usePresence";
 import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
 import { E2EEContactDevices } from "./E2EEContactDevices";
+import { AvatarViewer } from "../../../profile/AvatarViewer";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -71,6 +72,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(settings.nickname || partnerUser.displayName);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const { settings: appearance, updateSettings, resetSettings } = useChatAppearance(chatId);
 
   const presence = usePresence({
@@ -133,13 +135,19 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       {/* Hero Section */}
       <section className="flex flex-col items-center px-6 pb-8 pt-7">
         <div className="group relative mb-5 h-32 w-32">
-          <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted">
+          <button
+            type="button"
+            onClick={() => fullAvatarUrl && setShowAvatarViewer(true)}
+            disabled={!fullAvatarUrl}
+            className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-95 disabled:cursor-default"
+            aria-label="Открыть фото профиля"
+          >
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
               <span className="text-5xl font-semibold text-primary">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
             )}
-          </div>
+          </button>
           {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-background bg-primary" />}
         </div>
         
@@ -229,6 +237,12 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         settings={appearance} 
         onUpdate={updateSettings} 
         onReset={resetSettings} 
+      />
+      <AvatarViewer
+        src={showAvatarViewer ? fullAvatarUrl : null}
+        alt={settings.nickname || partnerUser.displayName}
+        fileName={`${partnerUser.username || "profile"}-avatar.jpg`}
+        onClose={() => setShowAvatarViewer(false)}
       />
     </div>
   );

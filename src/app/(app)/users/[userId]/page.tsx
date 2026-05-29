@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import Image from "next/image";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { BackButton } from "./BackButton";
 import { DirectChatButton } from "./DirectChatButton";
 import { E2EEUserDevices } from "./E2EEUserDevices";
+import { UserAvatar } from "./UserAvatar";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 export default async function UserProfilePage({
@@ -58,15 +58,7 @@ export default async function UserProfilePage({
       </header>
 
       <div className="mt-6 flex flex-col items-center">
-        <div className="relative h-32 w-32 overflow-hidden rounded-full bg-primary/10 text-primary">
-          {fullAvatarUrl ? (
-            <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-4xl font-semibold">
-              {displayName[0].toUpperCase()}
-            </div>
-          )}
-        </div>
+        <UserAvatar src={fullAvatarUrl} displayName={displayName} username={username} />
         
         <h2 className="mt-5 text-2xl font-semibold text-foreground tracking-tight">{displayName}</h2>
         <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
