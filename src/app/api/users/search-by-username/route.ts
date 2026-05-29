@@ -9,7 +9,7 @@ const searchSchema = z.object({
     .trim()
     .min(1, "Введите username.")
     .max(32, "Username слишком длинный.")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username может содержать только латинские буквы, цифры и _.")
+    .regex(/^[\p{L}\p{N}_]+$/u, "Username может содержать буквы, цифры и _.")
     .transform((value) => value.toLowerCase()),
 });
 

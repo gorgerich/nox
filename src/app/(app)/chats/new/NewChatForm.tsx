@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Clock3, Search } from "lucide-react";
 
 type FoundUser = {
   id: string;
@@ -171,43 +172,48 @@ export function NewChatForm() {
   }
 
   return (
-    <div className="space-y-12 transition-smooth">
-      <div className="space-y-4">
-        <form className="flex gap-2" onSubmit={searchUser} method="POST">
-          <input
-            className="input-nox h-14"
-            maxLength={32}
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Username пользователя"
-            value={username}
-          />
+    <div className="space-y-7 transition-smooth">
+      <div className="rounded-[1.75rem] border border-border-subtle bg-surface p-3 shadow-sm">
+        <form className="flex items-center gap-2" onSubmit={searchUser} method="POST">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" strokeWidth={2.1} />
+            <input
+              className="h-12 w-full rounded-full border border-border-subtle bg-background px-11 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+              maxLength={32}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="@username"
+              value={username}
+            />
+          </div>
           <button
-            className="btn-nox h-14 px-6 bg-primary text-primary-foreground font-black shrink-0"
+            className="fast-tap flex h-12 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
             disabled={pendingAction !== ""}
             type="submit"
           >
-            {pendingAction === "search" ? "..." : "НАЙТИ"}
+            {pendingAction === "search" ? "..." : "Найти"}
           </button>
         </form>
 
-        {error ? <p className="text-center text-xs font-black text-red-400 py-2 animate-in fade-in">{error}</p> : null}
-        {notice ? <p className="text-center text-xs font-black text-primary py-2 animate-in fade-in">{notice}</p> : null}
+        {error ? <p className="px-3 pt-3 text-sm font-semibold text-danger animate-in fade-in">{error}</p> : null}
+        {notice ? <p className="px-3 pt-3 text-sm font-semibold text-primary animate-in fade-in">{notice}</p> : null}
 
         {foundUser && (
-          <div className="card-premium animate-in fade-in slide-in-from-top-4 duration-300 p-8 shadow-2xl shadow-primary/5">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-primary/10 text-2xl font-black text-primary shadow-inner border border-primary/20">
-                {foundUser.displayName.slice(0, 1).toUpperCase()}
+          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200 rounded-[1.5rem] border border-border-subtle bg-background p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
+                {foundUser.displayName.slice(0, 1).toLocaleUpperCase("ru-RU")}
               </div>
-              <h2 className="text-2xl font-black tracking-tight">{foundUser.displayName}</h2>
-              <p className="text-sm font-medium text-muted/60">@{foundUser.username}</p>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-[17px] font-semibold tracking-tight">{foundUser.displayName}</h2>
+                <p className="truncate text-sm text-muted">@{foundUser.username}</p>
+              </div>
             </div>
 
             {foundUser.isSelf ? (
-              <div className="mt-8 space-y-6">
-                <p className="text-center text-xs font-bold text-muted/80">Сообщения самому себе</p>
+              <div className="mt-4 space-y-3">
+                <p className="px-1 text-sm text-muted">Это ваш профиль. Можно открыть избранное.</p>
                 <button
-                  className="btn-nox w-full bg-primary h-14 text-sm font-black text-neutral-950 shadow-lg shadow-primary/20 transition-smooth active:scale-95 fast-tap"
+                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
                   disabled={pendingAction !== ""}
                   onClick={async () => {
                     setPendingAction("start-self");
@@ -229,25 +235,25 @@ export function NewChatForm() {
                   }}
                   type="button"
                 >
-                  {pendingAction === "start-self" ? "..." : "ОТКРЫТЬ ИЗБРАННОЕ"}
+                  {pendingAction === "start-self" ? "..." : "Открыть избранное"}
                 </button>
               </div>
             ) : (
-              <div className="mt-8 space-y-6">
+              <div className="mt-4 space-y-3">
                 <textarea
-                  className="input-nox min-h-24 resize-none py-4 font-medium"
+                  className="min-h-24 w-full resize-none rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-sm font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
                   maxLength={500}
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Сообщение к запросу (необязательно)"
                   value={message}
                 />
                 <button
-                  className="btn-nox w-full bg-primary h-14 text-sm font-black text-neutral-950 shadow-lg shadow-primary/20 transition-smooth active:scale-95"
+                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
                   disabled={pendingAction !== ""}
                   onClick={sendRequest}
                   type="button"
                 >
-                  {pendingAction === "send-request" ? "..." : "ОТПРАВИТЬ ЗАПРОС"}
+                  {pendingAction === "send-request" ? "..." : "Отправить запрос"}
                 </button>
               </div>
             )}
@@ -255,32 +261,32 @@ export function NewChatForm() {
         )}
       </div>
 
-      <div className="grid gap-10 sm:grid-cols-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
-        <section className="space-y-6">
-          <h2 className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/50">Входящие запросы</h2>
-          <div className="space-y-4">
+      <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300 sm:grid-cols-2">
+        <section className="space-y-3">
+          <h2 className="px-1 text-[13px] font-semibold text-muted">Входящие запросы</h2>
+          <div className="overflow-hidden rounded-[1.5rem] border border-border-subtle bg-surface">
             {incoming.length === 0 ? (
-              <p className="px-2 text-sm text-muted/40 italic font-medium">Запросов пока нет</p>
+              <p className="px-4 py-4 text-sm text-muted">Запросов пока нет</p>
             ) : (
               incoming.map((item) => (
                 <RequestCard key={item.id} request={item} user={item.fromUser}>
                   {item.status === "PENDING" && (
                     <div className="mt-4 flex gap-3">
                       <button
-                        className="btn-nox h-11 flex-1 rounded-xl bg-primary text-[10px] font-black text-neutral-950 transition-smooth active:scale-95 shadow-sm shadow-primary/20"
+                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "accept")}
                         type="button"
                       >
-                        {pendingAction === `accept-${item.id}` ? "..." : "ПРИНЯТЬ"}
+                        {pendingAction === `accept-${item.id}` ? "..." : "Принять"}
                       </button>
                       <button
-                        className="btn-nox h-11 flex-1 rounded-xl bg-surface-hover border border-border-subtle text-[10px] font-black transition-smooth active:scale-95"
+                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-95 disabled:opacity-45"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "decline")}
                         type="button"
                       >
-                        {pendingAction === `decline-${item.id}` ? "..." : "ОТКЛОНИТЬ"}
+                        {pendingAction === `decline-${item.id}` ? "..." : "Отклонить"}
                       </button>
                     </div>
                   )}
@@ -290,22 +296,22 @@ export function NewChatForm() {
           </div>
         </section>
 
-        <section className="space-y-6">
-          <h2 className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted/50">Ваши запросы</h2>
-          <div className="space-y-4">
+        <section className="space-y-3">
+          <h2 className="px-1 text-[13px] font-semibold text-muted">Ваши запросы</h2>
+          <div className="overflow-hidden rounded-[1.5rem] border border-border-subtle bg-surface">
             {outgoing.length === 0 ? (
-              <p className="px-2 text-sm text-muted/40 italic font-medium">Вы не отправляли запросов</p>
+              <p className="px-4 py-4 text-sm text-muted">Вы не отправляли запросов</p>
             ) : (
               outgoing.map((item) => (
                 <RequestCard key={item.id} request={item} user={item.toUser}>
                   {item.status === "PENDING" && (
                     <button
-                      className="btn-nox mt-4 h-11 w-full rounded-xl bg-surface-hover border border-border-subtle text-[10px] font-black transition-smooth active:scale-95 text-red-400"
+                      className="fast-tap mt-3 flex h-10 w-full items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-danger transition-smooth active:scale-95 disabled:opacity-45"
                       disabled={pendingAction !== ""}
                       onClick={() => respondToRequest(item.id, "cancel")}
                       type="button"
                     >
-                      {pendingAction === `cancel-${item.id}` ? "..." : "ОТМЕНИТЬ ЗАПРОС"}
+                      {pendingAction === `cancel-${item.id}` ? "..." : "Отменить запрос"}
                     </button>
                   )}
                 </RequestCard>
@@ -328,21 +334,27 @@ function RequestCard({
   user: RequestUser;
 }) {
   return (
-    <article className="card-premium p-5 transition-smooth hover:border-primary/30 group">
+    <article className="border-b border-border-subtle px-4 py-3 last:border-b-0">
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-black tracking-tight">{displayUser(user)}</h3>
-          <p className="truncate text-xs font-medium text-muted/60 tracking-wider">@{user.username}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+            {displayUser(user).slice(0, 1).toLocaleUpperCase("ru-RU")}
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate text-[15px] font-semibold tracking-tight">{displayUser(user)}</h3>
+            <p className="truncate text-[13px] text-muted">@{user.username}</p>
+          </div>
         </div>
-        <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${
-          request.status === "PENDING" ? "bg-primary/10 text-primary border border-primary/20" : "bg-surface-hover text-muted border border-border-subtle/50"
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${
+          request.status === "PENDING" ? "bg-primary/10 text-primary" : "bg-foreground/5 text-muted"
         }`}>
+          {request.status === "PENDING" ? <Clock3 className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
           {statusLabels[request.status]}
         </span>
       </div>
       {request.message && (
-        <div className="mt-4 rounded-xl bg-background/30 p-3 border border-border-subtle/20 italic">
-          <p className="text-xs text-muted/80 leading-relaxed">&ldquo;{request.message}&rdquo;</p>
+        <div className="mt-3 rounded-2xl bg-background px-3 py-2">
+          <p className="text-[13px] leading-relaxed text-muted">&ldquo;{request.message}&rdquo;</p>
         </div>
       )}
       {children}

@@ -43,20 +43,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
-      <div className="auth-card">
-        <div className="mb-12 text-center">
-          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
-            <span className="text-3xl font-black">N</span>
+    <main className="app-screen justify-center px-5 py-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom transition-smooth">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-8">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground shadow-sm">
+            N
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-foreground">Вход</h1>
-          <p className="mt-3 text-base text-muted font-medium">Введите ваши учетные данные Nox.</p>
+          <h1 className="text-[2.25rem] font-bold leading-none tracking-tight text-foreground">Войти в Nox</h1>
+          <p className="mt-3 text-[16px] leading-6 text-muted">Введите логин и пароль, чтобы открыть чаты.</p>
         </div>
 
-        <form className="space-y-6" id="login-form" onSubmit={handleSubmit}>
-          <div className="space-y-3">
+        <form className="rounded-[1.75rem] border border-border-subtle bg-surface p-3 shadow-sm" id="login-form" onSubmit={handleSubmit}>
+          <div className="space-y-2">
             <input
-              className="input-nox h-14"
+              className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
               aria-label="Логин"
               name="login"
               type="text"
@@ -67,7 +67,7 @@ export default function LoginPage() {
               onChange={(e) => setLogin(e.target.value)}
             />
             <input
-              className="input-nox h-14"
+              className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
               aria-label="Пароль"
               name="password"
               type="password"
@@ -80,26 +80,26 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95" id="login-error">
+            <p className="px-2 pt-3 text-sm font-semibold text-danger animate-in fade-in" id="login-error">
               {error}
             </p>
           )}
 
           <button 
-            className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30" 
+            className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
             disabled={pending} 
             type="submit"
           >
-            {pending ? "ПОДОЖДИТЕ..." : "ВОЙТИ В NOX"}
+            {pending ? "Подождите..." : "Войти"}
           </button>
         </form>
 
-        <div className="mt-10 text-center flex flex-col gap-4">
-          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95 mx-auto" href="/forgot-password">
-            Забыли пароль?
-          </Link>
-          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95 mx-auto" href="/join">
+        <div className="mt-5 flex flex-col gap-3">
+          <Link className="fast-tap flex h-12 items-center justify-center rounded-full border border-border-subtle bg-surface text-sm font-semibold text-primary transition-smooth active:scale-95" href="/join">
             Присоединиться по приглашению
+          </Link>
+          <Link className="fast-tap flex h-10 items-center justify-center text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-95" href="/forgot-password">
+            Забыли пароль?
           </Link>
         </div>
       </div>

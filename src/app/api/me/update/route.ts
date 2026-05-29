@@ -14,7 +14,7 @@ const updateSchema = z.object({
     .trim()
     .min(3, "Username должен содержать минимум 3 символа.")
     .max(32, "Username не должен быть длиннее 32 символов.")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username может содержать только латинские буквы, цифры и _.")
+    .regex(/^[\p{L}\p{N}_]+$/u, "Username может содержать буквы, цифры и _.")
     .transform((value) => value.toLowerCase()),
   bio: z
     .string()

@@ -14,9 +14,10 @@ const registerSchema = z.object({
     .transform((value) => value.toLowerCase()),
   username: z
     .string()
+    .trim()
     .min(3)
     .max(32)
-    .regex(/^[a-zA-Z0-9_]+$/)
+    .regex(/^[\p{L}\p{N}_]+$/u)
     .transform((value) => value.toLowerCase()),
   password: z.string().min(8).max(128),
   inviteCode: z.string().min(4).max(128).trim(),

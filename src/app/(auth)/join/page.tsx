@@ -13,8 +13,15 @@ export default function JoinPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [step, setStep] = useState<"account" | "username">("account");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  function handleAccountStep(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setStep("username");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,79 +57,116 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="app-screen items-center justify-center px-6 safe-top safe-bottom transition-smooth">
-      <div className="auth-card">
-        <div className="mb-12 text-center">
-          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
-            <span className="text-3xl font-black">N</span>
+    <main className="app-screen justify-center px-5 py-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom transition-smooth">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-8">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground shadow-sm">
+            N
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Присоединиться</h1>
-          <p className="mt-3 text-sm text-muted font-medium">Введите данные и код приглашения.</p>
+          <h1 className="text-[2.15rem] font-bold leading-none tracking-tight text-foreground">Создать профиль</h1>
+          <p className="mt-3 text-[16px] leading-6 text-muted">
+            {step === "account" ? "Сначала логин, пароль и код приглашения." : "Теперь выберите публичный username."}
+          </p>
         </div>
 
-        <form className="space-y-6" id="join-form" onSubmit={handleSubmit}>
-          <div className="space-y-3">
-            <input
-              className="input-nox h-14"
-              aria-label="Логин"
-              name="login"
-              type="text"
-              placeholder={"\u041b\u043e\u0433\u0438\u043d"}
-              autoComplete="username"
-              required
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-            />
-            <input
-              className="input-nox h-14"
-              aria-label="Username"
-              name="username"
-              type="text"
-              placeholder="Username"
-              autoComplete="username"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-            <input
-              className="input-nox h-14"
-              aria-label="Пароль"
-              name="password"
-              type="password"
-              placeholder={"\u041f\u0430\u0440\u043e\u043b\u044c"}
-              autoComplete="new-password"
-              minLength={8}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <input
-              className="input-nox h-14"
-              aria-label="Код приглашения"
-              name="inviteCode"
-              type="text"
-              placeholder={"\u041a\u043e\u0434 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u044f"}
-              autoComplete="off"
-              required
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-            />
-          </div>
+        <div className="mb-4 grid grid-cols-2 gap-2 rounded-full bg-surface p-1">
+          <div className={`h-2 rounded-full transition-smooth ${step === "account" ? "bg-primary" : "bg-primary/35"}`} />
+          <div className={`h-2 rounded-full transition-smooth ${step === "username" ? "bg-primary" : "bg-foreground/10"}`} />
+        </div>
 
-          {error && (
-            <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95" id="join-error">
-              {error}
-            </p>
-          )}
+        {step === "account" ? (
+          <form className="rounded-[1.75rem] border border-border-subtle bg-surface p-3 shadow-sm" id="join-account-form" onSubmit={handleAccountStep}>
+            <div className="space-y-2">
+              <input
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                aria-label="Логин"
+                name="login"
+                type="text"
+                placeholder="Логин"
+                autoComplete="username"
+                required
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+              />
+              <input
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                aria-label="Пароль"
+                name="password"
+                type="password"
+                placeholder="Пароль"
+                autoComplete="new-password"
+                minLength={8}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <input
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                aria-label="Код приглашения"
+                name="inviteCode"
+                type="text"
+                placeholder="Код приглашения"
+                autoComplete="off"
+                required
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+              />
+            </div>
 
-          <button className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black" disabled={pending} type="submit">
-            {pending ? "ПОДОЖДИТЕ..." : "СОЗДАТЬ ПРОФИЛЬ"}
-          </button>
-        </form>
+            {error && (
+              <p className="px-2 pt-3 text-sm font-semibold text-danger animate-in fade-in" id="join-error">
+                {error}
+              </p>
+            )}
 
-        <div className="mt-10 text-center">
-          <Link className="touch-target inline-flex items-center text-sm font-bold text-muted transition-smooth hover:text-primary active:scale-95 mx-auto" href="/login">
-            {"\u0423\u0436\u0435 \u0435\u0441\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c? \u0412\u043e\u0439\u0442\u0438"}
+            <button className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95" type="submit">
+              Далее
+            </button>
+          </form>
+        ) : (
+          <form className="rounded-[1.75rem] border border-border-subtle bg-surface p-3 shadow-sm" id="join-form" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <input
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                aria-label="Username"
+                name="username"
+                type="text"
+                placeholder="Username, можно на русском"
+                autoComplete="username"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <p className="px-1 text-[13px] leading-5 text-muted">Username видят другие пользователи. Разрешены буквы, цифры и нижнее подчёркивание.</p>
+            </div>
+
+            {error && (
+              <p className="px-2 pt-3 text-sm font-semibold text-danger animate-in fade-in" id="join-error">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-4 flex gap-2">
+              <button
+                className="fast-tap flex h-12 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-95"
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setStep("account");
+                }}
+              >
+                Назад
+              </button>
+              <button className="fast-tap flex h-12 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45" disabled={pending} type="submit">
+                {pending ? "Подождите..." : "Создать"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div className="mt-5 text-center">
+          <Link className="fast-tap inline-flex h-10 items-center justify-center px-3 text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-95" href="/login">
+            Уже есть профиль? Войти
           </Link>
         </div>
       </div>
