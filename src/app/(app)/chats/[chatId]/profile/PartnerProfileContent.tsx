@@ -186,10 +186,12 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
 
       {/* Shared Media Tabs */}
       <div className="flex flex-1 flex-col px-4">
-        <div className="mb-4 flex gap-6 border-b border-border-subtle px-2">
+        <div className="sticky top-0 z-20 mb-4 rounded-full border border-border-subtle bg-foreground/5 p-1">
+          <div className="grid grid-cols-3 gap-1">
           <TabButton active={activeTab === "media"} onClick={() => setActiveSection("media")} label="Медиа" />
           <TabButton active={activeTab === "files"} onClick={() => setActiveSection("files")} label="Файлы" />
           <TabButton active={activeTab === "links"} onClick={() => setActiveSection("links")} label="Ссылки" />
+          </div>
         </div>
 
         <div className="flex-1 pb-10">
@@ -274,9 +276,8 @@ function SettingsItem({ label, value, onClick }: { label: string, value: string,
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button onClick={onClick} className={`relative pb-3 text-sm font-semibold transition-smooth ${active ? "text-primary" : "text-muted"}`}>
+    <button onClick={onClick} className={`h-10 rounded-full text-sm font-semibold transition-smooth active:scale-[0.98] ${active ? "bg-surface text-foreground shadow-sm" : "text-foreground/75 hover:bg-foreground/5"}`}>
       {label}
-      {active && <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />}
     </button>
   );
 }

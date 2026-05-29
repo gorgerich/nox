@@ -162,31 +162,39 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   };
 
   const fullAvatarUrl = normalizeAvatarUrl(chat.avatarUrl);
+  const quickActionColumnClass = permissions.canAddMembers && permissions.canEditGroup
+    ? "grid-cols-4"
+    : permissions.canAddMembers || permissions.canEditGroup
+      ? "grid-cols-3"
+      : "grid-cols-2";
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
-      <header className="sticky top-0 z-50 glass-header flex items-center justify-between px-4 py-3">
-        <button onClick={() => router.back()} className="touch-target h-10 w-10 flex items-center justify-center rounded-xl bg-surface-muted text-foreground active:scale-90 transition-smooth">
+    <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom transition-smooth">
+      <header
+        className="sticky top-0 z-50 flex items-center justify-between border-b border-border-subtle bg-background px-3 py-2"
+        style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95" aria-label="Назад">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="text-center">
-          <h1 className="text-sm font-black tracking-tight">{chat.title}</h1>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted">{members.length} участников</p>
+          <h1 className="text-sm font-semibold tracking-tight">{chat.title}</h1>
+          <p className="text-xs font-normal text-muted">{members.length} участников</p>
         </div>
         <div className="w-10" /> 
       </header>
 
-      <section className="flex flex-col items-center pt-8 pb-10 px-6">
-        <div className="relative mb-6 h-32 w-32 group">
+      <section className="flex flex-col items-center px-6 pb-8 pt-7">
+        <div className="group relative mb-5 h-32 w-32">
           <button 
             onClick={() => permissions.canEditGroup && fileInputRef.current?.click()}
             disabled={pending || !permissions.canEditGroup}
-            className={`absolute inset-0 rounded-[3rem] border-4 border-surface shadow-2xl overflow-hidden bg-surface-muted flex items-center justify-center transition-smooth ${permissions.canEditGroup ? 'hover:scale-105 active:scale-95 group-hover:shadow-primary/20' : ''}`}
+            className={`absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth ${permissions.canEditGroup ? 'hover:opacity-90 active:scale-95' : ''}`}
           >
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
-              <span className="text-5xl font-black text-primary">{chat.title[0]?.toUpperCase()}</span>
+              <span className="text-5xl font-semibold text-primary">{chat.title[0]?.toUpperCase()}</span>
             )}
             
             {permissions.canEditGroup && (
@@ -213,7 +221,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
             <button 
               onClick={handleAvatarDelete}
               disabled={pending}
-              className="absolute -bottom-2 -right-2 h-10 w-10 bg-surface border border-border-subtle rounded-2xl flex items-center justify-center text-red-400 shadow-xl active:scale-90 transition-smooth z-10"
+              className="absolute -bottom-1 -right-1 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-danger shadow-lg transition-smooth active:scale-95"
+              aria-label="Удалить фото группы"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -222,19 +231,22 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
           )}
         </div>
         
-        <h2 className="text-3xl font-black tracking-tight text-center">{chat.title}</h2>
-        <p className="text-[10px] font-black text-muted tracking-[0.2em] uppercase mt-2">Группа создана {new Date(chat.createdAt).toLocaleDateString()}</p>
+        <h2 className="text-center text-3xl font-semibold tracking-tight">{chat.title}</h2>
+        <p className="mt-1 text-sm font-normal text-muted">{members.length} участников</p>
+        <p className="mt-3 text-xs font-normal text-muted">Группа создана {new Date(chat.createdAt).toLocaleDateString()}</p>
       </section>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4 px-6 mb-10">
+      <div className={`mb-8 grid ${quickActionColumnClass} gap-1 px-4`}>
+        {permissions.canAddMembers && <ActionButton onClick={() => setIsAddingMembers(true)} label="Добавить" icon={<AddMemberIcon />} />}
         <ActionButton onClick={() => router.push(`/chats/${chatId}?search=true`)} label="Найти" icon={<SearchIcon />} />
         <ActionButton onClick={() => setIsAppearanceOpen(true)} label="Стиль" icon={<AppearanceIcon />} />
+        {permissions.canEditGroup && <ActionButton onClick={() => setIsEditingTitle(true)} label="Изм." icon={<EditIcon />} />}
       </div>
 
-      <div className="px-6 space-y-4 mb-10">
+      <div className="mb-8 space-y-3 px-4">
         {permissions.canEditGroup && (
-          <section className="card-premium p-1">
+          <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
             <SettingsItem 
               label="Изменить название" 
               value={chat.title} 
@@ -243,45 +255,55 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
           </section>
         )}
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted">Участники ({members.length})</h3>
-            {permissions.canAddMembers && (
-              <button onClick={() => setIsAddingMembers(true)} className="text-[10px] font-black uppercase text-primary hover:opacity-80">Добавить</button>
-            )}
-          </div>
-          <div className="card-premium divide-y divide-border-subtle/30 overflow-hidden">
+        <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+          {permissions.canAddMembers && (
+            <>
+              <button onClick={() => setIsAddingMembers(true)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <AddMemberIcon />
+                </div>
+                <span className="text-sm font-semibold text-primary">Добавить участников</span>
+              </button>
+              <div className="ml-[4.25rem] h-px bg-border-subtle" />
+            </>
+          )}
+          <div className="divide-y divide-border-subtle">
             {members.map(m => (
-              <div key={m.userId} className="flex items-center justify-between p-3 group">
+              <div key={m.userId} className="group flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 relative">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">
                     {normalizeAvatarUrl(m.avatarUrl) ? (
                       <Image src={normalizeAvatarUrl(m.avatarUrl) || ""} fill className="object-cover" alt={m.name} />
                     ) : (
-                      <span className="text-xs font-black text-primary">{m.name[0]?.toUpperCase()}</span>
+                      <span className="text-sm font-semibold text-primary">{m.name[0]?.toUpperCase()}</span>
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold truncate">{m.name} {m.isSelf && <span className="text-muted font-medium">(Вы)</span>}</p>
-                    <p className="text-[10px] font-black uppercase text-muted tracking-wider">@{m.username} • {m.role}</p>
+                    <p className="truncate text-sm font-semibold">{m.name} {m.isSelf && <span className="font-normal text-muted">(Вы)</span>}</p>
+                    <p className="truncate text-xs font-normal text-muted">@{m.username}</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-foreground/5 px-2 py-1 text-[11px] font-medium text-muted">{m.role}</span>
                 {permissions.canRemoveMembers && !m.isSelf && (
-                  <button onClick={() => handleRemoveMember(m.userId)} className="text-danger opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                  <button onClick={() => handleRemoveMember(m.userId)} className="rounded-full p-2 text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover:opacity-100" aria-label="Удалить участника">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 )}
+                </div>
               </div>
             ))}
           </div>
         </section>
       </div>
 
-      <div className="flex-1 flex flex-col px-4">
-        <div className="flex gap-6 border-b border-border-subtle/30 px-2 mb-4">
+      <div className="flex flex-1 flex-col px-4">
+        <div className="sticky top-0 z-20 mb-4 rounded-full border border-border-subtle bg-foreground/5 p-1">
+          <div className="grid grid-cols-3 gap-1">
           <TabButton active={activeTab === "media"} onClick={() => setActiveSection("media")} label="Медиа" />
           <TabButton active={activeTab === "files"} onClick={() => setActiveSection("files")} label="Файлы" />
           <TabButton active={activeTab === "links"} onClick={() => setActiveSection("links")} label="Ссылки" />
+          </div>
         </div>
         <div className="flex-1 pb-10">
           {loadingShared ? (
@@ -293,13 +315,13 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       </div>
 
       {isEditingTitle && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-xl p-6 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl">
-            <h3 className="text-xl font-black mb-6">Название группы</h3>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
+            <h3 className="mb-5 text-xl font-semibold">Название группы</h3>
             <input className="input-nox mb-6" value={newTitle} onChange={e => setNewTitle(e.target.value)} autoFocus />
             <div className="flex gap-4">
-              <button onClick={() => setIsEditingTitle(false)} className="flex-1 py-4 font-black uppercase text-muted">Отмена</button>
-              <button onClick={() => { updateGroup({ title: newTitle }); setIsEditingTitle(false); }} className="flex-1 py-4 font-black uppercase text-primary">Сохранить</button>
+              <button onClick={() => setIsEditingTitle(false)} className="flex-1 py-3 text-sm font-semibold text-muted">Отмена</button>
+              <button onClick={() => { updateGroup({ title: newTitle }); setIsEditingTitle(false); }} className="flex-1 py-3 text-sm font-semibold text-primary">Сохранить</button>
             </div>
           </div>
         </div>
@@ -307,9 +329,9 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
 
       {isAddingMembers && (
         <div className="fixed inset-0 z-[600] flex flex-col bg-surface safe-top animate-in slide-in-from-bottom duration-300">
-           <header className="flex items-center justify-between px-4 py-3 border-b border-border-subtle/30">
-             <button onClick={() => setIsAddingMembers(false)} className="text-sm font-bold text-muted">Отмена</button>
-             <h3 className="text-sm font-black uppercase tracking-widest">Добавить участников</h3>
+           <header className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
+             <button onClick={() => setIsAddingMembers(false)} className="text-sm font-semibold text-muted">Отмена</button>
+             <h3 className="text-sm font-semibold">Добавить участников</h3>
              <div className="w-12" />
            </header>
            <div className="p-4">
@@ -317,21 +339,21 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
            </div>
            <div className="flex-1 overflow-y-auto px-4">
               {foundUsers.map(u => (
-                <div key={u.userId} className="flex items-center justify-between py-3 border-b border-border-subtle/10">
+                <div key={u.userId} className="flex items-center justify-between border-b border-border-subtle py-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 relative">
+                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">
                         {normalizeAvatarUrl(u.avatarUrl) ? (
                           <Image src={normalizeAvatarUrl(u.avatarUrl) || ""} alt={u.name} fill className="object-cover" />
                         ) : (
-                          <span className="text-xs font-black text-primary">{u.name[0]}</span>
+                          <span className="text-sm font-semibold text-primary">{u.name[0]}</span>
                         )}
                     </div>
                     <div>
-                      <p className="text-sm font-bold">{u.name}</p>
+                      <p className="text-sm font-semibold">{u.name}</p>
                       <p className="text-xs text-muted">@{u.username}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleAddMembers([u.userId])} className="btn-nox bg-primary/10 text-primary text-[10px] font-black px-4 h-8 rounded-lg uppercase">Добавить</button>
+                  <button onClick={() => handleAddMembers([u.userId])} className="h-9 rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary transition-smooth active:scale-95">Добавить</button>
                 </div>
               ))}
            </div>
@@ -351,32 +373,33 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
 
 function ActionButton({ label, icon, onClick }: { label: string, icon: React.ReactNode, onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 group">
-      <div className="h-12 w-12 rounded-2xl flex items-center justify-center transition-smooth active:scale-90 bg-primary/10 text-primary group-hover:scale-105">
+    <button onClick={onClick} className="group flex flex-col items-center gap-2">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-95">
         {icon}
       </div>
-      <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80">{label}</span>
+      <span className="text-[11px] font-semibold text-primary opacity-90">{label}</span>
     </button>
   );
 }
 
+function AddMemberIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3M12 15a4 4 0 10-8 0v1a2 2 0 002 2h6m1-10a4 4 0 11-8 0 4 4 0 018 0z" /></svg>; }
 function SearchIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>; }
 function AppearanceIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>; }
+function EditIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M4 20h4.586a1 1 0 00.707-.293L19.5 9.5a2.5 2.5 0 00-3.536-3.536L5.757 16.172a1 1 0 00-.293.707V20z" /></svg>; }
 
 function SettingsItem({ label, value, onClick }: { label: string, value: string, onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between px-5 py-4 hover:bg-foreground/5 rounded-2xl transition-smooth group active:scale-[0.98]">
-      <span className="text-sm font-bold text-foreground/80">{label}</span>
-      <span className="text-sm font-bold text-primary truncate max-w-[120px]">{value}</span>
+    <button onClick={onClick} className="group flex w-full items-center justify-between px-5 py-4 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
+      <span className="text-sm font-semibold text-foreground/80">{label}</span>
+      <span className="max-w-[140px] truncate text-sm font-medium text-primary">{value}</span>
     </button>
   );
 }
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button onClick={onClick} className={`pb-3 text-xs font-black uppercase tracking-[0.2em] transition-smooth relative ${active ? "text-primary" : "text-muted"}`}>
+    <button onClick={onClick} className={`h-10 rounded-full text-sm font-semibold transition-smooth active:scale-[0.98] ${active ? "bg-surface text-foreground shadow-sm" : "text-foreground/75 hover:bg-foreground/5"}`}>
       {label}
-      {active && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />}
     </button>
   );
 }
@@ -385,11 +408,11 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
   if (!data) return null;
   if (type === "media") {
     const items = data.photos || [];
-    if (items.length === 0) return <div className="py-20 text-center text-muted font-bold text-sm italic">Ничего не найдено</div>;
+    if (items.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
     return (
       <div className="grid grid-cols-3 gap-1">
         {items.map((m) => (
-          <div key={m.id} className="aspect-square bg-surface-muted rounded-md overflow-hidden active:scale-95 transition-smooth relative">
+          <div key={m.id} className="relative aspect-square overflow-hidden rounded-md bg-surface-muted transition-smooth active:scale-95">
             <Image src={m.url} fill className="object-cover" alt="" />
           </div>
         ))}
@@ -397,20 +420,20 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
     );
   }
   const items = type === "files" ? data.files : data.links;
-  if (items.length === 0) return <div className="py-20 text-center text-muted font-bold text-sm italic">Ничего не найдено</div>;
+  if (items.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
   return (
-    <div className="space-y-4 px-2">
+    <div className="space-y-4">
       {items.map((item: PhotoItem | AudioItem | FileItem | LinkItem, i: number) => {
         const url = 'url' in item ? item.url : '#';
         const fileName = 'fileName' in item ? item.fileName : ('url' in item ? item.url : 'Link');
         return (
-          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-2 hover:bg-foreground/5 rounded-xl transition-smooth">
-             <div className="h-10 w-10 rounded-lg bg-surface-muted flex items-center justify-center text-primary shrink-0">
+          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-xl p-2 transition-smooth hover:bg-foreground/5">
+             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
                {type === "files" ? <FileIcon /> : <LinkIcon />}
              </div>
              <div className="min-w-0 flex-1">
-               <p className="text-sm font-bold truncate">{fileName}</p>
-               <p className="text-[10px] font-black uppercase text-muted">{new Date(item.createdAt).toLocaleDateString()}</p>
+               <p className="truncate text-sm font-semibold">{fileName}</p>
+               <p className="text-xs font-normal text-muted">{new Date(item.createdAt).toLocaleDateString()}</p>
              </div>
           </a>
         );
