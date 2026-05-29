@@ -276,6 +276,15 @@ export function ChatMessages({
       let unavailableChanged = false;
 
       for (const msg of messages) {
+        const hasAttachments = msg.attachments.length > 0;
+        if (hasAttachments) {
+          if (newUnavailable[msg.id]) {
+            delete newUnavailable[msg.id];
+            unavailableChanged = true;
+          }
+          continue;
+        }
+
         if (!msg.isEncrypted || msg.body || newDecrypted[msg.id]) continue;
 
         // Try local encrypted cache first. Persistent cache must never store plaintext.
@@ -426,7 +435,7 @@ export function ChatMessages({
     return messages.map(msg => ({
       ...msg,
       body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? ((msg.encryptionVersion ?? 0) >= 2 ? "" : msg.ciphertext ? "Зашифрованное сообщение" : "") : msg.body || ""),
-      messageUnavailableOnThisDevice: Boolean(unavailableMessageIds[msg.id]),
+      messageUnavailableOnThisDevice: msg.attachments.length === 0 && Boolean(unavailableMessageIds[msg.id]),
     })) as MessageWithDecrypted[];
   }, [messages, decryptedBodies, unavailableMessageIds]);
 
