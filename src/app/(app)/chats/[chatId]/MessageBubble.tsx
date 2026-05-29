@@ -168,6 +168,8 @@ function AttachmentPreview({
   const [decryptError, setDecryptError] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted));
   const [roundExpanded, setRoundExpanded] = useState(false);
+  const [roundProgress, setRoundProgress] = useState(0);
+  const roundVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!attachment.isEncrypted) {
@@ -248,6 +250,31 @@ function AttachmentPreview({
   // Round video messages ("кружочки") are flagged by the message type (survives E2EE,
   // unlike the filename which is hidden for encrypted media).
   const isRoundVideo = isVideo && message.type === "VIDEO_NOTE";
+  const roundProgressLength = 2 * Math.PI * 47;
+
+  const toggleRoundVideo = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    const video = roundVideoRef.current;
+    if (!video) return;
+
+    if (roundExpanded) {
+      video.pause();
+      video.muted = true;
+      setRoundExpanded(false);
+      setRoundProgress(0);
+      return;
+    }
+
+    setRoundExpanded(true);
+    setRoundProgress(0);
+    video.loop = false;
+    video.muted = false;
+    video.currentTime = 0;
+    void video.play().catch(() => {
+      video.muted = true;
+      void video.play().catch(() => undefined);
+    });
+  }, [roundExpanded]);
 
   if (isDecrypting) {
     return (
@@ -266,7 +293,7 @@ function AttachmentPreview({
   }
 
   return (
-    <div className="mt-2 first:mt-0 overflow-hidden rounded-xl">
+    <div className={`mt-2 first:mt-0 rounded-xl ${isRoundVideo ? "overflow-visible" : "overflow-hidden"}`}>
       {message.type === "VOICE" ? (
         <VoicePlayer
           src={sourceUrl}
@@ -289,14 +316,50 @@ function AttachmentPreview({
       ) : isRoundVideo ? (
         <div
           className={`relative mx-auto my-1 cursor-pointer overflow-hidden rounded-full shadow-sm transition-all duration-300 active:opacity-90 ${
-            roundExpanded ? "h-[min(78vw,26rem)] w-[min(78vw,26rem)]" : "h-56 w-56"
+            roundExpanded ? "h-[min(76vw,24rem)] w-[min(76vw,24rem)]" : "h-56 w-56"
           }`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setRoundExpanded((value) => !value);
-          }}
+          onClick={toggleRoundVideo}
         >
-          <video src={sourceUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline preload="metadata" />
+          <video
+            ref={roundVideoRef}
+            src={sourceUrl}
+            className="h-full w-full object-cover"
+            autoPlay
+            loop={!roundExpanded}
+            muted={!roundExpanded}
+            playsInline
+            preload="metadata"
+            onTimeUpdate={(event) => {
+              const video = event.currentTarget;
+              if (!roundExpanded || !video.duration || Number.isNaN(video.duration)) return;
+              setRoundProgress(Math.min(1, video.currentTime / video.duration));
+            }}
+            onEnded={() => {
+              setRoundExpanded(false);
+              setRoundProgress(0);
+              const video = roundVideoRef.current;
+              if (video) {
+                video.muted = true;
+                video.currentTime = 0;
+                void video.play().catch(() => undefined);
+              }
+            }}
+          />
+          {roundExpanded ? (
+            <svg className="pointer-events-none absolute inset-1 -rotate-90 text-white drop-shadow" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" strokeOpacity="0.26" strokeWidth="2.5" />
+              <circle
+                cx="50"
+                cy="50"
+                r="47"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="2.5"
+                strokeDasharray={`${roundProgress * roundProgressLength} ${roundProgressLength}`}
+              />
+            </svg>
+          ) : null}
           <div className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold text-white">
             <svg className="inline h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           </div>
@@ -585,6 +648,7 @@ export const MessageBubble = memo(function MessageBubble({
   const isPendingLocal = mine && message.id.startsWith("temp-");
   const visualOnlyMessage = !message.body && !message.replyToMessage && message.attachments.length > 0
     && message.attachments.every((attachment) => attachment.mimeType.startsWith("image/") || attachment.mimeType.startsWith("video/"));
+  const isVideoNoteMessage = message.type === "VIDEO_NOTE";
   const visualOnlyStyle: React.CSSProperties = {
     backgroundColor: "transparent",
     color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
@@ -640,7 +704,7 @@ export const MessageBubble = memo(function MessageBubble({
             </span>
           )}
 
-          <div className="relative max-w-[78%] sm:max-w-[70%]">
+          <div className={isVideoNoteMessage ? "relative max-w-[calc(100vw-1rem)] sm:max-w-[28rem]" : "relative max-w-[78%] sm:max-w-[70%]"}>
             {canSwipeReply ? (
               <div 
                 ref={replyIconRef}

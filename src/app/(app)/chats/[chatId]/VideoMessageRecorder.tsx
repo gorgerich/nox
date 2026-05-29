@@ -26,6 +26,7 @@ export function VideoMessageRecorder({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const shouldCaptureOnStopRef = useRef(true);
   const [ready, setReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -45,28 +46,15 @@ export function VideoMessageRecorder({
     }
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 360 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } },
-          audio: { echoCancellation: true, noiseSuppression: true },
-        });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        bindPreview(stream);
-        setReady(true);
-      } catch {
-        setError("Нет доступа к камере. Разрешите камеру и микрофон.");
-      }
-    })();
-    return () => { cancelled = true; stopStream(); };
-  }, [bindPreview, stopStream]);
+  const openStream = useCallback(async (mode: "user" | "environment") => {
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: mode, width: { ideal: 360 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } },
+      audio: { echoCancellation: true, noiseSuppression: true },
+    });
+  }, []);
 
-  const startRecording = useCallback(() => {
-    const stream = streamRef.current;
-    if (!stream || recording) return;
+  const startRecordingForStream = useCallback((stream: MediaStream) => {
+    if (recorderRef.current?.state === "recording") return;
     const mimeType = pickMimeType();
     try {
       const recorder = new MediaRecorder(stream, {
@@ -75,8 +63,14 @@ export function VideoMessageRecorder({
         videoBitsPerSecond: 450_000,
       });
       chunksRef.current = [];
+      shouldCaptureOnStopRef.current = true;
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = () => {
+        if (!shouldCaptureOnStopRef.current) {
+          chunksRef.current = [];
+          shouldCaptureOnStopRef.current = true;
+          return;
+        }
         const type = recorder.mimeType || mimeType || "video/webm";
         const blob = new Blob(chunksRef.current, { type });
         const ext = type.includes("mp4") ? "mp4" : "webm";
@@ -101,7 +95,29 @@ export function VideoMessageRecorder({
     } catch {
       setError("Запись видео не поддерживается этим браузером.");
     }
-  }, [onCapture, recording, stopStream]);
+  }, [onCapture, stopStream]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await openStream("user");
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        bindPreview(stream);
+        setReady(true);
+      } catch {
+        setError("Нет доступа к камере. Разрешите камеру и микрофон.");
+      }
+    })();
+    return () => { cancelled = true; stopStream(); };
+  }, [bindPreview, openStream, stopStream]);
+
+  const startRecording = useCallback(() => {
+    const stream = streamRef.current;
+    if (!stream) return;
+    startRecordingForStream(stream);
+  }, [startRecordingForStream]);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
@@ -120,6 +136,7 @@ export function VideoMessageRecorder({
 
   const cancel = useCallback(() => {
     if (recorderRef.current?.state === "recording") {
+      shouldCaptureOnStopRef.current = false;
       recorderRef.current.onstop = null;
       recorderRef.current.stop();
     }
@@ -133,29 +150,34 @@ export function VideoMessageRecorder({
     const nextFacingMode = facingMode === "user" ? "environment" : "user";
 
     try {
-      const nextStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextFacingMode, width: { ideal: 360 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } },
-        audio: false,
-      });
-      const nextVideoTrack = nextStream.getVideoTracks()[0];
-      if (!nextVideoTrack) {
-        nextStream.getTracks().forEach((track) => track.stop());
-        return;
+      const wasRecording = recorderRef.current?.state === "recording";
+      if (wasRecording && recorderRef.current) {
+        shouldCaptureOnStopRef.current = false;
+        recorderRef.current.onstop = null;
+        recorderRef.current.stop();
+        recorderRef.current = null;
+        chunksRef.current = [];
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        setRecording(false);
+        setSeconds(0);
       }
 
-      stream.getVideoTracks().forEach((track) => {
-        stream.removeTrack(track);
-        track.stop();
-      });
-      stream.addTrack(nextVideoTrack);
-      streamRef.current = stream;
-      bindPreview(stream);
+      stream.getTracks().forEach((track) => track.stop());
+      const nextStream = await openStream(nextFacingMode);
+      streamRef.current = nextStream;
+      bindPreview(nextStream);
       setFacingMode(nextFacingMode);
+      if (wasRecording) {
+        startRecordingForStream(nextStream);
+      }
     } catch {
       setError("Не удалось переключить камеру.");
       setTimeout(() => setError(null), 2200);
     }
-  }, [bindPreview, facingMode]);
+  }, [bindPreview, facingMode, openStream, startRecordingForStream]);
 
   if (typeof document === "undefined") return null;
 
