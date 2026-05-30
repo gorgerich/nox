@@ -17,6 +17,7 @@ import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } fro
 import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
 import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader } from "@/lib/chat-cache";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -215,7 +216,9 @@ export function ChatMessages({
     }
   }, [chatId, disappearingSeconds]);
 
-  const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
+  // Seed from the in-memory cache so re-opening a chat in the same session shows
+  // text instantly instead of re-decrypting (no "Загрузка…" reflash).
+  const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>(() => getChatDecrypted(chatId));
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
   // Mirror the decryption maps in refs so the decrypt effect can read the
   // current state WITHOUT listing it as a dependency. Otherwise every decrypted
@@ -430,6 +433,44 @@ export function ChatMessages({
       messageUnavailableOnThisDevice: msg.attachments.length === 0 && Boolean(unavailableMessageIds[msg.id]),
     })) as MessageWithDecrypted[];
   }, [messages, decryptedBodies, unavailableMessageIds]);
+
+  // Persist decrypted bodies to the in-memory cache so a later re-open seeds
+  // instantly (RAM only — see chat-cache.ts).
+  useEffect(() => {
+    putChatDecrypted(chatId, decryptedBodies);
+  }, [chatId, decryptedBodies]);
+
+  // Cache the chat header + a tail preview so the route loading.tsx can paint
+  // the real last messages instantly on the next open instead of gray bars.
+  useEffect(() => {
+    putChatHeader(chatId, {
+      title: chatInfo.type === "DIRECT"
+        ? (chatInfo.otherMember?.displayName ?? chatInfo.title ?? "Чат")
+        : (chatInfo.title ?? "Группа"),
+      avatarUrl: chatInfo.type === "DIRECT"
+        ? (chatInfo.otherMember?.avatarUrl ?? null)
+        : (chatInfo.avatarUrl ?? null),
+      isSelfChat: chatInfo.type === "DIRECT" && !chatInfo.otherMember,
+    });
+  }, [chatId, chatInfo]);
+
+  useEffect(() => {
+    const preview = messagesWithDecrypted
+      .filter((msg) => !msg.deletedAt)
+      .map((msg) => {
+        let text = msg.body?.trim() || "";
+        if (!text) {
+          if (msg.type === "IMAGE") text = "Фото";
+          else if (msg.type === "VIDEO") text = "Видео";
+          else if (msg.type === "VIDEO_NOTE") text = "Видеосообщение";
+          else if (msg.type === "VOICE") text = "Голосовое сообщение";
+          else if (msg.type === "FILE") text = "Файл";
+          else text = "Сообщение";
+        }
+        return { id: msg.id, mine: msg.senderUserId === currentUserId, text };
+      });
+    putChatPreview(chatId, preview);
+  }, [chatId, messagesWithDecrypted, currentUserId]);
 
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);

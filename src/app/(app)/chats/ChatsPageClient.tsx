@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
+import { putChatList } from "@/lib/chat-cache";
 
 import { ChatSearch } from "./ChatSearch";
 import { IncomingRequestCards } from "./IncomingRequestCards";
@@ -302,6 +303,12 @@ export function ChatsPageClient({
       router.prefetch(`/chats/${chat.id}`);
     });
   }, [chats, router]);
+
+  // Cache the current list (RAM) so the tab's loading.tsx can paint real rows
+  // instantly on the next open instead of skeleton bars.
+  useEffect(() => {
+    putChatList(chats);
+  }, [chats]);
 
   return (
     <div 

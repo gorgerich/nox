@@ -1,0 +1,31 @@
+node_modules
+.next
+.git
+.DS_Store
+*.log
+
+.env
+.env.*
+
+*.photoslibrary
+**/*.photoslibrary
+Photos Library.photoslibrary
+**/Photos Library.photoslibrary
+
+Pictures
+Pictures/
+/Pictures/
+Library
+Library/
+Downloads
+Downloads/
+Desktop
+Desktop/
+Documents
+Documents/
+Movies
+Movies/
+Music
+Music/
+
+tsconfig.tsbuildinfo
