@@ -269,152 +269,144 @@ export function ChatMessages({
 
   // Decrypt messages when they arrive or keys change
   useEffect(() => {
+    // Per-message decryption outcome. Merged into state in one pass after all
+    // messages resolve, so we never trigger a render mid-batch.
+    type DecryptResult =
+      | { id: string; body: string; clearUnavailable?: boolean }
+      | { id: string; unavailable: true }
+      | { id: string; clearUnavailable: true }
+      | null;
+
+    async function decryptOne(msg: Message): Promise<DecryptResult> {
+      // Attachments carry their own media-key flow; never show them as
+      // "unavailable" here, and clear any stale flag.
+      if (msg.attachments.length > 0) {
+        return unavailableMessageIdsRef.current[msg.id] ? { id: msg.id, clearUnavailable: true } : null;
+      }
+
+      if (!msg.isEncrypted || msg.body || decryptedBodiesRef.current[msg.id]) return null;
+
+      // Try local encrypted cache first. Persistent cache must never store plaintext.
+      const cached = localDeviceId
+        ? await getLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId }).catch(() => null)
+        : null;
+      if (cached) {
+        if ((msg.encryptionVersion ?? 0) >= 2 && localDeviceId) {
+          const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+          if (envelope?.ciphertext && !envelope.encryptedPayloadDeletedAt) {
+            void sendDeliveryAck(msg.id, localDeviceId);
+          }
+        }
+        return { id: msg.id, body: cached.body, clearUnavailable: true };
+      }
+
+      if ((msg.encryptionVersion ?? 0) >= 2) {
+        if (!localDeviceId) return null;
+        const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+        if (!envelope || !envelope.ciphertext || !envelope.iv || !envelope.salt) {
+          return { id: msg.id, unavailable: true };
+        }
+
+        const decrypted = await decryptMessageV2({
+          chatId,
+          senderUserId: msg.senderUserId,
+          senderDeviceId: envelope.senderDeviceId,
+          envelope: {
+            recipientUserId: envelope.recipientUserId,
+            recipientDeviceId: envelope.recipientDeviceId,
+            ciphertext: envelope.ciphertext,
+            iv: envelope.iv,
+            salt: envelope.salt,
+            algorithm: envelope.algorithm,
+            encryptionVersion: envelope.encryptionVersion,
+          },
+        });
+
+        if (decrypted) {
+          try {
+            await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
+          } catch (error) {
+            console.error("[e2ee] Failed to save local encrypted cache", error);
+            return null;
+          }
+          void sendDeliveryAck(msg.id, localDeviceId);
+          return { id: msg.id, body: decrypted, clearUnavailable: true };
+        }
+        return { id: msg.id, body: "Не удалось расшифровать сообщение" };
+      }
+
+      // Legacy v1: If no server payload, cannot decrypt
+      if (!msg.ciphertext) return null;
+
+      const recipientUserId = msg.senderUserId === currentUserId
+        ? chatInfo.otherMember?.id
+        : currentUserId;
+      const senderKey = msg.senderUserId === currentUserId ? myPublicKey : otherMemberPublicKey;
+      if (!recipientUserId || !senderKey) return null;
+
+      const decrypted = await decryptMessage(
+        {
+          ciphertext: msg.ciphertext || null,
+          iv: msg.iv || null,
+          salt: msg.salt || null,
+          chatId,
+          senderUserId: msg.senderUserId,
+          recipientUserId,
+          algorithm: msg.algorithm || null,
+          encryptionVersion: msg.encryptionVersion || null,
+        },
+        senderKey
+      );
+
+      if (decrypted) {
+        if (localDeviceId) {
+          if (msg.senderUserId !== currentUserId) {
+            try {
+              await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
+              if (!msg.deliveredAt) void sendDeliveryAck(msg.id);
+            } catch (error) {
+              console.error("[e2ee] Failed to save local encrypted cache", error);
+            }
+          } else {
+            // Also store own sent messages for local history, encrypted at rest.
+            await saveVerifiedLocalMessage(msg, decrypted, localDeviceId).catch((error) => {
+              console.error("[e2ee] Failed to save local encrypted cache", error);
+            });
+          }
+        }
+        return { id: msg.id, body: decrypted };
+      }
+      if (msg.senderUserId !== currentUserId) {
+        return { id: msg.id, body: "Не удалось расшифровать сообщение" };
+      }
+      return null;
+    }
+
     async function decryptAll() {
+      // Decrypt every message concurrently. The old serial loop awaited each
+      // IndexedDB read + ECDH/AES one-by-one, so a 50-message chat paid 50×
+      // round-trips in sequence — that's the long "Загрузка зашифрованного
+      // сообщения…" delay. Promise.all collapses it to roughly one batch.
+      const results = await Promise.all(messages.map(decryptOne));
+
       const newDecrypted: Record<string, string> = { ...decryptedBodiesRef.current };
       const newUnavailable: Record<string, true> = { ...unavailableMessageIdsRef.current };
       let changed = false;
       let unavailableChanged = false;
 
-      for (const msg of messages) {
-        const hasAttachments = msg.attachments.length > 0;
-        if (hasAttachments) {
-          if (newUnavailable[msg.id]) {
-            delete newUnavailable[msg.id];
-            unavailableChanged = true;
-          }
-          continue;
-        }
-
-        if (!msg.isEncrypted || msg.body || newDecrypted[msg.id]) continue;
-
-        // Try local encrypted cache first. Persistent cache must never store plaintext.
-        const cached = localDeviceId
-          ? await getLocalEncryptedMessage({ userId: currentUserId, messageId: msg.id, chatId, deviceId: localDeviceId }).catch(() => null)
-          : null;
-        if (cached) {
-          if (newDecrypted[msg.id] !== cached.body) {
-            newDecrypted[msg.id] = cached.body;
-            changed = true;
-          }
-          if (newUnavailable[msg.id]) {
-            delete newUnavailable[msg.id];
-            unavailableChanged = true;
-          }
-          if ((msg.encryptionVersion ?? 0) >= 2 && localDeviceId) {
-            const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
-            if (envelope?.ciphertext && !envelope.encryptedPayloadDeletedAt) {
-              void sendDeliveryAck(msg.id, localDeviceId);
-            }
-          }
-          continue;
-        }
-
-        if ((msg.encryptionVersion ?? 0) >= 2) {
-          if (!localDeviceId) continue;
-          const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
-          if (!envelope) {
-            if (!newUnavailable[msg.id]) {
-              newUnavailable[msg.id] = true;
-              unavailableChanged = true;
-            }
-            continue;
-          }
-
-          if (!envelope.ciphertext || !envelope.iv || !envelope.salt) {
-            if (!newUnavailable[msg.id]) {
-              newUnavailable[msg.id] = true;
-              unavailableChanged = true;
-            }
-            continue;
-          }
-
-          const decrypted = await decryptMessageV2({
-            chatId,
-            senderUserId: msg.senderUserId,
-            senderDeviceId: envelope.senderDeviceId,
-            envelope: {
-              recipientUserId: envelope.recipientUserId,
-              recipientDeviceId: envelope.recipientDeviceId,
-              ciphertext: envelope.ciphertext,
-              iv: envelope.iv,
-              salt: envelope.salt,
-              algorithm: envelope.algorithm,
-              encryptionVersion: envelope.encryptionVersion,
-            },
-          });
-
-          if (decrypted) {
-            newDecrypted[msg.id] = decrypted;
-            changed = true;
-            if (newUnavailable[msg.id]) {
-              delete newUnavailable[msg.id];
-              unavailableChanged = true;
-            }
-            try {
-              await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
-            } catch (error) {
-              console.error("[e2ee] Failed to save local encrypted cache", error);
-              continue;
-            }
-            void sendDeliveryAck(msg.id, localDeviceId);
-          } else {
-            newDecrypted[msg.id] = "Не удалось расшифровать сообщение";
-            changed = true;
-          }
-          continue;
-        }
-
-        // Legacy v1: If no server payload, cannot decrypt
-        if (!msg.ciphertext) continue;
-
-        const recipientUserId = msg.senderUserId === currentUserId
-          ? chatInfo.otherMember?.id
-          : currentUserId;
-        const senderKey = msg.senderUserId === currentUserId ? myPublicKey : otherMemberPublicKey;
-        if (!recipientUserId) continue;
-        if (!senderKey) continue;
-
-        const decrypted = await decryptMessage(
-          {
-            ciphertext: msg.ciphertext || null,
-            iv: msg.iv || null,
-            salt: msg.salt || null,
-            chatId,
-            senderUserId: msg.senderUserId,
-            recipientUserId,
-            algorithm: msg.algorithm || null,
-            encryptionVersion: msg.encryptionVersion || null,
-          },
-          senderKey
-        );
-
-        if (decrypted) {
-          newDecrypted[msg.id] = decrypted;
+      for (const result of results) {
+        if (!result) continue;
+        if ("body" in result && newDecrypted[result.id] !== result.body) {
+          newDecrypted[result.id] = result.body;
           changed = true;
-
-          // Store in local cache and ack delivery if recipient
-          if (msg.senderUserId !== currentUserId) {
-            if (localDeviceId) {
-              try {
-                await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
-                if (!msg.deliveredAt) {
-                  void sendDeliveryAck(msg.id);
-                }
-              } catch (error) {
-                console.error("[e2ee] Failed to save local encrypted cache", error);
-              }
-            }
-          } else {
-            // Also store own sent messages for local history, encrypted at rest.
-            if (localDeviceId) {
-              await saveVerifiedLocalMessage(msg, decrypted, localDeviceId).catch((error) => {
-                console.error("[e2ee] Failed to save local encrypted cache", error);
-              });
-            }
-          }
-        } else if (msg.senderUserId !== currentUserId) {
-          newDecrypted[msg.id] = "Не удалось расшифровать сообщение";
-          changed = true;
+        }
+        if ("unavailable" in result && !newUnavailable[result.id]) {
+          newUnavailable[result.id] = true;
+          unavailableChanged = true;
+        }
+        if ("clearUnavailable" in result && result.clearUnavailable && newUnavailable[result.id]) {
+          delete newUnavailable[result.id];
+          unavailableChanged = true;
         }
       }
 

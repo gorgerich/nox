@@ -235,6 +235,7 @@ export default async function ChatPage({
                 fileIv: true,
                 fileAlgorithm: true,
                 mediaKeyEnvelopes: {
+                  where: { recipientUserId: user.id },
                   select: {
                     id: true,
                     recipientUserId: true,
@@ -281,6 +282,7 @@ export default async function ChatPage({
               },
             },
             envelopes: {
+              where: { recipientUserId: user.id },
               select: {
                 id: true,
                 recipientUserId: true,
@@ -349,6 +351,7 @@ export default async function ChatPage({
             fileIv: true,
             fileAlgorithm: true,
             mediaKeyEnvelopes: {
+              where: { recipientUserId: user.id },
               select: {
                 id: true,
                 recipientUserId: true,
@@ -395,6 +398,11 @@ export default async function ChatPage({
           },
         },
         envelopes: {
+          // Only this user's envelopes are usable on their devices. Filtering in
+          // SQL (instead of fetching every recipient's envelope and dropping them
+          // in JS) shrinks the payload a lot for groups / multi-device, so the
+          // chat page renders faster.
+          where: { recipientUserId: user.id },
           select: {
             id: true,
             recipientUserId: true,
