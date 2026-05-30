@@ -210,7 +210,36 @@ async function postDeviceRegistration(local: LocalDeviceKey) {
   });
 }
 
+// registerCurrentDevice runs on every message send (inside encryptMessageForDevices).
+// The local key part is cheap, but the POST registration is a network round-trip.
+// Cache a successful registration per user for a short TTL and de-dupe concurrent
+// calls, so a burst of sends does one POST instead of one each. Revocation still
+// surfaces within one TTL window.
+const REGISTER_TTL_MS = 60_000;
+const deviceRegisteredUntil = new Map<string, number>();
+const inflightRegister = new Map<string, Promise<LocalDeviceKey>>();
+
 export async function registerCurrentDevice(userId: string): Promise<LocalDeviceKey> {
+  const until = deviceRegisteredUntil.get(userId);
+  if (until && until > Date.now()) {
+    return ensureDeviceKeys(userId);
+  }
+  const existing = inflightRegister.get(userId);
+  if (existing) return existing;
+
+  const run = registerCurrentDeviceUncached(userId)
+    .then((local) => {
+      deviceRegisteredUntil.set(userId, Date.now() + REGISTER_TTL_MS);
+      return local;
+    })
+    .finally(() => {
+      inflightRegister.delete(userId);
+    });
+  inflightRegister.set(userId, run);
+  return run;
+}
+
+async function registerCurrentDeviceUncached(userId: string): Promise<LocalDeviceKey> {
   const local = await ensureDeviceKeys(userId);
   const res = await postDeviceRegistration(local);
 
@@ -227,6 +256,7 @@ export async function registerCurrentDevice(userId: string): Promise<LocalDevice
       if (!retryRes.ok) {
         throw new Error("Не удалось перерегистрировать устройство после сброса");
       }
+      invalidateDeviceBundleCache(); // new device → stale bundles
       return newLocal;
     }
     throw new Error(data?.error || "Не удалось зарегистрировать устройство шифрования");
@@ -235,7 +265,42 @@ export async function registerCurrentDevice(userId: string): Promise<LocalDevice
   return local;
 }
 
+// Device bundles changed rarely (only when a user adds/revokes a device), but
+// were fetched over the network on EVERY message send (2 round-trips before the
+// POST), which made sending feel slow. Cache successful, non-empty results for a
+// short TTL so consecutive sends skip the network. A new device still propagates
+// within one TTL window; explicit invalidation handles register/revoke.
+type BundleCacheEntry = { devices: DeviceKeyBundle[]; expires: number };
+const deviceBundleCache = new Map<string, BundleCacheEntry>();
+const DEVICE_BUNDLE_TTL_MS = 60_000;
+
+function readBundleCache(key: string): DeviceKeyBundle[] | null {
+  const entry = deviceBundleCache.get(key);
+  if (!entry) return null;
+  if (entry.expires <= Date.now()) {
+    deviceBundleCache.delete(key);
+    return null;
+  }
+  return entry.devices;
+}
+
+function writeBundleCache(key: string, devices: DeviceKeyBundle[]) {
+  // Don't cache empty results — recipient may be mid-registration; we want the
+  // next send to re-check quickly rather than fail for a whole TTL window.
+  if (devices.length === 0) return;
+  deviceBundleCache.set(key, { devices, expires: Date.now() + DEVICE_BUNDLE_TTL_MS });
+}
+
+/** Drop cached device bundles. Call after registering/revoking a device. */
+export function invalidateDeviceBundleCache() {
+  deviceBundleCache.clear();
+}
+
 export async function fetchUserDeviceBundles(userId: string, chatId?: string): Promise<DeviceKeyBundle[]> {
+  const cacheKey = chatId ? `${userId}:${chatId}` : userId;
+  const cached = readBundleCache(cacheKey);
+  if (cached) return cached;
+
   const params = new URLSearchParams({ userId });
   if (chatId) params.set("chatId", chatId);
   const res = await fetch(`/api/e2ee/devices?${params.toString()}`);
@@ -243,16 +308,23 @@ export async function fetchUserDeviceBundles(userId: string, chatId?: string): P
     throw new Error("Не удалось получить ключи шифрования. Попробуйте снова.");
   }
   const data = await res.json().catch(() => null);
-  return Array.isArray(data?.devices) ? data.devices : [];
+  const devices = Array.isArray(data?.devices) ? data.devices : [];
+  writeBundleCache(cacheKey, devices);
+  return devices;
 }
 
 export async function fetchCurrentUserDeviceBundles(): Promise<DeviceKeyBundle[]> {
+  const cached = readBundleCache("self");
+  if (cached) return cached;
+
   const res = await fetch("/api/e2ee/devices");
   if (!res.ok) {
     throw new Error("Не удалось получить ключи шифрования. Попробуйте снова.");
   }
   const data = await res.json().catch(() => null);
-  return Array.isArray(data?.devices) ? data.devices : [];
+  const devices = Array.isArray(data?.devices) ? data.devices : [];
+  writeBundleCache("self", devices);
+  return devices;
 }
 
 export async function fetchDeviceKeyBundle(deviceId: string): Promise<DeviceKeyBundle | null> {
