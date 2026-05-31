@@ -6,6 +6,7 @@ import { FileText, Play } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
+import { getMediaUrl, putMediaUrl } from "@/lib/media-cache";
 
 const SWIPE_REPLY_THRESHOLD = 64;
 const SWIPE_REPLY_MAX = 92;
@@ -80,6 +81,8 @@ export type Message = {
     mimeType: string;
     sizeBytes: number;
     url?: string;
+    width?: number | null;
+    height?: number | null;
     encryptedSizeBytes?: number | null;
     isEncrypted?: boolean;
     mediaEncryptionVersion?: number | null;
@@ -162,11 +165,14 @@ function AttachmentPreview({
   currentUserId?: string;
   localDeviceId?: string | null;
 }) {
+  // Seed from the RAM media cache so already-decrypted media shows instantly on
+  // re-open / scroll-back (no re-download, no "Расшифровка медиа…" flash).
+  const cachedMediaUrl = attachment.isEncrypted ? getMediaUrl(attachment.id) : null;
   const [decryptedUrl, setDecryptedUrl] = useState<string | null>(() => (
-    attachment.isEncrypted ? null : attachment.url ?? null
+    attachment.isEncrypted ? cachedMediaUrl : attachment.url ?? null
   ));
   const [decryptError, setDecryptError] = useState<string | null>(null);
-  const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted));
+  const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted) && !cachedMediaUrl);
   const [roundExpanded, setRoundExpanded] = useState(false);
   const [roundProgress, setRoundProgress] = useState(0);
   const roundVideoRef = useRef<HTMLVideoElement>(null);
@@ -176,8 +182,12 @@ function AttachmentPreview({
       return;
     }
 
+    // Already cached this session — nothing to do, URL was seeded into state.
+    if (getMediaUrl(attachment.id)) {
+      return;
+    }
+
     let cancelled = false;
-    let objectUrl: string | null = null;
 
     async function decryptAttachment() {
       if (!chatId || !localDeviceId || !attachment.fileIv) {
@@ -211,9 +221,15 @@ function AttachmentPreview({
         });
 
         if (!decryptedBlob) throw new Error("DECRYPT_FAILED");
-        objectUrl = URL.createObjectURL(decryptedBlob);
+        const freshUrl = URL.createObjectURL(decryptedBlob);
+        // Hand the URL to the cache (it owns the lifetime). If another bubble
+        // already cached it, the cache returns the existing one and we drop ours.
+        const ownedUrl = putMediaUrl(attachment.id, freshUrl);
+        if (ownedUrl !== freshUrl) {
+          try { URL.revokeObjectURL(freshUrl); } catch { /* ignore */ }
+        }
         if (!cancelled) {
-          setDecryptedUrl(objectUrl);
+          setDecryptedUrl(ownedUrl);
           setIsDecrypting(false);
         }
       } catch {
@@ -226,9 +242,11 @@ function AttachmentPreview({
 
     void decryptAttachment();
 
+    // NOTE: do not revoke the object URL on unmount — the media cache owns it so
+    // it can be reused instantly on re-open/scroll-back. The cache revokes on LRU
+    // eviction.
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [
     attachment.fileIv,
@@ -251,6 +269,12 @@ function AttachmentPreview({
   // unlike the filename which is hidden for encrypted media).
   const isRoundVideo = isVideo && message.type === "VIDEO_NOTE";
   const roundProgressLength = 2 * Math.PI * 47;
+
+  // Reserve the media box from known dimensions so the bubble doesn't resize
+  // (jump/jitter) when the image/video finishes decrypting or decoding.
+  const ratioStyle: React.CSSProperties = attachment.width && attachment.height
+    ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
+    : { minHeight: "12rem" };
 
   const toggleRoundVideo = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
@@ -277,6 +301,19 @@ function AttachmentPreview({
   }, [roundExpanded]);
 
   if (isDecrypting) {
+    // Sized shimmer that matches the final media box — keeps layout stable so
+    // the conversation doesn't jump when decryption completes.
+    if (isRoundVideo) {
+      return <div className="mt-2 first:mt-0 mx-auto my-1 h-56 w-56 rounded-full bg-surface-muted/60 animate-pulse" />;
+    }
+    if (isImage || isVideo) {
+      return (
+        <div
+          className="mt-2 first:mt-0 w-full max-w-xs rounded-xl bg-surface-muted/60 animate-pulse"
+          style={ratioStyle}
+        />
+      );
+    }
     return (
       <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
         Расшифровка медиа…
@@ -302,14 +339,15 @@ function AttachmentPreview({
         />
       ) : isImage ? (
         <div
-          className="relative cursor-pointer overflow-hidden rounded-xl transition-opacity active:opacity-90"
+          className="relative w-full max-w-xs cursor-pointer overflow-hidden rounded-xl transition-opacity active:opacity-90"
+          style={{ ...ratioStyle, maxHeight: "24rem" }}
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "IMAGE", url: sourceUrl, fileName: attachment.fileName }); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={sourceUrl}
             alt=""
-            className="max-h-96 w-full object-cover transition-smooth hover:scale-[1.02]"
+            className="absolute inset-0 h-full w-full object-cover transition-smooth hover:scale-[1.02]"
             loading="lazy"
           />
         </div>
@@ -366,14 +404,16 @@ function AttachmentPreview({
         </div>
       ) : isVideo ? (
         <div
-          className="relative flex cursor-pointer items-center justify-center overflow-hidden rounded-xl transition-opacity active:opacity-90"
+          className="relative flex w-full max-w-xs cursor-pointer items-center justify-center overflow-hidden rounded-xl transition-opacity active:opacity-90"
           style={{
+            ...ratioStyle,
+            maxHeight: "24rem",
             backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
             border: "1px solid var(--bubble-incoming-border)",
           }}
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
         >
-          <video src={sourceUrl} className="max-h-96 w-full object-cover" preload="metadata" muted playsInline />
+          <video src={sourceUrl} className="absolute inset-0 h-full w-full object-cover" preload="metadata" muted playsInline />
           <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/35 text-white">
               <Play className="ml-0.5 h-6 w-6" fill="currentColor" strokeWidth={0} />
