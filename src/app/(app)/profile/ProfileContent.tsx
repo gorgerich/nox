@@ -923,7 +923,7 @@ function DeviceSessionCard({
           <p className="mt-1 text-xs font-bold text-muted">{getPlatformName(device)}</p>
           <p className="mt-1 text-xs font-semibold text-muted/80">{formatDeviceActivity(device)}</p>
           <p className="mt-1 text-xs font-semibold text-muted/70">Местоположение недоступно</p>
-          {device.fingerprintShort ? <p className="mt-2 break-all font-mono text-[10px] text-muted/55">{device.fingerprintShort}</p> : null}
+          {device.fingerprintShort ? <p className="mt-2 break-all font-mono text-[10px] text-muted/45">{device.fingerprintShort}</p> : null}
         </div>
         {action}
       </div>

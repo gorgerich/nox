@@ -19,7 +19,7 @@ export default async function ProfilePage() {
       <div className="app-section-header px-2">
         <div>
           <h1 className="app-section-title">Профиль</h1>
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted/60">Настройки вашего аккаунта</p>
+          <p className="mt-1 text-sm font-normal text-muted/70">Настройки вашего аккаунта</p>
         </div>
       </div>
 

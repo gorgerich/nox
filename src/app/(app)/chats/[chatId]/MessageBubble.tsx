@@ -640,8 +640,8 @@ export const MessageBubble = memo(function MessageBubble({
   const time = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt));
 
   const isRound = settings.bubbleRadius === "round";
-  const rBase = isRound ? "18px" : "14px";
-  const rSmall = "6px";
+  const rBase = isRound ? "16px" : "12px";
+  const rSmall = "5px";
   
   const radiusStyle = mine 
     ? {
@@ -834,32 +834,34 @@ export const MessageBubble = memo(function MessageBubble({
             </span>
             {mine && !message.deletedAt && (
               <div className="flex items-center ml-0.5">
+                {/* Monochrome light ticks — they sit on the blue outgoing bubble,
+                    so a soft white reads cleaner than the old green. Read = brighter. */}
                 {isPendingLocal ? (
                   <span
-                    className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin"
-                    style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }}
+                    className="h-2.5 w-2.5 rounded-full border-2 border-current border-t-transparent animate-spin"
+                    style={{ color: "rgba(255,255,255,0.6)" }}
                     aria-label="Отправляется"
                   />
                 ) : isRead ? (
-                  <div className="flex -space-x-1.5">
-                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: visualOnlyMessage ? "white" : "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex -space-x-1">
+                    <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "rgba(255,255,255,0.95)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-3 w-3 animate-in fade-in" style={{ color: visualOnlyMessage ? "white" : "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "rgba(255,255,255,0.95)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : isDelivered ? (
-                  <div className="flex -space-x-1.5">
-                    <svg className="h-3 w-3" style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex -space-x-1">
+                    <svg className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-3 w-3" style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : (
-                  <svg className="h-3 w-3" style={{ color: visualOnlyMessage ? "white" : "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}

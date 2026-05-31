@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
+import { Contact2, MessageCircle, Phone, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -43,7 +43,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <div
           className="grid min-w-0 flex-1 rounded-full border border-white/70 bg-white/88 p-0.5 shadow-[0_8px_24px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/78"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
-        >
+        >{/* search FAB removed — search lives in each screen's top input */}
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = pathname === tab.href;
@@ -74,15 +74,6 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
             );
           })}
         </div>
-
-        <Link
-          aria-label="Поиск"
-          className="fast-tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/88 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.13)] backdrop-blur-xl transition-all duration-200 active:scale-95 dark:border-white/10 dark:bg-neutral-950/78 dark:text-white"
-          href="/chats"
-          prefetch={true}
-        >
-          <Search className="h-6 w-6" strokeWidth={2.5} />
-        </Link>
       </div>
     </nav>,
     document.body,

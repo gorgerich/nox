@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Search, UsersRound } from "lucide-react";
+import { Search, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 export type Contact = {
@@ -21,10 +21,9 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
   const router = useRouter();
   const [actionPending, setActionPending] = useState<string | null>(null);
 
-  const handleWriteClick = async (e: React.MouseEvent, userId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  // Tapping a contact row opens the chat directly (Telegram/iOS pattern) — no
+  // separate "write" button needed.
+  const openContact = async (userId: string) => {
     if (actionPending) return;
     setActionPending(userId);
 
@@ -78,10 +77,12 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
             const displayName = isMe ? "Избранное" : (contact.profile?.displayName || contact.username);
             const fullAvatarUrl = normalizeAvatarUrl(contact.profile?.avatarUrl);
             return (
-              <Link
+              <button
                 key={contact.id}
-                href={isMe ? "/profile" : `/users/${contact.id}`}
-                className="group flex min-h-[72px] items-center gap-3 px-5 py-2.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10 fast-tap"
+                type="button"
+                disabled={actionPending === contact.id}
+                onClick={() => { if (isMe) { router.push("/profile"); } else { void openContact(contact.id); } }}
+                className="group flex min-h-[72px] w-full items-center gap-3 px-5 py-2.5 text-left transition-smooth hover:bg-foreground/5 active:bg-foreground/10 fast-tap disabled:opacity-60"
               >
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary/10 text-primary">
                   {fullAvatarUrl ? (
@@ -100,21 +101,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
                     {isMe ? `@${contact.username} (вы)` : `@${contact.username}`}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center">
-                  <button
-                    onClick={(e) => handleWriteClick(e, contact.id)}
-                    disabled={actionPending === contact.id}
-                    className="flex h-10 min-w-10 items-center justify-center rounded-full bg-primary/10 px-3 text-primary transition-smooth hover:bg-primary hover:text-primary-foreground active:scale-95 fast-tap disabled:opacity-50"
-                    aria-label={isMe ? "Открыть избранное" : "Написать"}
-                  >
-                    {actionPending === contact.id ? (
-                      <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                    ) : (
-                      <MessageCircle className="h-5 w-5" strokeWidth={2.1} />
-                    )}
-                  </button>
-                </div>
-              </Link>
+              </button>
             );
           })}
         </div>

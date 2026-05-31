@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
 import { isUserOnline } from "@/lib/realtime";
 import { ChatMessages } from "./ChatMessages";
@@ -163,11 +162,6 @@ export default async function ChatPage({
 
   const { chatId } = await params;
   const { highlightMessageId } = await searchParams;
-  const membership = await requireActiveChatMembership(chatId, user.id);
-
-  if (!membership) {
-    redirect("/chats");
-  }
 
   const prisma = getPrisma();
 
@@ -175,7 +169,7 @@ export default async function ChatPage({
   // We can either fetch messages around it, or just ensure it's included in the set.
   // For simplicity, if highlightMessageId is present, we'll fetch messages up to that message + some older ones.
   let messageWhereClause: Prisma.MessageWhereInput = { chatId };
-  let take = 50;
+  let take = 30;
 
   if (highlightMessageId) {
     const targetMessage = await prisma.message.findUnique({
@@ -431,6 +425,13 @@ export default async function ChatPage({
     redirect("/chats");
   }
 
+  // Derive membership from the chat's already-fetched members instead of a
+  // separate query — one less serial DB round-trip before the page renders.
+  const myMembership = chat.members.find((member) => member.user.id === user.id);
+  if (!myMembership) {
+    redirect("/chats");
+  }
+
   const otherMember = chat.members.find((member) => member.user.id !== user.id);
   const otherMemberIsOnline = otherMember ? isUserOnline(otherMember.user.id) : false;
   const pinnedMessage = chat.pinnedMessage
@@ -449,7 +450,7 @@ export default async function ChatPage({
     <div className="chat-screen bg-background transition-smooth overflow-hidden">
       <ChatMessages
         chatId={chat.id}
-        currentRole={membership.role}
+        currentRole={myMembership.role}
         currentUserId={user.id}
         initialMessages={messagesWithPinned}
         initialPinnedMessage={pinnedMessage}

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
-import { Phone, PhoneMissed, PhoneOutgoing, PhoneIncoming, ArrowRight } from "lucide-react";
+import { Phone, PhoneMissed, PhoneOutgoing, PhoneIncoming, Info } from "lucide-react";
 
 export const revalidate = 0;
 
@@ -128,12 +128,12 @@ export default async function CallsPage() {
                   </div>
                 </div>
 
-                <Link 
+                <Link
                   href={`/chats/${log.chatId}`}
-                  className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth hover:bg-primary hover:text-primary-foreground active:scale-95"
-                  aria-label="Открыть чат"
+                  className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted/50 transition-smooth hover:bg-foreground/5 hover:text-muted active:scale-95"
+                  aria-label="Информация о звонке"
                 >
-                  <ArrowRight className="h-5 w-5" strokeWidth={2.1} />
+                  <Info className="h-5 w-5" strokeWidth={2} />
                 </Link>
               </div>
             );

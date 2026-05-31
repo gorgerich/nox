@@ -55,7 +55,7 @@ export function E2EEUserDevices({ userId }: { userId: string }) {
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${device.isVerified ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500"}`}>{device.isVerified ? "Проверено" : "Не проверено"}</span>
             </div>
             {device.keyChanged ? <p className="mt-2 text-xs font-semibold text-red-500">Ключ устройства изменился</p> : null}
-            <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted">{device.fingerprintShort}</p>
+            <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted/45">{device.fingerprintShort}</p>
             {!device.isVerified ? <button onClick={() => void verifyDevice(device)} className="mt-3 rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">Проверить</button> : null}
           </div>
         ))}

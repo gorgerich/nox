@@ -250,11 +250,11 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
 
 function ActionButton({ label, icon, onClick, destructive }: { label: string, icon: React.ReactNode, onClick: () => void, destructive?: boolean }) {
   return (
-    <button onClick={onClick} className="group flex flex-col items-center gap-2">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-95 ${destructive ? "bg-danger/10 text-danger" : "bg-primary/10 text-primary"}`}>
+    <button onClick={onClick} className="group flex flex-col items-center gap-1.5">
+      <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-95 group-hover:bg-foreground/5 ${destructive ? "text-danger" : "text-primary"}`}>
         {icon}
       </div>
-      <span className={`text-[11px] font-semibold ${destructive ? "text-danger" : "text-primary"} opacity-90`}>{label}</span>
+      <span className={`text-[11px] font-medium ${destructive ? "text-danger" : "text-primary"}`}>{label}</span>
     </button>
   );
 }

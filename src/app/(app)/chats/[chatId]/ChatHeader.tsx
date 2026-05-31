@@ -130,14 +130,14 @@ export function ChatHeader({
         </button>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="-mr-1 flex items-center gap-0">
         {onSetDisappearing && (
           <div className="relative">
             <button
               type="button"
               aria-label="Исчезающие сообщения"
               onClick={() => setTimerMenuOpen((v) => !v)}
-              className="touch-target flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 active:scale-95"
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 active:scale-95"
               style={{
                 color: disappearingSeconds ? "var(--message-read)" : "var(--chat-header-fg)",
                 opacity: disappearingSeconds ? 1 : 0.62,
@@ -177,7 +177,7 @@ export function ChatHeader({
               aria-label="Аудиозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null })}
               disabled={status !== "idle"}
-              className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
               title="Аудиозвонок"
             >
               <Phone className="h-5 w-5" strokeWidth={2.1} />
@@ -187,7 +187,7 @@ export function ChatHeader({
               aria-label="Видеозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null }, { video: true })}
               disabled={status !== "idle"}
-              className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
               title="Видеозвонок"
             >
               <Video className="h-5 w-5" strokeWidth={2.1} />

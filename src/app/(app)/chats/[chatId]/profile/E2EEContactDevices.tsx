@@ -82,7 +82,7 @@ export function E2EEContactDevices({ userId, chatId }: { userId: string; chatId?
                   {device.keyChanged ? <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-500">Ключ изменился</span> : null}
                 </div>
                 <p className="mt-1 text-[11px] font-semibold text-muted">{device.platform || "Web"} · {new Date(device.createdAt).toLocaleDateString("ru-RU")}</p>
-                <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted">{device.fingerprintShort}</p>
+                <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted/45">{device.fingerprintShort}</p>
               </div>
               {!device.isVerified ? (
                 <button onClick={() => void verifyDevice(device)} className="shrink-0 rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary active:scale-95">
