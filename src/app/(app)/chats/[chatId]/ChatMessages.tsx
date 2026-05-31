@@ -14,7 +14,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
-import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersistedChatMessages } from "@/lib/e2ee/indexed-db";
+import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersistedChatMessages, getPersistedChatMessages } from "@/lib/e2ee/indexed-db";
 import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader } from "@/lib/chat-cache";
@@ -183,22 +183,18 @@ export function ChatMessages({
 
   // Messages present on first render shouldn't replay the entrance animation —
   // otherwise opening a chat fires 50 slide-ins at once. Only messages that
-  // arrive afterwards animate in.
+  // arrive afterwards animate in. Seeded with the SSR set and topped up after
+  // the client-side history load resolves (see the loader effect below).
   const initialMessageIdsRef = useRef<Set<string>>(
     new Set(initialMessages.map((m) => (m as { id: string }).id))
   );
+  // Guard so the first client history load runs once and recomputes the
+  // "unread" divider / animation-suppression set from the authoritative batch.
+  const historyLoadedRef = useRef(false);
 
   // First message that was unread by me when the chat opened — we render an
   // "unread messages" divider above it (computed once, kept for the session).
-  const [firstUnreadId] = useState<string | null>(() => {
-    for (const m of initialMessages) {
-      const msg = m as { id: string; senderUserId: string; receipts?: { userId: string; readAt: string | null }[] };
-      if (msg.senderUserId !== currentUserId && (msg.receipts ?? []).some((r) => r.userId === currentUserId && !r.readAt)) {
-        return msg.id;
-      }
-    }
-    return null;
-  });
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
 
   const [disappearingSeconds, setDisappearingSeconds] = useState<number | null>(initialDisappearingSeconds);
   const changeDisappearing = useCallback(async (seconds: number | null) => {
@@ -220,6 +216,66 @@ export function ChatMessages({
   // text instantly instead of re-decrypting (no "Загрузка…" reflash).
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>(() => getChatDecrypted(chatId));
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
+
+  // Client-side history load — the chat page no longer fetches messages on the
+  // server (no RSC block). We paint instantly from the persistent cache, then
+  // reconcile with the network. Optimistic (temp-) and the pinned message are
+  // preserved across reconciliation.
+  useEffect(() => {
+    let cancelled = false;
+    const pinnedId = initialPinnedMessage?.id ?? null;
+
+    const applyBatch = (incoming: Message[], authoritative: boolean) => {
+      if (cancelled || incoming.length === 0) return;
+      const incomingIds = new Set(incoming.map((m) => m.id));
+      setMessages((current) => {
+        const keep = current.filter(
+          (m) => !incomingIds.has(m.id) && (m.id.startsWith("temp-") || m.id === pinnedId),
+        );
+        return [...incoming, ...keep].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
+      if (authoritative && !historyLoadedRef.current) {
+        historyLoadedRef.current = true;
+        initialMessageIdsRef.current = new Set(incoming.map((m) => m.id));
+        for (const m of incoming) {
+          if (m.senderUserId !== currentUserId && (m.receipts ?? []).some((r) => r.userId === currentUserId && !r.readAt)) {
+            setFirstUnreadId(m.id);
+            break;
+          }
+        }
+      }
+    };
+
+    (async () => {
+      // 1) Instant paint from the persistent cache (ciphertext metadata on disk).
+      if (!historyLoadedRef.current) {
+        const persisted = await getPersistedChatMessages(chatId).catch(() => null);
+        if (!cancelled && persisted?.messages?.length) {
+          const norm = (persisted.messages as unknown[])
+            .map(normalizeMessage)
+            .filter((m): m is Message => !!m);
+          applyBatch(norm, false);
+        }
+      }
+      // 2) Reconcile with the network (authoritative).
+      try {
+        const res = await fetch(`/api/chats/${chatId}/messages`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const fresh = ((data.messages as unknown[]) ?? [])
+            .map(normalizeMessage)
+            .filter((m): m is Message => !!m);
+          applyBatch(fresh, true);
+        }
+      } catch {
+        // Offline — keep whatever the cache gave us.
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [chatId, currentUserId, initialPinnedMessage?.id]);
   // Mirror the decryption maps in refs so the decrypt effect can read the
   // current state WITHOUT listing it as a dependency. Otherwise every decrypted
   // message re-triggers the effect, which then re-scans all messages (and hits

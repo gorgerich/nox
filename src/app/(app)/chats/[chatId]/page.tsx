@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { isUserOnline } from "@/lib/realtime";
 import { ChatMessages } from "./ChatMessages";
-import { Prisma } from "@prisma/client";
 
 type BaseMessage = {
   id: string;
@@ -161,45 +160,14 @@ export default async function ChatPage({
   }
 
   const { chatId } = await params;
-  const { highlightMessageId } = await searchParams;
+  await searchParams; // highlightMessageId is read client-side from the URL
 
   const prisma = getPrisma();
 
-  // If we have a highlightMessageId, we need to make sure it's loaded.
-  // We can either fetch messages around it, or just ensure it's included in the set.
-  // For simplicity, if highlightMessageId is present, we'll fetch messages up to that message + some older ones.
-  let messageWhereClause: Prisma.MessageWhereInput = { chatId };
-  let take = 30;
-
-  if (highlightMessageId) {
-    const targetMessage = await prisma.message.findUnique({
-      where: { id: highlightMessageId },
-      select: { createdAt: true }
-    });
-
-    if (targetMessage) {
-      // Load 30 messages newer than target and 20 older than target?
-      // Actually Prisma doesn't easily support "around".
-      // Let's just load 70 messages starting from the target message's time, 
-      // but simpler is to load all messages newer than (target - small offset).
-      messageWhereClause = {
-        chatId,
-        createdAt: {
-          gte: new Date(targetMessage.createdAt.getTime() - 1000 * 60 * 60) // 1 hour before
-        }
-      };
-      take = 100; // Load more to be safe
-    }
-  }
-
-  // Hide disappearing messages whose timer has elapsed.
-  messageWhereClause = {
-    ...messageWhereClause,
-    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-  };
-
-  const [chat, rawMessages] = await Promise.all([
-    prisma.chat.findUnique({
+  // Messages are loaded client-side (cache-first, then network) — see the
+  // ChatMessages history loader. Keeping them off the server render makes the
+  // chat route open without a blocking wait.
+  const chat = await prisma.chat.findUnique({
       where: { id: chatId },
       include: {
         pinnedMessage: {
@@ -317,109 +285,7 @@ export default async function ChatPage({
           orderBy: { joinedAt: "asc" },
         },
       },
-    }),
-    prisma.message.findMany({
-      where: messageWhereClause,
-      orderBy: { createdAt: "desc" },
-      take,
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            profile: {
-              select: {
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-        attachments: {
-          select: {
-            id: true,
-            fileName: true,
-            mimeType: true,
-            sizeBytes: true,
-            encryptedSizeBytes: true,
-            width: true,
-            height: true,
-            isEncrypted: true,
-            mediaEncryptionVersion: true,
-            fileIv: true,
-            fileAlgorithm: true,
-            mediaKeyEnvelopes: {
-              where: { recipientUserId: user.id },
-              select: {
-                id: true,
-                recipientUserId: true,
-                recipientDeviceId: true,
-                senderDeviceId: true,
-                encryptedMediaKey: true,
-                iv: true,
-                salt: true,
-                algorithm: true,
-                encryptionVersion: true,
-                createdAt: true,
-                deliveredAt: true,
-                revokedAt: true,
-              },
-            },
-          },
-        },
-        replyToMessage: {
-          include: {
-            sender: {
-              select: {
-                username: true,
-                profile: { select: { displayName: true } },
-              },
-            },
-          },
-        },
-        reactions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                profile: { select: { displayName: true } },
-              },
-            },
-          },
-        },
-        receipts: {
-          select: {
-            userId: true,
-            deliveredAt: true,
-            readAt: true,
-          },
-        },
-        envelopes: {
-          // Only this user's envelopes are usable on their devices. Filtering in
-          // SQL (instead of fetching every recipient's envelope and dropping them
-          // in JS) shrinks the payload a lot for groups / multi-device, so the
-          // chat page renders faster.
-          where: { recipientUserId: user.id },
-          select: {
-            id: true,
-            recipientUserId: true,
-            recipientDeviceId: true,
-            senderDeviceId: true,
-            ciphertext: true,
-            iv: true,
-            salt: true,
-            algorithm: true,
-            encryptionVersion: true,
-            createdAt: true,
-            deliveredAt: true,
-            readAt: true,
-            encryptedPayloadDeletedAt: true,
-          },
-        },
-      },
-    }),
-  ]);
+  });
 
   if (!chat) {
     redirect("/chats");
@@ -437,12 +303,9 @@ export default async function ChatPage({
   const pinnedMessage = chat.pinnedMessage
     ? serializeMessage(filterMessageEnvelopesForUser(chat.pinnedMessage as BaseMessage, user.id))
     : null;
-  const serializedMessages = rawMessages
-    .reverse()
-    .map((m: BaseMessage) => serializeMessage(filterMessageEnvelopesForUser(m, user.id)));
-  const messagesWithPinned = pinnedMessage && !serializedMessages.some((message) => message.id === pinnedMessage.id)
-    ? [...serializedMessages, pinnedMessage].sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
-    : serializedMessages;
+  // Only the pinned message is seeded from the server; the full history is
+  // loaded on the client (cache-first, then network).
+  const messagesWithPinned = pinnedMessage ? [pinnedMessage] : [];
   // Forward-target list is loaded lazily on the client when the user opens the
   // forward picker (see ChatMessages.loadForwardChats), so we no longer run the
   // heavy "all chats" query here — that was slowing down every chat open.
