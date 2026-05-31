@@ -81,3 +81,26 @@ node_modules/
 .env
 .env.*
 tsconfig.tsbuildinfo
+
+# Local Mac/system files
+.DS_Store
+*.photoslibrary
+**/*.photoslibrary
+Photos Library.photoslibrary
+**/Photos Library.photoslibrary
+Pictures/
+Downloads/
+Desktop/
+Documents/
+Movies/
+Music/
+Library/
+
+# Railway/local build
+.railway/
+.next/
+node_modules/
+*.log
+.env
+.env.*
+tsconfig.tsbuildinfo
