@@ -6,7 +6,11 @@
 const DB_NAME = "nox-e2ee";
 const KEYS_STORE = "keys";
 const MESSAGES_STORE = "messages";
-const DB_VERSION = 2;
+// Persistent per-chat message metadata for instant cold-open. Holds the
+// CIPHERTEXT serialized server messages (envelopes, ids, sender, type) — never
+// plaintext. Decrypted bodies come from MESSAGES_STORE (encrypted at rest).
+const CHATMSGS_STORE = "chatmsgs";
+const DB_VERSION = 3;
 const LOCAL_MESSAGE_CACHE_VERSION = 1;
 const LOCAL_MESSAGE_CACHE_ALGORITHM = "AES-GCM";
 
@@ -92,6 +96,9 @@ export function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MESSAGES_STORE)) {
         db.createObjectStore(MESSAGES_STORE);
+      }
+      if (!db.objectStoreNames.contains(CHATMSGS_STORE)) {
+        db.createObjectStore(CHATMSGS_STORE);
       }
     };
 
@@ -308,4 +315,80 @@ export async function storeAndVerifyLocalEncryptedMessage(params: {
     throw new Error("LOCAL_ENCRYPTED_CACHE_VERIFY_FAILED");
   }
   return recovered;
+}
+
+// --- Persistent per-chat message metadata (instant cold-open) --------------
+// CIPHERTEXT only: serialized server messages (envelopes/ids/sender/type) plus
+// a small header. Never plaintext — decrypted bodies live encrypted-at-rest in
+// MESSAGES_STORE. Survives reload so the chat list / chat screen can paint from
+// disk instantly while the server revalidates.
+
+export type PersistedChatHeader = {
+  title: string;
+  avatarUrl: string | null;
+  isSelfChat: boolean;
+};
+
+export type PersistedChatMessages = {
+  messages: unknown[];
+  header: PersistedChatHeader | null;
+  ts: number;
+};
+
+export async function putPersistedChatMessages(chatId: string, record: PersistedChatMessages): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(CHATMSGS_STORE, "readwrite");
+      tx.objectStore(CHATMSGS_STORE).put(record, chatId);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+export async function getPersistedChatMessages(chatId: string): Promise<PersistedChatMessages | null> {
+  const db = await openDb();
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(CHATMSGS_STORE, "readonly");
+      const req = tx.objectStore(CHATMSGS_STORE).get(chatId);
+      req.onsuccess = () => resolve((req.result as PersistedChatMessages) ?? null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export async function getAllPersistedChatMessages(): Promise<{ chatId: string; record: PersistedChatMessages }[]> {
+  const db = await openDb();
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(CHATMSGS_STORE, "readonly");
+      const store = tx.objectStore(CHATMSGS_STORE);
+      const keysReq = store.getAllKeys();
+      const valsReq = store.getAll();
+      tx.oncomplete = () => {
+        const keys = (keysReq.result as IDBValidKey[]) ?? [];
+        const vals = (valsReq.result as PersistedChatMessages[]) ?? [];
+        const out: { chatId: string; record: PersistedChatMessages }[] = [];
+        for (let i = 0; i < keys.length; i += 1) {
+          if (typeof keys[i] === "string" && vals[i]) {
+            out.push({ chatId: keys[i] as string, record: vals[i] });
+          }
+        }
+        resolve(out);
+      };
+      tx.onerror = () => resolve([]);
+    } catch {
+      resolve([]);
+    }
+  });
+}
+
+export function clearPersistedChatMessages(): Promise<void> {
+  return clearStore(CHATMSGS_STORE);
 }

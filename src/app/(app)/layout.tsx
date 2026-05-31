@@ -6,6 +6,7 @@ import { CallProvider } from "./calls/CallProvider";
 import { CallOverlay } from "./calls/CallOverlay";
 import { E2EEInitializer } from "@/lib/e2ee/E2EEInitializer";
 import { AccountRecoveryListener } from "./AccountRecoveryListener";
+import { ChatCacheHydrator } from "./ChatCacheHydrator";
 
 export default async function AppLayout({
   children,
@@ -29,6 +30,7 @@ export default async function AppLayout({
   return (
     <CallProvider>
       <E2EEInitializer userId={user.id} />
+      <ChatCacheHydrator userId={user.id} />
       <AccountRecoveryListener />
       <AppShellChrome user={{ role: user.role }} incomingRequestCount={incomingRequestCount}>
         {children}

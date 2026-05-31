@@ -14,7 +14,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
-import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage } from "@/lib/e2ee/indexed-db";
+import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersistedChatMessages } from "@/lib/e2ee/indexed-db";
 import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader } from "@/lib/chat-cache";
@@ -442,17 +442,35 @@ export function ChatMessages({
 
   // Cache the chat header + a tail preview so the route loading.tsx can paint
   // the real last messages instantly on the next open instead of gray bars.
+  const headerCache = useMemo(() => ({
+    title: chatInfo.type === "DIRECT"
+      ? (chatInfo.otherMember?.displayName ?? chatInfo.title ?? "Чат")
+      : (chatInfo.title ?? "Группа"),
+    avatarUrl: chatInfo.type === "DIRECT"
+      ? (chatInfo.otherMember?.avatarUrl ?? null)
+      : (chatInfo.avatarUrl ?? null),
+    isSelfChat: chatInfo.type === "DIRECT" && !chatInfo.otherMember,
+  }), [chatInfo]);
+
   useEffect(() => {
-    putChatHeader(chatId, {
-      title: chatInfo.type === "DIRECT"
-        ? (chatInfo.otherMember?.displayName ?? chatInfo.title ?? "Чат")
-        : (chatInfo.title ?? "Группа"),
-      avatarUrl: chatInfo.type === "DIRECT"
-        ? (chatInfo.otherMember?.avatarUrl ?? null)
-        : (chatInfo.avatarUrl ?? null),
-      isSelfChat: chatInfo.type === "DIRECT" && !chatInfo.otherMember,
-    });
-  }, [chatId, chatInfo]);
+    putChatHeader(chatId, headerCache);
+  }, [chatId, headerCache]);
+
+  // Persist ciphertext message metadata + header to IndexedDB (debounced) so a
+  // cold start (after reload) can hydrate the RAM cache and open chats instantly.
+  // Plaintext is never written here — decrypted bodies stay encrypted-at-rest in
+  // the separate messages store.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const timer = setTimeout(() => {
+      void putPersistedChatMessages(chatId, {
+        messages: messages.slice(-50),
+        header: headerCache,
+        ts: Date.now(),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [chatId, messages, headerCache]);
 
   useEffect(() => {
     const preview = messagesWithDecrypted
