@@ -3,11 +3,11 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Contact2, MessageCircle, Phone, UserRound } from "lucide-react";
+import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/profile"]);
+const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/chats/search", "/profile"]);
 
 const tabs = [
   { href: "/contacts", label: "Контакты", icon: Contact2 },
@@ -19,7 +19,7 @@ const tabs = [
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new");
+  const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new") && pathname !== "/chats/search";
   const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
 
   useEffect(() => {
@@ -39,14 +39,14 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.4rem)" }}
       aria-label="Нижняя навигация"
     >
-      <div className="pointer-events-auto mx-auto flex w-full max-w-md items-center gap-1.5">
+      <div className="pointer-events-auto mx-auto flex w-full max-w-[24rem] items-center gap-1">
         <div
           className="grid min-w-0 flex-1 rounded-full border border-white/70 bg-white/88 p-0.5 shadow-[0_8px_24px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/78"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
-        >{/* search FAB removed — search lives in each screen's top input */}
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = pathname === tab.href;
+            const isActive = pathname === tab.href || (tab.href === "/chats" && pathname === "/chats/search");
             const isChatsTab = tab.href === "/chats";
             const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
 
@@ -74,6 +74,17 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
             );
           })}
         </div>
+        <Link
+          aria-label="Поиск"
+          className={clsx(
+            "fast-tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/88 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.13)] backdrop-blur-xl transition-all duration-200 active:scale-95 dark:border-white/10 dark:bg-neutral-950/78 dark:text-white",
+            pathname === "/chats/search" && "text-primary",
+          )}
+          href="/chats/search"
+          prefetch={true}
+        >
+          <Search className="h-6 w-6" strokeWidth={2.5} />
+        </Link>
       </div>
     </nav>,
     document.body,

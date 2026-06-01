@@ -15,8 +15,8 @@ interface AppShellChromeProps {
 export function AppShellChrome({ incomingRequestCount, children }: AppShellChromeProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const isChatRoom = /^\/chats\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
-  const isMainDockScreen = pathname === "/chats" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
+  const isChatRoom = /^\/chats\/[^/]+$/.test(pathname) && !pathname.endsWith("/new") && pathname !== "/chats/search";
+  const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
 
   useEffect(() => {
     router.prefetch("/contacts");
