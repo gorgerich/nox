@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Archive, BellOff, Bookmark, Pin, Trash2 } from "lucide-react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Archive, BellOff, Bookmark, Check, CheckCheck, Pin, Trash2 } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -12,6 +12,8 @@ const SWIPE_OPEN_THRESHOLD = 72;
 
 type SwipeableChatRowProps = {
   chat: ChatListItem;
+  currentUserId?: string;
+  typingName?: string;
   isOpen: boolean;
   onOpen: (chatId: string | null) => void;
   onNavigate: (chatId: string) => void;
@@ -25,6 +27,8 @@ type SwipeableChatRowProps = {
 
 export const SwipeableChatRow = memo(function SwipeableChatRow({
   chat,
+  currentUserId,
+  typingName,
   isOpen,
   onOpen,
   onNavigate,
@@ -47,6 +51,17 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const [translateX, setTranslateX] = useState(0);
   const muted = Boolean(chat.mutedUntil && new Date(chat.mutedUntil).getTime() > Date.now());
   const pinned = Boolean(chat.pinnedAt);
+
+  // Unsent draft saved by the composer (localStorage). Shown as "Черновик: …".
+  const [draft, setDraft] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const d = localStorage.getItem(`nox:draft:${chat.id}`);
+      setDraft(d && d.trim() ? d.trim() : null);
+    } catch {
+      setDraft(null);
+    }
+  }, [chat.id, chat.updatedAt]);
 
   useEffect(() => {
     if (!isOpen) setTranslateX(0);
@@ -165,8 +180,26 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     : chat.type === "DIRECT"
       ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
     : chat.title ?? "Группа";
-  const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
-  
+  const lastIsMine = Boolean(
+    currentUserId && chat.lastMessage && !chat.lastMessage.deletedAt
+      && chat.lastMessage.sender.id === currentUserId,
+  );
+  const lastDelivered = Boolean(chat.lastMessage?.deliveredAt);
+
+  let previewNode: ReactNode;
+  if (typingName) {
+    previewNode = (
+      <span className="text-primary">
+        {chat.type === "GROUP" ? `${typingName} печатает…` : "печатает…"}
+      </span>
+    );
+  } else if (draft) {
+    previewNode = (<><span className="text-danger/80">Черновик: </span>{draft}</>);
+  } else {
+    previewNode = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
+  }
+  const showTicks = lastIsMine && !typingName && !draft;
+
   const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
   const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
 
@@ -264,9 +297,18 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
-                {preview}
-              </p>
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                {showTicks ? (
+                  lastDelivered ? (
+                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
+                  ) : (
+                    <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
+                  )
+                ) : null}
+                <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
+                  {previewNode}
+                </p>
+              </div>
               {pinned && chat.unreadCount === 0 ? (
                 <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/40" />
               ) : null}

@@ -16,6 +16,7 @@ import { GroupPicker } from "./GroupPicker";
 const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === "true";
 
 type ChatsPageClientProps = {
+  currentUserId: string;
   initialChats: ChatListItem[];
   initialIncomingRequests: IncomingRequestCardItem[];
   initialArchivedCount?: number;
@@ -39,6 +40,7 @@ function debugRealtime(label: string, data: Record<string, unknown> = {}) {
 }
 
 export function ChatsPageClient({
+  currentUserId,
   initialChats,
   initialIncomingRequests,
   initialArchivedCount = 0,
@@ -46,6 +48,8 @@ export function ChatsPageClient({
   const router = useRouter();
   const { socket } = useSocket();
   const [chats, setChats] = useState(initialChats);
+  // chatId -> name of who is typing (live, from typing:update). Auto-cleared.
+  const [typingByChat, setTypingByChat] = useState<Record<string, string>>({});
   const [incomingRequests, setIncomingRequests] = useState(initialIncomingRequests);
   const [archivedCount, setArchivedCount] = useState(initialArchivedCount);
   const [openRowId, setOpenRowId] = useState<string | null>(null);
@@ -184,6 +188,39 @@ export function ChatsPageClient({
       socket.off("connect", refreshList);
     };
   }, [socket, syncChats]);
+
+  // Live "typing…" in the chat list. The socket joins every chat room on
+  // connect, so typing:update arrives here for all chats. Clear after a short
+  // idle in case a stop event is missed.
+  useEffect(() => {
+    if (!socket) return;
+    const timers: Record<string, ReturnType<typeof setTimeout>> = {};
+    const onTyping = (data: { chatId: string; displayName?: string; isTyping: boolean }) => {
+      if (timers[data.chatId]) clearTimeout(timers[data.chatId]);
+      if (data.isTyping) {
+        setTypingByChat((prev) => ({ ...prev, [data.chatId]: data.displayName || "" }));
+        timers[data.chatId] = setTimeout(() => {
+          setTypingByChat((prev) => {
+            const next = { ...prev };
+            delete next[data.chatId];
+            return next;
+          });
+        }, 5000);
+      } else {
+        setTypingByChat((prev) => {
+          if (!(data.chatId in prev)) return prev;
+          const next = { ...prev };
+          delete next[data.chatId];
+          return next;
+        });
+      }
+    };
+    socket.on("typing:update", onTyping);
+    return () => {
+      socket.off("typing:update", onTyping);
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, [socket]);
 
   const applyChatMutation = useCallback(async (
     chat: ChatListItem,
@@ -417,6 +454,8 @@ export function ChatsPageClient({
             <SwipeableChatRow
               key={chat.id}
               chat={chat}
+              currentUserId={currentUserId}
+              typingName={typingByChat[chat.id]}
               isOpen={openRowId === chat.id}
               onOpen={setOpenRowId}
               onNavigate={handleNavigate}

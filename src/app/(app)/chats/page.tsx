@@ -16,6 +16,7 @@ export default async function ChatsPage() {
 
   return (
     <ChatsPageClient
+      currentUserId={user.id}
       initialChats={data.chats}
       initialIncomingRequests={data.incomingRequests}
       initialArchivedCount={data.archivedCount}
