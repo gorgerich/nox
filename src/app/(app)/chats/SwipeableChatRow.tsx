@@ -18,6 +18,8 @@ type SwipeableChatRowProps = {
   onOpen: (chatId: string | null) => void;
   onNavigate: (chatId: string) => void;
   onPrefetch?: (chatId: string) => void;
+  onPressStart?: (chatId: string) => void;
+  onPressCancel?: (chatId: string) => void;
   onDelete: (chat: ChatListItem) => void;
   onArchive: (chat: ChatListItem) => void;
   onMute: (chat: ChatListItem) => void;
@@ -33,6 +35,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   onOpen,
   onNavigate,
   onPrefetch,
+  onPressStart,
+  onPressCancel,
   onDelete,
   onArchive,
   onMute,
@@ -96,13 +100,16 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     }
 
     onPrefetch?.(chat.id);
+    if (translateX === 0) {
+      onPressStart?.(chat.id);
+    }
     pointerIdRef.current = event.pointerId;
     startXRef.current = event.clientX;
     startYRef.current = event.clientY;
     startOffsetRef.current = translateX;
     directionLockedRef.current = null;
     movedRef.current = false;
-  }, [chat.id, onPrefetch, translateX]);
+  }, [chat.id, onPrefetch, onPressStart, translateX]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) {
@@ -115,11 +122,13 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     if (!directionLockedRef.current) {
       if (Math.abs(deltaY) > 8 && Math.abs(deltaY) > Math.abs(deltaX)) {
         directionLockedRef.current = "vertical";
+        onPressCancel?.(chat.id);
         resetGesture();
         return;
       }
       if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
         directionLockedRef.current = "horizontal";
+        onPressCancel?.(chat.id);
       } else {
         return;
       }
@@ -135,7 +144,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     movedRef.current = true;
     const nextX = Math.max(-RIGHT_ACTIONS_WIDTH, Math.min(LEFT_ACTIONS_WIDTH, startOffsetRef.current + deltaX));
     setTranslateX(nextX);
-  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, resetGesture, startOffsetRef]);
+  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, chat.id, onPressCancel, resetGesture, startOffsetRef]);
 
   const finalizeSwipe = useCallback(() => {
     if (translateX < -SWIPE_OPEN_THRESHOLD) {
@@ -164,16 +173,18 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       return;
     }
 
+    onPressCancel?.(chat.id);
     setTranslateX(isOpen ? translateX : 0);
     resetGesture();
-  }, [isOpen, resetGesture, translateX]);
+  }, [chat.id, isOpen, onPressCancel, resetGesture, translateX]);
 
   const handleOpenChat = useCallback(() => {
     if (movedRef.current || translateX !== 0) {
+      onPressCancel?.(chat.id);
       return;
     }
     onNavigate(chat.id);
-  }, [chat.id, onNavigate, translateX]);
+  }, [chat.id, onNavigate, onPressCancel, translateX]);
 
   const title = chat.isSelfChat
     ? "Избранное"

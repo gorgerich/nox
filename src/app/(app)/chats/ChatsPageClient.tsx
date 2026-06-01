@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { flushSync } from "react-dom";
 import { ArrowLeft, Clock3, Phone, Video } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
@@ -76,7 +77,7 @@ function InstantChatOpenShell({ chat }: { chat: ChatListItem }) {
   const subtitle = getChatSubtitle(chat);
 
   return (
-    <div className="fixed inset-0 z-[900] flex flex-col bg-chat-bg text-foreground animate-in fade-in duration-100">
+    <div className="pointer-events-none fixed inset-0 z-[900] flex flex-col bg-chat-bg text-foreground animate-in fade-in duration-100">
       <header
         className="flex items-center justify-between border-b px-2"
         style={{
@@ -159,6 +160,7 @@ export function ChatsPageClient({
   const [pullProgress, setPullProgress] = useState(0);
   const syncAbortRef = useRef<AbortController | null>(null);
   const pullStartRef = useRef<number | null>(null);
+  const openingChatIdRef = useRef<string | null>(null);
 
   const syncChats = useCallback(async () => {
     syncAbortRef.current?.abort();
@@ -420,13 +422,43 @@ export function ChatsPageClient({
     );
   }, [applyChatMutation, chats]);
 
-  const handleNavigate = useCallback((chatId: string) => {
+  const handleChatPressStart = useCallback((chatId: string) => {
     const nextChat = chats.find((chat) => chat.id === chatId) ?? null;
-    setOpeningChat(nextChat);
-    router.prefetch(`/chats/${chatId}`);
-    requestAnimationFrame(() => {
-      router.push(`/chats/${chatId}`);
+    if (!nextChat || openingChatIdRef.current === chatId) {
+      return;
+    }
+
+    openingChatIdRef.current = chatId;
+    flushSync(() => {
+      setOpeningChat(nextChat);
     });
+    router.prefetch(`/chats/${chatId}`);
+  }, [chats, router]);
+
+  const handleChatPressCancel = useCallback((chatId: string) => {
+    if (openingChatIdRef.current !== chatId) {
+      return;
+    }
+
+    openingChatIdRef.current = null;
+    setOpeningChat(null);
+  }, []);
+
+  const handleNavigate = useCallback((chatId: string) => {
+    if (openingChatIdRef.current !== chatId) {
+      const nextChat = chats.find((chat) => chat.id === chatId) ?? null;
+      if (nextChat) {
+        openingChatIdRef.current = chatId;
+        flushSync(() => {
+          setOpeningChat(nextChat);
+        });
+      }
+    }
+
+    router.prefetch(`/chats/${chatId}`);
+    window.setTimeout(() => {
+      router.push(`/chats/${chatId}`);
+    }, 0);
   }, [chats, router]);
 
   const handlePrefetchChat = useCallback((chatId: string) => {
@@ -565,6 +597,8 @@ export function ChatsPageClient({
               onOpen={setOpenRowId}
               onNavigate={handleNavigate}
               onPrefetch={handlePrefetchChat}
+              onPressStart={handleChatPressStart}
+              onPressCancel={handleChatPressCancel}
               onDelete={handleDelete}
               onArchive={handleArchive}
               onMute={handleOpenMute}
