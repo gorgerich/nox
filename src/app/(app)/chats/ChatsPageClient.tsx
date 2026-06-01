@@ -78,8 +78,8 @@ function InstantChatOpenShell({ chat }: { chat: ChatListItem }) {
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-[2500] flex flex-col text-foreground animate-in fade-in duration-100"
-      style={{ backgroundColor: "var(--chat-bg, var(--chat-background, var(--app-bg)))" }}
+      className="instant-chat-open-shell pointer-events-none fixed inset-0 isolate z-[2500] flex flex-col text-foreground"
+      style={{ backgroundColor: "var(--app-bg)" }}
     >
       <header
         className="flex items-center justify-between border-b px-2"

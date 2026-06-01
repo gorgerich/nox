@@ -500,6 +500,25 @@ body {
     overflow: hidden;
     background-color: var(--chat-background);
   }
+
+  .instant-chat-open-shell {
+    animation: instant-chat-open-slide 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow: -18px 0 38px rgba(15, 23, 42, 0.14);
+    will-change: transform;
+  }
+
+  [data-theme="dark"] .instant-chat-open-shell {
+    box-shadow: -18px 0 42px rgba(0, 0, 0, 0.42);
+  }
+
+  @keyframes instant-chat-open-slide {
+    from {
+      transform: translate3d(100%, 0, 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
+  }
   
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
