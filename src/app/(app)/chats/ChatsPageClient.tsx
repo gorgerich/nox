@@ -1,12 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Clock3, Phone, Video } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
 import { putChatList } from "@/lib/chat-cache";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 import { ChatSearch } from "./ChatSearch";
 import { IncomingRequestCards } from "./IncomingRequestCards";
@@ -39,6 +42,102 @@ function debugRealtime(label: string, data: Record<string, unknown> = {}) {
   console.log(`[realtime-client] ${label}`, data);
 }
 
+function getChatTitle(chat: ChatListItem) {
+  if (chat.type === "GROUP") {
+    return chat.title || "Группа";
+  }
+
+  if (chat.isSelfChat) {
+    return "Избранное";
+  }
+
+  return chat.otherMember?.displayName || chat.otherMember?.username || chat.title || "Чат";
+}
+
+function getChatAvatarUrl(chat: ChatListItem) {
+  return normalizeAvatarUrl(chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl);
+}
+
+function getChatSubtitle(chat: ChatListItem) {
+  if (chat.type === "GROUP") {
+    return "группа";
+  }
+
+  if (chat.isSelfChat) {
+    return "сообщения самому себе";
+  }
+
+  return "открытие...";
+}
+
+function InstantChatOpenShell({ chat }: { chat: ChatListItem }) {
+  const title = getChatTitle(chat);
+  const avatarUrl = getChatAvatarUrl(chat);
+  const subtitle = getChatSubtitle(chat);
+
+  return (
+    <div className="fixed inset-0 z-[900] flex flex-col bg-chat-bg text-foreground animate-in fade-in duration-100">
+      <header
+        className="flex items-center justify-between border-b px-2"
+        style={{
+          backgroundColor: "var(--chat-header-bg)",
+          color: "var(--chat-header-fg)",
+          borderColor: "var(--border-subtle)",
+          minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+          paddingTop: "env(safe-area-inset-top, 0px)",
+        }}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary">
+            <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-3 py-1 pr-2">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-muted">
+              {avatarUrl ? (
+                <Image src={avatarUrl} alt={title} fill sizes="40px" className="object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-primary text-sm font-semibold text-white">
+                  {title.substring(0, 1).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[16px] font-semibold leading-tight text-[var(--chat-header-fg)]">{title}</p>
+              <p className="truncate text-xs leading-tight text-[var(--bubble-incoming-muted)]">{subtitle}</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 pr-1 text-primary">
+          <Clock3 className="h-5 w-5 opacity-65" strokeWidth={2.1} />
+          <Phone className="h-5 w-5 opacity-65" strokeWidth={2.1} />
+          <Video className="h-5 w-5 opacity-65" strokeWidth={2.1} />
+        </div>
+      </header>
+
+      <div className="flex-1 px-4 pb-4 pt-6">
+        <div className="mx-auto mb-8 h-9 w-28 rounded-full border border-border-subtle bg-surface/70" />
+        <div className="ml-auto h-10 w-36 rounded-[20px] bg-primary/25" />
+        <div className="mt-3 h-9 w-28 rounded-[20px] bg-surface-muted" />
+        <div className="ml-auto mt-3 h-28 w-48 rounded-[22px] bg-primary/20" />
+      </div>
+
+      <div
+        className="border-t px-4 py-3"
+        style={{
+          borderColor: "var(--border-subtle)",
+          paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 shrink-0 rounded-full bg-surface-elevated shadow-sm" />
+          <div className="h-11 flex-1 rounded-full bg-surface-elevated shadow-sm" />
+          <div className="h-11 w-11 shrink-0 rounded-full bg-surface-elevated shadow-sm" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ChatsPageClient({
   currentUserId,
   initialChats,
@@ -56,6 +155,7 @@ export function ChatsPageClient({
   const [muteSheetChat, setMuteSheetChat] = useState<ChatListItem | null>(null);
   const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [openingChat, setOpeningChat] = useState<ChatListItem | null>(null);
   const [pullProgress, setPullProgress] = useState(0);
   const syncAbortRef = useRef<AbortController | null>(null);
   const pullStartRef = useRef<number | null>(null);
@@ -321,8 +421,13 @@ export function ChatsPageClient({
   }, [applyChatMutation, chats]);
 
   const handleNavigate = useCallback((chatId: string) => {
-    router.push(`/chats/${chatId}`);
-  }, [router]);
+    const nextChat = chats.find((chat) => chat.id === chatId) ?? null;
+    setOpeningChat(nextChat);
+    router.prefetch(`/chats/${chatId}`);
+    requestAnimationFrame(() => {
+      router.push(`/chats/${chatId}`);
+    });
+  }, [chats, router]);
 
   const handlePrefetchChat = useCallback((chatId: string) => {
     router.prefetch(`/chats/${chatId}`);
@@ -498,6 +603,8 @@ export function ChatsPageClient({
           </div>
         </div>
       ) : null}
+
+      {openingChat ? <InstantChatOpenShell chat={openingChat} /> : null}
     </div>
   );
 }
