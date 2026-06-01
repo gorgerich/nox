@@ -77,12 +77,15 @@ function InstantChatOpenShell({ chat }: { chat: ChatListItem }) {
   const subtitle = getChatSubtitle(chat);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[900] flex flex-col bg-chat-bg text-foreground animate-in fade-in duration-100">
+    <div
+      className="pointer-events-none fixed inset-0 z-[2500] flex flex-col text-foreground animate-in fade-in duration-100"
+      style={{ backgroundColor: "var(--chat-bg, var(--chat-background, var(--app-bg)))" }}
+    >
       <header
         className="flex items-center justify-between border-b px-2"
         style={{
-          backgroundColor: "var(--chat-header-bg)",
-          color: "var(--chat-header-fg)",
+          backgroundColor: "var(--chat-header-bg, var(--surface))",
+          color: "var(--chat-header-fg, var(--foreground))",
           borderColor: "var(--border-subtle)",
           minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
           paddingTop: "env(safe-area-inset-top, 0px)",
@@ -103,8 +106,8 @@ function InstantChatOpenShell({ chat }: { chat: ChatListItem }) {
               )}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[16px] font-semibold leading-tight text-[var(--chat-header-fg)]">{title}</p>
-              <p className="truncate text-xs leading-tight text-[var(--bubble-incoming-muted)]">{subtitle}</p>
+              <p className="truncate text-[16px] font-semibold leading-tight text-[var(--chat-header-fg,var(--foreground))]">{title}</p>
+              <p className="truncate text-xs leading-tight text-[var(--bubble-incoming-muted,var(--muted))]">{subtitle}</p>
             </div>
           </div>
         </div>
