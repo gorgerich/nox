@@ -9,7 +9,6 @@ export default function ContactsLoading() {
       <header className="app-section-header items-center">
         <div>
           <h1 className="app-section-title">Контакты</h1>
-          <p className="mt-1 text-sm font-medium text-muted">Люди из ваших личных чатов</p>
         </div>
       </header>
 

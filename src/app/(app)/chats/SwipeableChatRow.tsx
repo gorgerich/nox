@@ -187,9 +187,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   }, [chat.id, onNavigate, onPressCancel, translateX]);
 
   const title = chat.isSelfChat
-    ? "Избранное"
+    ? "Личное"
     : chat.type === "DIRECT"
-      ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
+      ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
     : chat.title ?? "Группа";
   const lastIsMine = Boolean(
     currentUserId && chat.lastMessage && !chat.lastMessage.deletedAt

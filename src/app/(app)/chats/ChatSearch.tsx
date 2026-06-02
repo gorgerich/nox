@@ -168,7 +168,7 @@ export function ChatSearch() {
                         </div>
                         <div className="min-w-0">
                           <p className={`truncate text-sm font-bold tracking-tight ${chat.isSelfChat ? "text-primary" : "text-foreground"}`}>
-                            {chat.isSelfChat ? "Избранное" : highlightText(chat.title || "Личный чат", query)}
+                            {chat.isSelfChat ? "Личное" : highlightText(chat.title || "Личный чат", query)}
                           </p>
                           <p className="truncate text-[13px] text-muted/60">Открыть</p>
                         </div>

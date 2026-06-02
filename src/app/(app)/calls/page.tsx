@@ -59,7 +59,6 @@ export default async function CallsPage() {
       <div className="app-section-header">
         <div>
           <h1 className="app-section-title">Звонки</h1>
-          <p className="mt-1 text-sm font-medium text-muted">История аудио и видеовызовов</p>
         </div>
       </div>
 

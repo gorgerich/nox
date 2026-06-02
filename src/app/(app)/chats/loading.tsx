@@ -36,9 +36,9 @@ export default function ChatsLoading() {
         {hasChats
           ? chats.map((chat) => {
               const title = chat.isSelfChat
-                ? "Избранное"
+                ? "Личное"
                 : chat.type === "DIRECT"
-                  ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Избранное"
+                  ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
                   : chat.title ?? "Группа";
               const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
               const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;

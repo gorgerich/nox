@@ -19,7 +19,6 @@ export default async function ProfilePage() {
       <div className="app-section-header px-2">
         <div>
           <h1 className="app-section-title">Профиль</h1>
-          <p className="mt-1 text-sm font-normal text-muted/70">Настройки вашего аккаунта</p>
         </div>
       </div>
 

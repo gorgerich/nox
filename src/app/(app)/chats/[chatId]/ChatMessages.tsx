@@ -1707,9 +1707,9 @@ export function ChatMessages({
         title={
           chatInfo.type === "GROUP"
             ? (chatInfo.title || "Группа")
-            : (chatInfo.otherMember?.displayName || "Избранное")
+            : (chatInfo.otherMember?.displayName || "Личное")
         }
-        subtitle={getStatusSubtitle()}
+        subtitle={chatInfo.type === "DIRECT" && !chatInfo.otherMember ? "Сообщения самому себе" : getStatusSubtitle()}
         avatarUrl={chatInfo.type === "GROUP" ? chatInfo.avatarUrl : chatInfo.otherMember?.avatarUrl}
         isConnected={chatInfo.type === "DIRECT" ? partnerPresence.isOnline : false}
         currentUser={currentUserInfo}

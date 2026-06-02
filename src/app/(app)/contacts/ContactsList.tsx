@@ -52,7 +52,6 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
       <header className="app-section-header items-center">
         <div>
           <h1 className="app-section-title">Контакты</h1>
-          <p className="mt-1 text-sm font-medium text-muted">Люди из ваших личных чатов</p>
         </div>
       </header>
 
@@ -74,7 +73,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
         <div className="-mx-5 divide-y divide-border-subtle border-y border-border-subtle bg-surface md:mx-0 md:rounded-2xl md:border">
           {contacts.map((contact) => {
             const isMe = contact.isMe;
-            const displayName = isMe ? "Избранное" : (contact.profile?.displayName || contact.username);
+            const displayName = isMe ? "Личное" : (contact.profile?.displayName || contact.username);
             const fullAvatarUrl = normalizeAvatarUrl(contact.profile?.avatarUrl);
             return (
               <button

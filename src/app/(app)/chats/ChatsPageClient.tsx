@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search, UserPlus, Users } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
@@ -21,6 +22,14 @@ type ChatsPageClientProps = {
   initialIncomingRequests: IncomingRequestCardItem[];
   initialArchivedCount?: number;
 };
+
+const FOLDERS = [
+  { key: "all", label: "Все" },
+  { key: "personal", label: "Личное" },
+  { key: "important", label: "Важное" },
+  { key: "unread", label: "Непрочитанные" },
+] as const;
+type FolderKey = (typeof FOLDERS)[number]["key"];
 
 const MUTE_OPTIONS = [
   { label: "15 минут", minutes: 15 },
@@ -55,6 +64,21 @@ export function ChatsPageClient({
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [muteSheetChat, setMuteSheetChat] = useState<ChatListItem | null>(null);
   const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<FolderKey>("all");
+
+  // Local folder filtering — no reload. Self chat ("Личное") floats to the top
+  // in "all" and "personal". Important = pinned (no separate field yet).
+  const filteredChats = useMemo(() => {
+    let list = chats;
+    if (selectedFolder === "personal") list = chats.filter((c) => c.type === "DIRECT");
+    else if (selectedFolder === "important") list = chats.filter((c) => Boolean(c.pinnedAt));
+    else if (selectedFolder === "unread") list = chats.filter((c) => c.unreadCount > 0);
+    if (selectedFolder === "all" || selectedFolder === "personal") {
+      list = [...list].sort((a, b) => (a.isSelfChat === b.isSelfChat ? 0 : a.isSelfChat ? -1 : 1));
+    }
+    return list;
+  }, [chats, selectedFolder]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullProgress, setPullProgress] = useState(0);
   const syncAbortRef = useRef<AbortController | null>(null);
@@ -375,24 +399,60 @@ export function ChatsPageClient({
         <div className="flex items-center gap-1">
           <button
             className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors active:opacity-60 hover:bg-surface-muted fast-tap"
-            onClick={() => setIsGroupPickerOpen(true)}
-            title="Новая группа"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </button>
-          <Link
-            className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors active:opacity-60 hover:bg-surface-muted fast-tap"
-            href="/chats/new"
-            prefetch
+            onClick={() => setPlusMenuOpen(true)}
+            aria-label="Новое"
           >
             <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
             </svg>
-          </Link>
+          </button>
         </div>
       </div>
+
+      {plusMenuOpen && (
+        <div
+          className="fixed inset-0 z-[460] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setPlusMenuOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-[1.75rem] border border-border-subtle/50 bg-surface-elevated p-2 shadow-2xl animate-in slide-in-from-bottom-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => { setPlusMenuOpen(false); router.push("/chats/new"); }}
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
+            >
+              <Search className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
+              <span className="text-[16px] font-medium text-foreground">Найти человека</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPlusMenuOpen(false); setIsGroupPickerOpen(true); }}
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
+            >
+              <Users className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
+              <span className="text-[16px] font-medium text-foreground">Создать групповой чат</span>
+            </button>
+            <button
+              type="button"
+              // TODO: wire to real invite flow when available.
+              onClick={() => { setPlusMenuOpen(false); router.push("/chats/new"); }}
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
+            >
+              <UserPlus className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
+              <span className="text-[16px] font-medium text-foreground">Пригласить человека</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlusMenuOpen(false)}
+              className="mt-1 w-full rounded-2xl px-4 py-3.5 text-[16px] font-semibold text-muted transition-colors active:bg-surface-muted"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
 
       {isGroupPickerOpen && (
         <GroupPicker 
@@ -401,8 +461,27 @@ export function ChatsPageClient({
         />
       )}
 
-      <div className="mb-8 px-2">
+      <div className="mb-3 px-2">
         <ChatSearch />
+      </div>
+
+      {/* Folder filter — segmented pills. Filters the list locally (no reload). */}
+      <div className="mb-4 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hide">
+        {FOLDERS.map((folder) => {
+          const active = selectedFolder === folder.key;
+          return (
+            <button
+              key={folder.key}
+              type="button"
+              onClick={() => setSelectedFolder(folder.key)}
+              className={`shrink-0 rounded-full px-4 py-1.5 text-[14px] font-medium transition-colors fast-tap ${
+                active ? "bg-primary/12 text-primary" : "text-muted/70 hover:bg-surface-muted"
+              }`}
+            >
+              {folder.label}
+            </button>
+          );
+        })}
       </div>
 
       {incomingRequests.length > 0 ? (
@@ -450,9 +529,22 @@ export function ChatsPageClient({
             НАЙТИ СОБЕСЕДНИКА
           </Link>
         </div>
+      ) : filteredChats.length === 0 ? (
+        <div className="mt-16 px-6 text-center animate-in fade-in duration-200">
+          <h2 className="text-lg font-semibold text-foreground/85">
+            {selectedFolder === "important" ? "Нет важных чатов"
+              : selectedFolder === "unread" ? "Нет непрочитанных"
+              : "Нет личных чатов"}
+          </h2>
+          <p className="mx-auto mt-2 max-w-[260px] text-sm leading-relaxed text-muted/60">
+            {selectedFolder === "important" ? "Закрепите чат или отметьте его как важный, чтобы он появился здесь."
+              : selectedFolder === "unread" ? "Все сообщения уже просмотрены."
+              : "Личные диалоги появятся здесь."}
+          </p>
+        </div>
       ) : (
         <div className="-mx-5 animate-in fade-in duration-180">
-          {chats.map((chat) => (
+          {filteredChats.map((chat) => (
             <SwipeableChatRow
               key={chat.id}
               chat={chat}

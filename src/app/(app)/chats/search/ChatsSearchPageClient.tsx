@@ -15,7 +15,7 @@ type Props = {
 const HISTORY_KEY = "nox:chat-search-history";
 
 function chatTitle(chat: ChatListItem) {
-  if (chat.isSelfChat) return "Избранное";
+  if (chat.isSelfChat) return "Личное";
   if (chat.type === "GROUP") return chat.title || "Группа";
   return chat.otherMember?.displayName || chat.otherMember?.username || chat.title || "Чат";
 }

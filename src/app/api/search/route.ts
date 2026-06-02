@@ -161,7 +161,7 @@ export async function GET(request: Request) {
         id: chat.id,
         type: chat.type,
         title: chat.type === "DIRECT"
-          ? (isSelfChat ? "Избранное" : (otherMember?.user.profile?.displayName || otherMember?.user.username || "Личный чат"))
+          ? (isSelfChat ? "Личное" : (otherMember?.user.profile?.displayName || otherMember?.user.username || "Личный чат"))
           : chat.title || "Группа",
         avatarUrl: chat.type === "DIRECT" ? (isSelfChat ? null : otherMember?.user.profile?.avatarUrl) : null,
         isSelfChat,
