@@ -62,6 +62,16 @@ interface SharedMedia {
   links: LinkItem[];
 }
 
+function readLocalJson<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function PartnerProfileContent({ chatId, currentUserId, partnerUser, initialSettings }: PartnerProfileProps) {
   const router = useRouter();
   const { startCall } = useAudioCall();
@@ -114,6 +124,41 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   };
 
   const fullAvatarUrl = normalizeAvatarUrl(partnerUser.avatarUrl);
+
+  // Shared notes + topics about this contact. Local-only for now (per-chat
+  // localStorage). TODO: persist via backend/store (e.g. /api/chats/:id/notes,
+  // /api/chats/:id/topics) and sync across devices.
+  const [notes, setNotes] = useState<{ id: string; text: string; createdAt: string }[]>(
+    () => readLocalJson(`nox:notes:${chatId}`),
+  );
+  const [topics, setTopics] = useState<{ id: string; label: string }[]>(
+    () => readLocalJson(`nox:topics:${chatId}`),
+  );
+  const [topicsExpanded, setTopicsExpanded] = useState(false);
+
+  const persistNotes = (next: typeof notes) => {
+    setNotes(next);
+    try { localStorage.setItem(`nox:notes:${chatId}`, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+  const persistTopics = (next: typeof topics) => {
+    setTopics(next);
+    try { localStorage.setItem(`nox:topics:${chatId}`, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+
+  const addNote = () => {
+    const text = window.prompt("Заметка о контакте")?.trim();
+    if (!text) return;
+    persistNotes([{ id: `${Date.now()}`, text, createdAt: new Date().toISOString() }, ...notes]);
+  };
+  const deleteNote = (id: string) => persistNotes(notes.filter((n) => n.id !== id));
+  const addTopic = () => {
+    const label = window.prompt("Новая тема")?.trim();
+    if (!label) return;
+    if (topics.some((t) => t.label.toLowerCase() === label.toLowerCase())) return;
+    persistTopics([...topics, { id: `${Date.now()}`, label }]);
+  };
+  const removeTopic = (id: string) => persistTopics(topics.filter((t) => t.id !== id));
+  const visibleTopics = topicsExpanded ? topics : topics.slice(0, 8);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
@@ -190,6 +235,71 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           />
         </section>
         <E2EEContactDevices userId={partnerUser.id} chatId={chatId} />
+      </div>
+
+      {/* Общие заметки (local-only, TODO backend) */}
+      <div className="mb-8 px-4">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <h3 className="text-[13px] font-semibold text-muted/70">Общие заметки</h3>
+          <button onClick={addNote} className="text-[13px] font-medium text-primary active:opacity-60" type="button">Добавить</button>
+        </div>
+        <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+          {notes.length === 0 ? (
+            <div className="px-4 py-5 text-center">
+              <p className="text-sm font-medium text-foreground/80">Нет общих заметок</p>
+              <p className="mt-1 text-[13px] text-muted/60">Добавьте важную деталь, чтобы не потерять контекст.</p>
+            </div>
+          ) : (
+            notes.map((note, i) => (
+              <div key={note.id}>
+                {i > 0 ? <div className="mx-4 h-px bg-border-subtle" /> : null}
+                <div className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 text-sm text-foreground">{note.text}</p>
+                    <p className="mt-0.5 text-[12px] text-muted/50">
+                      {new Date(note.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                  <button onClick={() => deleteNote(note.id)} className="shrink-0 text-[12px] font-medium text-muted/60 active:opacity-60" type="button">Удалить</button>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      </div>
+
+      {/* Темы (local-only, TODO backend; tap = TODO filter messages by topic) */}
+      <div className="mb-8 px-4">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <h3 className="text-[13px] font-semibold text-muted/70">Темы</h3>
+          <button onClick={addTopic} className="text-[13px] font-medium text-primary active:opacity-60" type="button">+ Тема</button>
+        </div>
+        {topics.length === 0 ? (
+          <section className="rounded-2xl border border-border-subtle bg-surface px-4 py-5 text-center">
+            <p className="text-sm font-medium text-foreground/80">Темы не добавлены</p>
+            <p className="mt-1 text-[13px] text-muted/60">Отмечайте темы, чтобы быстрее находить важное.</p>
+          </section>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {visibleTopics.map((topic) => (
+              <button
+                key={topic.id}
+                type="button"
+                // TODO: filter/search messages by topic when search supports it.
+                onClick={() => removeTopic(topic.id)}
+                title="Нажмите, чтобы удалить"
+                className="rounded-full bg-surface-muted px-3 py-1.5 text-[13px] font-medium text-foreground/80 transition-colors active:bg-surface-hover"
+              >
+                {topic.label}
+              </button>
+            ))}
+            {topics.length > 8 && !topicsExpanded ? (
+              <button onClick={() => setTopicsExpanded(true)} type="button" className="rounded-full px-3 py-1.5 text-[13px] font-medium text-primary">
+                + ещё {topics.length - 8}
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Shared Media Tabs */}
