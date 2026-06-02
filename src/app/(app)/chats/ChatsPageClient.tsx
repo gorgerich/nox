@@ -1,16 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { flushSync } from "react-dom";
-import { ArrowLeft, Clock3, Phone, Search, UserPlus, Users, Video } from "lucide-react";
+import { Search, UserPlus, Users } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
 import { putChatList } from "@/lib/chat-cache";
-import { normalizeAvatarUrl } from "@/lib/media-url";
 
 import { ChatSearch } from "./ChatSearch";
 import { IncomingRequestCards } from "./IncomingRequestCards";
@@ -51,66 +48,6 @@ function debugRealtime(label: string, data: Record<string, unknown> = {}) {
   console.log(`[realtime-client] ${label}`, data);
 }
 
-function getOpeningChatTitle(chat: ChatListItem) {
-  if (chat.isSelfChat) return "Избранное";
-  if (chat.type === "GROUP") return chat.title || "Группа";
-  return chat.otherMember?.displayName || chat.otherMember?.username || chat.title || "Чат";
-}
-
-function getOpeningChatAvatar(chat: ChatListItem) {
-  return normalizeAvatarUrl(chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl);
-}
-
-function InstantChatOpenShell({ chat }: { chat: ChatListItem }) {
-  const title = getOpeningChatTitle(chat);
-  const avatarUrl = getOpeningChatAvatar(chat);
-  const subtitle = chat.type === "GROUP" ? "группа" : chat.isSelfChat ? "сообщения самому себе" : "открытие...";
-
-  return (
-    <div className="chat-list-open-shell pointer-events-none fixed inset-0 z-[2500] flex flex-col bg-background text-foreground">
-      <header
-        className="flex items-center justify-between border-b px-2"
-        style={{
-          borderColor: "var(--border-subtle)",
-          minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
-          paddingTop: "env(safe-area-inset-top, 0px)",
-        }}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary">
-            <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />
-          </div>
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-muted">
-            {avatarUrl ? (
-              <Image src={avatarUrl} alt={title} fill sizes="40px" className="object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-primary text-sm font-semibold text-white">
-                {title.substring(0, 1).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <div className="ml-2 min-w-0">
-            <p className="truncate text-[16px] font-semibold leading-tight">{title}</p>
-            <p className="truncate text-xs leading-tight text-muted">{subtitle}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 pr-1 text-primary">
-          <Clock3 className="h-5 w-5 opacity-55" strokeWidth={2.1} />
-          <Phone className="h-5 w-5 opacity-65" strokeWidth={2.1} />
-          <Video className="h-5 w-5 opacity-65" strokeWidth={2.1} />
-        </div>
-      </header>
-
-      <div className="flex-1 px-4 pb-4 pt-6">
-        <div className="mx-auto mb-8 h-9 w-28 rounded-full border border-border-subtle bg-surface/70" />
-        <div className="ml-auto h-10 w-36 rounded-[20px] bg-primary/20" />
-        <div className="mt-3 h-9 w-28 rounded-[20px] bg-surface-muted" />
-        <div className="ml-auto mt-3 h-28 w-48 rounded-[22px] bg-primary/15" />
-      </div>
-    </div>
-  );
-}
-
 export function ChatsPageClient({
   currentUserId,
   initialChats,
@@ -129,8 +66,6 @@ export function ChatsPageClient({
   const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderKey>("all");
-  const [openingChat, setOpeningChat] = useState<ChatListItem | null>(null);
-  const openingChatIdRef = useRef<string | null>(null);
 
   // Local folder filtering — no reload. Self chat ("Личное") floats to the top
   // in "all" and "personal". Important = pinned (no separate field yet).
@@ -409,27 +344,9 @@ export function ChatsPageClient({
     );
   }, [applyChatMutation, chats]);
 
-  const showOpenShell = useCallback((chatId: string) => {
-    const nextChat = chats.find((chat) => chat.id === chatId) ?? null;
-    if (!nextChat || openingChatIdRef.current === chatId) return false;
-    openingChatIdRef.current = chatId;
-    flushSync(() => setOpeningChat(nextChat));
-    router.prefetch(`/chats/${chatId}`);
-    return true;
-  }, [chats, router]);
-
-  const cancelOpenShell = useCallback((chatId: string) => {
-    if (openingChatIdRef.current !== chatId) return;
-    openingChatIdRef.current = null;
-    setOpeningChat(null);
-  }, []);
-
   const handleNavigate = useCallback((chatId: string) => {
-    const shellShown = openingChatIdRef.current === chatId || showOpenShell(chatId);
-    window.setTimeout(() => {
-      router.push(`/chats/${chatId}`);
-    }, shellShown ? 80 : 0);
-  }, [router, showOpenShell]);
+    router.push(`/chats/${chatId}`);
+  }, [router]);
 
   const handlePrefetchChat = useCallback((chatId: string) => {
     router.prefetch(`/chats/${chatId}`);
@@ -635,8 +552,6 @@ export function ChatsPageClient({
               onOpen={setOpenRowId}
               onNavigate={handleNavigate}
               onPrefetch={handlePrefetchChat}
-              onPressStart={showOpenShell}
-              onPressCancel={cancelOpenShell}
               onDelete={handleDelete}
               onArchive={handleArchive}
               onMute={handleOpenMute}
@@ -675,7 +590,6 @@ export function ChatsPageClient({
           </div>
         </div>
       ) : null}
-      {openingChat ? <InstantChatOpenShell chat={openingChat} /> : null}
     </div>
   );
 }

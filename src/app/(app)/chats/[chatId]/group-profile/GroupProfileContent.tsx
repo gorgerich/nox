@@ -173,10 +173,6 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95" aria-label="Назад">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="text-center">
-          <h1 className="text-sm font-semibold tracking-tight">{chat.title}</h1>
-          <p className="text-xs font-normal text-muted">{members.length} участников</p>
-        </div>
         <div className="w-10" /> 
       </header>
 

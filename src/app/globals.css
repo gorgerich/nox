@@ -501,36 +501,6 @@ body {
     background-color: var(--chat-background);
   }
 
-  .chat-open-anim {
-    animation: instant-chat-open-slide 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    will-change: transform;
-    transform-origin: right center;
-  }
-
-  .chat-list-open-shell {
-    animation: instant-chat-open-slide 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    box-shadow: -18px 0 38px rgba(15, 23, 42, 0.16);
-    will-change: transform;
-  }
-
-  [data-theme="dark"] .chat-list-open-shell {
-    box-shadow: -18px 0 42px rgba(0, 0, 0, 0.42);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .chat-open-anim,
-    .chat-list-open-shell { animation: none; }
-  }
-
-  @keyframes instant-chat-open-slide {
-    from {
-      transform: translate3d(100%, 0, 0);
-    }
-    to {
-      transform: translate3d(0, 0, 0);
-    }
-  }
-  
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
     min-height: 100dvh;
