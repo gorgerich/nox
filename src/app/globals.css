@@ -507,8 +507,19 @@ body {
     transform-origin: right center;
   }
 
+  .chat-list-open-shell {
+    animation: instant-chat-open-slide 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow: -18px 0 38px rgba(15, 23, 42, 0.16);
+    will-change: transform;
+  }
+
+  [data-theme="dark"] .chat-list-open-shell {
+    box-shadow: -18px 0 42px rgba(0, 0, 0, 0.42);
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .chat-open-anim { animation: none; }
+    .chat-open-anim,
+    .chat-list-open-shell { animation: none; }
   }
 
   @keyframes instant-chat-open-slide {

@@ -162,11 +162,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   };
 
   const fullAvatarUrl = normalizeAvatarUrl(chat.avatarUrl);
-  const quickActionColumnClass = permissions.canAddMembers && permissions.canEditGroup
-    ? "grid-cols-4"
-    : permissions.canAddMembers || permissions.canEditGroup
-      ? "grid-cols-3"
-      : "grid-cols-2";
+  const quickActionColumnClass = permissions.canEditGroup ? "grid-cols-3" : "grid-cols-2";
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom transition-smooth">
@@ -238,23 +234,12 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
 
       {/* Quick Actions */}
       <div className={`mb-8 grid ${quickActionColumnClass} gap-1 px-4`}>
-        {permissions.canAddMembers && <ActionButton onClick={() => setIsAddingMembers(true)} label="Добавить" icon={<AddMemberIcon />} />}
         <ActionButton onClick={() => router.push(`/chats/${chatId}?search=true`)} label="Найти" icon={<SearchIcon />} />
         <ActionButton onClick={() => setIsAppearanceOpen(true)} label="Стиль" icon={<AppearanceIcon />} />
-        {permissions.canEditGroup && <ActionButton onClick={() => setIsEditingTitle(true)} label="Изм." icon={<EditIcon />} />}
+        {permissions.canEditGroup && <ActionButton onClick={() => setIsEditingTitle(true)} label="Изменить название" icon={<EditIcon />} />}
       </div>
 
       <div className="mb-8 space-y-3 px-4">
-        {permissions.canEditGroup && (
-          <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-            <SettingsItem 
-              label="Изменить название" 
-              value={chat.title} 
-              onClick={() => setIsEditingTitle(true)}
-            />
-          </section>
-        )}
-
         <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
           {permissions.canAddMembers && (
             <>
@@ -386,15 +371,6 @@ function AddMemberIcon() { return <svg className="h-6 w-6" fill="none" viewBox="
 function SearchIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>; }
 function AppearanceIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>; }
 function EditIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M4 20h4.586a1 1 0 00.707-.293L19.5 9.5a2.5 2.5 0 00-3.536-3.536L5.757 16.172a1 1 0 00-.293.707V20z" /></svg>; }
-
-function SettingsItem({ label, value, onClick }: { label: string, value: string, onClick?: () => void }) {
-  return (
-    <button onClick={onClick} className="group flex w-full items-center justify-between px-5 py-4 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
-      <span className="text-sm font-semibold text-foreground/80">{label}</span>
-      <span className="max-w-[140px] truncate text-sm font-medium text-primary">{value}</span>
-    </button>
-  );
-}
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
