@@ -5,12 +5,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAudioCall } from "../../../calls/CallProvider";
 import { usePresence } from "@/hooks/usePresence";
-import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
 import { E2EEContactDevices } from "./E2EEContactDevices";
 import { AvatarViewer } from "../../../profile/AvatarViewer";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
+import { clearCachedMessagesForChat, clearPersistedChatMessagesForChat } from "@/lib/e2ee/indexed-db";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import { clearChatCache } from "@/lib/chat-cache";
 
 interface PartnerProfileProps {
   chatId: string;
@@ -62,16 +63,6 @@ interface SharedMedia {
   links: LinkItem[];
 }
 
-function readLocalJson<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export function PartnerProfileContent({ chatId, currentUserId, partnerUser, initialSettings }: PartnerProfileProps) {
   const router = useRouter();
   const { startCall } = useAudioCall();
@@ -79,11 +70,11 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const [activeTab, setActiveSection] = useState<"media" | "files" | "links">("media");
   const [shared, setShared] = useState<SharedMedia | null>(null);
   const [loadingShared, setLoadingShared] = useState(true);
-  const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(settings.nickname || partnerUser.displayName);
-  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
-  const { settings: appearance, updateSettings, resetSettings } = useChatAppearance(chatId);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [isEncryptionOpen, setIsEncryptionOpen] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
 
   const presence = usePresence({
     userId: partnerUser.id,
@@ -123,63 +114,65 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
     updateContact({ mutedUntil });
   };
 
+  const clearDialog = async () => {
+    if (!window.confirm("Очистить диалог? Все сообщения в этом чате будут удалены.")) return;
+    setIsBusy(true);
+    try {
+      const res = await fetch(`/api/chats/${chatId}/clear`, { method: "DELETE" });
+      if (!res.ok) throw new Error("CLEAR_FAILED");
+      await Promise.all([
+        clearCachedMessagesForChat(chatId).catch(() => 0),
+        clearPersistedChatMessagesForChat(chatId).catch(() => undefined),
+      ]);
+      clearChatCache(chatId);
+      router.replace(`/chats/${chatId}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const deleteContact = async () => {
+    if (!window.confirm("Удалить контакт и скрыть диалог из списка?")) return;
+    setIsBusy(true);
+    try {
+      await fetch(`/api/users/${partnerUser.id}/contact-settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: null }),
+      });
+      await fetch(`/api/chats/${chatId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleted: true }),
+      });
+      router.replace("/contacts");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const fullAvatarUrl = normalizeAvatarUrl(partnerUser.avatarUrl);
-
-  // Shared notes + topics about this contact. Local-only for now (per-chat
-  // localStorage). TODO: persist via backend/store (e.g. /api/chats/:id/notes,
-  // /api/chats/:id/topics) and sync across devices.
-  const [notes, setNotes] = useState<{ id: string; text: string; createdAt: string }[]>(
-    () => readLocalJson(`nox:notes:${chatId}`),
-  );
-  const [topics, setTopics] = useState<{ id: string; label: string }[]>(
-    () => readLocalJson(`nox:topics:${chatId}`),
-  );
-  const [topicsExpanded, setTopicsExpanded] = useState(false);
-
-  const persistNotes = (next: typeof notes) => {
-    setNotes(next);
-    try { localStorage.setItem(`nox:notes:${chatId}`, JSON.stringify(next)); } catch { /* ignore */ }
-  };
-  const persistTopics = (next: typeof topics) => {
-    setTopics(next);
-    try { localStorage.setItem(`nox:topics:${chatId}`, JSON.stringify(next)); } catch { /* ignore */ }
-  };
-
-  const addNote = () => {
-    const text = window.prompt("Заметка о контакте")?.trim();
-    if (!text) return;
-    persistNotes([{ id: `${Date.now()}`, text, createdAt: new Date().toISOString() }, ...notes]);
-  };
-  const deleteNote = (id: string) => persistNotes(notes.filter((n) => n.id !== id));
-  const addTopic = () => {
-    const label = window.prompt("Новая тема")?.trim();
-    if (!label) return;
-    if (topics.some((t) => t.label.toLowerCase() === label.toLowerCase())) return;
-    persistTopics([...topics, { id: `${Date.now()}`, label }]);
-  };
-  const removeTopic = (id: string) => persistTopics(topics.filter((t) => t.id !== id));
-  const visibleTopics = topicsExpanded ? topics : topics.slice(0, 8);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
-      {/* Top Header */}
       <header
-        className="sticky top-0 z-50 flex items-center justify-between border-b border-border-subtle bg-background px-3 py-2"
+        className="sticky top-0 z-50 flex items-center justify-between bg-background/95 px-3 py-2 backdrop-blur-xl"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95" aria-label="Назад">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <div className="text-center">
-          <h1 className="text-sm font-semibold tracking-tight">{settings.nickname || partnerUser.displayName}</h1>
-          <p className={`text-xs font-normal ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
-        </div>
-        <div className="w-10" /> 
+        <button
+          type="button"
+          onClick={() => setIsEditSheetOpen(true)}
+          className="rounded-full bg-surface-elevated px-4 py-2 text-[16px] font-semibold text-foreground shadow-sm transition-smooth active:scale-95"
+        >
+          Изменить
+        </button>
       </header>
 
-      {/* Hero Section */}
-      <section className="flex flex-col items-center px-6 pb-8 pt-7">
-        <div className="group relative mb-5 h-32 w-32">
+      <section className="flex flex-col items-center px-5 pb-6 pt-5">
+        <div className="group relative mb-4 h-28 w-28">
           <button
             type="button"
             onClick={() => fullAvatarUrl && setShowAvatarViewer(true)}
@@ -196,114 +189,61 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-background bg-primary" />}
         </div>
         
-        <h2 className="text-center text-3xl font-semibold tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
-        <p className="mt-1 text-sm font-medium text-primary">@{partnerUser.username}</p>
-        
-        {partnerUser.bio && (
-          <p className="mt-5 max-w-xs text-center text-sm leading-relaxed text-muted">{partnerUser.bio}</p>
-        )}
+        <h2 className="text-center text-[32px] font-semibold leading-tight tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
+        <p className={`mt-1 text-[16px] ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
       </section>
 
-      {/* Quick Actions */}
-      <div className="mb-8 grid grid-cols-5 gap-1 px-4">
+      <div className="mb-7 grid grid-cols-4 gap-1 px-5">
+        <ActionButton
+          onClick={() => startCall(chatId, { displayName: settings.nickname || partnerUser.displayName, avatarUrl: partnerUser.avatarUrl ?? null }, { video: true })}
+          label="видео"
+          icon={<VideoIcon />}
+        />
         <ActionButton 
           onClick={() => {
-            const currentU = { displayName: "Я", avatarUrl: null };
-            startCall(chatId, currentU);
+            startCall(chatId, { displayName: settings.nickname || partnerUser.displayName, avatarUrl: partnerUser.avatarUrl ?? null });
           }} 
-          label="Звонок" 
+          label="аудио" 
           icon={<CallIcon />} 
         />
-        <ActionButton onClick={() => router.push(`/chats/${chatId}?search=true`)} label="Найти" icon={<SearchIcon />} />
-        <ActionButton onClick={() => setIsAppearanceOpen(true)} label="Стиль" icon={<AppearanceIcon />} />
-        <ActionMenuButton label="Звук" icon={<MuteIcon isMuted={!!settings.mutedUntil} />} options={muteOptions} onSelect={handleMute} />
-        <ActionButton onClick={() => updateContact({ isBlocked: !settings.isBlocked })} label={settings.isBlocked ? "Разблок." : "Блок"} icon={<BlockIcon />} destructive={!settings.isBlocked} />
+        <ActionMenuButton label="звук" icon={<MuteIcon isMuted={!!settings.mutedUntil} />} options={muteOptions} onSelect={handleMute} />
+        <MoreProfileButton
+          isBlocked={settings.isBlocked}
+          disabled={isBusy}
+          onSearch={() => router.push(`/chats/${chatId}?search=true`)}
+          onClear={clearDialog}
+          onBlock={() => updateContact({ isBlocked: !settings.isBlocked })}
+        />
       </div>
 
-      {/* Settings List */}
-      <div className="mb-8 space-y-3 px-4">
-        <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-          <SettingsItem 
-            label="Переименовать" 
-            value={settings.nickname || "Не задано"} 
-            onClick={() => setIsEditingName(true)}
-          />
-          <div className="mx-4 h-px bg-border-subtle" />
-          <SettingsItem 
-            label="Уведомления" 
-            value={settings.mutedUntil ? `До ${new Date(settings.mutedUntil).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : "Включены"}
-          />
-        </section>
-        <E2EEContactDevices userId={partnerUser.id} chatId={chatId} />
-      </div>
-
-      {/* Общие заметки (local-only, TODO backend) */}
-      <div className="mb-8 px-4">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <h3 className="text-[13px] font-semibold text-muted/70">Общие заметки</h3>
-          <button onClick={addNote} className="text-[13px] font-medium text-primary active:opacity-60" type="button">Добавить</button>
-        </div>
-        <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-          {notes.length === 0 ? (
-            <div className="px-4 py-5 text-center">
-              <p className="text-sm font-medium text-foreground/80">Нет общих заметок</p>
-              <p className="mt-1 text-[13px] text-muted/60">Добавьте важную деталь, чтобы не потерять контекст.</p>
-            </div>
-          ) : (
-            notes.map((note, i) => (
-              <div key={note.id}>
-                {i > 0 ? <div className="mx-4 h-px bg-border-subtle" /> : null}
-                <div className="flex items-start justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="line-clamp-2 text-sm text-foreground">{note.text}</p>
-                    <p className="mt-0.5 text-[12px] text-muted/50">
-                      {new Date(note.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
-                    </p>
-                  </div>
-                  <button onClick={() => deleteNote(note.id)} className="shrink-0 text-[12px] font-medium text-muted/60 active:opacity-60" type="button">Удалить</button>
-                </div>
+      <div className="mb-6 px-5">
+        <section className="overflow-hidden rounded-[28px] bg-surface-elevated">
+          <div className="px-5 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[15px] text-muted">username</p>
+                <p className="mt-0.5 truncate text-[20px] font-medium text-primary">@{partnerUser.username}</p>
               </div>
-            ))
-          )}
+              <button
+                type="button"
+                onClick={() => setIsEncryptionOpen(true)}
+                className="mt-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-primary transition-smooth active:scale-95"
+                aria-label="Информация о шифровании"
+              >
+                <QrIcon />
+              </button>
+            </div>
+          </div>
+          <div className="mx-5 h-px bg-border-subtle" />
+          <div className="px-5 py-4">
+            <p className="text-[15px] text-muted">описание</p>
+            <p className="mt-0.5 whitespace-pre-wrap text-[17px] leading-snug text-foreground">
+              {partnerUser.bio?.trim() || "Описание профиля не добавлено"}
+            </p>
+          </div>
         </section>
       </div>
-
-      {/* Темы (local-only, TODO backend; tap = TODO filter messages by topic) */}
-      <div className="mb-8 px-4">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <h3 className="text-[13px] font-semibold text-muted/70">Темы</h3>
-          <button onClick={addTopic} className="text-[13px] font-medium text-primary active:opacity-60" type="button">+ Тема</button>
-        </div>
-        {topics.length === 0 ? (
-          <section className="rounded-2xl border border-border-subtle bg-surface px-4 py-5 text-center">
-            <p className="text-sm font-medium text-foreground/80">Темы не добавлены</p>
-            <p className="mt-1 text-[13px] text-muted/60">Отмечайте темы, чтобы быстрее находить важное.</p>
-          </section>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {visibleTopics.map((topic) => (
-              <button
-                key={topic.id}
-                type="button"
-                // TODO: filter/search messages by topic when search supports it.
-                onClick={() => removeTopic(topic.id)}
-                title="Нажмите, чтобы удалить"
-                className="rounded-full bg-surface-muted px-3 py-1.5 text-[13px] font-medium text-foreground/80 transition-colors active:bg-surface-hover"
-              >
-                {topic.label}
-              </button>
-            ))}
-            {topics.length > 8 && !topicsExpanded ? (
-              <button onClick={() => setTopicsExpanded(true)} type="button" className="rounded-full px-3 py-1.5 text-[13px] font-medium text-primary">
-                + ещё {topics.length - 8}
-              </button>
-            ) : null}
-          </div>
-        )}
-      </div>
-
-      {/* Shared Media Tabs */}
-      <div className="flex flex-1 flex-col px-4">
+      <div className="flex flex-1 flex-col px-5">
         <div className="sticky top-0 z-20 mb-4 rounded-full border border-border-subtle bg-foreground/5 p-1">
           <div className="grid grid-cols-3 gap-1">
           <TabButton active={activeTab === "media"} onClick={() => setActiveSection("media")} label="Медиа" />
@@ -321,11 +261,10 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         </div>
       </div>
 
-      {/* Rename Dialog */}
-      {isEditingName && (
+      {isEditSheetOpen && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
           <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
-            <h3 className="mb-5 text-xl font-semibold">Переименовать</h3>
+            <h3 className="mb-5 text-xl font-semibold">Изменить контакт</h3>
             <input 
               className="input-nox mb-6" 
               value={newName} 
@@ -333,21 +272,36 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
               placeholder="Введите имя..."
               autoFocus
             />
+            <button
+              type="button"
+              onClick={deleteContact}
+              disabled={isBusy}
+              className="mb-3 w-full rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger disabled:opacity-50"
+            >
+              Удалить контакт
+            </button>
             <div className="flex gap-4">
-              <button onClick={() => setIsEditingName(false)} className="flex-1 py-3 text-sm font-semibold text-muted">Отмена</button>
-              <button onClick={() => { updateContact({ nickname: newName }); setIsEditingName(false); }} className="flex-1 py-3 text-sm font-semibold text-primary">Сохранить</button>
+              <button onClick={() => setIsEditSheetOpen(false)} className="flex-1 py-3 text-sm font-semibold text-muted">Отмена</button>
+              <button onClick={() => { updateContact({ nickname: newName }); setIsEditSheetOpen(false); }} className="flex-1 py-3 text-sm font-semibold text-primary">Сохранить</button>
             </div>
           </div>
         </div>
       )}
 
-      <ChatAppearanceSheet 
-        isOpen={isAppearanceOpen} 
-        onClose={() => setIsAppearanceOpen(false)} 
-        settings={appearance} 
-        onUpdate={updateSettings} 
-        onReset={resetSettings} 
-      />
+      {isEncryptionOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Шифрование</h3>
+              <button type="button" onClick={() => setIsEncryptionOpen(false)} className="text-sm font-semibold text-primary">Закрыть</button>
+            </div>
+            <p className="mb-4 text-sm leading-relaxed text-muted">
+              Сообщения в личном чате шифруются на устройствах. Ни сервер, ни другие пользователи не видят содержимое переписки.
+            </p>
+            <E2EEContactDevices userId={partnerUser.id} chatId={chatId} />
+          </div>
+        </div>
+      )}
       <AvatarViewer
         src={showAvatarViewer ? fullAvatarUrl : null}
         alt={settings.nickname || partnerUser.displayName}
@@ -389,11 +343,46 @@ function ActionMenuButton({ label, icon, options, onSelect }: { label: string, i
   );
 }
 
-function SettingsItem({ label, value, onClick }: { label: string, value: string, onClick?: () => void }) {
+function MoreProfileButton({
+  isBlocked,
+  disabled,
+  onSearch,
+  onClear,
+  onBlock,
+}: {
+  isBlocked: boolean;
+  disabled?: boolean;
+  onSearch: () => void;
+  onClear: () => void;
+  onBlock: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
   return (
-    <button onClick={onClick} className="group flex w-full items-center justify-between px-5 py-4 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
-      <span className="text-sm font-semibold text-foreground/80">{label}</span>
-      <span className="max-w-[140px] truncate text-sm font-medium text-primary">{value}</span>
+    <div className="relative">
+      <ActionButton onClick={() => setIsOpen((v) => !v)} label="ещё" icon={<MoreIcon />} />
+      {isOpen && (
+        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)}>
+          <div className="absolute right-5 top-[calc(env(safe-area-inset-top,0px)+17rem)] w-64 overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated p-2 shadow-xl animate-in zoom-in-95" onClick={(event) => event.stopPropagation()}>
+            <MenuItem onClick={() => { setIsOpen(false); onSearch(); }} icon={<SearchIcon />} label="Поиск" />
+            <MenuItem onClick={() => { setIsOpen(false); onClear(); }} icon={<TrashIcon />} label="Очистить диалог" destructive disabled={disabled} />
+            <MenuItem onClick={() => { setIsOpen(false); onBlock(); }} icon={<BlockIcon />} label={isBlocked ? "Разблокировать" : "Блок"} destructive={!isBlocked} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ icon, label, onClick, destructive, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; destructive?: boolean; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-smooth hover:bg-foreground/5 disabled:opacity-50 ${destructive ? "text-danger" : "text-foreground"}`}
+    >
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5">{icon}</span>
+      {label}
     </button>
   );
 }
@@ -508,9 +497,12 @@ function SharedMediaTile({ item, chatId, currentUserId }: { item: PhotoItem, cha
 }
 
 function CallIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>; }
+function VideoIcon() { return <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4.5 6.5A2.5 2.5 0 0 1 7 4h7.5A2.5 2.5 0 0 1 17 6.5v11a2.5 2.5 0 0 1-2.5 2.5H7a2.5 2.5 0 0 1-2.5-2.5v-11Zm13.7 3.35 2.25-1.7A.95.95 0 0 1 22 8.9v6.2a.95.95 0 0 1-1.55.75l-2.25-1.7v-4.3Z" /></svg>; }
+function MoreIcon() { return <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M5 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" /></svg>; }
 function SearchIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>; }
-function AppearanceIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>; }
 function MuteIcon({ isMuted }: { isMuted: boolean }) { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMuted ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"} /></svg>; }
 function BlockIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
+function TrashIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 7h12m-9 0V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.7 12.1A2 2 0 0 1 14.3 21H9.7a2 2 0 0 1-2-1.9L7 7m3 4v6m4-6v6" /></svg>; }
+function QrIcon() { return <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeWidth={2} d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" /></svg>; }
 function FileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>; }
 function LinkIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>; }

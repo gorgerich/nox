@@ -106,6 +106,10 @@ export function getChatCache(chatId: string): ChatCacheEntry | null {
   return store.get(chatId) ?? null;
 }
 
+export function clearChatCache(chatId: string) {
+  store.delete(chatId);
+}
+
 /** Extract chatId from a /chats/<id> pathname. Returns null for list/sub-routes. */
 export function chatIdFromPath(pathname: string | null | undefined): string | null {
   if (!pathname) return null;

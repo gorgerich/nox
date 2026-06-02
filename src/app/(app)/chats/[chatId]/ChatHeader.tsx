@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Check, Clock3, Phone, Video } from "lucide-react";
+import { ArrowLeft, Check, Clock3, MoreVertical, Phone, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
@@ -131,45 +131,6 @@ export function ChatHeader({
       </div>
 
       <div className="-mr-1 flex items-center gap-0">
-        {onSetDisappearing && (
-          <div className="relative">
-            <button
-              type="button"
-              aria-label="Исчезающие сообщения"
-              onClick={() => setTimerMenuOpen((v) => !v)}
-              className="touch-target flex h-11 w-10 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 active:scale-95"
-              style={{
-                color: disappearingSeconds ? "var(--message-read)" : "var(--chat-header-fg)",
-                opacity: disappearingSeconds ? 1 : 0.62,
-              }}
-              title="Исчезающие сообщения"
-            >
-              <Clock3 className="h-5 w-5" strokeWidth={2.1} />
-            </button>
-            {timerMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
-                <div className="absolute right-0 top-12 z-[201] w-48 overflow-hidden rounded-xl border border-border-subtle bg-surface-elevated shadow-lg animate-in fade-in zoom-in-95 duration-150">
-                  <p className="px-4 pt-3 pb-1 text-xs font-medium text-muted">Исчезающие</p>
-                  {DISAPPEARING_OPTIONS.map((opt) => {
-                    const active = (disappearingSeconds ?? null) === opt.seconds;
-                    return (
-                      <button
-                        key={opt.label}
-                        type="button"
-                        onClick={() => { onSetDisappearing(opt.seconds); setTimerMenuOpen(false); }}
-                        className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
-                      >
-                        {opt.label}
-                        {active ? <Check className="h-4 w-4 text-primary" strokeWidth={2.4} /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
         {canCall && (
           <>
             <button
@@ -193,6 +154,44 @@ export function ChatHeader({
               <Video className="h-5 w-5" strokeWidth={2.1} />
             </button>
           </>
+        )}
+        {onSetDisappearing && (
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Ещё"
+              onClick={() => setTimerMenuOpen((v) => !v)}
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
+              title="Ещё"
+            >
+              <MoreVertical className="h-5 w-5" strokeWidth={2.2} />
+            </button>
+            {timerMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
+                <div className="absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-xl border border-border-subtle bg-surface-elevated shadow-lg animate-in fade-in zoom-in-95 duration-150">
+                  <p className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs font-medium text-muted">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Исчезающие сообщения
+                  </p>
+                  {DISAPPEARING_OPTIONS.map((opt) => {
+                    const active = (disappearingSeconds ?? null) === opt.seconds;
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => { onSetDisappearing(opt.seconds); setTimerMenuOpen(false); }}
+                        className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
+                      >
+                        {opt.label}
+                        {active ? <Check className="h-4 w-4 text-primary" strokeWidth={2.4} /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
     </header>

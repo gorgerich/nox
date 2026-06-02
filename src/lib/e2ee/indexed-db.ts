@@ -392,3 +392,17 @@ export async function getAllPersistedChatMessages(): Promise<{ chatId: string; r
 export function clearPersistedChatMessages(): Promise<void> {
   return clearStore(CHATMSGS_STORE);
 }
+
+export async function clearPersistedChatMessagesForChat(chatId: string): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(CHATMSGS_STORE, "readwrite");
+      tx.objectStore(CHATMSGS_STORE).delete(chatId);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
