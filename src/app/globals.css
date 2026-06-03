@@ -501,6 +501,24 @@ body {
     background-color: var(--chat-background);
   }
 
+  /* Chat opens by sliding in from the right (iOS/Telegram push). Plays once per
+     navigation via template.tsx; carries the already-seeded chat content. */
+  .chat-open-anim {
+    animation: chat-open-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform;
+    transform-origin: right center;
+    background-color: var(--app-bg);
+  }
+
+  @keyframes chat-open-slide {
+    from { transform: translate3d(100%, 0, 0); }
+    to { transform: translate3d(0, 0, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-open-anim { animation: none; }
+  }
+
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
     min-height: 100dvh;

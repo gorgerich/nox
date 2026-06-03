@@ -8,6 +8,7 @@ import {
   putChatPreview,
   putChatDecrypted,
   getChatDecrypted,
+  putChatMessages,
   type ChatPreviewMessage,
 } from "@/lib/chat-cache";
 
@@ -52,6 +53,10 @@ export function ChatCacheHydrator({ userId }: { userId: string }) {
       for (const { chatId, record } of all) {
         if (cancelled) return;
         if (record.header) putChatHeader(chatId, record.header);
+        // Warm the sync full-message cache so the chat opens instantly after reload.
+        if (Array.isArray(record.messages) && record.messages.length > 0) {
+          putChatMessages(chatId, record.messages);
+        }
 
         const msgs = (record.messages as StoredMsg[]).filter((m) => m && !m.deletedAt);
         const tail = msgs.slice(-PREVIEW_TAIL);

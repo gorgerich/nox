@@ -31,6 +31,27 @@ export function getChatList(): ChatListItem[] | null {
   return chatListCache;
 }
 
+// --- Full message cache (RAM only) ----------------------------------------
+// Holds the last rendered message array per chat (serialized, ciphertext for
+// E2EE — never raw plaintext beyond what already lives in React state). Lets
+// ChatMessages seed synchronously on mount so a chat opens with full content,
+// no skeleton. Capped; oldest evicted.
+const FULL_MSG_MAX_CHATS = 30;
+const fullMessageStore = new Map<string, unknown[]>();
+
+export function putChatMessages(chatId: string, messages: unknown[]) {
+  fullMessageStore.delete(chatId); // re-insert to mark as most-recent
+  fullMessageStore.set(chatId, messages);
+  if (fullMessageStore.size > FULL_MSG_MAX_CHATS) {
+    const oldest = fullMessageStore.keys().next().value;
+    if (oldest !== undefined) fullMessageStore.delete(oldest);
+  }
+}
+
+export function getChatMessages(chatId: string): unknown[] | null {
+  return fullMessageStore.get(chatId) ?? null;
+}
+
 export type ChatPreviewMessage = {
   id: string;
   mine: boolean;

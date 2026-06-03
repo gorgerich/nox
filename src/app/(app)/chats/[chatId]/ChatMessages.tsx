@@ -17,7 +17,7 @@ import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } fro
 import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersistedChatMessages, getPersistedChatMessages } from "@/lib/e2ee/indexed-db";
 import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
-import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader } from "@/lib/chat-cache";
+import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getChatMessages, putChatMessages } from "@/lib/chat-cache";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -177,16 +177,24 @@ export function ChatMessages({
     initialLastSeenAt: chatInfo.type === "DIRECT" ? chatInfo.otherMember?.lastSeenAt ?? null : null,
   });
   
-  const [messages, setMessages] = useState<Message[]>(() =>
-    initialMessages.map(normalizeMessage).filter((m): m is Message => !!m)
-  );
+  // Seed synchronously from the RAM full-message cache so a chat opened earlier
+  // this session (or warmed by the boot hydrator after reload) shows its full
+  // content INSTANTLY — no skeleton, ready to read. Falls back to the SSR set
+  // (pinned only) when nothing is cached. The client history loader then
+  // reconciles with the network silently.
+  const seedMessages = (() => {
+    const cached = getChatMessages(chatId);
+    const base = cached && cached.length ? cached : initialMessages;
+    return base.map(normalizeMessage).filter((m): m is Message => !!m);
+  })();
+  const [messages, setMessages] = useState<Message[]>(() => seedMessages);
 
   // Messages present on first render shouldn't replay the entrance animation —
   // otherwise opening a chat fires 50 slide-ins at once. Only messages that
-  // arrive afterwards animate in. Seeded with the SSR set and topped up after
-  // the client-side history load resolves (see the loader effect below).
+  // arrive afterwards animate in. Seeded with the first paint set and topped up
+  // after the client-side history load resolves (see the loader effect below).
   const initialMessageIdsRef = useRef<Set<string>>(
-    new Set(initialMessages.map((m) => (m as { id: string }).id))
+    new Set(seedMessages.map((m) => m.id))
   );
   // Guard so the first client history load runs once and recomputes the
   // "unread" divider / animation-suppression set from the authoritative batch.
@@ -511,6 +519,12 @@ export function ChatMessages({
   useEffect(() => {
     putChatHeader(chatId, headerCache);
   }, [chatId, headerCache]);
+
+  // Keep the synchronous RAM full-message cache fresh so re-opening this chat
+  // (same session) paints instantly with full content — no skeleton.
+  useEffect(() => {
+    if (messages.length > 0) putChatMessages(chatId, messages);
+  }, [chatId, messages]);
 
   // Persist ciphertext message metadata + header to IndexedDB (debounced) so a
   // cold start (after reload) can hydrate the RAM cache and open chats instantly.
