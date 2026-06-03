@@ -600,41 +600,6 @@ body {
       linear-gradient(180deg, var(--chat-background), var(--app-bg));
   }
 
-  /* Chat opens by sliding in from the right (iOS/Telegram push). Plays once per
-     navigation via template.tsx; carries the already-seeded chat content. */
-  .chat-open-anim {
-    position: relative;
-    height: 100%;
-    min-height: 100dvh;
-    z-index: 30;
-    animation: chat-open-slide 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    will-change: transform;
-    transform-origin: right center;
-    background:
-      radial-gradient(720px 440px at 12% -12%, var(--ambient-1), transparent 58%),
-      radial-gradient(640px 420px at 100% 4%, var(--ambient-2), transparent 60%),
-      var(--app-bg);
-    box-shadow: -16px 0 36px rgba(15, 23, 42, 0.16);
-  }
-
-  @keyframes chat-open-slide {
-    from { transform: translate3d(100%, 0, 0); }
-    to { transform: translate3d(0, 0, 0); }
-  }
-
-  /* Honor reduced-motion but still give a quick fade so the screen doesn't pop. */
-  @media (prefers-reduced-motion: reduce) {
-    .chat-open-anim {
-      animation: chat-open-fade 160ms ease both;
-      box-shadow: none;
-    }
-  }
-
-  @keyframes chat-open-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
     min-height: 100dvh;
