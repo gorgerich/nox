@@ -11,16 +11,15 @@
  *  - `decrypted`: seed a chat's decrypted bodies on mount so re-opening a chat
  *    in the same session shows text immediately (no "Загрузка зашифрованного
  *    сообщения…" reflash while decryption re-runs).
- *  - `preview` + `header`: let the route-level loading.tsx paint the real last
- *    messages instantly (instead of gray skeleton bars) while the server
- *    component streams the fresh page — the Telegram "instant open" feel.
+ *  - `preview` + `header`: keep the last known chat identity and tail available
+ *    for same-session handoffs without persisting plaintext.
  */
 
 import type { ChatListItem } from "./chat-list";
 
 // --- Chat list cache (RAM only) -------------------------------------------
-// Lets the Chats tab loading.tsx paint the last-known list instantly instead of
-// gray skeleton rows while the server re-renders.
+// Lets the Chats tab paint the last-known list instantly instead of gray
+// skeleton rows while the server re-renders.
 let chatListCache: ChatListItem[] | null = null;
 
 export function putChatList(list: ChatListItem[]) {

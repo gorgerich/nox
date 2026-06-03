@@ -380,8 +380,7 @@ export function ChatsPageClient({
 
   const handleNavigate = useCallback((chatId: string) => {
     seedInstantChatCache(chatId);
-    router.push(`/chats/${chatId}`);
-  }, [router, seedInstantChatCache]);
+  }, [seedInstantChatCache]);
 
   const handlePrefetchChat = useCallback((chatId: string) => {
     seedInstantChatCache(chatId);
@@ -401,8 +400,8 @@ export function ChatsPageClient({
     });
   }, [chats, router]);
 
-  // Cache the current list (RAM) so the tab's loading.tsx can paint real rows
-  // instantly on the next open instead of skeleton bars.
+  // Cache the current list (RAM) so returning to the tab can paint real rows
+  // immediately instead of skeleton bars.
   useEffect(() => {
     putChatList(chats);
   }, [chats]);

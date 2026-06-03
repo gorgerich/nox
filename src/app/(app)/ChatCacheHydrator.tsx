@@ -12,10 +12,10 @@ import {
   type ChatPreviewMessage,
 } from "@/lib/chat-cache";
 
-// Warms the RAM chat cache from IndexedDB on app start, so after a reload the
-// route loading.tsx can paint real chat content instantly (header + last
-// messages) instead of a skeleton. Runs once, in the background, off the main
-// render path. Plaintext is only ever held in RAM; disk stays ciphertext.
+// Warms the RAM chat cache from IndexedDB on app start, so reopened chats can
+// seed decrypted text and metadata without redoing all local work. Runs once,
+// in the background, off the main render path. Plaintext is only ever held in
+// RAM; disk stays ciphertext.
 
 const PREVIEW_TAIL = 15;
 

@@ -1,7 +1,7 @@
 import type { ChatListItem } from "./chat-list";
 
-// Shared row formatters used by both the live chat list (SwipeableChatRow) and
-// the instant loading.tsx preview, so the two never drift apart.
+// Shared row formatters used by the live chat list and cached previews, so the
+// two never drift apart.
 
 export function formatChatTime(isoDate: string) {
   const date = new Date(isoDate);

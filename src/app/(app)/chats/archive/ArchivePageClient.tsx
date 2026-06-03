@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { ChatListItem } from "@/lib/chat-list";
 import { SwipeableChatRow } from "../SwipeableChatRow";
 
@@ -11,7 +10,6 @@ type ArchivePageClientProps = {
 };
 
 export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
-  const router = useRouter();
   const [chats, setChats] = useState(initialChats);
   const [openRowId, setOpenRowId] = useState<string | null>(null);
 
@@ -41,8 +39,8 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
   }, []);
 
   const handleNavigate = useCallback((chatId: string) => {
-    router.push(`/chats/${chatId}`);
-  }, [router]);
+    void chatId;
+  }, []);
 
   const handleDelete = useCallback((chat: ChatListItem) => {
     const previous = chats;

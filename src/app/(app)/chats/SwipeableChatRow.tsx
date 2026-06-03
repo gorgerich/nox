@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Archive, BellOff, Bookmark, Check, CheckCheck, Pin, Trash2 } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
@@ -178,8 +179,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     resetGesture();
   }, [chat.id, isOpen, onPressCancel, resetGesture, translateX]);
 
-  const handleOpenChat = useCallback(() => {
+  const handleOpenChat = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
     if (movedRef.current || translateX !== 0) {
+      event.preventDefault();
       onPressCancel?.(chat.id);
       return;
     }
@@ -276,8 +278,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         onPointerCancel={handlePointerCancel}
         style={{ transform: `translate3d(${translateX}px, 0, 0)`, touchAction: "pan-y" }}
       >
-        <button
-          type="button"
+        <Link
+          href={`/chats/${chat.id}`}
+          prefetch={true}
           onClick={handleOpenChat}
           className="group relative flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 active:bg-surface-hover"
           style={{
@@ -330,7 +333,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
               ) : null}
             </div>
           </div>
-        </button>
+        </Link>
       </div>
     </div>
   );
