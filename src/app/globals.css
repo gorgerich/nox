@@ -517,23 +517,6 @@ body {
   }
 
   :where(
-    .bg-surface,
-    .bg-surface\/50,
-    .bg-surface\/60,
-    .bg-surface\/70,
-    .bg-surface\/80,
-    .bg-surface\/90,
-    .bg-surface\/95,
-    .bg-surface-elevated,
-    .bg-surface-elevated\/80,
-    .bg-surface-elevated\/90,
-    .bg-surface-elevated\/95,
-    .bg-surface-muted,
-    .bg-surface-muted\/30,
-    .bg-surface-muted\/50,
-    .bg-surface-muted\/60,
-    .bg-surface-muted\/70,
-    .bg-input,
     .card-premium,
     .glass-panel,
     .liquid-top-chrome
@@ -1019,9 +1002,6 @@ body {
   ) {
     background: var(--glass-material);
     border-color: var(--glass-panel-border);
-    box-shadow:
-      inset 0 1px 0 var(--glass-highlight),
-      var(--glass-panel-shadow);
   }
 }
 
