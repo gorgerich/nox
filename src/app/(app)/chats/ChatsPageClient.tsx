@@ -7,7 +7,8 @@ import { Search, UserPlus, Users } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
-import { putChatList } from "@/lib/chat-cache";
+import { getChatCache, putChatHeader, putChatList, putChatPreview } from "@/lib/chat-cache";
+import { getMessagePreview } from "@/lib/chat-list-format";
 
 import { ChatSearch } from "./ChatSearch";
 import { IncomingRequestCards } from "./IncomingRequestCards";
@@ -344,13 +345,48 @@ export function ChatsPageClient({
     );
   }, [applyChatMutation, chats]);
 
+  const seedInstantChatCache = useCallback((chatId: string) => {
+    const chat = chats.find((item) => item.id === chatId);
+    if (!chat) return;
+
+    const title = chat.isSelfChat
+      ? "Личное"
+      : chat.type === "DIRECT"
+        ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
+        : chat.title ?? "Группа";
+    const avatarUrl = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl ?? null;
+
+    putChatHeader(chat.id, {
+      title,
+      avatarUrl,
+      isSelfChat: chat.isSelfChat,
+    });
+
+    const last = chat.lastMessage;
+    if (!last) return;
+
+    const existingPreview = getChatCache(chat.id)?.preview ?? [];
+    const lastPreview = {
+      id: last.id,
+      mine: last.sender.id === currentUserId,
+      text: getMessagePreview(chat),
+    };
+
+    const mergedPreview = existingPreview.some((message) => message.id === last.id)
+      ? existingPreview
+      : [...existingPreview, lastPreview];
+    putChatPreview(chat.id, mergedPreview);
+  }, [chats, currentUserId]);
+
   const handleNavigate = useCallback((chatId: string) => {
+    seedInstantChatCache(chatId);
     router.push(`/chats/${chatId}`);
-  }, [router]);
+  }, [router, seedInstantChatCache]);
 
   const handlePrefetchChat = useCallback((chatId: string) => {
+    seedInstantChatCache(chatId);
     router.prefetch(`/chats/${chatId}`);
-  }, [router]);
+  }, [router, seedInstantChatCache]);
 
   useEffect(() => {
     router.prefetch("/chats/new");
@@ -552,6 +588,7 @@ export function ChatsPageClient({
               onOpen={setOpenRowId}
               onNavigate={handleNavigate}
               onPrefetch={handlePrefetchChat}
+              onPressStart={seedInstantChatCache}
               onDelete={handleDelete}
               onArchive={handleArchive}
               onMute={handleOpenMute}
