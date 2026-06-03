@@ -413,7 +413,7 @@ export function ChatsPageClient({
           onClick={() => setPlusMenuOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-[1.75rem] border border-border-subtle/50 bg-surface-elevated p-2 shadow-2xl animate-in slide-in-from-bottom-2"
+            className="glass-panel w-full max-w-md rounded-[1.75rem] p-2 animate-in slide-in-from-bottom-2"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -563,7 +563,7 @@ export function ChatsPageClient({
 
       {muteSheetChat ? (
         <div className="fixed inset-0 z-[450] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-[2rem] border border-border-subtle/50 bg-surface-elevated p-5 shadow-2xl">
+          <div className="glass-panel w-full max-w-md rounded-[2rem] p-5">
             <div className="mb-4 h-1.5 w-12 rounded-full bg-border mx-auto" />
             <h2 className="mb-2 text-lg font-black tracking-tight text-foreground">Отключить уведомления</h2>
             <p className="mb-5 text-sm text-muted">Выберите срок для этого чата.</p>

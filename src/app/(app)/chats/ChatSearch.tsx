@@ -100,7 +100,7 @@ export function ChatSearch() {
       </div>
 
       {isOpen && (query.trim() || loading) && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-border-subtle/50 bg-surface-elevated p-2 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-200 backdrop-blur-xl">
+        <div className="glass-panel absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl p-2 animate-in fade-in slide-in-from-top-4 duration-200">
           {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH ? (
             <div className="p-10 text-center">
               <p className="text-[14px] text-muted/50">Минимум 3 символа</p>
