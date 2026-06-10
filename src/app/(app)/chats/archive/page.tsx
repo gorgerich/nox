@@ -60,6 +60,13 @@ export default async function ArchivePage() {
                   profile: { select: { displayName: true } },
                 },
               },
+              receipts: {
+                select: {
+                  userId: true,
+                  deliveredAt: true,
+                  readAt: true,
+                },
+              },
             },
           },
         },
@@ -98,6 +105,10 @@ export default async function ArchivePage() {
     .map((membership) => {
       const otherMember = membership.chat.members.find((member) => member.user.id !== user.id);
       const lastMessage = membership.chat.messages[0];
+      const lastMessageReceipts = lastMessage?.receipts ?? [];
+      const readAt = lastMessageReceipts.find((receipt) => receipt.readAt)?.readAt ?? null;
+      const deliveredAt = lastMessageReceipts.find((receipt) => receipt.deliveredAt)?.deliveredAt ?? null;
+      const deliveryStatus = readAt ? "read" : deliveredAt ? "delivered" : "sent";
 
       return {
         id: membership.chat.id,
@@ -124,7 +135,13 @@ export default async function ArchivePage() {
           ? {
               id: lastMessage.id,
               type: lastMessage.type,
-              body: lastMessage.body,
+              body: lastMessage.isEncrypted ? null : lastMessage.body,
+              isEncrypted: lastMessage.isEncrypted,
+              ciphertext: lastMessage.ciphertext,
+              isMine: lastMessage.sender.id === user.id,
+              deliveredAt: deliveredAt?.toISOString() ?? lastMessage.deliveredAt?.toISOString() ?? null,
+              readAt: readAt?.toISOString() ?? null,
+              deliveryStatus,
               deletedAt: lastMessage.deletedAt?.toISOString() ?? null,
               createdAt: lastMessage.createdAt.toISOString(),
               attachments: lastMessage.attachments,

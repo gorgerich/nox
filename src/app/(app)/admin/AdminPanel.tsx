@@ -381,6 +381,9 @@ export function AdminPanel() {
                       <p className="text-xs mt-1">
                         <span className="font-bold">{invite.usedCount}/{invite.maxUses}</span> • до {formatDate(invite.expiresAt)}
                       </p>
+                      <p className="mt-1 text-[11px] text-muted">
+                        Создал: {invite.createdBy?.profile?.displayName ?? invite.createdBy?.username ?? "неизвестно"}
+                      </p>
                     </div>
                     <button 
                       className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition"

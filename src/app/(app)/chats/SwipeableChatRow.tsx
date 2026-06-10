@@ -195,10 +195,12 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
     : chat.title ?? "Группа";
   const lastIsMine = Boolean(
-    currentUserId && chat.lastMessage && !chat.lastMessage.deletedAt
-      && chat.lastMessage.sender.id === currentUserId,
+    chat.lastMessage && !chat.lastMessage.deletedAt
+      && (chat.lastMessage.isMine || (currentUserId && chat.lastMessage.sender.id === currentUserId)),
   );
   const lastDelivered = Boolean(chat.lastMessage?.deliveredAt);
+  const deliveryStatus = chat.lastMessage?.deliveryStatus
+    ?? (chat.lastMessage?.readAt ? "read" : lastDelivered ? "delivered" : "sent");
 
   let previewNode: ReactNode;
   if (typingName) {
@@ -318,10 +320,12 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
             <div className="flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1">
                 {showTicks ? (
-                  lastDelivered ? (
-                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
+                  deliveryStatus === "read" ? (
+                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2.5} aria-label="Прочитано" />
+                  ) : deliveryStatus === "delivered" ? (
+                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/55" strokeWidth={2.4} aria-label="Доставлено" />
                   ) : (
-                    <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
+                    <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} aria-label="Отправлено" />
                   )
                 ) : null}
                 <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>

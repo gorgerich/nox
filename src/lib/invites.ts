@@ -1,5 +1,10 @@
 import { createHash } from "crypto";
+import { randomBytes } from "crypto";
 import { getPrisma } from "@/lib/prisma";
+
+export function createInviteCode() {
+  return randomBytes(18).toString("base64url");
+}
 
 export function hashInviteCode(code: string) {
   return createHash("sha256")

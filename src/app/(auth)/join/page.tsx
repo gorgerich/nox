@@ -12,7 +12,10 @@ export default function JoinPage() {
   const [login, setLogin] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("code") ?? "";
+  });
   const [step, setStep] = useState<"account" | "username">("account");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);

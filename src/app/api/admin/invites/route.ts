@@ -1,9 +1,8 @@
-import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/admin";
 import { logAdminAction } from "@/lib/audit";
-import { hashInviteCode } from "@/lib/invites";
+import { createInviteCode, hashInviteCode } from "@/lib/invites";
 import { getPrisma } from "@/lib/prisma";
 
 const createInviteSchema = z.object({
@@ -12,10 +11,6 @@ const createInviteSchema = z.object({
   targetEmail: z.string().trim().toLowerCase().nullable().optional(),
   targetUsername: z.string().trim().toLowerCase().nullable().optional(),
 });
-
-function createInviteCode() {
-  return randomBytes(18).toString("base64url");
-}
 
 function parseOptionalDate(value?: string | null) {
   if (!value) {

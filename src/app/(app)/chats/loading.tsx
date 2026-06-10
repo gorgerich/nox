@@ -7,7 +7,7 @@
 // cache (first open / after reload) we fall back to skeleton rows.
 
 import Image from "next/image";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Check, CheckCheck } from "lucide-react";
 import { getChatList } from "@/lib/chat-cache";
 import { formatChatTime, getMessagePreview } from "@/lib/chat-list-format";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -41,6 +41,9 @@ export default function ChatsLoading() {
                   ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
                   : chat.title ?? "Группа";
               const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
+              const showTicks = Boolean(chat.lastMessage?.isMine && !chat.lastMessage.deletedAt);
+              const deliveryStatus = chat.lastMessage?.deliveryStatus
+                ?? (chat.lastMessage?.readAt ? "read" : chat.lastMessage?.deliveredAt ? "delivered" : "sent");
               const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
               const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
               return (
@@ -64,6 +67,15 @@ export default function ChatsLoading() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
+                      {showTicks ? (
+                        deliveryStatus === "read" ? (
+                          <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2.5} />
+                        ) : deliveryStatus === "delivered" ? (
+                          <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/55" strokeWidth={2.4} />
+                        ) : (
+                          <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
+                        )
+                      ) : null}
                       <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
                         {preview}
                       </p>

@@ -25,7 +25,10 @@ export type ChatListItem = {
     body: string | null;
     isEncrypted?: boolean;
     ciphertext?: string | null;
+    isMine?: boolean;
     deliveredAt?: string | null;
+    readAt?: string | null;
+    deliveryStatus?: "sent" | "delivered" | "read";
     deletedAt: string | null;
     createdAt: string;
     attachments: { id: string; fileName: string; mimeType: string; sizeBytes: number }[];
@@ -101,6 +104,13 @@ export async function getChatsPageData(userId: string) {
                     profile: { select: { displayName: true } },
                   },
                 },
+                receipts: {
+                  select: {
+                    userId: true,
+                    deliveredAt: true,
+                    readAt: true,
+                  },
+                },
               },
             },
           },
@@ -168,6 +178,10 @@ export async function getChatsPageData(userId: string) {
     .map((membership) => {
       const otherMember = membership.chat.members.find((member) => member.user.id !== userId);
       const lastMessage = membership.chat.messages[0];
+      const lastMessageReceipts = lastMessage?.receipts ?? [];
+      const readAt = lastMessageReceipts.find((receipt) => receipt.readAt)?.readAt ?? null;
+      const deliveredAt = lastMessageReceipts.find((receipt) => receipt.deliveredAt)?.deliveredAt ?? null;
+      const deliveryStatus = readAt ? "read" : deliveredAt ? "delivered" : "sent";
 
       return {
         id: membership.chat.id,
@@ -194,12 +208,13 @@ export async function getChatsPageData(userId: string) {
           ? {
               id: lastMessage.id,
               type: lastMessage.type,
-              body: lastMessage.isEncrypted 
-                ? (lastMessage.ciphertext ? "Зашифрованное сообщение" : "Сообщение доставлено")
-                : lastMessage.body,
+              body: lastMessage.isEncrypted ? null : lastMessage.body,
               isEncrypted: lastMessage.isEncrypted,
               ciphertext: lastMessage.ciphertext,
-              deliveredAt: lastMessage.deliveredAt?.toISOString() ?? null,
+              isMine: lastMessage.sender.id === userId,
+              deliveredAt: deliveredAt?.toISOString() ?? lastMessage.deliveredAt?.toISOString() ?? null,
+              readAt: readAt?.toISOString() ?? null,
+              deliveryStatus,
               deletedAt: lastMessage.deletedAt?.toISOString() ?? null,
               createdAt: lastMessage.createdAt.toISOString(),
               attachments: lastMessage.attachments,

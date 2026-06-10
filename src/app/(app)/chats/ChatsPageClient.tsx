@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Search, UserPlus, Users } from "lucide-react";
+import { Check, Copy, MessageCircle, Search, Send, UserPlus, Users } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
@@ -31,6 +31,13 @@ const FOLDERS = [
   { key: "unread", label: "Непрочитанные" },
 ] as const;
 type FolderKey = (typeof FOLDERS)[number]["key"];
+
+type InviteSheetState = {
+  code: string;
+  link: string;
+  notice: string;
+  expiresAt: string | null;
+};
 
 const MUTE_OPTIONS = [
   { label: "15 минут", minutes: 15 },
@@ -66,6 +73,10 @@ export function ChatsPageClient({
   const [muteSheetChat, setMuteSheetChat] = useState<ChatListItem | null>(null);
   const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [inviteSheet, setInviteSheet] = useState<InviteSheetState | null>(null);
+  const [invitePending, setInvitePending] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderKey>("all");
 
   // Local folder filtering — no reload. Self chat ("Личное") floats to the top
@@ -165,7 +176,7 @@ export function ChatsPageClient({
     };
 
     socket.on("chat:updated", refreshList);
-    socket.on("message:new", (data: { chatId: string; message: ChatListItem["lastMessage"] & { senderUserId: string, sender?: { username: string; profile?: { displayName: string } } } }) => {
+    socket.on("message:new", (data: { chatId: string; message: ChatListItem["lastMessage"] & { senderUserId: string, sender?: { username: string; profile?: { displayName: string } }, receipts?: { deliveredAt?: string | Date | null; readAt?: string | Date | null }[] } }) => {
       setChats(prev => {
         const chatIdx = prev.findIndex(c => c.id === data.chatId);
         if (chatIdx === -1) {
@@ -175,12 +186,21 @@ export function ChatsPageClient({
         
         const updatedChat = { ...prev[chatIdx] };
         const msg = data.message;
+        const receipts = msg.receipts ?? [];
+        const readAt = receipts.find((receipt) => receipt.readAt)?.readAt ?? null;
+        const deliveredAt = receipts.find((receipt) => receipt.deliveredAt)?.deliveredAt ?? null;
+        const deliveryStatus = readAt ? "read" : deliveredAt ? "delivered" : "sent";
         
         updatedChat.lastMessage = {
           id: msg.id,
           type: msg.type,
-          body: msg.isEncrypted ? "Зашифрованное сообщение" : msg.body,
+          body: msg.isEncrypted ? null : msg.body,
           isEncrypted: msg.isEncrypted,
+          ciphertext: msg.ciphertext,
+          isMine: msg.senderUserId === currentUserId,
+          deliveredAt: deliveredAt ? new Date(deliveredAt).toISOString() : msg.deliveredAt ?? null,
+          readAt: readAt ? new Date(readAt).toISOString() : msg.readAt ?? null,
+          deliveryStatus,
           deletedAt: msg.deletedAt,
           createdAt: msg.createdAt,
           attachments: msg.attachments || [],
@@ -198,6 +218,34 @@ export function ChatsPageClient({
         return newChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       });
     });
+    socket.on("message:receipts-updated", (payload: { chatId: string; messageId?: string; deliveredAt?: string | Date | null; readAt?: string | Date | null }) => {
+      setChats(prev => prev.map((chat) => {
+        if (
+          chat.id !== payload.chatId
+          || chat.lastMessage?.sender.id !== currentUserId
+          || (payload.messageId && chat.lastMessage.id !== payload.messageId)
+        ) {
+          return chat;
+        }
+
+        const deliveredAt = payload.deliveredAt
+          ? new Date(payload.deliveredAt).toISOString()
+          : chat.lastMessage.deliveredAt ?? null;
+        const readAt = payload.readAt
+          ? new Date(payload.readAt).toISOString()
+          : chat.lastMessage.readAt ?? null;
+
+        return {
+          ...chat,
+          lastMessage: {
+            ...chat.lastMessage,
+            deliveredAt,
+            readAt,
+            deliveryStatus: readAt ? "read" : deliveredAt ? "delivered" : "sent",
+          },
+        };
+      }));
+    });
     socket.on("chat-request:new", refreshList);
     socket.on("chat-request:accepted", refreshList);
     socket.on("chat-request:declined", refreshList);
@@ -206,13 +254,14 @@ export function ChatsPageClient({
 
     return () => {
       socket.off("chat:updated", refreshList);
+      socket.off("message:receipts-updated");
       socket.off("chat-request:new", refreshList);
       socket.off("chat-request:accepted", refreshList);
       socket.off("chat-request:declined", refreshList);
       socket.off("chat-request:canceled", refreshList);
       socket.off("connect", refreshList);
     };
-  }, [socket, syncChats]);
+  }, [currentUserId, socket, syncChats]);
 
   // Live "typing…" in the chat list. The socket joins every chat room on
   // connect, so typing:update arrives here for all chats. Clear after a short
@@ -345,6 +394,80 @@ export function ChatsPageClient({
     );
   }, [applyChatMutation, chats]);
 
+  const createUserInvite = useCallback(async () => {
+    setPlusMenuOpen(false);
+    setInvitePending(true);
+    setInviteError("");
+    setInviteCopied(false);
+    setInviteSheet(null);
+
+    try {
+      const response = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+      const data = (await response.json().catch(() => null)) as {
+        rawInviteCode?: string;
+        notice?: string;
+        invite?: { expiresAt?: string | null };
+        error?: string;
+      } | null;
+
+      if (!response.ok || !data?.rawInviteCode) {
+        throw new Error(data?.error || "Не удалось создать приглашение.");
+      }
+
+      const origin = window.location.origin;
+      setInviteSheet({
+        code: data.rawInviteCode,
+        link: `${origin}/join?code=${encodeURIComponent(data.rawInviteCode)}`,
+        notice: data.notice || "Отправьте ссылку человеку, которого хотите пригласить.",
+        expiresAt: data.invite?.expiresAt ?? null,
+      });
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : "Не удалось создать приглашение.");
+      setInviteSheet({
+        code: "",
+        link: "",
+        notice: "",
+        expiresAt: null,
+      });
+    } finally {
+      setInvitePending(false);
+    }
+  }, []);
+
+  const copyInviteLink = useCallback(async () => {
+    if (!inviteSheet?.link) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteSheet.link);
+      setInviteCopied(true);
+      window.setTimeout(() => setInviteCopied(false), 1800);
+    } catch {
+      setInviteError("Не удалось скопировать ссылку.");
+    }
+  }, [inviteSheet]);
+
+  const shareInviteLink = useCallback(async () => {
+    if (!inviteSheet?.link) return;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Приглашение в Nox",
+          text: "Присоединяйся к Nox",
+          url: inviteSheet.link,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+      }
+    }
+
+    await copyInviteLink();
+  }, [copyInviteLink, inviteSheet]);
+
   const seedInstantChatCache = useCallback((chatId: string) => {
     const chat = chats.find((item) => item.id === chatId);
     if (!chat) return;
@@ -469,8 +592,7 @@ export function ChatsPageClient({
             </button>
             <button
               type="button"
-              // TODO: wire to real invite flow when available.
-              onClick={() => { setPlusMenuOpen(false); router.push("/chats/new"); }}
+              onClick={() => { void createUserInvite(); }}
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
             >
               <UserPlus className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
@@ -483,6 +605,89 @@ export function ChatsPageClient({
             >
               Отмена
             </button>
+          </div>
+        </div>
+      )}
+
+      {(invitePending || inviteSheet) && (
+        <div
+          className="fixed inset-0 z-[470] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in"
+          onClick={() => {
+            if (!invitePending) {
+              setInviteSheet(null);
+              setInviteError("");
+            }
+          }}
+        >
+          <div
+            className="glass-panel w-full max-w-md rounded-[1.75rem] p-5 animate-in slide-in-from-bottom-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border" />
+            <div className="mb-5 flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
+                <UserPlus className="h-6 w-6" strokeWidth={2.1} />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Пригласить в Nox</h2>
+                <p className="mt-1 text-sm leading-5 text-muted">
+                  {invitePending
+                    ? "Создаём одноразовую ссылку..."
+                    : inviteError || inviteSheet?.notice || "Отправьте ссылку человеку."}
+                </p>
+              </div>
+            </div>
+
+            {invitePending ? (
+              <div className="flex h-24 items-center justify-center">
+                <div className="h-7 w-7 rounded-full border-2 border-primary/25 border-t-primary animate-spin" />
+              </div>
+            ) : inviteSheet?.link ? (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-border-subtle/60 bg-background/60 p-3">
+                  <p className="mb-2 text-[11px] font-semibold text-muted">Ссылка</p>
+                  <p className="break-all text-[14px] font-medium leading-5 text-foreground">{inviteSheet.link}</p>
+                </div>
+                <div className="rounded-2xl border border-border-subtle/60 bg-background/60 p-3">
+                  <p className="mb-2 text-[11px] font-semibold text-muted">Код</p>
+                  <code className="block select-all truncate font-mono text-[13px] text-foreground">{inviteSheet.code}</code>
+                </div>
+                {inviteSheet.expiresAt && (
+                  <p className="px-1 text-[12px] text-muted">
+                    Действует до {new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(inviteSheet.expiresAt))}
+                  </p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { void copyInviteLink(); }}
+                    className="fast-tap flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-surface-muted text-sm font-semibold text-foreground transition-smooth active:scale-95"
+                  >
+                    {inviteCopied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                    {inviteCopied ? "Скопировано" : "Копировать"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { void shareInviteLink(); }}
+                    className="fast-tap flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95"
+                  >
+                    <Send className="h-4 w-4" />
+                    Отправить
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteSheet(null);
+                  setInviteError("");
+                }}
+                className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-surface-muted text-sm font-semibold text-foreground transition-smooth active:scale-95"
+              >
+                Закрыть
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -84,6 +84,7 @@ export async function POST(
       deliveredAt: now,
     },
   );
+  emitToUsers(recipients.map((member) => member.userId), "chat:updated", { chatId });
 
   // Notify the user that their chat has been updated (read status changed)
   emitToUsers([user.id], "chat:updated", { chatId });

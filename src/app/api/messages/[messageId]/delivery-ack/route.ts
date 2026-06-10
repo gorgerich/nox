@@ -130,9 +130,11 @@ export async function POST(
 
       emitToUsers([message.senderUserId], "message:receipts-updated", {
         chatId: message.chatId,
+        messageId,
         userId: user.id,
         deliveredAt: updatedEnvelope.deliveredAt ?? now,
       });
+      emitToUsers([message.senderUserId], "chat:updated", { chatId: message.chatId });
     }
 
     return NextResponse.json({
@@ -156,9 +158,11 @@ export async function POST(
 
   emitToUsers([message.senderUserId], "message:receipts-updated", {
     chatId: message.chatId,
+    messageId,
     userId: user.id,
     deliveredAt: now,
   });
+  emitToUsers([message.senderUserId], "chat:updated", { chatId: message.chatId });
 
   return NextResponse.json({ ok: true, messageId, deliveredAt: now.toISOString() });
 }
