@@ -36,12 +36,12 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
   return createPortal(
     <nav
       className="pointer-events-none fixed inset-x-0 bottom-0 z-60 px-3 lg:hidden"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.4rem)" }}
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.35rem)" }}
       aria-label="Нижняя навигация"
     >
-      <div className="pointer-events-auto mx-auto flex w-full max-w-[24rem] items-center gap-1">
+      <div className="pointer-events-auto mx-auto flex w-full max-w-[21.5rem] items-center gap-1">
         <div
-          className="grid min-w-0 flex-1 rounded-full border border-white/70 bg-white/88 p-0.5 shadow-[0_8px_24px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/78"
+          className="grid min-w-0 flex-1 rounded-full border border-white/65 bg-white/72 p-0.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/66"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
         >
           {tabs.map((tab) => {
@@ -55,21 +55,21 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 key={tab.href}
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
-                  "fast-tap flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-full px-1.5 py-1.5 transition-all duration-200",
-                  isActive ? "bg-black/[0.08] text-primary dark:bg-white/12" : "text-foreground/78 hover:bg-black/[0.04] dark:text-white/78 dark:hover:bg-white/[0.07]",
+                  "fast-tap flex min-h-10 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1 transition-all duration-180",
+                  isActive ? "bg-white/72 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_1px_5px_rgba(15,23,42,0.08)] dark:bg-white/12 dark:shadow-none" : "text-foreground/72 hover:bg-white/40 dark:text-white/70 dark:hover:bg-white/[0.07]",
                 )}
                 href={tab.href}
                 prefetch={true}
               >
                 <span className="relative">
-                  <Icon className="h-5 w-5" strokeWidth={isActive ? 2.7 : 2.4} />
+                  <Icon className="h-[1.15rem] w-[1.15rem]" strokeWidth={isActive ? 2.6 : 2.35} />
                   {shouldShowBadge ? (
                     <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
                       {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                     </span>
                   ) : null}
                 </span>
-                <span className="truncate text-[9px] font-semibold leading-none tracking-normal">{tab.label}</span>
+                <span className="truncate text-[8.5px] font-semibold leading-none tracking-normal">{tab.label}</span>
               </Link>
             );
           })}
@@ -77,13 +77,13 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <Link
           aria-label="Поиск"
           className={clsx(
-            "fast-tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/70 bg-white/88 text-foreground shadow-[0_8px_24px_rgba(15,23,42,0.13)] backdrop-blur-xl transition-all duration-200 active:scale-95 dark:border-white/10 dark:bg-neutral-950/78 dark:text-white",
+            "fast-tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/65 bg-white/72 text-foreground shadow-[0_8px_22px_rgba(15,23,42,0.10)] backdrop-blur-xl transition-all duration-180 active:scale-95 dark:border-white/10 dark:bg-neutral-950/66 dark:text-white",
             pathname === "/chats/search" && "text-primary",
           )}
           href="/chats/search"
           prefetch={true}
         >
-          <Search className="h-6 w-6" strokeWidth={2.5} />
+          <Search className="h-5 w-5" strokeWidth={2.45} />
         </Link>
       </div>
     </nav>,

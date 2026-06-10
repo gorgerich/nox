@@ -54,6 +54,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const directionLockedRef = useRef<"horizontal" | "vertical" | null>(null);
   const movedRef = useRef(false);
   const [translateX, setTranslateX] = useState(0);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const muted = Boolean(chat.mutedUntil && new Date(chat.mutedUntil).getTime() > Date.now());
   const pinned = Boolean(chat.pinnedAt);
 
@@ -216,6 +217,10 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
   const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
 
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [fullAvatarUrl]);
+
   const leftActionsVisible = translateX > 8;
   const rightActionsVisible = translateX < -8;
 
@@ -292,8 +297,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
               <div className="flex h-full w-full items-center justify-center bg-primary/15 text-primary">
                 <Bookmark className="h-6 w-6" />
               </div>
-            ) : fullAvatarUrl ? (
-              <Image src={fullAvatarUrl} alt={title} fill className="object-cover" />
+            ) : fullAvatarUrl && !avatarFailed ? (
+              <Image src={fullAvatarUrl} alt={title} fill className="object-cover" onError={() => setAvatarFailed(true)} />
             ) : (
               <span className="text-xl font-semibold uppercase text-primary">{title[0]}</span>
             )}

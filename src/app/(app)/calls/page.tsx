@@ -63,7 +63,7 @@ export default async function CallsPage() {
       </div>
 
       {logs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-700">
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-200">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-surface-muted text-muted">
             <Phone className="h-10 w-10 text-muted/40" strokeWidth={1.5} />
           </div>
@@ -74,7 +74,7 @@ export default async function CallsPage() {
           </p>
         </div>
       ) : (
-        <div className="-mx-5 divide-y divide-border-subtle border-y border-border-subtle bg-surface pb-24 md:mx-0 md:rounded-2xl md:border">
+        <div className="-mx-5 divide-y divide-border-subtle border-y border-border-subtle bg-surface md:mx-0 md:rounded-2xl md:border">
           {logs.map((log) => {
             const isOutgoing = log.callerId === user.id;
             const partner = isOutgoing ? log.callee : log.caller;

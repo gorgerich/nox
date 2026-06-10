@@ -14,11 +14,11 @@
   --glass-panel-border: rgba(255, 255, 255, 0.62);
   --glass-border: rgba(255, 255, 255, 0.54);
   --glass-highlight: rgba(255, 255, 255, 0.86);
-  --glass-shadow: rgba(26, 43, 73, 0.14);
+  --glass-shadow: rgba(26, 43, 73, 0.08);
   --glass-inner-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.78),
     inset 0 -1px 0 rgba(30, 41, 59, 0.06);
-  --glass-filter: blur(28px) saturate(190%) contrast(104%);
+  --glass-filter: blur(22px) saturate(170%) contrast(102%);
   --glass-material:
     linear-gradient(155deg, rgba(255, 255, 255, 0.64) 0%, rgba(255, 255, 255, 0.24) 42%, rgba(255, 255, 255, 0.12) 100%),
     var(--glass-panel-fill);
@@ -29,8 +29,8 @@
   --dock-active-bg: rgba(255, 255, 255, 0.72);
   --dock-active-fg: #0f172a;
   --dock-shadow:
-    0 18px 48px rgba(26, 43, 73, 0.16),
-    0 3px 10px rgba(26, 43, 73, 0.08);
+    0 10px 26px rgba(26, 43, 73, 0.1),
+    0 1px 4px rgba(26, 43, 73, 0.06);
 
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -40,10 +40,10 @@
 
   --background: var(--app-bg);
   --foreground: var(--app-fg);
-  --surface: var(--glass-bg);
-  --surface-elevated: var(--glass-bg-strong);
-  --surface-muted: rgba(255, 255, 255, 0.36);
-  --surface-hover: rgba(255, 255, 255, 0.62);
+  --surface: rgba(255, 255, 255, 0.58);
+  --surface-elevated: rgba(255, 255, 255, 0.76);
+  --surface-muted: rgba(255, 255, 255, 0.42);
+  --surface-hover: rgba(255, 255, 255, 0.66);
   --border: rgba(148, 163, 184, 0.2);
   --border-subtle: var(--glass-border);
   --muted: var(--app-muted);
@@ -64,11 +64,11 @@
   --glass-overlay-clear: rgba(255, 255, 255, 0);
   --glass-overlay-soft: rgba(255, 255, 255, 0.32);
   --glass-panel-shadow:
-    0 18px 44px rgba(26, 43, 73, 0.13),
-    0 2px 8px rgba(26, 43, 73, 0.06);
+    0 12px 30px rgba(26, 43, 73, 0.09),
+    0 1px 4px rgba(26, 43, 73, 0.05);
   --glass-panel-shadow-strong:
-    0 28px 72px rgba(26, 43, 73, 0.18),
-    0 4px 14px rgba(26, 43, 73, 0.08);
+    0 18px 46px rgba(26, 43, 73, 0.12),
+    0 2px 8px rgba(26, 43, 73, 0.06);
   --ambient-1: rgba(37, 99, 235, 0.11);
   --ambient-2: rgba(6, 182, 212, 0.1);
   --ambient-3: rgba(255, 255, 255, 0.74);
@@ -131,11 +131,11 @@
   --glass-panel-border: rgba(255, 255, 255, 0.16);
   --glass-border: rgba(255, 255, 255, 0.13);
   --glass-highlight: rgba(255, 255, 255, 0.2);
-  --glass-shadow: rgba(0, 0, 0, 0.5);
+  --glass-shadow: rgba(0, 0, 0, 0.34);
   --glass-inner-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(0, 0, 0, 0.32);
-  --glass-filter: blur(30px) saturate(175%) contrast(108%);
+  --glass-filter: blur(24px) saturate(160%) contrast(104%);
   --glass-material:
     linear-gradient(155deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.03) 100%),
     var(--glass-panel-fill);
@@ -145,8 +145,8 @@
   --dock-active-bg: rgba(255, 255, 255, 0.16);
   --dock-active-fg: #ffffff;
   --dock-shadow:
-    0 22px 70px rgba(0, 0, 0, 0.58),
-    0 3px 12px rgba(0, 0, 0, 0.36);
+    0 14px 40px rgba(0, 0, 0, 0.42),
+    0 2px 8px rgba(0, 0, 0, 0.28);
   --accent: #3b82f6;
   --accent-hover: #60a5fa;
   --accent-soft: rgba(59, 130, 246, 0.16);
@@ -155,8 +155,8 @@
 
   --background: var(--app-bg);
   --foreground: var(--app-fg);
-  --surface: var(--glass-bg);
-  --surface-elevated: var(--glass-bg-strong);
+  --surface: rgba(18, 24, 36, 0.62);
+  --surface-elevated: rgba(28, 35, 50, 0.78);
   --surface-muted: rgba(255, 255, 255, 0.08);
   --surface-hover: rgba(255, 255, 255, 0.13);
   --border: rgba(255, 255, 255, 0.1);
@@ -179,11 +179,11 @@
   --glass-overlay-clear: rgba(255, 255, 255, 0);
   --glass-overlay-soft: rgba(255, 255, 255, 0.05);
   --glass-panel-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.42),
-    0 2px 10px rgba(0, 0, 0, 0.28);
+    0 14px 38px rgba(0, 0, 0, 0.34),
+    0 1px 6px rgba(0, 0, 0, 0.24);
   --glass-panel-shadow-strong:
-    0 30px 86px rgba(0, 0, 0, 0.56),
-    0 4px 16px rgba(0, 0, 0, 0.34);
+    0 22px 58px rgba(0, 0, 0, 0.46),
+    0 2px 10px rgba(0, 0, 0, 0.3);
   --ambient-1: rgba(59, 130, 246, 0.16);
   --ambient-2: rgba(6, 182, 212, 0.12);
   --ambient-3: rgba(15, 23, 42, 0.7);
@@ -362,16 +362,43 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes animate-slide-in-from-bottom-full {
+  from { transform: translateY(100%); opacity: 0.98; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes animate-slide-in-from-top {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes animate-slide-in-from-top-full {
+  from { transform: translateY(-100%); opacity: 0.98; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes animate-slide-in-from-right {
+  from { transform: translateX(18px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
 @utility animate-in {
   animation-duration: 200ms;
   animation-fill-mode: forwards;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 
 @utility fade-in { animation-name: animate-fade-in; }
 @utility zoom-in-95 { animation-name: animate-zoom-in; }
 @utility slide-in-from-bottom-2 { animation-name: animate-slide-in-from-bottom; }
+@utility slide-in-from-bottom-4 { animation-name: animate-slide-in-from-bottom; }
+@utility slide-in-from-bottom-full { animation-name: animate-slide-in-from-bottom-full; }
+@utility slide-in-from-top-2 { animation-name: animate-slide-in-from-top; }
+@utility slide-in-from-top-4 { animation-name: animate-slide-in-from-top; }
+@utility slide-in-from-top-full { animation-name: animate-slide-in-from-top-full; }
+@utility slide-in-from-right { animation-name: animate-slide-in-from-right; }
+@utility duration-180 { animation-duration: 180ms; }
 
 @utility touch-target {
   @apply flex items-center justify-center;
@@ -485,38 +512,6 @@ body {
   }
 
   :where(
-    .bg-surface,
-    .bg-surface\/50,
-    .bg-surface\/60,
-    .bg-surface\/70,
-    .bg-surface\/80,
-    .bg-surface\/90,
-    .bg-surface\/95,
-    .bg-surface-elevated,
-    .bg-surface-elevated\/80,
-    .bg-surface-elevated\/90,
-    .bg-surface-elevated\/95,
-    .bg-surface-muted,
-    .bg-surface-muted\/30,
-    .bg-surface-muted\/50,
-    .bg-surface-muted\/60,
-    .bg-surface-muted\/70,
-    .bg-input,
-    .bg-foreground\/5,
-    .bg-background\/95,
-    .bg-background\/90,
-    .bg-background\/80,
-    .bg-white\/5,
-    .bg-white\/10,
-    .bg-white\/15
-  ) {
-    background: var(--glass-material);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
-    border-color: var(--glass-panel-border);
-  }
-
-  :where(
     .card-premium,
     .glass-panel,
     .liquid-top-chrome
@@ -617,7 +612,7 @@ body {
   .main-app-content {
     flex: 1 1 auto;
     width: 100%;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 128px);
+    padding-bottom: 0;
   }
 
   .app-section {
@@ -628,7 +623,7 @@ body {
     padding-left: 20px;
     padding-right: 20px;
     padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 128px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
   }
 
   .app-section-header {
@@ -908,65 +903,9 @@ body {
   .btn-nox,
   .btn-primary,
   .liquid-dock-frame,
-  .liquid-top-chrome,
-  :is(
-    .bg-surface,
-    .bg-surface\/50,
-    .bg-surface\/60,
-    .bg-surface\/70,
-    .bg-surface\/80,
-    .bg-surface\/90,
-    .bg-surface\/95,
-    .bg-surface-elevated,
-    .bg-surface-elevated\/80,
-    .bg-surface-elevated\/90,
-    .bg-surface-elevated\/95,
-    .bg-surface-muted,
-    .bg-surface-muted\/30,
-    .bg-surface-muted\/50,
-    .bg-surface-muted\/60,
-    .bg-surface-muted\/70,
-    .bg-input,
-    .bg-foreground\/5,
-    .bg-background\/95,
-    .bg-background\/90,
-    .bg-background\/80,
-    .bg-white\/5,
-    .bg-white\/10,
-    .bg-white\/15
-  ) {
-    -webkit-backdrop-filter: blur(28px) saturate(190%);
-    backdrop-filter: blur(28px) saturate(190%);
-  }
-
-  :is(
-    .bg-surface,
-    .bg-surface\/50,
-    .bg-surface\/60,
-    .bg-surface\/70,
-    .bg-surface\/80,
-    .bg-surface\/90,
-    .bg-surface\/95,
-    .bg-surface-elevated,
-    .bg-surface-elevated\/80,
-    .bg-surface-elevated\/90,
-    .bg-surface-elevated\/95,
-    .bg-surface-muted,
-    .bg-surface-muted\/30,
-    .bg-surface-muted\/50,
-    .bg-surface-muted\/60,
-    .bg-surface-muted\/70,
-    .bg-input,
-    .bg-foreground\/5,
-    .bg-background\/95,
-    .bg-background\/90,
-    .bg-background\/80,
-    .bg-white\/5,
-    .bg-white\/10,
-    .bg-white\/15
-  ) {
-    background: var(--glass-material);
-    border-color: var(--glass-panel-border);
+  .liquid-top-chrome {
+    -webkit-backdrop-filter: var(--glass-filter);
+    backdrop-filter: var(--glass-filter);
   }
 }
 

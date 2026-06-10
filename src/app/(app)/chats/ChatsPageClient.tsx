@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, UserPlus, Users } from "lucide-react";
+import { MessageCircle, Search, UserPlus, Users } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
@@ -419,7 +419,7 @@ export function ChatsPageClient({
           className="absolute top-0 left-0 right-0 flex justify-center pt-2 pointer-events-none z-[100]"
           style={{ transform: `translateY(${Math.min(40, (pullProgress / 100) * 60)}px)`, opacity: pullProgress / 100 }}
         >
-          <div className={`bg-surface-elevated border border-border-subtle rounded-full p-2 shadow-xl transition-smooth ${isRefreshing ? "animate-spin" : ""}`}>
+          <div className={`glass-panel rounded-full p-2 transition-smooth ${isRefreshing ? "animate-spin" : ""}`}>
              <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ transform: `rotate(${pullProgress * 3.6}deg)` }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
              </svg>
@@ -519,7 +519,7 @@ export function ChatsPageClient({
 
       {incomingRequests.length > 0 ? (
         <div className="mb-10 animate-in slide-in-from-top-2 duration-200">
-          <h2 className="mb-3 px-3 text-[13px] font-semibold text-muted/60">Запросы на переписку</h2>
+          <h2 className="mb-3 px-3 text-[13px] font-semibold text-muted/70">Запросы на переписку</h2>
           <IncomingRequestCards requests={incomingRequests} onChange={() => { void syncChats(); }} />
         </div>
       ) : null}
@@ -547,19 +547,19 @@ export function ChatsPageClient({
 
       {chats.length === 0 ? (
         <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-200">
-          <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[2.5rem] border border-border-subtle/50 bg-surface-muted shadow-inner">
-            <span className="text-4xl">💬</span>
+          <div className="mx-auto mb-7 flex h-20 w-20 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-muted text-primary">
+            <MessageCircle className="h-9 w-9" strokeWidth={1.8} />
           </div>
-          <h2 className="text-2xl font-black tracking-tight text-foreground/90">Начните общение</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">Начните общение</h2>
           <p className="mx-auto mt-3 max-w-[240px] text-base font-medium leading-relaxed text-muted/60">
             Здесь будут отображаться ваши диалоги с другими пользователями.
           </p>
           <Link
-            className="btn-primary mt-10 inline-flex h-14 items-center rounded-3xl px-10 text-sm font-black"
+            className="btn-primary mt-9 inline-flex h-12 items-center rounded-full px-7 text-sm font-semibold"
             href="/chats/new"
             prefetch
           >
-            НАЙТИ СОБЕСЕДНИКА
+            Найти собеседника
           </Link>
         </div>
       ) : filteredChats.length === 0 ? (
@@ -601,7 +601,7 @@ export function ChatsPageClient({
         <div className="fixed inset-0 z-[450] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="glass-panel w-full max-w-md rounded-[2rem] p-5">
             <div className="mb-4 h-1.5 w-12 rounded-full bg-border mx-auto" />
-            <h2 className="mb-2 text-lg font-black tracking-tight text-foreground">Отключить уведомления</h2>
+            <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">Отключить уведомления</h2>
             <p className="mb-5 text-sm text-muted">Выберите срок для этого чата.</p>
             <div className="space-y-2">
               {MUTE_OPTIONS.map((option) => (
@@ -612,13 +612,13 @@ export function ChatsPageClient({
                   className="flex w-full items-center justify-between rounded-2xl border border-border-subtle/40 bg-surface/70 px-4 py-4 text-left transition-smooth active:scale-[0.98] hover:bg-surface-hover"
                 >
                   <span className="font-bold text-foreground">{option.label}</span>
-                  <span className="text-xs font-black uppercase tracking-widest text-muted">Чат</span>
+                  <span className="text-xs font-semibold text-muted">Чат</span>
                 </button>
               ))}
               <button
                 type="button"
                 onClick={() => setMuteSheetChat(null)}
-                className="mt-2 w-full rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-widest text-muted transition-smooth active:scale-[0.98]"
+                className="mt-2 w-full rounded-full px-4 py-3.5 text-sm font-semibold text-muted transition-smooth active:scale-[0.98]"
               >
                 Отмена
               </button>

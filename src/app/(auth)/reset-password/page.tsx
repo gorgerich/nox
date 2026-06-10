@@ -18,7 +18,7 @@ function ResetPasswordForm() {
     return (
       <div className="text-center">
         <p className="text-sm font-bold text-red-400 mb-6">Токен восстановления не найден.</p>
-        <Link className="btn-nox w-full bg-surface text-foreground shadow-sm uppercase tracking-widest text-xs inline-flex items-center justify-center" href="/forgot-password">
+        <Link className="btn-nox inline-flex w-full items-center justify-center rounded-full text-sm font-semibold text-foreground" href="/forgot-password">
           Запросить новый
         </Link>
       </div>
@@ -58,10 +58,10 @@ function ResetPasswordForm() {
 
   if (message) {
     return (
-      <div className="rounded-3xl border border-primary/20 bg-primary/10 p-6 text-center shadow-2xl animate-in zoom-in-95">
+      <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5 text-center animate-in zoom-in-95">
          <p className="text-sm font-bold text-primary leading-relaxed">{message}</p>
          <p className="text-xs text-muted mt-4">Перенаправление на страницу входа...</p>
-         <Link className="btn-nox mt-8 w-full bg-surface text-foreground shadow-sm uppercase tracking-widest text-xs inline-flex items-center justify-center" href="/login">
+         <Link className="btn-nox mt-7 inline-flex w-full items-center justify-center rounded-full text-sm font-semibold text-foreground" href="/login">
             Войти сейчас
          </Link>
       </div>
@@ -98,7 +98,7 @@ function ResetPasswordForm() {
       )}
 
       <button 
-        className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30 uppercase tracking-widest" 
+        className="btn-primary h-12 w-full rounded-full text-sm font-semibold disabled:opacity-45"
         disabled={pending || password.length < 8} 
         type="submit"
       >
@@ -116,7 +116,7 @@ export default function ResetPasswordPage() {
           <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Новый пароль</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Новый пароль</h1>
           <p className="mt-3 text-sm text-muted font-medium">Создайте новый пароль для вашего аккаунта.</p>
         </div>
 
@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
         </Suspense>
 
         <div className="mt-8 text-center">
-          <Link className="touch-target inline-flex items-center text-[11px] font-black uppercase tracking-widest text-muted transition-smooth hover:text-foreground active:scale-95" href="/login">
+          <Link className="touch-target inline-flex items-center text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95" href="/login">
             Отмена
           </Link>
         </div>

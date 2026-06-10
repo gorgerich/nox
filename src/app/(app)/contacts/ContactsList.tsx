@@ -56,7 +56,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
       </header>
 
       {contacts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center animate-in zoom-in-95 duration-500 delay-100">
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-200">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-surface-muted text-muted">
             <UsersRound className="h-9 w-9" strokeWidth={1.7} />
           </div>

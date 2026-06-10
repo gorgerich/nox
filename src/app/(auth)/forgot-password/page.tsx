@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
           <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Восстановление доступа</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Восстановление доступа</h1>
           <p className="mt-3 text-sm text-muted font-medium">
             {step === "request" ? "Введите логин или email. Если аккаунт существует, мы создадим запрос на восстановление." : "Попросите владельца или администратора подтвердить запрос и назвать код. Если у вас открыто доверенное устройство Nox, запрос появится там."}
           </p>
@@ -107,8 +107,8 @@ export default function ForgotPasswordPage() {
                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400/90 leading-relaxed text-center">
                  Если вы сбрасываете пароль на новом устройстве, старые зашифрованные сообщения могут быть недоступны без recovery key или доверенного устройства.
                </p>
-               <p className="text-[10px] font-black uppercase tracking-widest text-amber-600/70 dark:text-amber-400/50 mt-3 text-center">
-                 (Recovery keys в разработке)
+               <p className="mt-3 text-center text-xs font-semibold text-amber-600/70 dark:text-amber-400/60">
+                 Recovery keys в разработке
                </p>
             </div>
 
@@ -119,7 +119,7 @@ export default function ForgotPasswordPage() {
             )}
 
             <button 
-              className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30 uppercase tracking-widest" 
+              className="btn-primary h-12 w-full rounded-full text-sm font-semibold disabled:opacity-45"
               disabled={pending || !identifier.trim()} 
               type="submit"
             >
@@ -130,13 +130,13 @@ export default function ForgotPasswordPage() {
 
         {step === "verify" && (
           <form className="space-y-6 animate-in fade-in zoom-in-95" onSubmit={handleVerifySubmit}>
-            <div className="rounded-3xl border border-primary/20 bg-primary/10 p-6 text-center shadow-sm mb-6">
+            <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/10 p-5 text-center">
                <p className="text-xs font-bold text-primary leading-relaxed">{message}</p>
             </div>
             
             <div className="space-y-3">
               <input
-                className="input-nox h-14 uppercase tracking-[0.2em] font-black text-center"
+                className="input-nox h-14 text-center font-semibold tracking-[0.12em]"
                 aria-label="Код подтверждения"
                 name="publicCode"
                 type="text"
@@ -165,7 +165,7 @@ export default function ForgotPasswordPage() {
             )}
 
             <button 
-              className="btn-primary w-full h-14 rounded-[1.25rem] text-sm font-black disabled:opacity-30 uppercase tracking-widest" 
+              className="btn-primary h-12 w-full rounded-full text-sm font-semibold disabled:opacity-45"
               disabled={pending || !publicCode.trim() || newPassword.length < 8} 
               type="submit"
             >
@@ -180,7 +180,7 @@ export default function ForgotPasswordPage() {
 
         {step === "request" && (
           <div className="mt-8 text-center">
-            <Link className="touch-target inline-flex items-center text-[11px] font-black uppercase tracking-widest text-muted transition-smooth hover:text-foreground active:scale-95" href="/login">
+            <Link className="touch-target inline-flex items-center text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95" href="/login">
               Отмена
             </Link>
           </div>
