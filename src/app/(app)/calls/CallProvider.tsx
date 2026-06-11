@@ -212,6 +212,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const remoteAudioPlaybackOkRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const keepAliveAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -237,6 +239,73 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       timeoutRef.current = null;
     }
   }, []);
+
+  const requestWakeLock = useCallback(async () => {
+    if (!("wakeLock" in navigator) || wakeLockRef.current) return;
+
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request("screen");
+      wakeLockRef.current.addEventListener("release", () => {
+        wakeLockRef.current = null;
+      });
+      debugCall("wake lock acquired");
+    } catch (wakeError) {
+      debugCall("wake lock skipped", { error: String(wakeError) });
+    }
+  }, [debugCall]);
+
+  const releaseWakeLock = useCallback(() => {
+    if (!wakeLockRef.current) return;
+    void wakeLockRef.current.release().catch(() => undefined);
+    wakeLockRef.current = null;
+  }, []);
+
+  const refreshMediaSession = useCallback((nextCall: CurrentCall | null, live: boolean) => {
+    if (!("mediaSession" in navigator)) return;
+
+    try {
+      if (!live) {
+        navigator.mediaSession.playbackState = "none";
+        navigator.mediaSession.setActionHandler("pause", null);
+        navigator.mediaSession.setActionHandler("play", null);
+        navigator.mediaSession.setActionHandler("stop", null);
+        return;
+      }
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: nextCall?.video ? "Видеозвонок Nox" : "Аудиозвонок Nox",
+        artist: nextCall?.peerUser.displayName ?? "Собеседник",
+      });
+      navigator.mediaSession.playbackState = "playing";
+      navigator.mediaSession.setActionHandler("pause", () => undefined);
+      navigator.mediaSession.setActionHandler("play", () => {
+        const audio = keepAliveAudioRef.current;
+        if (audio) void audio.play().catch(() => undefined);
+      });
+      navigator.mediaSession.setActionHandler("stop", () => undefined);
+    } catch (sessionError) {
+      debugCall("media session skipped", { error: String(sessionError) });
+    }
+  }, [debugCall]);
+
+  const armBackgroundAudio = useCallback((reason: string, audible: boolean) => {
+    const audio = keepAliveAudioRef.current;
+    const stream = remoteStreamRef.current;
+    if (!audio || !stream) return;
+
+    if (audio.srcObject !== stream) {
+      audio.srcObject = stream;
+    }
+    audio.autoplay = true;
+    audio.setAttribute("playsinline", "true");
+    audio.muted = false;
+    audio.volume = audible ? 1 : 0;
+    void audio.play().then(() => {
+      debugCall("keepalive audio play", { reason, audible });
+    }).catch((playError) => {
+      debugCall("keepalive audio blocked", { reason, error: String(playError) });
+    });
+  }, [debugCall]);
 
   const stopStatsInterval = useCallback(() => {
     if (statsIntervalRef.current) {
@@ -304,6 +373,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("cleanup", { reason });
     clearCallTimer();
     stopStatsInterval();
+    releaseWakeLock();
+    refreshMediaSession(null, false);
+
+    if (keepAliveAudioRef.current) {
+      keepAliveAudioRef.current.pause();
+      keepAliveAudioRef.current.srcObject = null;
+      keepAliveAudioRef.current.volume = 0;
+    }
 
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
@@ -358,7 +435,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       audioPlayStatus: "idle",
       pushSource: null,
     });
-  }, [clearCallTimer, debugCall, stopStatsInterval, updateDebugInfo]);
+  }, [clearCallTimer, debugCall, refreshMediaSession, releaseWakeLock, stopStatsInterval, updateDebugInfo]);
 
   const failCall = useCallback((message: string) => {
     debugCall("call failed", { message });
@@ -1051,6 +1128,93 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
   }, [applyIncomingCall, cleanup, debugCall, failCall, flushPendingIce, scheduleMediaTimeout, setCallStatus, socket]);
 
+  useEffect(() => {
+    const live = status === "active" || status === "connecting" || status === "outgoing";
+    refreshMediaSession(call, live);
+
+    if (!live) {
+      releaseWakeLock();
+      if (keepAliveAudioRef.current) {
+        keepAliveAudioRef.current.pause();
+        keepAliveAudioRef.current.srcObject = null;
+        keepAliveAudioRef.current.volume = 0;
+      }
+      return;
+    }
+
+    void requestWakeLock();
+    armBackgroundAudio("live-effect", document.visibilityState !== "visible");
+
+    const restoreForeground = () => {
+      debugCall("call foreground restore", { status: statusRef.current });
+      if (!socket.connected) socket.connect();
+      void requestWakeLock();
+      armBackgroundAudio("foreground-restore", false);
+
+      const local = localStreamRef.current;
+      local?.getAudioTracks().forEach((track) => {
+        if (track.readyState === "live" && !isMuted) track.enabled = true;
+      });
+      local?.getVideoTracks().forEach((track) => {
+        if (track.readyState === "live" && !isCameraOff && !isScreenSharing) track.enabled = true;
+      });
+
+      verifyAndSetActive("foreground-restore");
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        restoreForeground();
+        return;
+      }
+
+      debugCall("call backgrounded", { status: statusRef.current });
+      armBackgroundAudio("visibility-hidden", true);
+      refreshMediaSession(currentCallRef.current, true);
+    };
+
+    const handlePageHide = () => {
+      debugCall("pagehide during call", { status: statusRef.current });
+      armBackgroundAudio("pagehide", true);
+      refreshMediaSession(currentCallRef.current, true);
+    };
+
+    const handleOnline = () => {
+      debugCall("online during call");
+      if (!socket.connected) socket.connect();
+      restoreForeground();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("pageshow", restoreForeground);
+    window.addEventListener("focus", restoreForeground);
+    window.addEventListener("online", handleOnline);
+    socket.on("connect", restoreForeground);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("pageshow", restoreForeground);
+      window.removeEventListener("focus", restoreForeground);
+      window.removeEventListener("online", handleOnline);
+      socket.off("connect", restoreForeground);
+    };
+  }, [
+    armBackgroundAudio,
+    call,
+    debugCall,
+    isCameraOff,
+    isMuted,
+    isScreenSharing,
+    refreshMediaSession,
+    releaseWakeLock,
+    requestWakeLock,
+    socket,
+    status,
+    verifyAndSetActive,
+  ]);
+
   return (
     <CallContext.Provider
       value={{
@@ -1076,6 +1240,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         toggleScreenShare,
       }}
     >
+      <audio
+        ref={keepAliveAudioRef}
+        autoPlay
+        playsInline
+        aria-hidden="true"
+        className="pointer-events-none fixed h-px w-px opacity-0"
+      />
       {children}
     </CallContext.Provider>
   );
