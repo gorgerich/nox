@@ -190,7 +190,7 @@ export function NewChatForm() {
             disabled={pendingAction !== ""}
             type="submit"
           >
-            {pendingAction === "search" ? "..." : "Найти"}
+            {pendingAction === "search" ? "Ищем" : "Найти"}
           </button>
         </form>
 
@@ -235,7 +235,7 @@ export function NewChatForm() {
                   }}
                   type="button"
                 >
-                  {pendingAction === "start-self" ? "..." : "Открыть избранное"}
+                  {pendingAction === "start-self" ? "Открываем" : "Открыть избранное"}
                 </button>
               </div>
             ) : (
@@ -253,7 +253,7 @@ export function NewChatForm() {
                   onClick={sendRequest}
                   type="button"
                 >
-                  {pendingAction === "send-request" ? "..." : "Отправить запрос"}
+                  {pendingAction === "send-request" ? "Отправляем" : "Отправить запрос"}
                 </button>
               </div>
             )}
@@ -278,7 +278,7 @@ export function NewChatForm() {
                         onClick={() => respondToRequest(item.id, "accept")}
                         type="button"
                       >
-                        {pendingAction === `accept-${item.id}` ? "..." : "Принять"}
+                        {pendingAction === `accept-${item.id}` ? "Принимаем" : "Принять"}
                       </button>
                       <button
                         className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-95 disabled:opacity-45"
@@ -286,7 +286,7 @@ export function NewChatForm() {
                         onClick={() => respondToRequest(item.id, "decline")}
                         type="button"
                       >
-                        {pendingAction === `decline-${item.id}` ? "..." : "Отклонить"}
+                        {pendingAction === `decline-${item.id}` ? "Отклоняем" : "Отклонить"}
                       </button>
                     </div>
                   )}
@@ -311,7 +311,7 @@ export function NewChatForm() {
                       onClick={() => respondToRequest(item.id, "cancel")}
                       type="button"
                     >
-                      {pendingAction === `cancel-${item.id}` ? "..." : "Отменить запрос"}
+                      {pendingAction === `cancel-${item.id}` ? "Отменяем" : "Отменить запрос"}
                     </button>
                   )}
                 </RequestCard>

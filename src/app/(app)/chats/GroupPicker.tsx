@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import Image from "next/image";
+import { Search, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 type User = {
@@ -115,13 +116,21 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
   });
 
   return (
-    <div className="fixed inset-0 z-[500] bg-black/50 backdrop-blur-xl p-4 sm:p-6 flex flex-col items-center justify-center animate-in fade-in transition-smooth">
-        <div className="w-full max-w-md bg-surface rounded-[2rem] p-6 space-y-6 shadow-2xl overflow-hidden flex flex-col max-h-full">
+    <div className="fixed inset-0 z-[500] bg-black/45 backdrop-blur-xl p-4 sm:p-6 flex flex-col items-center justify-center animate-in fade-in transition-smooth">
+        <div className="w-full max-w-md bg-surface rounded-[1.75rem] p-5 space-y-5 shadow-xl overflow-hidden flex flex-col max-h-full">
             <div className="shrink-0 text-center">
-              <h2 className="text-2xl font-black text-foreground">Новая группа</h2>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 text-primary">
+                <UsersRound className="h-6 w-6" strokeWidth={1.9} />
+              </div>
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">Новая группа</h2>
+              <p className="mt-1 text-sm text-muted">Выберите участников и задайте название.</p>
             </div>
             
-            {error && <p className="text-center text-xs font-bold text-red-400 shrink-0">{error}</p>}
+            {error && (
+              <p className="rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-center text-sm font-medium text-danger shrink-0">
+                {error}
+              </p>
+            )}
             
             <div className="shrink-0 space-y-4">
               <input 
@@ -139,15 +148,19 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                       value={searchUsername} 
                       onChange={e => setSearchUsername(e.target.value)} 
                   />
-                  <button type="submit" className="btn-nox h-12 px-4 bg-surface-elevated text-xs font-bold shrink-0 border border-border-subtle" disabled={pending}>
-                      НАЙТИ
+                  <button type="submit" className="fast-tap flex h-12 items-center justify-center rounded-full px-4 bg-surface-elevated text-sm font-semibold shrink-0 border border-border-subtle transition-smooth active:scale-95 disabled:opacity-50" disabled={pending} aria-label="Найти пользователя">
+                      <Search className="h-4 w-4" strokeWidth={2.2} />
                   </button>
               </form>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 min-h-32 border border-border-subtle/50 rounded-2xl p-2 bg-surface-muted/30">
+            <div className="flex-1 overflow-y-auto space-y-1 min-h-32 border border-border-subtle/50 rounded-2xl p-2 bg-surface-muted/25">
                 {displayUsers.size === 0 && (
-                    <p className="text-center text-xs text-muted font-medium p-4 italic">Нет доступных контактов. Найдите пользователей по username.</p>
+                    <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+                      <UsersRound className="mb-3 h-8 w-8 text-muted/55" strokeWidth={1.7} />
+                      <p className="text-sm font-medium text-muted">Контактов пока нет</p>
+                      <p className="mt-1 text-xs leading-5 text-muted/70">Найдите пользователя по username.</p>
+                    </div>
                 )}
                 {Array.from(displayUsers.values()).map(u => {
                     const isSelected = selectedUsers.has(u.id);
@@ -155,11 +168,11 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                     return (
                       <div 
                           key={u.id} 
-                          className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-smooth fast-tap border ${isSelected ? "bg-primary/10 border-primary/30" : "bg-surface hover:bg-surface-elevated border-transparent"}`} 
+                          className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-smooth fast-tap border ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-surface-elevated border-transparent"}`}
                           onClick={() => toggleUser(u)}
                       >
                           <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden shrink-0 text-primary font-black relative">
+                              <div className="h-10 w-10 rounded-full bg-primary/12 flex items-center justify-center overflow-hidden shrink-0 text-primary font-semibold relative">
                                 {fullAvatarUrl ? <Image src={fullAvatarUrl} alt={u.displayName} fill className="object-cover" /> : u.displayName[0]?.toUpperCase()}
                               </div>
                               <div className="min-w-0">
@@ -168,7 +181,7 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                               </div>
                           </div>
                           <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-smooth ${isSelected ? "bg-primary border-primary" : "border-border-subtle"}`}>
-                              {isSelected && <svg className="h-4 w-4 text-neutral-950" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                              {isSelected && <svg className="h-4 w-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                           </div>
                       </div>
                     );
@@ -177,14 +190,14 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
 
             <div className="shrink-0 space-y-3 pt-2">
               <button 
-                  className="btn-nox w-full bg-primary h-14 rounded-2xl text-sm font-black text-neutral-950 shadow-lg shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-50 fast-tap" 
+                  className="fast-tap w-full bg-primary h-12 rounded-full text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-50"
                   onClick={createGroup} 
                   disabled={pending || !title.trim() || selectedUsers.size === 0}
               >
-                  {pending ? "СОЗДАНИЕ..." : `СОЗДАТЬ (${selectedUsers.size})`}
+                  {pending ? "Создаём" : `Создать (${selectedUsers.size})`}
               </button>
               <button 
-                  className="w-full h-12 text-xs font-black uppercase tracking-widest text-muted transition-smooth hover:text-foreground active:scale-95 fast-tap" 
+                  className="w-full h-11 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95 fast-tap"
                   onClick={onClose}
               >
                   Отмена

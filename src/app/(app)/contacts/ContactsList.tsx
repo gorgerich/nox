@@ -20,11 +20,13 @@ export type Contact = {
 export function ContactsList({ contacts }: { contacts: Contact[] }) {
   const router = useRouter();
   const [actionPending, setActionPending] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   // Tapping a contact row opens the chat directly (Telegram/iOS pattern) — no
   // separate "write" button needed.
   const openContact = async (userId: string) => {
     if (actionPending) return;
+    setError("");
     setActionPending(userId);
 
     try {
@@ -38,11 +40,11 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
         const data = await response.json();
         router.push(`/chats/${data.chat.id}`);
       } else {
-        alert("Не удалось открыть чат");
+        setError("Не удалось открыть чат.");
         setActionPending(null);
       }
     } catch {
-      alert("Ошибка сети");
+      setError("Проверьте соединение и повторите.");
       setActionPending(null);
     }
   };
@@ -54,6 +56,12 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
           <h1 className="app-section-title">Контакты</h1>
         </div>
       </header>
+
+      {error ? (
+        <div className="mb-3 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          {error}
+        </div>
+      ) : null}
 
       {contacts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-200">

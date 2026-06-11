@@ -32,12 +32,14 @@ export function IncomingRequestCards({
   onChange?: () => void;
 }) {
   const [hiddenRequestIds, setHiddenRequestIds] = useState<Set<string>>(new Set());
+  const [error, setError] = useState("");
   const visibleRequests = useMemo(
     () => requests.filter((request) => !hiddenRequestIds.has(request.id)),
     [hiddenRequestIds, requests],
   );
 
   async function acceptRequest(id: string) {
+    setError("");
     setHiddenRequestIds((current) => new Set(current).add(id));
     try {
       await readJson(`/api/chat-requests/${id}/accept`, { method: "POST" });
@@ -48,11 +50,12 @@ export function IncomingRequestCards({
         next.delete(id);
         return next;
       });
-      alert(e instanceof Error ? e.message : "Не удалось принять запрос");
+      setError(e instanceof Error ? e.message : "Не удалось принять запрос.");
     }
   }
 
   async function declineRequest(id: string) {
+    setError("");
     setHiddenRequestIds((current) => new Set(current).add(id));
     try {
       await readJson(`/api/chat-requests/${id}/decline`, { method: "POST" });
@@ -63,14 +66,19 @@ export function IncomingRequestCards({
         next.delete(id);
         return next;
       });
-      alert(e instanceof Error ? e.message : "Не удалось отклонить запрос");
+      setError(e instanceof Error ? e.message : "Не удалось отклонить запрос.");
     }
   }
 
   if (visibleRequests.length === 0) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {error ? (
+        <div className="rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          {error}
+        </div>
+      ) : null}
       {visibleRequests.map((request) => {
         const displayName = request.fromUser.profile?.displayName ?? request.fromUser.username;
         const avatarUrl = request.fromUser.profile?.avatarUrl;
@@ -78,37 +86,37 @@ export function IncomingRequestCards({
 
         return (
           <article
-            className="card-premium border-primary/20 bg-primary/5 p-4 transition-smooth"
+            className="rounded-[1.35rem] border border-primary/15 bg-primary/5 p-4 transition-smooth"
             key={request.id}
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20 relative">
+                <div className="h-12 w-12 shrink-0 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/15 relative">
                   {fullAvatarUrl ? (
                     <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
                   ) : (
-                    <span className="text-lg font-black text-primary">{displayName[0]?.toUpperCase()}</span>
+                    <span className="text-lg font-semibold text-primary">{displayName[0]?.toUpperCase()}</span>
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70">Новый запрос</p>
-                  <h3 className="truncate font-black tracking-tight text-foreground">{displayName}</h3>
+                  <p className="text-[13px] font-medium text-primary/75">Новый запрос</p>
+                  <h3 className="truncate text-[17px] font-semibold tracking-tight text-foreground">{displayName}</h3>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
-                  className="h-10 rounded-xl bg-primary px-4 text-xs font-black text-neutral-950 transition-smooth active:scale-[0.97] shadow-lg shadow-primary/20"
+                  className="h-10 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.97]"
                   onClick={() => acceptRequest(request.id)}
                   type="button"
                 >
-                  ПРИНЯТЬ
+                  Принять
                 </button>
                 <button
-                  className="h-10 rounded-xl bg-surface/50 border border-border-subtle px-4 text-xs font-black text-muted transition-smooth active:scale-[0.97] hover:bg-surface"
+                  className="h-10 rounded-full bg-surface/50 border border-border-subtle px-4 text-sm font-semibold text-muted transition-smooth active:scale-[0.97] hover:bg-surface"
                   onClick={() => declineRequest(request.id)}
                   type="button"
                 >
-                  ПРОПУСТИТЬ
+                  Скрыть
                 </button>
               </div>
             </div>
