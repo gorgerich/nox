@@ -5,6 +5,11 @@ import { useSocket } from "@/hooks/useSocket";
 
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
 const CALL_TIMEOUT_MS = 45_000;
+const AUDIO_MAX_BITRATE_BPS = 32_000;
+const VIDEO_MAX_BITRATE_BPS = 1_100_000;
+const VIDEO_FRAME_RATE = 24;
+const VIDEO_WIDTH = 1280;
+const VIDEO_HEIGHT = 720;
 
 type CallStatus = "idle" | "outgoing" | "incoming" | "connecting" | "active" | "ended" | "failed";
 type CallRole = "caller" | "callee";
@@ -37,8 +42,14 @@ type DebugInfo = {
   iceServers: string[];
   outboundBytes: number;
   inboundBytes: number;
+  outboundVideoBytes: number;
+  inboundVideoBytes: number;
   outboundPackets: number;
   inboundPackets: number;
+  outboundKbps: number;
+  inboundKbps: number;
+  outboundMbPerMin: number;
+  inboundMbPerMin: number;
   candidatePair: string | null;
   localCandidateType: string | null;
   remoteCandidateType: string | null;
@@ -158,6 +169,11 @@ function normalizePeerUser(user?: Partial<PeerUser> | null): PeerUser {
   };
 }
 
+function estimateMbPerMinute(bytesDelta: number, elapsedMs: number) {
+  if (elapsedMs <= 0 || bytesDelta <= 0) return 0;
+  return (bytesDelta / (1024 * 1024)) * (60_000 / elapsedMs);
+}
+
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { socket } = useSocket();
   const [call, setCall] = useState<CurrentCall | null>(null);
@@ -183,8 +199,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     iceServers: [],
     outboundBytes: 0,
     inboundBytes: 0,
+    outboundVideoBytes: 0,
+    inboundVideoBytes: 0,
     outboundPackets: 0,
     inboundPackets: 0,
+    outboundKbps: 0,
+    inboundKbps: 0,
+    outboundMbPerMin: 0,
+    inboundMbPerMin: 0,
     candidatePair: null,
     localCandidateType: null,
     remoteCandidateType: null,
@@ -212,6 +234,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const remoteAudioPlaybackOkRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastStatsSampleRef = useRef<{
+    at: number;
+    outboundBytes: number;
+    inboundBytes: number;
+  } | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const keepAliveAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -232,6 +259,30 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const updateDebugInfo = useCallback((updates: Partial<DebugInfo>) => {
     setDebugInfo(prev => ({ ...prev, ...updates }));
   }, []);
+
+  const tuneSenderBandwidth = useCallback((sender: RTCRtpSender, kind: "audio" | "video", source: string) => {
+    const parameters = sender.getParameters();
+    parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+    const encoding = parameters.encodings[0];
+
+    if (kind === "audio") {
+      encoding.maxBitrate = AUDIO_MAX_BITRATE_BPS;
+    } else {
+      encoding.maxBitrate = VIDEO_MAX_BITRATE_BPS;
+      encoding.maxFramerate = VIDEO_FRAME_RATE;
+    }
+
+    void sender.setParameters(parameters).then(() => {
+      debugCall("sender bandwidth tuned", {
+        source,
+        kind,
+        maxBitrate: encoding.maxBitrate,
+        maxFramerate: encoding.maxFramerate ?? null,
+      });
+    }).catch((tuneError) => {
+      debugCall("sender bandwidth tune skipped", { source, kind, error: String(tuneError) });
+    });
+  }, [debugCall]);
 
   const clearCallTimer = useCallback(() => {
     if (timeoutRef.current) {
@@ -324,6 +375,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         const stats = await pc.getStats();
         let outboundBytes = 0;
         let inboundBytes = 0;
+        let outboundVideoBytes = 0;
+        let inboundVideoBytes = 0;
         let outboundPackets = 0;
         let inboundPackets = 0;
         let candidatePair = null;
@@ -332,12 +385,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
         stats.forEach((report) => {
           if (report.type === "outbound-rtp" && report.kind === "audio") {
-            outboundBytes = report.bytesSent || 0;
+            outboundBytes += report.bytesSent || 0;
             outboundPackets = report.packetsSent || 0;
           }
+          if (report.type === "outbound-rtp" && report.kind === "video") {
+            outboundVideoBytes += report.bytesSent || 0;
+            outboundBytes += report.bytesSent || 0;
+          }
           if (report.type === "inbound-rtp" && report.kind === "audio") {
-            inboundBytes = report.bytesReceived || 0;
+            inboundBytes += report.bytesReceived || 0;
             inboundPackets = report.packetsReceived || 0;
+          }
+          if (report.type === "inbound-rtp" && report.kind === "video") {
+            inboundVideoBytes += report.bytesReceived || 0;
+            inboundBytes += report.bytesReceived || 0;
           }
           if (report.type === "transport") {
             const selectedPairId = report.selectedCandidatePairId;
@@ -354,11 +415,26 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
+        const now = Date.now();
+        const previous = lastStatsSampleRef.current;
+        const elapsedMs = previous ? now - previous.at : 0;
+        const outboundDelta = previous ? Math.max(0, outboundBytes - previous.outboundBytes) : 0;
+        const inboundDelta = previous ? Math.max(0, inboundBytes - previous.inboundBytes) : 0;
+        const outboundKbps = elapsedMs > 0 ? (outboundDelta * 8) / elapsedMs : 0;
+        const inboundKbps = elapsedMs > 0 ? (inboundDelta * 8) / elapsedMs : 0;
+        lastStatsSampleRef.current = { at: now, outboundBytes, inboundBytes };
+
         updateDebugInfo({
           outboundBytes,
           inboundBytes,
+          outboundVideoBytes,
+          inboundVideoBytes,
           outboundPackets,
           inboundPackets,
+          outboundKbps,
+          inboundKbps,
+          outboundMbPerMin: estimateMbPerMinute(outboundDelta, elapsedMs),
+          inboundMbPerMin: estimateMbPerMinute(inboundDelta, elapsedMs),
           candidatePair,
           localCandidateType,
           remoteCandidateType,
@@ -426,8 +502,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       remoteStreamExists: false,
       outboundBytes: 0,
       inboundBytes: 0,
+      outboundVideoBytes: 0,
+      inboundVideoBytes: 0,
       outboundPackets: 0,
       inboundPackets: 0,
+      outboundKbps: 0,
+      inboundKbps: 0,
+      outboundMbPerMin: 0,
+      inboundMbPerMin: 0,
       candidatePair: null,
       localCandidateType: null,
       remoteCandidateType: null,
@@ -435,6 +517,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       audioPlayStatus: "idle",
       pushSource: null,
     });
+    lastStatsSampleRef.current = null;
   }, [clearCallTimer, debugCall, refreshMediaSession, releaseWakeLock, stopStatsInterval, updateDebugInfo]);
 
   const failCall = useCallback((message: string) => {
@@ -635,9 +718,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000,
         },
         video: withVideo
-          ? { facingMode: cameraFacingModeRef.current, width: { ideal: 1280 }, height: { ideal: 720 } }
+          ? {
+              facingMode: cameraFacingModeRef.current,
+              width: { ideal: VIDEO_WIDTH },
+              height: { ideal: VIDEO_HEIGHT },
+              frameRate: { ideal: VIDEO_FRAME_RATE, max: VIDEO_FRAME_RATE },
+            }
           : false,
       });
       const audioTracks = stream.getAudioTracks();
@@ -683,11 +773,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     if (existingSender) {
       debugCall("replaceTrack on existing audio sender", { source });
       void existingSender.replaceTrack(audioTrack);
+      tuneSenderBandwidth(existingSender, "audio", source);
     } else {
       // addTrack creates a sendrecv transceiver (caller) or reuses the recvonly one
       // created by setRemoteDescription(offer) and flips it to sendrecv (callee).
       debugCall("addTrack", { source });
-      pc.addTrack(audioTrack, stream);
+      const sender = pc.addTrack(audioTrack, stream);
+      tuneSenderBandwidth(sender, "audio", source);
     }
 
     // Add the video track too (if this is a video call).
@@ -696,8 +788,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const existingVideoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
       if (existingVideoSender) {
         void existingVideoSender.replaceTrack(videoTrack);
+        tuneSenderBandwidth(existingVideoSender, "video", source);
       } else {
-        pc.addTrack(videoTrack, stream);
+        const sender = pc.addTrack(videoTrack, stream);
+        tuneSenderBandwidth(sender, "video", source);
       }
       debugCall("video track added", { source });
     }
@@ -714,7 +808,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       source,
       count: pc.getSenders().filter((sender) => sender.track?.kind === "audio").length,
     });
-  }, [debugCall]);
+  }, [debugCall, tuneSenderBandwidth]);
 
   const startCall = useCallback(async (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }, options?: { video?: boolean }) => {
     if (statusRef.current !== "idle") return;
@@ -879,7 +973,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     try {
       const nextStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: nextFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: nextFacingMode,
+          width: { ideal: VIDEO_WIDTH },
+          height: { ideal: VIDEO_HEIGHT },
+          frameRate: { ideal: VIDEO_FRAME_RATE, max: VIDEO_FRAME_RATE },
+        },
       });
       const nextVideoTrack = nextStream.getVideoTracks()[0];
       if (!nextVideoTrack) {
@@ -891,6 +990,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const videoSender = pc.getSenders().find((sender) => sender.track?.kind === "video");
       if (videoSender) {
         await videoSender.replaceTrack(nextVideoTrack);
+        tuneSenderBandwidth(videoSender, "video", "switchCamera");
       }
 
       stream.getVideoTracks().forEach((track) => {
@@ -908,7 +1008,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setError("Не удалось переключить камеру");
       setTimeout(() => setError(null), 2500);
     }
-  }, [debugCall, isCameraOff, isScreenSharing, isVideo]);
+  }, [debugCall, isCameraOff, isScreenSharing, isVideo, tuneSenderBandwidth]);
 
   const restoreCameraInLocalStream = useCallback((cam: MediaStreamTrack) => {
     const ls = localStreamRef.current;
@@ -935,6 +1035,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const cam = cameraTrackRef.current;
       if (cam && cam.readyState === "live") {
         await videoSender.replaceTrack(cam).catch(() => undefined);
+        tuneSenderBandwidth(videoSender, "video", "restoreCamera");
         restoreCameraInLocalStream(cam);
       }
       setIsScreenSharing(false);
@@ -948,6 +1049,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       cameraTrackRef.current = videoSender.track ?? null; // keep camera alive for restore
       screenTrackRef.current = screenTrack;
       await videoSender.replaceTrack(screenTrack);
+      tuneSenderBandwidth(videoSender, "video", "screenShare");
       const ls = localStreamRef.current;
       if (ls) {
         ls.getVideoTracks().forEach((t) => ls.removeTrack(t));
@@ -959,7 +1061,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         screenTrackRef.current = null;
         const cam = cameraTrackRef.current;
         if (cam && cam.readyState === "live") {
-          void videoSender.replaceTrack(cam).catch(() => undefined);
+          void videoSender.replaceTrack(cam).then(() => {
+            tuneSenderBandwidth(videoSender, "video", "screenShareEnded");
+          }).catch(() => undefined);
           restoreCameraInLocalStream(cam);
         }
         setIsScreenSharing(false);
@@ -968,7 +1072,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // user cancelled the share picker / denied — no-op
     }
-  }, [restoreCameraInLocalStream]);
+  }, [restoreCameraInLocalStream, tuneSenderBandwidth]);
 
   const markRemoteAudioPlayback = useCallback((state: {
     srcObjectAssigned: boolean;

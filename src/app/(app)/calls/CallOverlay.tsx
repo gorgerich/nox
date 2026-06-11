@@ -310,9 +310,15 @@ export function CallOverlay() {
           <div className="mt-1 border-t border-green-500/30 pt-1">
             Out: {(debugInfo.outboundBytes / 1024).toFixed(1)} KB ({debugInfo.outboundPackets})
           </div>
+          <div>Out video: {(debugInfo.outboundVideoBytes / 1024).toFixed(1)} KB</div>
           <div>
             In: {(debugInfo.inboundBytes / 1024).toFixed(1)} KB ({debugInfo.inboundPackets})
           </div>
+          <div>In video: {(debugInfo.inboundVideoBytes / 1024).toFixed(1)} KB</div>
+          <div>Rate out: {debugInfo.outboundKbps.toFixed(0)} kbps</div>
+          <div>Rate in: {debugInfo.inboundKbps.toFixed(0)} kbps</div>
+          <div>MB/min out: {debugInfo.outboundMbPerMin.toFixed(2)}</div>
+          <div>MB/min in: {debugInfo.inboundMbPerMin.toFixed(2)}</div>
           <div className="mt-1 border-t border-green-500/30 pt-1">
             Pair: {debugInfo.candidatePair || "N/A"}
           </div>
