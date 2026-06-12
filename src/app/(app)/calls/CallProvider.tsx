@@ -261,27 +261,32 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const tuneSenderBandwidth = useCallback((sender: RTCRtpSender, kind: "audio" | "video", source: string) => {
-    const parameters = sender.getParameters();
-    parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
-    const encoding = parameters.encodings[0];
-
-    if (kind === "audio") {
-      encoding.maxBitrate = AUDIO_MAX_BITRATE_BPS;
-    } else {
-      encoding.maxBitrate = VIDEO_MAX_BITRATE_BPS;
-      encoding.maxFramerate = VIDEO_FRAME_RATE;
-    }
-
-    void sender.setParameters(parameters).then(() => {
-      debugCall("sender bandwidth tuned", {
-        source,
-        kind,
-        maxBitrate: encoding.maxBitrate,
-        maxFramerate: encoding.maxFramerate ?? null,
+    // Best-effort bitrate cap. Must NEVER break the media path: wrap getParameters
+    // (can throw) and only mutate EXISTING encodings. Fabricating an empty encoding
+    // (`[{}]`) makes setParameters reject on some browsers and, on the callee
+    // reusing a recvonly transceiver, could leave the sender mis-configured and the
+    // call stuck "connecting" → failCall. If there are no encodings yet, skip.
+    try {
+      const parameters = sender.getParameters();
+      if (!parameters.encodings || parameters.encodings.length === 0) {
+        debugCall("sender bandwidth tune skipped (no encodings)", { source, kind });
+        return;
+      }
+      const encoding = parameters.encodings[0];
+      if (kind === "audio") {
+        encoding.maxBitrate = AUDIO_MAX_BITRATE_BPS;
+      } else {
+        encoding.maxBitrate = VIDEO_MAX_BITRATE_BPS;
+        encoding.maxFramerate = VIDEO_FRAME_RATE;
+      }
+      void sender.setParameters(parameters).then(() => {
+        debugCall("sender bandwidth tuned", { source, kind, maxBitrate: encoding.maxBitrate });
+      }).catch((tuneError) => {
+        debugCall("sender bandwidth tune skipped", { source, kind, error: String(tuneError) });
       });
-    }).catch((tuneError) => {
-      debugCall("sender bandwidth tune skipped", { source, kind, error: String(tuneError) });
-    });
+    } catch (tuneError) {
+      debugCall("sender bandwidth tune threw", { source, kind, error: String(tuneError) });
+    }
   }, [debugCall]);
 
   const clearCallTimer = useCallback(() => {
