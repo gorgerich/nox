@@ -542,7 +542,7 @@ export function ChatsPageClient({
           className="absolute top-0 left-0 right-0 flex justify-center pt-2 pointer-events-none z-[100]"
           style={{ transform: `translateY(${Math.min(40, (pullProgress / 100) * 60)}px)`, opacity: pullProgress / 100 }}
         >
-          <div className={`glass-panel rounded-full p-2 transition-smooth ${isRefreshing ? "animate-spin" : ""}`}>
+          <div className={`premium-glass rounded-full p-2 transition-smooth ${isRefreshing ? "animate-spin" : ""}`}>
              <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ transform: `rotate(${pullProgress * 3.6}deg)` }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
              </svg>
@@ -554,7 +554,7 @@ export function ChatsPageClient({
         <h1 className="app-section-title">Чаты</h1>
         <div className="flex items-center gap-1">
           <button
-            className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors active:opacity-60 hover:bg-surface-muted fast-tap"
+            className="touch-target fluid-hit flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-muted fast-tap"
             onClick={() => setPlusMenuOpen(true)}
             aria-label="Новое"
           >
@@ -571,13 +571,13 @@ export function ChatsPageClient({
           onClick={() => setPlusMenuOpen(false)}
         >
           <div
-            className="glass-panel w-full max-w-md rounded-[1.75rem] p-2 animate-in slide-in-from-bottom-2"
+            className="premium-glass w-full max-w-md rounded-[1.75rem] p-2 animate-in slide-in-from-bottom-2"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => { setPlusMenuOpen(false); router.push("/chats/new"); }}
-              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
+              className="fluid-hit flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-surface-muted"
             >
               <Search className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
               <span className="text-[16px] font-medium text-foreground">Найти человека</span>
@@ -585,7 +585,7 @@ export function ChatsPageClient({
             <button
               type="button"
               onClick={() => { setPlusMenuOpen(false); setIsGroupPickerOpen(true); }}
-              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
+              className="fluid-hit flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-surface-muted"
             >
               <Users className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
               <span className="text-[16px] font-medium text-foreground">Создать групповой чат</span>
@@ -593,7 +593,7 @@ export function ChatsPageClient({
             <button
               type="button"
               onClick={() => { void createUserInvite(); }}
-              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors active:bg-surface-muted hover:bg-surface-muted"
+              className="fluid-hit flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-surface-muted"
             >
               <UserPlus className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
               <span className="text-[16px] font-medium text-foreground">Пригласить человека</span>
@@ -601,7 +601,7 @@ export function ChatsPageClient({
             <button
               type="button"
               onClick={() => setPlusMenuOpen(false)}
-              className="mt-1 w-full rounded-2xl px-4 py-3.5 text-[16px] font-semibold text-muted transition-colors active:bg-surface-muted"
+              className="fluid-hit mt-1 w-full rounded-2xl px-4 py-3.5 text-[16px] font-semibold text-muted transition-colors hover:bg-surface-muted"
             >
               Отмена
             </button>
@@ -620,7 +620,7 @@ export function ChatsPageClient({
           }}
         >
           <div
-            className="glass-panel w-full max-w-md rounded-[1.75rem] p-5 animate-in slide-in-from-bottom-2"
+            className="premium-glass w-full max-w-md rounded-[1.75rem] p-5 animate-in slide-in-from-bottom-2"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border" />
@@ -661,7 +661,7 @@ export function ChatsPageClient({
                   <button
                     type="button"
                     onClick={() => { void copyInviteLink(); }}
-                    className="fast-tap flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-surface-muted text-sm font-semibold text-foreground transition-smooth active:scale-95"
+                    className="fast-tap fluid-hit flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-surface-muted text-sm font-semibold text-foreground transition-smooth"
                   >
                     {inviteCopied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                     {inviteCopied ? "Скопировано" : "Копировать"}
@@ -669,7 +669,7 @@ export function ChatsPageClient({
                   <button
                     type="button"
                     onClick={() => { void shareInviteLink(); }}
-                    className="fast-tap flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95"
+                    className="fast-tap liquid-sheen fluid-hit flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth"
                   >
                     <Send className="h-4 w-4" />
                     Отправить
@@ -683,7 +683,7 @@ export function ChatsPageClient({
                   setInviteSheet(null);
                   setInviteError("");
                 }}
-                className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-surface-muted text-sm font-semibold text-foreground transition-smooth active:scale-95"
+                className="fast-tap fluid-hit flex h-12 w-full items-center justify-center rounded-full bg-surface-muted text-sm font-semibold text-foreground transition-smooth"
               >
                 Закрыть
               </button>
@@ -712,7 +712,7 @@ export function ChatsPageClient({
               key={folder.key}
               type="button"
               onClick={() => setSelectedFolder(folder.key)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-[14px] font-medium transition-colors fast-tap ${
+              className={`fluid-hit shrink-0 rounded-full px-4 py-1.5 text-[14px] font-medium transition-colors fast-tap ${
                 active ? "bg-primary/12 text-primary" : "text-muted/70 hover:bg-surface-muted"
               }`}
             >
@@ -804,7 +804,7 @@ export function ChatsPageClient({
 
       {muteSheetChat ? (
         <div className="fixed inset-0 z-[450] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="glass-panel w-full max-w-md rounded-[2rem] p-5">
+          <div className="premium-glass w-full max-w-md rounded-[2rem] p-5">
             <div className="mb-4 h-1.5 w-12 rounded-full bg-border mx-auto" />
             <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">Отключить уведомления</h2>
             <p className="mb-5 text-sm text-muted">Выберите срок для этого чата.</p>
@@ -823,7 +823,7 @@ export function ChatsPageClient({
               <button
                 type="button"
                 onClick={() => setMuteSheetChat(null)}
-                className="mt-2 w-full rounded-full px-4 py-3.5 text-sm font-semibold text-muted transition-smooth active:scale-[0.98]"
+                className="fluid-hit mt-2 w-full rounded-full px-4 py-3.5 text-sm font-semibold text-muted transition-smooth hover:bg-surface-muted"
               >
                 Отмена
               </button>

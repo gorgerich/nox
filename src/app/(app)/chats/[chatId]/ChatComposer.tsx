@@ -171,8 +171,7 @@ export function ChatComposer({
   if (isLocked) {
     return (
       <div
-        className="border-t px-4 py-3 safe-bottom"
-        style={{ backgroundColor: "var(--chat-composer-bg)", borderColor: "var(--border-subtle)" }}
+        className="composer-liquid border-t px-4 py-3 safe-bottom"
       >
         <div className="rounded-xl bg-foreground/5 p-3 text-center">
           <p className="text-sm font-medium text-muted">Чат закрыт для участников</p>
@@ -183,8 +182,7 @@ export function ChatComposer({
 
   return (
       <div 
-        className="border-t px-3 py-2 transition-smooth safe-bottom"
-        style={{ backgroundColor: "var(--chat-composer-bg)", borderColor: "var(--border-subtle)", color: "var(--chat-composer-fg)" }}
+        className="composer-liquid border-t px-3 py-2 transition-smooth safe-bottom"
       >
       {(replyingTo || editingTo) && (
         <div className="mb-2 flex flex-col gap-2">
@@ -220,7 +218,7 @@ export function ChatComposer({
             type="button"
             aria-label="Прикрепить файл"
             onClick={() => fileInputRef.current?.click()}
-            className="touch-target flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/86 text-foreground shadow-sm transition-smooth hover:text-primary active:scale-95 dark:bg-white/10 dark:text-white"
+            className="premium-glass liquid-sheen touch-target fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-foreground hover:text-primary dark:text-white"
           >
             <Paperclip className="h-6 w-6" strokeWidth={2.35} />
           </button>
@@ -251,18 +249,18 @@ export function ChatComposer({
             </div>
           ) : (
             <div 
-              className="relative flex items-end rounded-full border border-white/70 bg-white/86 pl-5 pr-1 transition-smooth focus-within:border-primary/35 dark:border-white/10 dark:bg-white/10"
+              className="premium-glass relative flex items-end rounded-full pl-5 pr-1 transition-smooth focus-within:border-primary/35"
             >
               {showEmoji && (
                 <div
-                  className="absolute bottom-[calc(100%+8px)] left-0 z-30 grid w-[min(20rem,calc(100vw-2rem))] grid-cols-8 gap-1 rounded-xl border border-border-subtle bg-surface-elevated p-3 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150"
+                  className="premium-glass absolute bottom-[calc(100%+8px)] left-0 z-30 grid w-[min(20rem,calc(100vw-2rem))] grid-cols-8 gap-1 rounded-xl p-3 animate-in fade-in slide-in-from-bottom-2 duration-150"
                 >
                   {EMOJIS.map((emoji) => (
                     <button
                       key={emoji}
                       type="button"
                       onClick={() => insertEmoji(emoji)}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-xl transition-smooth hover:bg-foreground/10 active:scale-90"
+                      className="fluid-hit flex h-9 w-9 items-center justify-center rounded-lg text-xl transition-smooth hover:bg-foreground/10"
                     >
                       {emoji}
                     </button>
@@ -273,7 +271,6 @@ export function ChatComposer({
               <textarea
                 ref={inputRef}
                 className="max-h-32 min-h-12 w-full resize-none bg-transparent py-3.5 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
-                style={{ color: "var(--chat-input-fg)" }}
                 placeholder="Сообщение..."
                 rows={1}
                 value={text}
@@ -297,7 +294,7 @@ export function ChatComposer({
                   setShowEmoji((v) => !v);
                   setShowCaptureMenu(false);
                 }}
-                className={`touch-target mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
+                className={`touch-target fluid-hit mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
                 title="Эмодзи"
               >
                 <Smile className="h-6 w-6" strokeWidth={2.1} />
@@ -308,14 +305,14 @@ export function ChatComposer({
 
         <div className="relative">
           {showCaptureMenu && !text.trim() && !isRecording ? (
-            <div className="absolute bottom-[calc(100%+10px)] right-0 z-30 flex min-w-44 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated p-1 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="premium-glass absolute bottom-[calc(100%+10px)] right-0 z-30 flex min-w-44 flex-col overflow-hidden rounded-2xl p-1 animate-in fade-in slide-in-from-bottom-2 duration-150">
               <button
                 type="button"
                 onClick={() => {
                   setShowCaptureMenu(false);
                   onVoiceStart();
                 }}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5 active:scale-[0.98]"
+                className="fluid-hit flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5"
               >
                 <Mic className="h-5 w-5 text-primary" strokeWidth={2.2} />
                 Голосовое
@@ -326,7 +323,7 @@ export function ChatComposer({
                   setShowCaptureMenu(false);
                   setShowVideoRecorder(true);
                 }}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5 active:scale-[0.98]"
+                className="fluid-hit flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5"
               >
                 <Video className="h-5 w-5 text-primary" strokeWidth={2.2} />
                 Кружок
@@ -342,8 +339,8 @@ export function ChatComposer({
               setShowEmoji(false);
             }}
             disabled={pending && !text.trim() && !isRecording}
-            className={`touch-target flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-smooth active:scale-95 ${
-              isRecording || text.trim() ? "shadow-sm" : "bg-white/86 text-foreground shadow-sm dark:bg-white/10 dark:text-white"
+            className={`touch-target liquid-sheen fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-smooth ${
+              isRecording || text.trim() ? "shadow-sm" : "premium-glass text-foreground dark:text-white"
             } disabled:opacity-45`}
             style={{
               backgroundColor: isRecording

@@ -289,9 +289,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
           href={`/chats/${chat.id}`}
           prefetch={true}
           onClick={handleOpenChat}
-          className="group relative flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 active:bg-surface-hover"
+          className="group surface-rise fluid-hit relative flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 hover:bg-surface-muted/55 active:bg-surface-hover"
           style={{
-            backgroundColor: pinned || chat.isSelfChat ? "var(--surface-muted)" : "var(--background)",
+            backgroundColor: pinned || chat.isSelfChat ? "var(--surface-muted)" : undefined,
           }}
         >
           <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">

@@ -107,7 +107,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
             type="button"
             aria-label="Назад"
             onClick={() => router.back()}
-            className="fast-tap flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
+            className="fast-tap fluid-hit flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10"
           >
             <ArrowLeft className="h-6 w-6" strokeWidth={2.4} />
           </button>
@@ -118,7 +118,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Поиск"
-              className="h-11 w-full rounded-full border border-border-subtle bg-surface px-11 text-[17px] outline-none transition-smooth placeholder:text-muted/60 focus:border-primary/30 focus:ring-2 focus:ring-primary/15"
+              className="premium-glass h-11 w-full rounded-full px-11 text-[17px] outline-none transition-smooth placeholder:text-muted/60 focus:border-primary/30 focus:ring-2 focus:ring-primary/15"
               type="search"
               enterKeyHint="search"
             />
@@ -127,7 +127,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                 type="button"
                 aria-label="Очистить"
                 onClick={() => setQuery("")}
-                className="fast-tap absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-foreground/8 text-muted"
+                className="fast-tap fluid-hit absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-foreground/8 text-muted"
               >
                 <X className="h-4 w-4" strokeWidth={2.4} />
               </button>
@@ -141,8 +141,8 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
               const title = chatTitle(chat);
               const avatarUrl = chatAvatar(chat);
               return (
-                <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap flex w-20 shrink-0 flex-col items-center gap-2 text-center active:scale-95">
-                  <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xl font-semibold text-primary">
+                <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex w-20 shrink-0 flex-col items-center gap-2 text-center">
+                  <div className="premium-glass relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold text-primary">
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={avatarUrl.startsWith("http") ? avatarUrl : `/api/avatars/${avatarUrl}`} alt="" className="h-full w-full object-cover" />
@@ -160,7 +160,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
         {query.trim() ? (
           <section className="mt-6">
             <h2 className="px-5 text-[13px] font-medium uppercase tracking-normal text-muted">Результаты</h2>
-            <div className="mt-2 overflow-hidden border-y border-border-subtle bg-surface">
+            <div className="premium-glass mx-4 mt-2 overflow-hidden rounded-[1.35rem]">
               {results.length > 0 ? results.map((chat) => (
                 <ChatResultRow key={chat.id} chat={chat} />
               )) : (
@@ -179,13 +179,13 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                   </button>
                 ) : null}
               </div>
-              <div className="mt-2 overflow-hidden border-y border-border-subtle bg-surface">
+              <div className="premium-glass mx-4 mt-2 overflow-hidden rounded-[1.35rem]">
                 {history.length > 0 ? history.map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => setQuery(item)}
-                    className="fast-tap flex w-full items-center gap-3 border-b border-border-subtle px-5 py-3 text-left last:border-b-0 active:bg-foreground/5"
+                    className="fast-tap fluid-hit flex w-full items-center gap-3 border-b border-border-subtle/55 px-5 py-3 text-left last:border-b-0 hover:bg-foreground/5"
                   >
                     <Search className="h-5 w-5 shrink-0 text-muted" strokeWidth={2.1} />
                     <span className="min-w-0 flex-1 truncate text-[16px] font-medium">{item}</span>
@@ -199,12 +199,12 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
             {incomingRequests.length > 0 ? (
               <section className="mt-6">
                 <h2 className="px-5 text-[13px] font-medium uppercase tracking-normal text-muted">Запросы</h2>
-                <div className="mt-2 overflow-hidden border-y border-border-subtle bg-surface">
+                <div className="premium-glass mx-4 mt-2 overflow-hidden rounded-[1.35rem]">
                   {incomingRequests.slice(0, 6).map((request) => {
                     const displayName = request.fromUser.profile?.displayName ?? request.fromUser.username;
                     const avatarUrl = request.fromUser.profile?.avatarUrl;
                     return (
-                      <Link key={request.id} href="/chats/new" className="fast-tap flex items-center gap-3 border-b border-border-subtle px-5 py-3 last:border-b-0 active:bg-foreground/5">
+                      <Link key={request.id} href="/chats/new" className="fast-tap fluid-hit flex items-center gap-3 border-b border-border-subtle/55 px-5 py-3 last:border-b-0 hover:bg-foreground/5">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-semibold text-primary">
                           {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -234,7 +234,7 @@ function ChatResultRow({ chat }: { chat: ChatListItem }) {
   const title = chatTitle(chat);
   const avatarUrl = chatAvatar(chat);
   return (
-    <Link href={`/chats/${chat.id}`} className="fast-tap flex items-center gap-3 border-b border-border-subtle px-5 py-3 last:border-b-0 active:bg-foreground/5">
+    <Link href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex items-center gap-3 border-b border-border-subtle/55 px-5 py-3 last:border-b-0 hover:bg-foreground/5">
       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-semibold text-primary">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

@@ -41,7 +41,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
     >
       <div className="pointer-events-auto mx-auto flex w-full max-w-[21.5rem] items-center gap-1">
         <div
-          className="grid min-w-0 flex-1 rounded-full border border-white/65 bg-white/72 p-0.5 shadow-[0_8px_22px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/66"
+          className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-0.5"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
         >
           {tabs.map((tab) => {
@@ -55,7 +55,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 key={tab.href}
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
-                  "fast-tap flex min-h-10 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1 transition-all duration-180",
+                  "fast-tap fluid-hit flex min-h-10 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1",
                   isActive ? "bg-white/72 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_1px_5px_rgba(15,23,42,0.08)] dark:bg-white/12 dark:shadow-none" : "text-foreground/72 hover:bg-white/40 dark:text-white/70 dark:hover:bg-white/[0.07]",
                 )}
                 href={tab.href}
@@ -77,7 +77,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <Link
           aria-label="Поиск"
           className={clsx(
-            "fast-tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/65 bg-white/72 text-foreground shadow-[0_8px_22px_rgba(15,23,42,0.10)] backdrop-blur-xl transition-all duration-180 active:scale-95 dark:border-white/10 dark:bg-neutral-950/66 dark:text-white",
+            "premium-glass dock-liquid fast-tap fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
             pathname === "/chats/search" && "text-primary",
           )}
           href="/chats/search"
