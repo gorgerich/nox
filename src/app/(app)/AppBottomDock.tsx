@@ -39,9 +39,9 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.35rem)" }}
       aria-label="Нижняя навигация"
     >
-      <div className="pointer-events-auto mx-auto flex w-full max-w-[21.5rem] items-center gap-1">
+      <div className="pointer-events-auto mx-auto flex w-full max-w-[20.75rem] items-center gap-1.5">
         <div
-          className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-0.5"
+          className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-1"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
         >
           {tabs.map((tab) => {
@@ -55,21 +55,21 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 key={tab.href}
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
-                  "fast-tap fluid-hit flex min-h-10 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1",
-                  isActive ? "bg-white/72 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_1px_5px_rgba(15,23,42,0.08)] dark:bg-white/12 dark:shadow-none" : "text-foreground/72 hover:bg-white/40 dark:text-white/70 dark:hover:bg-white/[0.07]",
+                  "fast-tap fluid-hit flex min-h-9 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1",
+                  isActive ? "bg-[var(--dock-active-pill)] text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
                 )}
                 href={tab.href}
                 prefetch={true}
               >
                 <span className="relative">
-                  <Icon className="h-[1.15rem] w-[1.15rem]" strokeWidth={isActive ? 2.6 : 2.35} />
+                  <Icon className="h-[1.1rem] w-[1.1rem]" strokeWidth={isActive ? 2.55 : 2.25} />
                   {shouldShowBadge ? (
                     <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
                       {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                     </span>
                   ) : null}
                 </span>
-                <span className="truncate text-[8.5px] font-semibold leading-none tracking-normal">{tab.label}</span>
+                <span className="truncate text-[8px] font-semibold leading-none tracking-normal">{tab.label}</span>
               </Link>
             );
           })}
@@ -77,7 +77,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <Link
           aria-label="Поиск"
           className={clsx(
-            "premium-glass dock-liquid fast-tap fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
+            "premium-glass dock-liquid fast-tap fluid-hit flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
             pathname === "/chats/search" && "text-primary",
           )}
           href="/chats/search"

@@ -669,7 +669,7 @@ export function ChatsPageClient({
                   <button
                     type="button"
                     onClick={() => { void shareInviteLink(); }}
-                    className="fast-tap liquid-sheen fluid-hit flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth"
+                    className="fast-tap fluid-hit flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth"
                   >
                     <Send className="h-4 w-4" />
                     Отправить

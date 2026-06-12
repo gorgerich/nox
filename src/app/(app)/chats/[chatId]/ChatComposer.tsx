@@ -218,9 +218,9 @@ export function ChatComposer({
             type="button"
             aria-label="Прикрепить файл"
             onClick={() => fileInputRef.current?.click()}
-            className="premium-glass liquid-sheen touch-target fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-foreground hover:text-primary dark:text-white"
+            className="premium-glass touch-target fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground hover:text-primary dark:text-white"
           >
-            <Paperclip className="h-6 w-6" strokeWidth={2.35} />
+            <Paperclip className="h-5.5 w-5.5" strokeWidth={2.25} />
           </button>
         )}
 
@@ -249,7 +249,7 @@ export function ChatComposer({
             </div>
           ) : (
             <div 
-              className="premium-glass relative flex items-end rounded-full pl-5 pr-1 transition-smooth focus-within:border-primary/35"
+              className="premium-glass relative flex items-end rounded-full pl-4 pr-1 transition-smooth focus-within:border-primary/35"
             >
               {showEmoji && (
                 <div
@@ -270,7 +270,7 @@ export function ChatComposer({
 
               <textarea
                 ref={inputRef}
-                className="max-h-32 min-h-12 w-full resize-none bg-transparent py-3.5 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
+                className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."
                 rows={1}
                 value={text}
@@ -294,10 +294,10 @@ export function ChatComposer({
                   setShowEmoji((v) => !v);
                   setShowCaptureMenu(false);
                 }}
-                className={`touch-target fluid-hit mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
+                className={`touch-target fluid-hit mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-smooth ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
                 title="Эмодзи"
               >
-                <Smile className="h-6 w-6" strokeWidth={2.1} />
+                <Smile className="h-5.5 w-5.5" strokeWidth={2.05} />
               </button>
             </div>
           )}
@@ -339,7 +339,7 @@ export function ChatComposer({
               setShowEmoji(false);
             }}
             disabled={pending && !text.trim() && !isRecording}
-            className={`touch-target liquid-sheen fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-smooth ${
+            className={`touch-target fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth ${
               isRecording || text.trim() ? "shadow-sm" : "premium-glass text-foreground dark:text-white"
             } disabled:opacity-45`}
             style={{
@@ -356,7 +356,7 @@ export function ChatComposer({
             ) : (text.trim()) ? (
               <Send className="ml-0.5 h-5 w-5" strokeWidth={2.3} />
             ) : (
-              <Mic className="h-6 w-6" strokeWidth={2.25} />
+              <Mic className="h-5.5 w-5.5" strokeWidth={2.2} />
             )}
           </button>
         </div>
