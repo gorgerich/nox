@@ -225,6 +225,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
 
   const leftActionsVisible = translateX > 8;
   const rightActionsVisible = translateX < -8;
+  const hasUnread = chat.unreadCount > 0;
 
   return (
     <div ref={rowRef} className="relative isolate overflow-hidden">
@@ -289,31 +290,34 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
           href={`/chats/${chat.id}`}
           prefetch={true}
           onClick={handleOpenChat}
-          className="group surface-rise fluid-hit relative flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 hover:bg-surface-muted/55 active:bg-surface-hover"
+          className={`group surface-rise fluid-hit relative flex w-full items-center gap-3 px-4 py-1.5 text-left transition-colors duration-100 hover:bg-surface-muted/55 active:bg-surface-hover ${
+            hasUnread ? "bg-primary/[0.035]" : ""
+          }`}
           style={{
             backgroundColor: pinned || chat.isSelfChat ? "var(--surface-muted)" : undefined,
           }}
         >
-          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
+          <div className="relative flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
             {chat.isSelfChat ? (
               <div className="flex h-full w-full items-center justify-center bg-primary/15 text-primary">
-                <Bookmark className="h-6 w-6" />
+                <Bookmark className="h-5.5 w-5.5" />
               </div>
             ) : fullAvatarUrl && !avatarFailed ? (
               <Image src={fullAvatarUrl} alt={title} fill className="object-cover" onError={() => setAvatarFailed(true)} />
             ) : (
-              <span className="text-xl font-semibold uppercase text-primary">{title[0]}</span>
+              <span className="text-lg font-semibold uppercase text-primary">{title[0]}</span>
             )}
           </div>
-          <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-2 group-last:border-none">
+          <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/35 py-1.5 group-last:border-none">
             <div className="mb-0.5 flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                <p className="truncate text-[16px] font-semibold text-foreground">{title}</p>
+                {hasUnread ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" /> : null}
+                <p className={`truncate text-[15px] text-foreground ${hasUnread ? "font-bold" : "font-semibold"}`}>{title}</p>
                 {muted ? (
                   <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/50" />
                 ) : null}
               </div>
-              <span className="shrink-0 text-[13px] font-normal tabular-nums text-muted/60">
+              <span className={`shrink-0 text-[12px] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}>
                 {formatChatTime(chat.lastMessage?.createdAt ?? chat.createdAt)}
               </span>
             </div>
@@ -328,15 +332,15 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                     <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} aria-label="Отправлено" />
                   )
                 ) : null}
-                <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
+                <p className={`min-w-0 flex-1 truncate text-[13.5px] leading-snug ${hasUnread ? "font-medium text-foreground/78" : "text-muted/70"}`}>
                   {previewNode}
                 </p>
               </div>
-              {pinned && chat.unreadCount === 0 ? (
+              {pinned && !hasUnread ? (
                 <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/40" />
               ) : null}
-              {chat.unreadCount > 0 ? (
-                <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[12px] font-semibold text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
+              {hasUnread ? (
+                <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
                   {chat.unreadCount}
                 </span>
               ) : null}

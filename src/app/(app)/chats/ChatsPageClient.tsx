@@ -91,6 +91,13 @@ export function ChatsPageClient({
     }
     return list;
   }, [chats, selectedFolder]);
+  const folderCounts = useMemo<Record<FolderKey, number>>(() => ({
+    all: chats.length,
+    personal: chats.filter((chat) => chat.type === "DIRECT").length,
+    important: chats.filter((chat) => Boolean(chat.pinnedAt)).length,
+    unread: chats.filter((chat) => chat.unreadCount > 0).length,
+  }), [chats]);
+  const unreadTotal = folderCounts.unread;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullProgress, setPullProgress] = useState(0);
   const syncAbortRef = useRef<AbortController | null>(null);
@@ -531,7 +538,7 @@ export function ChatsPageClient({
 
   return (
     <div 
-      className="app-section transition-smooth relative"
+      className="app-section relative !px-4 !pt-[calc(env(safe-area-inset-top,0px)+18px)] transition-smooth"
       onTouchStart={handlePullTouchStart}
       onTouchMove={handlePullTouchMove}
       onTouchEnd={handlePullTouchEnd}
@@ -550,15 +557,27 @@ export function ChatsPageClient({
         </div>
       )}
 
-      <div className="app-section-header px-2">
-        <h1 className="app-section-title">Чаты</h1>
+      <div className="mb-3 flex items-end justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-[30px] font-bold leading-none tracking-[-0.02em] text-foreground">Чаты</h1>
+            {unreadTotal > 0 ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+                {unreadTotal} новых
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-[13px] font-medium leading-none text-muted/70">
+            {filteredChats.length} из {chats.length}
+          </p>
+        </div>
         <div className="flex items-center gap-1">
           <button
-            className="touch-target fluid-hit flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-muted fast-tap"
+            className="touch-target fluid-hit fast-tap flex h-10 w-10 items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-muted"
             onClick={() => setPlusMenuOpen(true)}
             aria-label="Новое"
           >
-            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
             </svg>
           </button>
@@ -699,24 +718,30 @@ export function ChatsPageClient({
         />
       )}
 
-      <div className="mb-3 px-2">
+      <div className="mb-2 px-1">
         <ChatSearch />
       </div>
 
       {/* Folder filter — segmented pills. Filters the list locally (no reload). */}
-      <div className="mb-4 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-hide">
+      <div className="mb-2 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 scrollbar-hide">
         {FOLDERS.map((folder) => {
           const active = selectedFolder === folder.key;
+          const count = folderCounts[folder.key];
           return (
             <button
               key={folder.key}
               type="button"
               onClick={() => setSelectedFolder(folder.key)}
-              className={`fluid-hit shrink-0 rounded-full px-4 py-1.5 text-[14px] font-medium transition-colors fast-tap ${
-                active ? "bg-primary/12 text-primary" : "text-muted/70 hover:bg-surface-muted"
+              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                active ? "bg-primary/12 text-primary" : "text-muted/72 hover:bg-surface-muted"
               }`}
             >
-              {folder.label}
+              <span>{folder.label}</span>
+              {count > 0 ? (
+                <span className={`text-[11px] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
+                  {count > 99 ? "99+" : count}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -781,7 +806,7 @@ export function ChatsPageClient({
           </p>
         </div>
       ) : (
-        <div className="-mx-5 animate-in fade-in duration-180">
+        <div className="-mx-4 animate-in fade-in duration-180">
           {filteredChats.map((chat) => (
             <SwipeableChatRow
               key={chat.id}
