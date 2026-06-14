@@ -111,14 +111,14 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
           >
             <ArrowLeft className="h-6 w-6" strokeWidth={2.4} />
           </button>
-          <form className="relative min-w-0 flex-1" onSubmit={submitSearch}>
+          <form className="nox-search-pill min-w-0 flex-1" onSubmit={submitSearch}>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" strokeWidth={2.1} />
             <input
               ref={inputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Поиск"
-              className="premium-glass h-11 w-full rounded-full px-11 text-[17px] outline-none transition-smooth placeholder:text-muted/60 focus:border-primary/30 focus:ring-2 focus:ring-primary/15"
+              className="h-11 w-full rounded-full bg-transparent px-11 text-[17px] font-medium outline-none transition-smooth placeholder:text-muted/60 focus:ring-2 focus:ring-primary/15"
               type="search"
               enterKeyHint="search"
             />
@@ -159,12 +159,18 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
 
         {query.trim() ? (
           <section className="mt-6">
-            <h2 className="px-5 text-[13px] font-medium uppercase tracking-normal text-muted">Результаты</h2>
-            <div className="premium-glass mx-4 mt-2 overflow-hidden rounded-[1.35rem]">
+            <h2 className="nox-section-label px-1">Результаты</h2>
+            <div className="nox-list mx-0 md:mx-4">
               {results.length > 0 ? results.map((chat) => (
                 <ChatResultRow key={chat.id} chat={chat} />
               )) : (
-                <p className="px-5 py-4 text-sm text-muted">Ничего не найдено</p>
+                <div className="nox-empty-state min-h-64">
+                  <div className="nox-empty-icon">
+                    <Search className="h-8 w-8" strokeWidth={1.8} />
+                  </div>
+                  <h2 className="nox-empty-title">Ничего не найдено</h2>
+                  <p className="nox-empty-copy">Попробуйте имя, username или текст сообщения.</p>
+                </div>
               )}
             </div>
           </section>
@@ -172,40 +178,40 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
           <>
             <section className="mt-6">
               <div className="flex items-center justify-between px-5">
-                <h2 className="text-[13px] font-medium uppercase tracking-normal text-muted">Недавние запросы</h2>
+                <h2 className="nox-section-label !m-0">Недавние запросы</h2>
                 {history.length > 0 ? (
                   <button type="button" onClick={clearHistory} className="fast-tap text-sm font-medium text-muted transition-smooth hover:text-primary">
                     Очистить
                   </button>
                 ) : null}
               </div>
-              <div className="premium-glass mx-4 mt-2 overflow-hidden rounded-[1.35rem]">
+              <div className="nox-list mx-0 mt-2 md:mx-4">
                 {history.length > 0 ? history.map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => setQuery(item)}
-                    className="fast-tap fluid-hit flex w-full items-center gap-3 border-b border-border-subtle/55 px-5 py-3 text-left last:border-b-0 hover:bg-foreground/5"
+                    className="nox-list-row fast-tap"
                   >
                     <Search className="h-5 w-5 shrink-0 text-muted" strokeWidth={2.1} />
-                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium">{item}</span>
+                    <span className="nox-row-title min-w-0 flex-1">{item}</span>
                   </button>
                 )) : (
-                  <p className="px-5 py-4 text-sm text-muted">История поиска появится здесь.</p>
+                  <p className="px-5 py-4 text-sm font-medium text-muted">История поиска появится здесь.</p>
                 )}
               </div>
             </section>
 
             {incomingRequests.length > 0 ? (
               <section className="mt-6">
-                <h2 className="px-5 text-[13px] font-medium uppercase tracking-normal text-muted">Запросы</h2>
-                <div className="premium-glass mx-4 mt-2 overflow-hidden rounded-[1.35rem]">
+                <h2 className="nox-section-label px-1">Запросы</h2>
+                <div className="nox-list mx-0 mt-2 md:mx-4">
                   {incomingRequests.slice(0, 6).map((request) => {
                     const displayName = request.fromUser.profile?.displayName ?? request.fromUser.username;
                     const avatarUrl = request.fromUser.profile?.avatarUrl;
                     return (
-                      <Link key={request.id} href="/chats/new" className="fast-tap fluid-hit flex items-center gap-3 border-b border-border-subtle/55 px-5 py-3 last:border-b-0 hover:bg-foreground/5">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                      <Link key={request.id} href="/chats/new" className="nox-list-row fast-tap">
+                        <div className="nox-avatar">
                           {avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={avatarUrl.startsWith("http") ? avatarUrl : `/api/avatars/${avatarUrl}`} alt="" className="h-full w-full object-cover" />
@@ -214,8 +220,8 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[16px] font-semibold">{displayName}</p>
-                          <p className="truncate text-[13px] text-muted">@{request.fromUser.username}</p>
+                          <p className="nox-row-title">{displayName}</p>
+                          <p className="nox-row-subtitle">@{request.fromUser.username}</p>
                         </div>
                       </Link>
                     );
@@ -234,8 +240,8 @@ function ChatResultRow({ chat }: { chat: ChatListItem }) {
   const title = chatTitle(chat);
   const avatarUrl = chatAvatar(chat);
   return (
-    <Link href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex items-center gap-3 border-b border-border-subtle/55 px-5 py-3 last:border-b-0 hover:bg-foreground/5">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-semibold text-primary">
+    <Link href={`/chats/${chat.id}`} className="nox-list-row fast-tap">
+      <div className="nox-avatar">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatarUrl.startsWith("http") ? avatarUrl : `/api/avatars/${avatarUrl}`} alt="" className="h-full w-full object-cover" />
@@ -244,8 +250,8 @@ function ChatResultRow({ chat }: { chat: ChatListItem }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[16px] font-semibold">{title}</p>
-        <p className="truncate text-[13px] text-muted">{chatSubtitle(chat)}</p>
+        <p className="nox-row-title">{title}</p>
+        <p className="nox-row-subtitle">{chatSubtitle(chat)}</p>
       </div>
       {chat.unreadCount > 0 ? (
         <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
