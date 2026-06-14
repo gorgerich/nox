@@ -107,17 +107,17 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
             Найти людей
           </Link>
         </div>
+      ) : filteredContacts.length === 0 ? (
+        <div className="nox-empty-state min-h-64">
+          <div className="nox-empty-icon">
+            <Search className="h-8 w-8" strokeWidth={1.8} />
+          </div>
+          <h2 className="nox-empty-title">Ничего не найдено</h2>
+          <p className="nox-empty-copy">Попробуйте имя или username без лишних символов.</p>
+        </div>
       ) : (
         <div className="nox-list -mx-5 md:mx-0">
-          {filteredContacts.length === 0 ? (
-            <div className="nox-empty-state min-h-64">
-              <div className="nox-empty-icon">
-                <Search className="h-8 w-8" strokeWidth={1.8} />
-              </div>
-              <h2 className="nox-empty-title">Ничего не найдено</h2>
-              <p className="nox-empty-copy">Попробуйте имя или username без лишних символов.</p>
-            </div>
-          ) : filteredContacts.map((contact) => {
+          {filteredContacts.map((contact) => {
             const isMe = contact.isMe;
             const displayName = isMe ? "Личное" : (contact.profile?.displayName || contact.username);
             const fullAvatarUrl = normalizeAvatarUrl(contact.profile?.avatarUrl);
