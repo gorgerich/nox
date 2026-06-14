@@ -29,3 +29,9 @@ Inter/system sans, normal case, compact hierarchy. No display font treatment in 
 - Composer: single clear input line with circular action buttons.
 - Sheets: bottom sheets with same material and direct actions.
 - Search: separate page, clear input, recent people, recent queries.
+
+## Product Redesign Baseline
+
+Full journey, IA, navigation, feature, screen, and component maps live in
+`docs/product-redesign-system.md`. Use that file before implementing broad UI
+changes so individual screens stay coherent with the whole messenger.
