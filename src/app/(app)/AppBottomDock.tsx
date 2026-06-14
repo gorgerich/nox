@@ -4,7 +4,6 @@ import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/chats/search", "/profile"]);
@@ -18,30 +17,28 @@ const tabs = [
 
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
   const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new") && pathname !== "/chats/search";
   const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(timeoutId);
-  }, []);
+  const portalTarget = typeof document === "undefined" ? null : document.body;
 
   // Requirement: hidden inside /chats/[chatId], visible on main tabs.
   // We also show it on main app screens to ensure it's there when needed.
-  if (!mounted || isChatRoom || !isMainAppScreen) {
+  if (!portalTarget || isChatRoom || !isMainAppScreen) {
     return null;
   }
 
   return createPortal(
     <nav
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-60 px-3 lg:hidden"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.35rem)" }}
+      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
+      style={{
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        transform: "translateX(-50%)",
+      }}
       aria-label="Нижняя навигация"
     >
-      <div className="pointer-events-auto mx-auto flex w-full max-w-[20.75rem] items-center gap-1.5">
+      <div className="pointer-events-auto flex w-full items-center gap-2">
         <div
-          className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-1"
+          className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-1.5"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
         >
           {tabs.map((tab) => {
@@ -55,21 +52,21 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 key={tab.href}
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
-                  "fast-tap fluid-hit flex min-h-9 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1",
+                  "fast-tap fluid-hit flex min-h-11 flex-col items-center justify-center gap-1 rounded-full px-1.5 py-1",
                   isActive ? "bg-[var(--dock-active-pill)] text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
                 )}
                 href={tab.href}
                 prefetch={true}
               >
                 <span className="relative">
-                  <Icon className="h-[1.1rem] w-[1.1rem]" strokeWidth={isActive ? 2.55 : 2.25} />
+                  <Icon className="h-[1.22rem] w-[1.22rem]" strokeWidth={isActive ? 2.55 : 2.25} />
                   {shouldShowBadge ? (
                     <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
                       {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                     </span>
                   ) : null}
                 </span>
-                <span className="truncate text-[8px] font-semibold leading-none tracking-normal">{tab.label}</span>
+                <span className="truncate text-[9px] font-semibold leading-none tracking-normal">{tab.label}</span>
               </Link>
             );
           })}
@@ -77,16 +74,16 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         <Link
           aria-label="Поиск"
           className={clsx(
-            "premium-glass dock-liquid fast-tap fluid-hit flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
+            "premium-glass dock-liquid fast-tap fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
             pathname === "/chats/search" && "text-primary",
           )}
           href="/chats/search"
           prefetch={true}
         >
-          <Search className="h-5 w-5" strokeWidth={2.45} />
+          <Search className="h-[1.35rem] w-[1.35rem]" strokeWidth={2.45} />
         </Link>
       </div>
     </nav>,
-    document.body,
+    portalTarget,
   );
 }
