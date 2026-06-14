@@ -4,7 +4,6 @@ import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
-import { createPortal } from "react-dom";
 
 const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/chats/search", "/profile"]);
 
@@ -19,15 +18,17 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
   const pathname = usePathname();
   const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new") && pathname !== "/chats/search";
   const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
-  const portalTarget = typeof document === "undefined" ? null : document.body;
 
-  // Requirement: hidden inside /chats/[chatId], visible on main tabs.
-  // We also show it on main app screens to ensure it's there when needed.
-  if (!portalTarget || isChatRoom || !isMainAppScreen) {
+  // Hidden inside /chats/[chatId]; visible on the main tabs. Rendered inline (no
+  // portal) so it's present in the server HTML from the first paint — a
+  // client-only portal mounted after hydration, which made the dock "fly" in on
+  // first entry. There's no transformed ancestor on tab screens, so position:
+  // fixed anchors to the viewport correctly.
+  if (isChatRoom || !isMainAppScreen) {
     return null;
   }
 
-  return createPortal(
+  return (
     <nav
       className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
       style={{
@@ -83,7 +84,6 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
           <Search className="h-[1.35rem] w-[1.35rem]" strokeWidth={2.45} />
         </Link>
       </div>
-    </nav>,
-    portalTarget,
+    </nav>
   );
 }
