@@ -30,7 +30,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
 
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
+      className="pointer-events-none fixed left-1/2 z-40 w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
       style={{
         bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
         transform: "translateX(-50%)",
