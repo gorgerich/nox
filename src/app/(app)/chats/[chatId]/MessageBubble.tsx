@@ -719,7 +719,7 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <div 
       ref={rowRef}
-      className={`relative mb-1.5 flex w-full items-center transition-colors duration-200 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "bg-primary/5" : ""} touch-pan-y no-select`}
+      className={`relative ${isGroupEnd ? "mb-2" : "mb-[3px]"} flex w-full items-center transition-colors duration-200 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "bg-primary/5" : ""} touch-pan-y no-select`}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -759,7 +759,7 @@ export const MessageBubble = memo(function MessageBubble({
 
             <div
               ref={bubbleRef}
-              className={`group relative cursor-default active:scale-[0.99] no-select ${visualOnlyMessage ? "px-0 py-0" : "px-3 py-2"} ${
+              className={`group relative cursor-default active:scale-[0.99] no-select ${visualOnlyMessage ? "px-0 py-0" : "px-3 py-1.5"} ${
                 isFocused ? "focused-message" : ""
               } ${!visualOnlyMessage && !mine ? incomingClass : ""}`}
               style={{
@@ -772,7 +772,7 @@ export const MessageBubble = memo(function MessageBubble({
             >
           {message.replyToMessage && (
             <div
-              className={`mb-2 border-l-2 py-0.5 pl-2.5 text-xs leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
+              className={`mb-1.5 border-l-2 py-0.5 pl-2.5 text-xs leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
               style={{
                 borderColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
                 color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
@@ -794,7 +794,7 @@ export const MessageBubble = memo(function MessageBubble({
 
           <>
             {message.body && (
-              <p className="mb-1.5 whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.32] last:mb-0">
+              <p className="mb-1 whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.3] last:mb-0">
                 {searchQuery ? (
                   message.body.split(new RegExp(`(${searchQuery})`, "gi")).map((part, i) =>
                     part.toLowerCase() === searchQuery.toLowerCase() ? (

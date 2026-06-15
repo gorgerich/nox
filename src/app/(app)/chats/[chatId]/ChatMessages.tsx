@@ -1800,7 +1800,7 @@ export function ChatMessages({
         <div className="mx-auto max-w-3xl">
           {groupedMessages.map((item, idx) => (
             item.type === "date" ? (
-              <div key={`date-${idx}`} className="flex justify-center py-6">
+              <div key={`date-${idx}`} className="flex justify-center py-3">
                 <span
                   className="rounded-full border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
                   style={{
