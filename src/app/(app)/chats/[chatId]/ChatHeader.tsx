@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Check, Clock3, MoreVertical, Phone, Video } from "lucide-react";
+import { ArrowLeft, Check, Clock3, MoreVertical, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
@@ -17,6 +17,7 @@ export function ChatHeader({
   partnerId,
   disappearingSeconds = null,
   onSetDisappearing,
+  onSearchClick,
 }: {
   chatId: string;
   chatType: string;
@@ -155,7 +156,7 @@ export function ChatHeader({
             </button>
           </>
         )}
-        {onSetDisappearing && (
+        {(onSetDisappearing || onSearchClick) && (
           <div className="relative">
             <button
               type="button"
@@ -170,6 +171,19 @@ export function ChatHeader({
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
                 <div className="absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-xl border border-border-subtle bg-surface-elevated shadow-lg animate-in fade-in zoom-in-95 duration-150">
+                  {onSearchClick && (
+                    <button
+                      type="button"
+                      onClick={() => { onSearchClick(); setTimerMenuOpen(false); }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-smooth hover:bg-foreground/5"
+                    >
+                      <Search className="h-4 w-4 text-muted" strokeWidth={2.2} />
+                      Поиск по чату
+                    </button>
+                  )}
+                  {onSetDisappearing && onSearchClick && <div className="mx-4 h-px bg-border-subtle" />}
+                  {onSetDisappearing && (
+                  <>
                   <p className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs font-medium text-muted">
                     <Clock3 className="h-3.5 w-3.5" />
                     Исчезающие сообщения
@@ -188,6 +202,8 @@ export function ChatHeader({
                       </button>
                     );
                   })}
+                  </>
+                  )}
                 </div>
               </>
             )}

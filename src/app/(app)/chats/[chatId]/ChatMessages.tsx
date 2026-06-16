@@ -1730,6 +1730,7 @@ export function ChatMessages({
         partnerId={chatInfo.otherMember?.id}
         disappearingSeconds={disappearingSeconds}
         onSetDisappearing={changeDisappearing}
+        onSearchClick={() => setIsSearchOpen(true)}
       />
 
       {isSearchOpen && (
