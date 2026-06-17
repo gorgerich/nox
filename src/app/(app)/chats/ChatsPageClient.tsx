@@ -90,12 +90,18 @@ export function ChatsPageClient({
     }
     return list;
   }, [chats, selectedFolder]);
-  const folderCounts = useMemo<Record<FolderKey, number>>(() => ({
-    all: chats.length,
-    personal: chats.filter((chat) => chat.type === "DIRECT").length,
-    important: chats.filter((chat) => Boolean(chat.pinnedAt)).length,
-    unread: chats.filter((chat) => chat.unreadCount > 0).length,
-  }), [chats]);
+  const folderCounts = useMemo<Record<FolderKey, number>>(() => {
+    // Single pass instead of three independent .filter().length scans.
+    let personal = 0;
+    let important = 0;
+    let unread = 0;
+    for (const chat of chats) {
+      if (chat.type === "DIRECT") personal++;
+      if (chat.pinnedAt) important++;
+      if (chat.unreadCount > 0) unread++;
+    }
+    return { all: chats.length, personal, important, unread };
+  }, [chats]);
   const unreadTotal = folderCounts.unread;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullProgress, setPullProgress] = useState(0);

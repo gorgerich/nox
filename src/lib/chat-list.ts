@@ -148,29 +148,25 @@ export async function getChatsPageData(userId: string) {
   ]);
 
   const chatIds = memberships.map((membership) => membership.chatId);
-  const unreadReceipts = chatIds.length > 0
-    ? await prisma.messageReceipt.findMany({
+  // Aggregate unread counts in the database (GROUP BY chatId) instead of
+  // streaming every unread receipt row into Node and counting in JS. A user
+  // with thousands of unread messages no longer transfers thousands of rows on
+  // each chat-list render. The [messageId, userId] unique on MessageReceipt
+  // means "messages with an unread receipt for me" equals "unread receipts".
+  const unreadGroups = chatIds.length > 0
+    ? await prisma.message.groupBy({
+        by: ["chatId"],
         where: {
-          userId,
-          readAt: null,
-          message: {
-            deletedAt: null,
-            chatId: { in: chatIds },
-          },
+          chatId: { in: chatIds },
+          deletedAt: null,
+          receipts: { some: { userId, readAt: null } },
         },
-        select: {
-          message: {
-            select: {
-              chatId: true,
-            },
-          },
-        },
+        _count: { _all: true },
       })
     : [];
 
-  const unreadCountByChatId = unreadReceipts.reduce<Record<string, number>>((counts, receipt) => {
-    const chatId = receipt.message.chatId;
-    counts[chatId] = (counts[chatId] ?? 0) + 1;
+  const unreadCountByChatId = unreadGroups.reduce<Record<string, number>>((counts, group) => {
+    counts[group.chatId] = group._count._all;
     return counts;
   }, {});
 
