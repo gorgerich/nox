@@ -182,7 +182,7 @@ export function ChatsPageClient({
     };
 
     socket.on("chat:updated", refreshList);
-    socket.on("message:new", (data: { chatId: string; message: ChatListItem["lastMessage"] & { senderUserId: string, sender?: { username: string; profile?: { displayName: string } }, receipts?: { deliveredAt?: string | Date | null; readAt?: string | Date | null }[] } }) => {
+    const handleMessageNew = (data: { chatId: string; message: ChatListItem["lastMessage"] & { senderUserId: string, sender?: { username: string; profile?: { displayName: string } }, receipts?: { deliveredAt?: string | Date | null; readAt?: string | Date | null }[] } }) => {
       setChats(prev => {
         const chatIdx = prev.findIndex(c => c.id === data.chatId);
         if (chatIdx === -1) {
@@ -223,7 +223,8 @@ export function ChatsPageClient({
         // Sort by updatedAt
         return newChats.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       });
-    });
+    };
+    socket.on("message:new", handleMessageNew);
     socket.on("message:receipts-updated", (payload: { chatId: string; messageId?: string; deliveredAt?: string | Date | null; readAt?: string | Date | null }) => {
       setChats(prev => prev.map((chat) => {
         if (
@@ -260,6 +261,7 @@ export function ChatsPageClient({
 
     return () => {
       socket.off("chat:updated", refreshList);
+      socket.off("message:new", handleMessageNew);
       socket.off("message:receipts-updated");
       socket.off("chat-request:new", refreshList);
       socket.off("chat-request:accepted", refreshList);

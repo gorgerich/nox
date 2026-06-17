@@ -131,11 +131,28 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
     const saved = window.sessionStorage.getItem(key);
     const nextY = saved ? Number(saved) : 0;
     const restoreY = Number.isFinite(nextY) ? nextY : 0;
-    const restoreTimeouts = [0, 50, 150, 350, 700, 1200].map((delay) =>
-      window.setTimeout(() => {
-        window.scrollTo(0, restoreY);
-      }, delay),
-    );
+    // Restore the saved scroll position over a couple of frames (content paints
+    // async), but abort the instant the user touches the screen so we never
+    // yank them back mid-scroll. Skip entirely when restoring to the top.
+    const restoreTimeouts: number[] =
+      restoreY > 0
+        ? [0, 50, 150, 350].map((delay) =>
+            window.setTimeout(() => {
+              window.scrollTo(0, restoreY);
+            }, delay),
+          )
+        : [];
+    const cancelRestore = () => {
+      restoreTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      window.removeEventListener("wheel", cancelRestore);
+      window.removeEventListener("touchstart", cancelRestore);
+      window.removeEventListener("keydown", cancelRestore);
+    };
+    if (restoreTimeouts.length > 0) {
+      window.addEventListener("wheel", cancelRestore, { passive: true });
+      window.addEventListener("touchstart", cancelRestore, { passive: true });
+      window.addEventListener("keydown", cancelRestore);
+    }
 
     let saveFrameId: number | null = null;
     const saveScroll = () => {
@@ -150,7 +167,7 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
     window.addEventListener("pagehide", saveScroll);
 
     return () => {
-      restoreTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      cancelRestore();
       if (saveFrameId !== null) {
         window.cancelAnimationFrame(saveFrameId);
       }
