@@ -716,7 +716,7 @@ app.prepare().then(() => {
       }
       call.queuedIceByUser[userId] = [];
       logCall("pending call resumed", { callId, calleeId: userId, queuedIce: queuedForCallee.length });
-      callback?.({ ok: true, call: incomingPayload });
+      callback?.({ ok: true, call: incomingPayload, queuedIce: queuedForCallee });
     });
 
     socket.on("call:answer", async ({ callId, chatId, answer }, callback) => {

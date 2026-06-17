@@ -109,6 +109,8 @@ interface CallAck {
   callId?: string;
   error?: string;
   delivery?: "foreground" | "push";
+  call?: IncomingPayload;
+  queuedIce?: RTCIceCandidateInit[];
 }
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -1130,7 +1132,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("resume pending call", { callId });
     setError(null);
     socket.connect();
-    socket.emit("call:resume-pending", { callId }, (ack?: CallAck & { call?: IncomingPayload }) => {
+    socket.emit("call:resume-pending", { callId }, (ack?: CallAck) => {
       debugCall("call:resume-pending ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
       if (!ack?.ok) {
         const message = ack?.error === "CALL_EXPIRED" || ack?.error === "CALL_NOT_FOUND"
@@ -1144,8 +1146,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         }, 2500);
         return;
       }
+      if (ack.call) {
+        const applied = applyIncomingCall(ack.call);
+        if (applied && Array.isArray(ack.queuedIce) && ack.queuedIce.length > 0) {
+          pendingIceCandidatesRef.current.push(...ack.queuedIce);
+          debugCall("queued ICE restored from resume ack", { callId, count: ack.queuedIce.length });
+        }
+      }
     });
-  }, [debugCall, setCallStatus, socket]);
+  }, [applyIncomingCall, debugCall, setCallStatus, socket]);
 
   useEffect(() => {
     const handleIncoming = (payload: IncomingPayload) => {
