@@ -18,10 +18,21 @@ function getTabScrollKey(pathname: string) {
   return TAB_SCROLL_PATHS.has(pathname) ? `nox:tab-scroll:${pathname}` : null;
 }
 
+function isFullscreenRoute(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+  const isChatDetail =
+    segments[0] === "chats" &&
+    segments.length === 2 &&
+    !["archive", "new", "search"].includes(segments[1]);
+
+  return isChatDetail || pathname === "/calls/incoming";
+}
+
 export function AppShellChrome({ incomingRequestCount, children }: AppShellChromeProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
+  const fullscreenRoute = isFullscreenRoute(pathname);
 
   useEffect(() => {
     router.prefetch("/contacts");
@@ -68,6 +79,10 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
       window.removeEventListener("pagehide", saveScroll);
     };
   }, [pathname]);
+
+  if (fullscreenRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <>

@@ -12,15 +12,25 @@ const tabs = [
   { href: "/profile", label: "Профиль", icon: UserRound, match: (pathname: string) => pathname.startsWith("/profile") },
 ] as const;
 
+function isFullscreenRoute(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+  const isChatDetail =
+    segments[0] === "chats" &&
+    segments.length === 2 &&
+    !["archive", "new", "search"].includes(segments[1]);
+
+  return isChatDetail || pathname === "/calls/incoming";
+}
+
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
   const activeTab = tabs.find((tab) => tab.match(pathname)) ?? null;
   const isDockRoute = Boolean(activeTab);
   const isSearchActive = pathname === "/chats/search";
 
-  // Four section tabs + one search action = five visible nav items. Deep routes
-  // keep the dock visible; tapping the active section goes back to its root.
-  if (!isDockRoute) {
+  // Four section tabs + one search action = five visible nav items. Section
+  // screens keep dock; fullscreen task routes (active chat/call) own bottom UI.
+  if (!isDockRoute || isFullscreenRoute(pathname)) {
     return null;
   }
 
