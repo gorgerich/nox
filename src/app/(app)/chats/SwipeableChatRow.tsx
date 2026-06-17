@@ -228,7 +228,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const hasUnread = chat.unreadCount > 0;
 
   return (
-    <div ref={rowRef} className="relative isolate overflow-hidden">
+    <div ref={rowRef} className="relative isolate overflow-hidden" data-nox-swipe-ignore="true">
       {/* Left Actions (visible when swiping right) — iOS/Telegram-style solid blocks */}
       <div
         className="absolute inset-y-0 left-0 z-0 flex items-stretch transition-opacity duration-150"

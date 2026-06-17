@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import clsx from "clsx";
 import { AppBottomDock } from "./AppBottomDock";
 
 interface AppShellChromeProps {
@@ -13,9 +14,27 @@ interface AppShellChromeProps {
 }
 
 const TAB_SCROLL_PATHS = new Set(["/contacts", "/calls", "/chats", "/profile"]);
+const TAB_ROUTES = ["/contacts", "/calls", "/chats", "/profile"] as const;
+
+type RouteMotion = "route-motion-idle" | "route-pop-search" | "route-slide-left" | "route-slide-right";
+
+type SwipeStart = {
+  x: number;
+  y: number;
+  time: number;
+  pointerId: number;
+};
 
 function getTabScrollKey(pathname: string) {
   return TAB_SCROLL_PATHS.has(pathname) ? `nox:tab-scroll:${pathname}` : null;
+}
+
+function getTabIndex(pathname: string) {
+  if (pathname.startsWith("/contacts") || pathname.startsWith("/users/")) return 0;
+  if (pathname.startsWith("/calls")) return 1;
+  if (pathname.startsWith("/chats")) return 2;
+  if (pathname.startsWith("/profile")) return 3;
+  return -1;
 }
 
 function isFullscreenRoute(pathname: string) {
@@ -33,6 +52,11 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
   const router = useRouter();
   const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
   const fullscreenRoute = isFullscreenRoute(pathname);
+  const swipeStartRef = useRef<SwipeStart | null>(null);
+  const previousPathnameRef = useRef(pathname);
+  const motionTimeoutRef = useRef<number | null>(null);
+  const [routeMotion, setRouteMotion] = useState<RouteMotion>("route-motion-idle");
+  const activeTabIndex = useMemo(() => getTabIndex(pathname), [pathname]);
 
   useEffect(() => {
     router.prefetch("/contacts");
@@ -40,6 +64,62 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
     router.prefetch("/calls");
     router.prefetch("/profile");
   }, [router]);
+
+  useEffect(() => {
+    const previousPathname = previousPathnameRef.current;
+    previousPathnameRef.current = pathname;
+
+    if (previousPathname === pathname) {
+      return;
+    }
+
+    if (motionTimeoutRef.current !== null) {
+      window.clearTimeout(motionTimeoutRef.current);
+    }
+
+    const fromIndex = getTabIndex(previousPathname);
+    const toIndex = getTabIndex(pathname);
+    const cameFromSearchButton = (() => {
+      try {
+        return window.sessionStorage.getItem("nox:route-motion") === "search-pop";
+      } catch {
+        return false;
+      }
+    })();
+
+    try {
+      window.sessionStorage.removeItem("nox:route-motion");
+    } catch {
+      // ignore unavailable sessionStorage
+    }
+
+    const nextMotion: RouteMotion =
+      pathname === "/chats/search" && cameFromSearchButton
+        ? "route-pop-search"
+        : fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex
+          ? toIndex > fromIndex ? "route-slide-left" : "route-slide-right"
+          : "route-motion-idle";
+
+    setRouteMotion("route-motion-idle");
+    const frameId = window.requestAnimationFrame(() => {
+      setRouteMotion(nextMotion);
+      motionTimeoutRef.current = window.setTimeout(() => {
+        setRouteMotion("route-motion-idle");
+      }, 360);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      if (motionTimeoutRef.current !== null) {
+        window.clearTimeout(motionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const key = getTabScrollKey(pathname);
@@ -80,14 +160,81 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
     };
   }, [pathname]);
 
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || activeTabIndex < 0 || (event.pointerType === "mouse" && event.button !== 0)) {
+      swipeStartRef.current = null;
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("input, textarea, select, button, [role='button'], [data-nox-swipe-ignore='true']")) {
+      swipeStartRef.current = null;
+      return;
+    }
+
+    swipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      time: Date.now(),
+      pointerId: event.pointerId,
+    };
+  }, [activeTabIndex]);
+
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    if (!start || start.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)) {
+      swipeStartRef.current = null;
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start || start.pointerId !== event.pointerId || activeTabIndex < 0) {
+      return;
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    const elapsed = Date.now() - start.time;
+    const isHorizontal = Math.abs(dx) > 74 && Math.abs(dx) > Math.abs(dy) * 1.35;
+    if (!isHorizontal || elapsed > 700) {
+      return;
+    }
+
+    const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
+    const nextRoute = TAB_ROUTES[nextIndex];
+    if (!nextRoute) {
+      return;
+    }
+
+    router.push(nextRoute, { scroll: false });
+  }, [activeTabIndex, router]);
+
+  const handlePointerCancel = useCallback(() => {
+    swipeStartRef.current = null;
+  }, []);
+
   if (fullscreenRoute) {
     return <>{children}</>;
   }
 
   return (
     <>
-      <div className="app-screen">
-        <main className={isMainDockScreen ? "main-app-content flex-1 w-full" : "flex-1 w-full"}>
+      <div
+        className="app-screen"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+      >
+        <main className={clsx(isMainDockScreen ? "main-app-content flex-1 w-full" : "flex-1 w-full", routeMotion)}>
           {children}
         </main>
       </div>

@@ -2,7 +2,8 @@
 
 import clsx from "clsx";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
 import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
 
 const tabs = [
@@ -11,6 +12,13 @@ const tabs = [
   { href: "/chats", label: "Чаты", icon: MessageCircle, match: (pathname: string) => pathname.startsWith("/chats") },
   { href: "/profile", label: "Профиль", icon: UserRound, match: (pathname: string) => pathname.startsWith("/profile") },
 ] as const;
+
+type DockSwipeStart = {
+  x: number;
+  y: number;
+  pointerId: number;
+  dragging: boolean;
+};
 
 function isFullscreenRoute(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
@@ -24,9 +32,108 @@ function isFullscreenRoute(pathname: string) {
 
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const swipeStartRef = useRef<DockSwipeStart | null>(null);
+  const suppressClickRef = useRef(false);
   const activeTab = tabs.find((tab) => tab.match(pathname)) ?? null;
+  const activeTabIndex = activeTab ? tabs.findIndex((tab) => tab.href === activeTab.href) : -1;
   const isDockRoute = Boolean(activeTab);
   const isSearchActive = pathname === "/chats/search";
+
+  const markSearchMotion = () => {
+    try {
+      window.sessionStorage.setItem("nox:route-motion", "search-pop");
+    } catch {
+      // ignore unavailable sessionStorage
+    }
+  };
+
+  useEffect(() => {
+    const dock = dockRef.current;
+    if (!dock || activeTabIndex < 0) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) {
+        swipeStartRef.current = null;
+        return;
+      }
+
+      swipeStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        pointerId: event.pointerId,
+        dragging: false,
+      };
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const start = swipeStartRef.current;
+      if (!start || start.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      if (!start.dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+        start.dragging = true;
+        suppressClickRef.current = true;
+        dock.setPointerCapture(event.pointerId);
+      }
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+      if (!start || start.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy) * 1.25) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
+      const nextTab = tabs[nextIndex];
+      if (nextTab) {
+        router.push(nextTab.href, { scroll: false });
+      }
+    };
+
+    const handlePointerCancel = () => {
+      swipeStartRef.current = null;
+    };
+
+    dock.addEventListener("pointerdown", handlePointerDown);
+    dock.addEventListener("pointermove", handlePointerMove);
+    dock.addEventListener("pointerup", handlePointerUp);
+    dock.addEventListener("pointercancel", handlePointerCancel);
+
+    return () => {
+      dock.removeEventListener("pointerdown", handlePointerDown);
+      dock.removeEventListener("pointermove", handlePointerMove);
+      dock.removeEventListener("pointerup", handlePointerUp);
+      dock.removeEventListener("pointercancel", handlePointerCancel);
+    };
+  }, [activeTabIndex, router]);
+
+  const handleClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  }, []);
 
   // Four section tabs + one search action = five visible nav items. Section
   // screens keep dock; fullscreen task routes (active chat/call) own bottom UI.
@@ -43,7 +150,11 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
       }}
       aria-label="Нижняя навигация"
     >
-      <div className="pointer-events-auto flex w-full items-center gap-2">
+      <div
+        ref={dockRef}
+        className="pointer-events-auto flex w-full touch-pan-y select-none items-center gap-2"
+        onClickCapture={handleClickCapture}
+      >
         <div
           className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-1.5"
           style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
@@ -65,6 +176,8 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 href={tab.href}
                 prefetch={true}
                 scroll={false}
+                draggable={false}
+                onDragStart={(event) => event.preventDefault()}
               >
                 <span className="relative">
                   <Icon className="h-[1.22rem] w-[1.22rem]" strokeWidth={isActive ? 2.55 : 2.25} />
@@ -88,6 +201,9 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
           href="/chats/search"
           prefetch={true}
           scroll={false}
+          onClick={markSearchMotion}
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
         >
           <Search className="h-[1.35rem] w-[1.35rem]" strokeWidth={2.45} />
         </Link>

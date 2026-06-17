@@ -10,7 +10,6 @@ import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
 import { getChatCache, putChatHeader, putChatList, putChatPreview } from "@/lib/chat-cache";
 import { getMessagePreview } from "@/lib/chat-list-format";
 
-import { ChatSearch } from "./ChatSearch";
 import { IncomingRequestCards } from "./IncomingRequestCards";
 import { SwipeableChatRow } from "./SwipeableChatRow";
 import { GroupPicker } from "./GroupPicker";
@@ -717,10 +716,6 @@ export function ChatsPageClient({
           onNavigate={handleNavigate}
         />
       )}
-
-      <div className="mb-2 px-1">
-        <ChatSearch />
-      </div>
 
       {/* Folder filter — segmented pills. Filters the list locally (no reload). */}
       <div className="mb-2 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 scrollbar-hide">
