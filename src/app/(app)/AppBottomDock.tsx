@@ -5,32 +5,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
 
-const MAIN_DOCK_PATHS = new Set(["/contacts", "/calls", "/chats", "/chats/search", "/profile"]);
-
 const tabs = [
-  { href: "/contacts", label: "Контакты", icon: Contact2 },
-  { href: "/calls", label: "Звонки", icon: Phone },
-  { href: "/chats", label: "Чаты", icon: MessageCircle },
-  { href: "/profile", label: "Профиль", icon: UserRound },
+  { href: "/contacts", label: "Контакты", icon: Contact2, match: (pathname: string) => pathname.startsWith("/contacts") || pathname.startsWith("/users/") },
+  { href: "/calls", label: "Звонки", icon: Phone, match: (pathname: string) => pathname.startsWith("/calls") },
+  { href: "/chats", label: "Чаты", icon: MessageCircle, match: (pathname: string) => pathname.startsWith("/chats") },
+  { href: "/profile", label: "Профиль", icon: UserRound, match: (pathname: string) => pathname.startsWith("/profile") },
 ] as const;
 
 export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
   const pathname = usePathname();
-  const isChatRoom = /^\/chats\/[^/]+/.test(pathname) && !pathname.endsWith("/new") && pathname !== "/chats/search";
-  const isMainAppScreen = MAIN_DOCK_PATHS.has(pathname);
+  const activeTab = tabs.find((tab) => tab.match(pathname)) ?? null;
+  const isDockRoute = Boolean(activeTab);
+  const isSearchActive = pathname === "/chats/search";
 
-  // Hidden inside /chats/[chatId]; visible on the main tabs. Rendered inline (no
-  // portal) so it's present in the server HTML from the first paint — a
-  // client-only portal mounted after hydration, which made the dock "fly" in on
-  // first entry. There's no transformed ancestor on tab screens, so position:
-  // fixed anchors to the viewport correctly.
-  if (isChatRoom || !isMainAppScreen) {
+  // Four section tabs + one search action = five visible nav items. Deep routes
+  // keep the dock visible; tapping the active section goes back to its root.
+  if (!isDockRoute) {
     return null;
   }
 
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 z-40 w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
+      className="pointer-events-none fixed left-1/2 z-[60] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
       style={{
         bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
         transform: "translateX(-50%)",
@@ -44,7 +40,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = pathname === tab.href || (tab.href === "/chats" && pathname === "/chats/search");
+            const isActive = activeTab?.href === tab.href;
             const isChatsTab = tab.href === "/chats";
             const shouldShowBadge = isChatsTab && incomingRequestCount > 0;
 
@@ -58,6 +54,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 )}
                 href={tab.href}
                 prefetch={true}
+                scroll={false}
               >
                 <span className="relative">
                   <Icon className="h-[1.22rem] w-[1.22rem]" strokeWidth={isActive ? 2.55 : 2.25} />
@@ -76,10 +73,11 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
           aria-label="Поиск"
           className={clsx(
             "premium-glass dock-liquid fast-tap fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
-            pathname === "/chats/search" && "text-primary",
+            isSearchActive && "text-primary",
           )}
           href="/chats/search"
           prefetch={true}
+          scroll={false}
         >
           <Search className="h-[1.35rem] w-[1.35rem]" strokeWidth={2.45} />
         </Link>
