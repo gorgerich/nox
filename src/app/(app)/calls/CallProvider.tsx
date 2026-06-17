@@ -1131,8 +1131,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     if (!callId || statusRef.current !== "idle") return;
     debugCall("resume pending call", { callId });
     setError(null);
-    socket.connect();
-    socket.emit("call:resume-pending", { callId }, (ack?: CallAck) => {
+
+    let acked = false;
+    const handleAck = (ack?: CallAck) => {
+      acked = true;
       debugCall("call:resume-pending ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
       if (!ack?.ok) {
         const message = ack?.error === "CALL_EXPIRED" || ack?.error === "CALL_NOT_FOUND"
@@ -1153,7 +1155,31 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           debugCall("queued ICE restored from resume ack", { callId, count: ack.queuedIce.length });
         }
       }
-    });
+    };
+
+    // Opening from a push notification is a COLD start: the socket usually
+    // isn't connected yet, so emitting immediately drops the request (and its
+    // ack) → the resume screen hangs forever. Send only once connected, and
+    // retry once if the first attempt gets no ack.
+    const sendResume = () => {
+      socket.emit("call:resume-pending", { callId }, handleAck);
+    };
+    const ensureConnectedThenSend = () => {
+      if (socket.connected) {
+        sendResume();
+      } else {
+        socket.once("connect", sendResume);
+        socket.connect();
+      }
+    };
+    ensureConnectedThenSend();
+
+    setTimeout(() => {
+      if (!acked && statusRef.current === "idle") {
+        debugCall("resume retry", { callId, connected: socket.connected });
+        ensureConnectedThenSend();
+      }
+    }, 4000);
   }, [applyIncomingCall, debugCall, setCallStatus, socket]);
 
   useEffect(() => {
