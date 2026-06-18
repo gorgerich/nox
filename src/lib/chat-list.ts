@@ -161,6 +161,8 @@ export async function getChatsPageData(userId: string) {
           deletedAt: null,
           receipts: { some: { userId, readAt: null } },
         },
+        // Prisma's groupBy types require orderBy to include the grouped field.
+        orderBy: { chatId: "asc" },
         _count: { _all: true },
       })
     : [];
