@@ -124,7 +124,7 @@ function filterMessageEnvelopesForUser<T extends MessageWithEnvelopes>(message: 
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ chatId: string }> },
 ) {
   const user = await getCurrentUser();
@@ -133,6 +133,18 @@ export async function GET(
   const { chatId } = await context.params;
   const membership = await requireActiveChatMembership(chatId, user.id);
   if (!membership) return NextResponse.json({ error: "Чат не найден." }, { status: 404 });
+
+  // Cursor pagination for "load older". `before` is the oldest message id the
+  // client already has; we return up to `limit` messages older than it. Without
+  // `before` this returns the latest page (unchanged initial-load behavior).
+  // Optimistic temp- ids are never valid cursors.
+  const url = new URL(request.url);
+  const beforeParam = url.searchParams.get("before");
+  const cursorId = beforeParam && !beforeParam.startsWith("temp-") ? beforeParam : null;
+  const limitParam = Number(url.searchParams.get("limit"));
+  const limit = Number.isFinite(limitParam)
+    ? Math.min(Math.max(Math.trunc(limitParam), 1), 50)
+    : 50;
 
   const prisma = getPrisma();
   // History loads only need THIS user's envelopes. Filter at the DB instead of
@@ -155,20 +167,26 @@ export async function GET(
     },
   };
 
-  const messages = await prisma.message.findMany({
+  const rows = await prisma.message.findMany({
     where: {
       chatId,
       deletedAt: null,
       // Hide disappearing messages whose timer has elapsed.
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    // Fetch one extra row to know whether older history exists.
+    take: limit + 1,
+    ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
     include: historyInclude,
   });
 
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
   return NextResponse.json({
-    messages: messages.reverse().map((message) => filterMessageEnvelopesForUser(message, user.id)),
+    messages: page.reverse().map((message) => filterMessageEnvelopesForUser(message, user.id)),
+    hasMore,
   });
 }
 

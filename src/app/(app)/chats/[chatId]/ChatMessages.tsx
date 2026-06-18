@@ -200,6 +200,16 @@ export function ChatMessages({
   // "unread" divider / animation-suppression set from the authoritative batch.
   const historyLoadedRef = useRef(false);
 
+  // Cursor pagination ("load older" up the history). hasMoreOlder is set from
+  // the authoritative load and from each older page. The refs guard against
+  // concurrent loads and tell the auto-scroll effect to anchor instead of
+  // treating a prepended page as freshly arrived messages.
+  const [hasMoreOlder, setHasMoreOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
+  const isPrependingRef = useRef(false);
+  const messagesRef = useRef<Message[]>(seedMessages);
+
   // First message that was unread by me when the chat opened — we render an
   // "unread messages" divider above it (computed once, kept for the session).
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
@@ -276,6 +286,7 @@ export function ChatMessages({
             .map(normalizeMessage)
             .filter((m): m is Message => !!m);
           applyBatch(fresh, true);
+          if (!cancelled) setHasMoreOlder(Boolean(data.hasMore));
         }
       } catch {
         // Offline — keep whatever the cache gave us.
@@ -586,6 +597,55 @@ export function ChatMessages({
     setUnseenCount(0);
   }, []);
 
+  // Keep a live reference to messages so loadOlder can read the current oldest
+  // id without re-creating on every message change.
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Load one older page above the current history, then anchor the scroll so the
+  // message the user was looking at stays put (overflowAnchor is disabled on the
+  // container, so we restore scrollTop by the height delta manually).
+  const loadOlder = useCallback(async () => {
+    if (loadingOlderRef.current || !hasMoreOlder) return;
+    const oldest = messagesRef.current.find((m) => !m.id.startsWith("temp-"));
+    if (!oldest) return;
+    const container = scrollContainerRef.current;
+    const prevHeight = container?.scrollHeight ?? 0;
+    const prevTop = container?.scrollTop ?? 0;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const res = await fetch(
+        `/api/chats/${chatId}/messages?before=${encodeURIComponent(oldest.id)}&limit=30`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const older = ((data.messages as unknown[]) ?? [])
+        .map(normalizeMessage)
+        .filter((m): m is Message => !!m);
+      setHasMoreOlder(Boolean(data.hasMore));
+      if (older.length > 0) {
+        isPrependingRef.current = true;
+        setMessages((current) => {
+          const ids = new Set(current.map((m) => m.id));
+          const merged = [...older.filter((m) => !ids.has(m.id)), ...current];
+          return merged.sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+        });
+        requestAnimationFrame(() => {
+          const c = scrollContainerRef.current;
+          if (c) c.scrollTop = prevTop + (c.scrollHeight - prevHeight);
+        });
+      }
+    } catch {
+      // Offline / failed — keep the history we already have.
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [chatId, hasMoreOlder]);
+
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -593,11 +653,18 @@ export function ChatMessages({
     isAtBottomRef.current = atBottom;
     setShowScrollDown(scrollHeight - scrollTop - clientHeight > 400);
     if (atBottom) setUnseenCount(0);
-  }, []);
+    // Near the top — pull in the previous page.
+    if (scrollTop < 320) void loadOlder();
+  }, [loadOlder]);
 
   useEffect(() => {
     const grew = messages.length - prevMessageCountRef.current;
     prevMessageCountRef.current = messages.length;
+    if (isPrependingRef.current) {
+      // Older history was prepended — don't auto-scroll or count it as unseen.
+      isPrependingRef.current = false;
+      return;
+    }
     if (isAtBottomRef.current) {
       forceScrollBottom("smooth");
     } else if (grew > 0) {
@@ -1799,6 +1866,11 @@ export function ChatMessages({
         style={{ overflowAnchor: "none" }}
       >
         <div className="mx-auto max-w-3xl">
+          {loadingOlder ? (
+            <div className="flex justify-center py-3" aria-hidden="true">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/25 border-t-primary/80" />
+            </div>
+          ) : null}
           {groupedMessages.map((item, idx) => (
             item.type === "date" ? (
               <div key={`date-${idx}`} className="flex justify-center py-3">
