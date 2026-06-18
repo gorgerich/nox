@@ -13,7 +13,7 @@ interface AppShellChromeProps {
   children: React.ReactNode;
 }
 
-const TAB_SCROLL_PATHS = new Set(["/contacts", "/calls", "/chats", "/profile"]);
+const TAB_SCROLL_PATHS = new Set(["/contacts", "/calls", "/chats", "/profile", "/admin"]);
 const TAB_ROUTES = ["/contacts", "/calls", "/chats", "/profile"] as const;
 
 type RouteMotion = "route-motion-idle" | "route-pop-search" | "route-slide-left" | "route-slide-right";
@@ -33,7 +33,7 @@ function getTabIndex(pathname: string) {
   if (pathname.startsWith("/contacts") || pathname.startsWith("/users/")) return 0;
   if (pathname.startsWith("/calls")) return 1;
   if (pathname.startsWith("/chats")) return 2;
-  if (pathname.startsWith("/profile")) return 3;
+  if (pathname.startsWith("/profile") || pathname.startsWith("/admin")) return 3;
   return -1;
 }
 
@@ -50,7 +50,7 @@ function isFullscreenRoute(pathname: string) {
 export function AppShellChrome({ incomingRequestCount, children }: AppShellChromeProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts";
+  const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts" || pathname === "/admin";
   const fullscreenRoute = isFullscreenRoute(pathname);
   const swipeStartRef = useRef<SwipeStart | null>(null);
   const previousPathnameRef = useRef(pathname);

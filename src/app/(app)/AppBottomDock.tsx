@@ -10,7 +10,7 @@ const tabs = [
   { href: "/contacts", label: "Контакты", icon: Contact2, match: (pathname: string) => pathname.startsWith("/contacts") || pathname.startsWith("/users/") },
   { href: "/calls", label: "Звонки", icon: Phone, match: (pathname: string) => pathname.startsWith("/calls") },
   { href: "/chats", label: "Чаты", icon: MessageCircle, match: (pathname: string) => pathname.startsWith("/chats") },
-  { href: "/profile", label: "Профиль", icon: UserRound, match: (pathname: string) => pathname.startsWith("/profile") },
+  { href: "/profile", label: "Профиль", icon: UserRound, match: (pathname: string) => pathname.startsWith("/profile") || pathname.startsWith("/admin") },
 ] as const;
 
 type DockSwipeStart = {
@@ -143,9 +143,9 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
 
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 z-[60] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
+      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
       style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        bottom: "max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))",
         transform: "translateX(-50%)",
       }}
       aria-label="Нижняя навигация"

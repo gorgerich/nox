@@ -574,9 +574,6 @@ export function ChatsPageClient({
               </span>
             ) : null}
           </div>
-          <p className="mt-1 text-[13px] font-medium leading-none text-muted/70">
-            {filteredChats.length} из {chats.length}
-          </p>
         </div>
         <div className="flex items-center gap-1">
           <button

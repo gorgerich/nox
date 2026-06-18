@@ -256,15 +256,15 @@ export function AdminPanel() {
   }
 
   return (
-    <div className="page-container transition-smooth pb-32">
-      <div className="mb-10 px-2 flex items-center justify-between">
+    <div className="app-section transition-smooth !max-w-5xl !pb-[calc(env(safe-area-inset-bottom,0px)+112px)]">
+      <div className="mb-6 flex items-center justify-between gap-4 px-1">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-foreground">Админ</h1>
-          <p className="mt-2 text-sm text-muted/60 font-medium uppercase tracking-widest">Управление системой</p>
+          <h1 className="nox-page-title">Админ</h1>
         </div>
         <button 
           onClick={loadAdminData}
-          className={`touch-target h-12 w-12 flex items-center justify-center rounded-2xl bg-surface-muted border border-border-subtle/50 text-muted transition-smooth active:scale-90 ${loading ? 'animate-spin' : ''}`}
+          className={`touch-target h-11 w-11 flex items-center justify-center rounded-full bg-surface-muted border border-border-subtle/50 text-muted transition-smooth active:scale-90 ${loading ? 'animate-spin' : ''}`}
+          aria-label="Обновить"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
@@ -272,12 +272,12 @@ export function AdminPanel() {
         </button>
       </div>
 
-      <nav className="mb-8 flex gap-1 bg-surface-muted p-1 rounded-2xl border border-border-subtle/50">
+      <nav className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-border-subtle/50 bg-surface-muted p-1 scrollbar-hide">
         {sections.map((s) => (
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
-            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-smooth ${
+            className={`min-w-16 flex-1 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-smooth ${
               activeSection === s.id
                 ? "bg-surface text-primary shadow-sm"
                 : "text-muted hover:text-foreground"
@@ -292,7 +292,7 @@ export function AdminPanel() {
       {loading && <p className="text-center text-xs font-bold uppercase tracking-widest text-muted animate-pulse py-12">Загрузка...</p>}
 
       {!loading && (
-        <div className="animate-in fade-in duration-500 px-2">
+        <div className="animate-in fade-in duration-500">
           {activeSection === "users" && (
             <div className="space-y-3">
               {users.map((user) => (

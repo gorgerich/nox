@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, UsersRound } from "lucide-react";
+import { Plus, Search, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { useSocket } from "@/hooks/useSocket";
 
@@ -83,16 +83,13 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
       <header className="nox-page-header">
         <div>
           <h1 className="nox-page-title">Контакты</h1>
-          <p className="nox-page-subtitle">
-            {contacts.length > 0 ? `${contacts.length} человек` : "Люди появятся после первого диалога"}
-          </p>
         </div>
         <Link
           href="/chats/new"
           className="fast-tap fluid-hit flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary/10"
-          aria-label="Найти людей"
+          aria-label="Добавить контакт"
         >
-          <Search className="h-5 w-5" strokeWidth={2.25} />
+          <Plus className="h-6 w-6" strokeWidth={2.25} />
         </Link>
       </header>
 

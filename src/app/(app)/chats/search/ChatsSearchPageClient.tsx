@@ -39,24 +39,42 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === "string").slice(0, 12)
+        : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      inputRef.current?.focus();
-      try {
-        const raw = localStorage.getItem(HISTORY_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as unknown;
-          if (Array.isArray(parsed)) {
-            setHistory(parsed.filter((item): item is string => typeof item === "string").slice(0, 12));
-          }
-        }
-      } catch {
-        // ignore unavailable localStorage
+    const focusInput = () => {
+      inputRef.current?.focus({ preventScroll: true });
+    };
+    focusInput();
+    const frameId = requestAnimationFrame(focusInput);
+    const timeoutIds = [60, 180, 360].map((delay) => window.setTimeout(focusInput, delay));
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        inputRef.current?.focus({ preventScroll: true });
       }
-    }, 120);
-    return () => clearTimeout(timeoutId);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const recentChats = useMemo(() => chats.filter((chat) => !chat.deletedAt).slice(0, 12), [chats]);
@@ -120,6 +138,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
               placeholder="Поиск"
               className="h-11 w-full rounded-full bg-transparent px-11 text-[17px] font-medium outline-none transition-smooth placeholder:text-muted/60 focus:ring-2 focus:ring-primary/15"
               type="search"
+              autoFocus
               enterKeyHint="search"
             />
             {query ? (

@@ -59,9 +59,6 @@ export default async function CallsPage() {
       <div className="nox-page-header">
         <div>
           <h1 className="nox-page-title">Звонки</h1>
-          <p className="nox-page-subtitle">
-            {logs.length > 0 ? `${logs.length} последних` : "История появится после первого звонка"}
-          </p>
         </div>
       </div>
 
