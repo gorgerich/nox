@@ -393,19 +393,16 @@
     opacity: 0;
     transform: translate3d(34px, 64px, 0) scale(0.88);
     clip-path: circle(22px at calc(100% - 50px) calc(100% - 48px));
-    filter: blur(2px);
   }
   58% {
     opacity: 1;
     transform: translate3d(0, -2px, 0) scale(1.01);
     clip-path: circle(145% at calc(100% - 50px) calc(100% - 48px));
-    filter: blur(0);
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
     clip-path: circle(150% at calc(100% - 50px) calc(100% - 48px));
-    filter: blur(0);
   }
 }
 

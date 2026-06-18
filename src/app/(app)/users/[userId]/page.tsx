@@ -51,7 +51,7 @@ export default async function UserProfilePage({
   const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
   return (
-    <div className="app-section animate-in fade-in duration-300">
+    <div className="app-section">
       <header className="app-section-header flex items-center gap-3">
         <BackButton />
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Профиль</h1>

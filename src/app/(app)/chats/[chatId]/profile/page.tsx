@@ -19,41 +19,47 @@ export default async function ProfilePage({
   }
 
   const { chatId } = await params;
-  const membership = await requireActiveChatMembership(chatId, user.id);
-
-  if (!membership) {
-    redirect("/chats");
-  }
-
   const prisma = getPrisma();
-  const chat = await prisma.chat.findUnique({
-    where: { id: chatId },
-    select: {
-      id: true,
-      type: true,
-      members: {
-        where: { status: "ACTIVE" },
-        select: {
-          userId: true,
-          mutedUntil: true,
-          user: {
-            select: {
-              id: true,
-              username: true,
-              lastSeenAt: true,
-              profile: {
-                select: {
-                  displayName: true,
-                  avatarUrl: true,
-                  bio: true,
+
+  // Run the membership check and the chat fetch in parallel instead of waiting
+  // for one before starting the other — both only need chatId + user.id, and
+  // the chat result is discarded if membership fails. Cuts one DB round-trip
+  // off the profile open.
+  const [membership, chat] = await Promise.all([
+    requireActiveChatMembership(chatId, user.id),
+    prisma.chat.findUnique({
+      where: { id: chatId },
+      select: {
+        id: true,
+        type: true,
+        members: {
+          where: { status: "ACTIVE" },
+          select: {
+            userId: true,
+            mutedUntil: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                lastSeenAt: true,
+                profile: {
+                  select: {
+                    displayName: true,
+                    avatarUrl: true,
+                    bio: true,
+                  },
                 },
               },
             },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
+
+  if (!membership) {
+    redirect("/chats");
+  }
 
   if (!chat || chat.type !== "DIRECT") {
     notFound();
