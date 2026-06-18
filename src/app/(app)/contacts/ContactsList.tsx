@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import { useSocket } from "@/hooks/useSocket";
 
 export type Contact = {
   id: string;
   username: string;
   isMe?: boolean;
+  isOnline?: boolean;
   profile: {
     displayName: string;
     avatarUrl: string | null;
@@ -19,9 +21,27 @@ export type Contact = {
 
 export function ContactsList({ contacts }: { contacts: Contact[] }) {
   const router = useRouter();
+  const { socket } = useSocket();
   const [query, setQuery] = useState("");
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // Live online dots. Seed from the server snapshot, then track presence:update
+  // for the whole list with one listener (no per-row subscription). Order is NOT
+  // reshuffled on presence changes so rows never jump under the user's finger.
+  const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(contacts.filter((contact) => contact.isOnline).map((contact) => [contact.id, true])),
+  );
+
+  useEffect(() => {
+    if (!socket) return;
+    const handlePresence = (payload: { userId: string; status: "online" | "offline" }) => {
+      setOnlineMap((prev) => ({ ...prev, [payload.userId]: payload.status === "online" }));
+    };
+    socket.on("presence:update", handlePresence);
+    return () => {
+      socket.off("presence:update", handlePresence);
+    };
+  }, [socket]);
   const filteredContacts = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("ru-RU");
     if (!needle) return contacts;
@@ -129,14 +149,23 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
                 onClick={() => { if (isMe) { router.push("/profile"); } else { void openContact(contact.id); } }}
                 className="nox-list-row fast-tap disabled:opacity-60"
               >
-                <div className="nox-avatar">
-                  {fullAvatarUrl ? (
-                    <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                      {displayName[0].toUpperCase()}
-                    </div>
-                  )}
+                <div className="relative shrink-0">
+                  <div className="nox-avatar">
+                    {fullAvatarUrl ? (
+                      <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        {displayName[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  {!isMe && onlineMap[contact.id] ? (
+                    <span
+                      className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 bg-success"
+                      style={{ borderColor: "var(--app-bg)" }}
+                      aria-label="в сети"
+                    />
+                  ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="nox-row-title">

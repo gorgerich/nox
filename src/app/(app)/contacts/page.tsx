@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { isUserOnline } from "@/lib/realtime";
 import { ContactsList, type Contact } from "./ContactsList";
 
 export const revalidate = 0;
@@ -60,6 +61,7 @@ export default async function ContactsPage() {
       byId.set(member.user.id, {
         id: member.user.id,
         username: member.user.username,
+        isOnline: isUserOnline(member.user.id),
         profile: member.user.profile
           ? { displayName: member.user.profile.displayName, avatarUrl: member.user.profile.avatarUrl }
           : { displayName: member.user.username, avatarUrl: null },
