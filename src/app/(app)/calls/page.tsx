@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { Phone, PhoneMissed, PhoneOutgoing, PhoneIncoming, Info } from "lucide-react";
+import { CallBackButton } from "./CallBackButton";
 
 export const revalidate = 0;
 
@@ -126,6 +127,12 @@ export default async function CallsPage() {
                     </p>
                   </div>
                 </div>
+
+                <CallBackButton
+                  chatId={log.chatId}
+                  displayName={displayName}
+                  avatarUrl={avatarUrl ?? null}
+                />
 
                 <Link
                   href={`/chats/${log.chatId}`}
