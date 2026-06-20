@@ -135,9 +135,9 @@ export default async function CallsPage() {
                 />
 
                 <Link
-                  href={`/chats/${log.chatId}`}
+                  href={`/users/${partner.id}`}
                   className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted/50 transition-smooth hover:bg-foreground/5 hover:text-muted active:scale-95"
-                  aria-label="Информация о звонке"
+                  aria-label={`Профиль: ${displayName}`}
                 >
                   <Info className="h-5 w-5" strokeWidth={2} />
                 </Link>

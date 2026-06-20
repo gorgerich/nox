@@ -348,7 +348,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       )}
 
       {activeScreen === "profile" && (
-        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -405,7 +405,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       )}
 
       {activeScreen === "devices" && (
-        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -421,7 +421,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       )}
 
       {activeScreen === "appearance" && (
-        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -481,7 +481,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       )}
 
       {activeScreen === "security" && (
-        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -549,7 +549,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       )}
 
       {activeScreen === "data" && (
-        <div className="fixed inset-0 z-50 bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
