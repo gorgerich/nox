@@ -70,7 +70,7 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
           Сюда попадают скрытые чаты.
         </p>
         <Link
-          className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-surface-elevated border border-border-subtle px-10 text-sm font-black text-foreground shadow-sm transition-smooth active:scale-95"
+          className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-surface-elevated border border-border-subtle px-10 text-sm font-black text-foreground shadow-sm transition-smooth active:scale-[0.96]"
           href="/chats"
           prefetch
         >

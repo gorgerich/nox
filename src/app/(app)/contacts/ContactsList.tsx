@@ -119,7 +119,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
           <p className="nox-empty-copy">
             Начните новый чат, чтобы контакт появился здесь.
           </p>
-          <Link href="/chats/new" className="mt-8 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-95">
+          <Link href="/chats/new" className="mt-8 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]">
             <Search className="h-4 w-4" strokeWidth={2.2} />
             Найти людей
           </Link>

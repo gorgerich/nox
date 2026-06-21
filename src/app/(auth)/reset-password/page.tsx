@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
         </Suspense>
 
         <div className="mt-8 text-center">
-          <Link className="touch-target inline-flex items-center text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95" href="/login">
+          <Link className="touch-target inline-flex items-center text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]" href="/login">
             Отмена
           </Link>
         </div>

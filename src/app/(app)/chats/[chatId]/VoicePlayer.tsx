@@ -92,7 +92,7 @@ export function VoicePlayer({
       <button
         onClick={togglePlay}
         disabled={error}
-        className={`touch-target h-11 w-11 flex shrink-0 items-center justify-center transition-smooth active:scale-90 hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm ${radiusClass}`}
+        className={`touch-target h-11 w-11 flex shrink-0 items-center justify-center transition-smooth active:scale-[0.96] hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm ${radiusClass}`}
         style={{ backgroundColor: bgControl, color: activeWaveColor }}
       >
         {error ? (
@@ -126,7 +126,7 @@ export function VoicePlayer({
         
         <div className="relative h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--chat-focus-ring)" }}>
           <div 
-            className="absolute left-0 top-0 h-full transition-all duration-100 ease-linear"
+            className="absolute left-0 top-0 h-full transition-[width,background-color] duration-100 ease-linear"
             style={{ width: `${progress}%`, backgroundColor: activeWaveColor }}
           />
         </div>

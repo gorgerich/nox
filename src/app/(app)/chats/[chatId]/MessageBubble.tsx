@@ -353,7 +353,7 @@ function AttachmentPreview({
         </div>
       ) : isRoundVideo ? (
         <div
-          className={`relative mx-auto my-1 cursor-pointer overflow-hidden rounded-full shadow-sm transition-all duration-300 active:opacity-90 ${
+          className={`relative mx-auto my-1 cursor-pointer overflow-hidden rounded-full shadow-sm transition-[width,height,opacity,transform,box-shadow] duration-300 active:opacity-90 ${
             roundExpanded ? "h-[min(76vw,24rem)] w-[min(76vw,24rem)]" : "h-56 w-56"
           }`}
           onClick={toggleRoundVideo}
@@ -877,7 +877,7 @@ export const MessageBubble = memo(function MessageBubble({
               <button
                 key={emoji}
                 onClick={(e) => { e.stopPropagation(); onReaction(message.id, emoji); }}
-                className="flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-muted px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-95"
+                className="flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-muted px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-[0.96]"
               >
                 <span>{emoji}</span>
                 <span className="text-[10px]">{info.count}</span>

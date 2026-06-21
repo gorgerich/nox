@@ -85,7 +85,7 @@ export function E2EEContactDevices({ userId, chatId }: { userId: string; chatId?
                 <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted/45">{device.fingerprintShort}</p>
               </div>
               {!device.isVerified ? (
-                <button onClick={() => void verifyDevice(device)} className="shrink-0 rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary active:scale-95">
+                <button onClick={() => void verifyDevice(device)} className="shrink-0 rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary active:scale-[0.96]">
                   Проверить
                 </button>
               ) : null}

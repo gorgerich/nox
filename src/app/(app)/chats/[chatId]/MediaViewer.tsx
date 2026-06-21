@@ -80,7 +80,7 @@ export function MediaViewer({
       <header className="safe-top flex items-center justify-between px-4 py-4 text-white">
         <button 
           onClick={onClose}
-          className="touch-target flex h-10 w-10 items-center justify-center rounded-full bg-white/10 active:scale-90 transition-transform"
+          className="touch-target flex h-10 w-10 items-center justify-center rounded-full bg-white/10 active:scale-[0.96] transition-transform"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -93,7 +93,7 @@ export function MediaViewer({
 
         <button 
           onClick={handleDownload}
-          className="touch-target flex h-10 w-10 items-center justify-center rounded-full bg-white/10 active:scale-90 transition-transform"
+          className="touch-target flex h-10 w-10 items-center justify-center rounded-full bg-white/10 active:scale-[0.96] transition-transform"
           title="Сохранить"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

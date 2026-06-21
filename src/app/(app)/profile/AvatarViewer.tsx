@@ -65,7 +65,7 @@ export function AvatarViewer({
         <button
           type="button"
           onClick={onClose}
-          className="touch-target flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition-smooth active:scale-95"
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition-smooth active:scale-[0.96]"
           aria-label="Закрыть"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +76,7 @@ export function AvatarViewer({
         <button
           type="button"
           onClick={handleSave}
-          className="touch-target flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition-smooth active:scale-95"
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition-smooth active:scale-[0.96]"
           aria-label="Сохранить"
           title="Сохранить"
         >

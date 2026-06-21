@@ -81,7 +81,7 @@ export function CacheSettings() {
         <button
           type="button"
           onClick={() => void refresh()}
-          className="h-9 rounded-full bg-foreground/5 px-3 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95"
+          className="h-9 rounded-full bg-foreground/5 px-3 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]"
         >
           Обновить
         </button>
@@ -137,7 +137,7 @@ export function CacheSettings() {
               type="button"
               disabled={busy !== null}
               onClick={() => setConfirmKeys(false)}
-              className="h-11 rounded-xl bg-foreground/5 px-4 text-sm font-semibold text-muted transition-smooth active:scale-95"
+              className="h-11 rounded-xl bg-foreground/5 px-4 text-sm font-semibold text-muted transition-smooth active:scale-[0.96]"
             >
               Отмена
             </button>

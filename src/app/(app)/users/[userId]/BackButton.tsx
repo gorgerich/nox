@@ -17,7 +17,7 @@ export function BackButton() {
 
         router.push("/chats");
       }}
-      className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
+      className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]"
       aria-label="Назад"
     >
       <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />

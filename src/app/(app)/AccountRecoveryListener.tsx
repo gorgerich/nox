@@ -103,14 +103,14 @@ export function AccountRecoveryListener() {
             <button 
               onClick={handleDeny} 
               disabled={pending}
-              className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-xl bg-danger/10 text-danger transition-smooth active:scale-95 disabled:opacity-50"
+              className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-xl bg-danger/10 text-danger transition-smooth active:scale-[0.96] disabled:opacity-50"
             >
               Отклонить
             </button>
             <button 
               onClick={handleApprove} 
               disabled={pending}
-              className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-xl bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-50"
+              className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-xl bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-[0.96] disabled:opacity-50"
             >
               Разрешить
             </button>

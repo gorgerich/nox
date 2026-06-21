@@ -1669,7 +1669,7 @@ export function ChatMessages({
                {ALLOWED_REACTIONS.map(emoji => (
                  <button 
                   key={emoji} 
-                  className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
+                  className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
                   onClick={() => toggleReaction(menuState.id, emoji)}
                  >
                   {emoji}
@@ -1889,7 +1889,7 @@ export function ChatMessages({
               <div
                 key={item.message.id}
                 ref={el => { messageRefs.current[item.message.id] = el; }}
-                className={`${initialMessageIdsRef.current.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-all duration-200" : ""}`}
+                className={`${initialMessageIdsRef.current.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-[transform,background-color,box-shadow] duration-200" : ""}`}
               >
                 {firstUnreadId === item.message.id ? (
                   <div className="my-3 flex items-center gap-3 px-2">
@@ -1930,7 +1930,7 @@ export function ChatMessages({
         <button
           onClick={() => forceScrollBottom("smooth")}
           aria-label="Вниз к последним сообщениям"
-          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/40 bg-surface shadow-xl transition-smooth active:scale-90 animate-in fade-in zoom-in-90"
+          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/40 bg-surface shadow-xl transition-smooth active:scale-[0.96] animate-in fade-in zoom-in-90"
         >
           <svg className="h-6 w-6 text-foreground/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -2001,7 +2001,7 @@ export function ChatMessages({
                      Нет доступных чатов для пересылки.
                    </div>
                  ) : recentChats.map(c => (
-                   <button key={c.id} onClick={() => void confirmForward(c.id)} disabled={isForwarding} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-95 disabled:opacity-50">
+                   <button key={c.id} onClick={() => void confirmForward(c.id)} disabled={isForwarding} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.96] disabled:opacity-50">
                       <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
                         {c.title[0]}
                       </div>

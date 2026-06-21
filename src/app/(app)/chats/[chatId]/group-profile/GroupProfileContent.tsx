@@ -170,7 +170,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         className="sticky top-0 z-50 flex items-center justify-between border-b border-border-subtle bg-background px-3 py-2"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95" aria-label="Назад">
+        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]" aria-label="Назад">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="w-10" /> 
@@ -181,7 +181,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
           <button 
             onClick={() => permissions.canEditGroup && fileInputRef.current?.click()}
             disabled={pending || !permissions.canEditGroup}
-            className={`absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth ${permissions.canEditGroup ? 'hover:opacity-90 active:scale-95' : ''}`}
+            className={`absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth ${permissions.canEditGroup ? 'hover:opacity-90 active:scale-[0.96]' : ''}`}
           >
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
@@ -213,7 +213,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
             <button 
               onClick={handleAvatarDelete}
               disabled={pending}
-              className="absolute -bottom-1 -right-1 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-danger shadow-lg transition-smooth active:scale-95"
+              className="absolute -bottom-1 -right-1 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-danger shadow-lg transition-smooth active:scale-[0.96]"
               aria-label="Удалить фото группы"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -334,7 +334,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                       <p className="text-xs text-muted">@{u.username}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleAddMembers([u.userId])} className="h-9 rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary transition-smooth active:scale-95">Добавить</button>
+                  <button onClick={() => handleAddMembers([u.userId])} className="h-9 rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary transition-smooth active:scale-[0.96]">Добавить</button>
                 </div>
               ))}
            </div>
@@ -355,7 +355,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
 function ActionButton({ label, icon, onClick }: { label: string, icon: React.ReactNode, onClick: () => void }) {
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-2">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-95">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-[0.96]">
         {icon}
       </div>
       <span className="text-[11px] font-semibold text-primary opacity-90">{label}</span>
@@ -384,7 +384,7 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
     return (
       <div className="grid grid-cols-3 gap-1">
         {items.map((m) => (
-          <div key={m.id} className="relative aspect-square overflow-hidden rounded-md bg-surface-muted transition-smooth active:scale-95">
+          <div key={m.id} className="relative aspect-square overflow-hidden rounded-md bg-surface-muted transition-smooth active:scale-[0.96]">
             <Image src={m.url} fill className="object-cover" alt="" />
           </div>
         ))}

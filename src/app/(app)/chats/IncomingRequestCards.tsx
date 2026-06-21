@@ -105,14 +105,14 @@ export function IncomingRequestCards({
               </div>
               <div className="flex gap-2">
                 <button
-                  className="h-10 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.97]"
+                  className="h-10 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
                   onClick={() => acceptRequest(request.id)}
                   type="button"
                 >
                   Принять
                 </button>
                 <button
-                  className="h-10 rounded-full bg-surface/50 border border-border-subtle px-4 text-sm font-semibold text-muted transition-smooth active:scale-[0.97] hover:bg-surface"
+                  className="h-10 rounded-full bg-surface/50 border border-border-subtle px-4 text-sm font-semibold text-muted transition-smooth active:scale-[0.96] hover:bg-surface"
                   onClick={() => declineRequest(request.id)}
                   type="button"
                 >

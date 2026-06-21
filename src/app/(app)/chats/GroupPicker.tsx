@@ -148,7 +148,7 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                       value={searchUsername} 
                       onChange={e => setSearchUsername(e.target.value)} 
                   />
-                  <button type="submit" className="fast-tap flex h-12 items-center justify-center rounded-full px-4 bg-surface-elevated text-sm font-semibold shrink-0 border border-border-subtle transition-smooth active:scale-95 disabled:opacity-50" disabled={pending} aria-label="Найти пользователя">
+                  <button type="submit" className="fast-tap flex h-12 items-center justify-center rounded-full px-4 bg-surface-elevated text-sm font-semibold shrink-0 border border-border-subtle transition-smooth active:scale-[0.96] disabled:opacity-50" disabled={pending} aria-label="Найти пользователя">
                       <Search className="h-4 w-4" strokeWidth={2.2} />
                   </button>
               </form>
@@ -190,14 +190,14 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
 
             <div className="shrink-0 space-y-3 pt-2">
               <button 
-                  className="fast-tap w-full bg-primary h-12 rounded-full text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-50"
+                  className="fast-tap w-full bg-primary h-12 rounded-full text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
                   onClick={createGroup} 
                   disabled={pending || !title.trim() || selectedUsers.size === 0}
               >
                   {pending ? "Создаём" : `Создать (${selectedUsers.size})`}
               </button>
               <button 
-                  className="w-full h-11 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95 fast-tap"
+                  className="w-full h-11 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96] fast-tap"
                   onClick={onClose}
               >
                   Отмена

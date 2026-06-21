@@ -21,7 +21,7 @@ export function UserAvatar({
         type="button"
         onClick={() => src && setOpen(true)}
         disabled={!src}
-        className="relative h-32 w-32 overflow-hidden rounded-full bg-primary/10 text-primary transition-smooth active:scale-95 disabled:cursor-default"
+        className="relative h-32 w-32 overflow-hidden rounded-full bg-primary/10 text-primary transition-smooth active:scale-[0.96] disabled:cursor-default"
         aria-label="Открыть фото профиля"
       >
         {src ? (

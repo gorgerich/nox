@@ -86,7 +86,7 @@ export default function LoginPage() {
           )}
 
           <button 
-            className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
+            className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
             disabled={pending} 
             type="submit"
           >
@@ -95,10 +95,10 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-5 flex flex-col gap-3">
-          <Link className="fast-tap flex h-12 items-center justify-center rounded-full border border-border-subtle bg-surface text-sm font-semibold text-primary transition-smooth active:scale-95" href="/join">
+          <Link className="fast-tap flex h-12 items-center justify-center rounded-full border border-border-subtle bg-surface text-sm font-semibold text-primary transition-smooth active:scale-[0.96]" href="/join">
             Присоединиться по приглашению
           </Link>
-          <Link className="fast-tap flex h-10 items-center justify-center text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-95" href="/forgot-password">
+          <Link className="fast-tap flex h-10 items-center justify-center text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-[0.96]" href="/forgot-password">
             Забыли пароль?
           </Link>
         </div>

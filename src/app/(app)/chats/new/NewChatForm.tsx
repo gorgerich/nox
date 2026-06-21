@@ -186,7 +186,7 @@ export function NewChatForm() {
             />
           </div>
           <button
-            className="fast-tap flex h-12 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
+            className="fast-tap flex h-12 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
             disabled={pendingAction !== ""}
             type="submit"
           >
@@ -213,7 +213,7 @@ export function NewChatForm() {
               <div className="mt-4 space-y-3">
                 <p className="px-1 text-sm text-muted">Это ваш профиль. Можно открыть избранное.</p>
                 <button
-                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
+                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
                   disabled={pendingAction !== ""}
                   onClick={async () => {
                     setPendingAction("start-self");
@@ -248,7 +248,7 @@ export function NewChatForm() {
                   value={message}
                 />
                 <button
-                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
+                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
                   disabled={pendingAction !== ""}
                   onClick={sendRequest}
                   type="button"
@@ -273,7 +273,7 @@ export function NewChatForm() {
                   {item.status === "PENDING" && (
                     <div className="mt-4 flex gap-3">
                       <button
-                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45"
+                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "accept")}
                         type="button"
@@ -281,7 +281,7 @@ export function NewChatForm() {
                         {pendingAction === `accept-${item.id}` ? "Принимаем" : "Принять"}
                       </button>
                       <button
-                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-95 disabled:opacity-45"
+                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "decline")}
                         type="button"
@@ -306,7 +306,7 @@ export function NewChatForm() {
                 <RequestCard key={item.id} request={item} user={item.toUser}>
                   {item.status === "PENDING" && (
                     <button
-                      className="fast-tap mt-3 flex h-10 w-full items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-danger transition-smooth active:scale-95 disabled:opacity-45"
+                      className="fast-tap mt-3 flex h-10 w-full items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-45"
                       disabled={pendingAction !== ""}
                       onClick={() => respondToRequest(item.id, "cancel")}
                       type="button"

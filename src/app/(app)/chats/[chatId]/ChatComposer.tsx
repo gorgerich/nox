@@ -203,7 +203,7 @@ export function ChatComposer({
                 type="button"
                 aria-label="Отменить действие"
                 onClick={onCancelAction}
-                className="touch-target flex h-9 w-9 items-center justify-center rounded-full text-muted transition-smooth hover:bg-foreground/5 hover:text-foreground active:scale-95"
+                className="touch-target flex h-9 w-9 items-center justify-center rounded-full text-muted transition-smooth hover:bg-foreground/5 hover:text-foreground active:scale-[0.96]"
               >
                 <X className="h-5 w-5" strokeWidth={2.1} />
               </button>
@@ -245,7 +245,7 @@ export function ChatComposer({
                 <div className="h-2 w-2 rounded-full bg-danger animate-ping" />
                 <span className="text-sm font-semibold text-danger">Запись {formatDuration(recordingDuration)}</span>
               </div>
-              <button type="button" onClick={onVoiceCancel} className="touch-target px-2 text-sm font-semibold text-danger/70 transition-smooth hover:text-danger active:scale-95">Отмена</button>
+              <button type="button" onClick={onVoiceCancel} className="touch-target px-2 text-sm font-semibold text-danger/70 transition-smooth hover:text-danger active:scale-[0.96]">Отмена</button>
             </div>
           ) : (
             <div 

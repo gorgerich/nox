@@ -221,7 +221,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                   else fileInputRef.current?.click();
                 }}
                 disabled={pending}
-                className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-95"
+                className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-[0.96]"
               >
                 {fullAvatarUrl ? (
                   <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
@@ -248,7 +248,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-surface bg-primary text-primary-foreground transition-smooth active:scale-95"
+                className="absolute bottom-0 left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-surface bg-primary text-primary-foreground transition-smooth active:scale-[0.96]"
                 title="Изменить фото"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -259,7 +259,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               {avatarUrl && (
                 <button
                   onClick={handleAvatarDelete}
-                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-red-400 transition-smooth active:scale-95"
+                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-red-400 transition-smooth active:scale-[0.96]"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -317,7 +317,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                  </div>
                  <button
                    onClick={isSubscribed ? unsubscribe : subscribe}
-                   className={`h-10 rounded-full px-4 text-sm font-semibold transition-smooth active:scale-95 ${
+                   className={`h-10 rounded-full px-4 text-sm font-semibold transition-smooth active:scale-[0.96] ${
                      isSubscribed ? "border border-primary/20 bg-primary/10 text-primary" : "bg-primary text-primary-foreground"
                    }`}
                  >
@@ -329,7 +329,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
             {isAdmin && (
               <Link
                 href="/admin"
-                className="flex h-12 w-full items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-95"
+                className="flex h-12 w-full items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]"
               >
                 Админ-панель
               </Link>
@@ -339,7 +339,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
               type="button"
               onClick={handleLogout}
               disabled={pending}
-              className="h-12 w-full rounded-full border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-95 disabled:opacity-50"
+              className="h-12 w-full rounded-full border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.96] disabled:opacity-50"
             >
               {pending ? "Выход..." : "Выйти из аккаунта"}
             </button>
@@ -350,7 +350,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       {activeScreen === "profile" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Мой профиль</h1>
@@ -395,7 +395,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                <button
                  type="submit"
                  disabled={pending}
-                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-50"
+                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
                >
                  {pending ? "Сохранение..." : "Сохранить изменения"}
                </button>
@@ -407,7 +407,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       {activeScreen === "devices" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Устройства</h1>
@@ -423,7 +423,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       {activeScreen === "appearance" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Оформление</h1>
@@ -441,7 +441,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                   <button
                     key={t}
                     onClick={() => setTheme(t)}
-                    className={`rounded-xl px-3 py-3 text-sm font-semibold transition-smooth active:scale-95 ${
+                    className={`rounded-xl px-3 py-3 text-sm font-semibold transition-smooth active:scale-[0.96] ${
                       theme === t ? "bg-primary text-primary-foreground" : "text-muted hover:bg-foreground/5 hover:text-foreground"
                     }`}
                   >
@@ -483,7 +483,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       {activeScreen === "security" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Безопасность</h1>
@@ -522,7 +522,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                <button
                  type="submit"
                  disabled={passwordPending || !currentPassword || newPassword.length < 8}
-                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-50"
+                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
                >
                  {passwordPending ? "Сохранение..." : "Изменить пароль"}
                </button>
@@ -530,7 +530,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                <button
                  type="button"
                  onClick={() => setShowTrustedReset(true)}
-                 className="h-12 w-full rounded-full bg-transparent text-sm font-semibold text-primary transition-smooth hover:bg-primary/5 active:scale-95"
+                 className="h-12 w-full rounded-full bg-transparent text-sm font-semibold text-primary transition-smooth hover:bg-primary/5 active:scale-[0.96]"
                >
                  Не помню текущий пароль
                </button>
@@ -540,7 +540,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                <p className="mb-4 text-center text-sm font-medium leading-relaxed text-amber-600 dark:text-amber-400/90">
                  Nox не хранит ключи от ваших сообщений. После сброса пароля на новом устройстве старые сообщения могут быть недоступны без доверенного устройства.
                </p>
-               <Link href="/forgot-password" className="flex h-12 w-full items-center justify-center rounded-full bg-amber-500 text-sm font-semibold text-neutral-950 transition-smooth active:scale-95">
+               <Link href="/forgot-password" className="flex h-12 w-full items-center justify-center rounded-full bg-amber-500 text-sm font-semibold text-neutral-950 transition-smooth active:scale-[0.96]">
                  Сбросить пароль полностью
                </Link>
             </div>
@@ -551,7 +551,7 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
       {activeScreen === "data" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Данные и кэш</h1>
@@ -597,14 +597,14 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 <button
                   type="button"
                   onClick={() => setShowTrustedReset(false)}
-                  className="flex-1 py-3 text-sm font-semibold text-muted transition-smooth active:scale-95"
+                  className="flex-1 py-3 text-sm font-semibold text-muted transition-smooth active:scale-[0.96]"
                 >
                   Отмена
                 </button>
                 <button
                   type="submit"
                   disabled={trustedPending || trustedNewPassword.length < 8}
-                  className="flex-1 py-3 text-sm font-semibold text-primary transition-smooth active:scale-95 disabled:opacity-50"
+                  className="flex-1 py-3 text-sm font-semibold text-primary transition-smooth active:scale-[0.96] disabled:opacity-50"
                 >
                   {trustedPending ? "..." : "Сохранить"}
                 </button>
@@ -859,7 +859,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
                   <button
                     onClick={() => void revokeDevice(device)}
                     disabled={pendingDeviceId === device.deviceId}
-                    className="shrink-0 rounded-full bg-danger/10 px-4 py-2.5 text-xs font-semibold text-danger transition-smooth active:scale-95 disabled:opacity-50"
+                    className="shrink-0 rounded-full bg-danger/10 px-4 py-2.5 text-xs font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-50"
                   >
                     {pendingDeviceId === device.deviceId ? "..." : "Завершить"}
                   </button>

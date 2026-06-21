@@ -122,7 +122,7 @@ export default function JoinPage() {
               </p>
             )}
 
-            <button className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95" type="submit">
+            <button className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]" type="submit">
               Далее
             </button>
           </form>
@@ -151,7 +151,7 @@ export default function JoinPage() {
 
             <div className="mt-4 flex gap-2">
               <button
-                className="fast-tap flex h-12 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-95"
+                className="fast-tap flex h-12 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-[0.96]"
                 type="button"
                 onClick={() => {
                   setError("");
@@ -160,7 +160,7 @@ export default function JoinPage() {
               >
                 Назад
               </button>
-              <button className="fast-tap flex h-12 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-95 disabled:opacity-45" disabled={pending} type="submit">
+              <button className="fast-tap flex h-12 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45" disabled={pending} type="submit">
                 {pending ? "Подождите..." : "Создать"}
               </button>
             </div>
@@ -168,7 +168,7 @@ export default function JoinPage() {
         )}
 
         <div className="mt-5 text-center">
-          <Link className="fast-tap inline-flex h-10 items-center justify-center px-3 text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-95" href="/login">
+          <Link className="fast-tap inline-flex h-10 items-center justify-center px-3 text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-[0.96]" href="/login">
             Уже есть профиль? Войти
           </Link>
         </div>

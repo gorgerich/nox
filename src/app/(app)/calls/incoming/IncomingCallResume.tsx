@@ -37,7 +37,7 @@ export function IncomingCallResume({ callId }: { callId: string | null }) {
           <button
             type="button"
             onClick={() => { setTimedOut(false); resumePendingCall(callId); }}
-            className="mt-5 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white active:scale-95"
+            className="mt-5 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white active:scale-[0.96]"
           >
             Повторить
           </button>
@@ -46,7 +46,7 @@ export function IncomingCallResume({ callId }: { callId: string | null }) {
           <button
             type="button"
             onClick={() => router.push("/chats")}
-            className="mt-3 rounded-2xl bg-foreground/5 px-5 py-3 text-sm font-black text-foreground active:scale-95"
+            className="mt-3 rounded-2xl bg-foreground/5 px-5 py-3 text-sm font-black text-foreground active:scale-[0.96]"
           >
             Вернуться в чаты
           </button>

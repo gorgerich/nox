@@ -378,7 +378,7 @@ export function CallOverlay() {
         {needsTapToPlay && remoteStream ? (
           <button
             onClick={handleTapToPlay}
-            className="mt-4 flex flex-col items-center gap-2 rounded-2xl border-2 border-primary bg-primary/20 px-6 py-4 transition-smooth active:scale-95"
+            className="mt-4 flex flex-col items-center gap-2 rounded-2xl border-2 border-primary bg-primary/20 px-6 py-4 transition-smooth active:scale-[0.96]"
           >
             <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
@@ -394,12 +394,12 @@ export function CallOverlay() {
       >
         {isIncoming ? (
           <div className="flex items-center justify-around gap-6 animate-in slide-in-from-bottom-10 duration-200">
-            <button onClick={declineCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-danger text-white shadow-xl shadow-danger/30 transition-smooth active:scale-90">
+            <button onClick={declineCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-danger text-white shadow-xl shadow-danger/30 transition-smooth active:scale-[0.96]">
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <button onClick={acceptCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/30 transition-smooth active:scale-90">
+            <button onClick={acceptCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/30 transition-smooth active:scale-[0.96]">
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
@@ -410,7 +410,7 @@ export function CallOverlay() {
             <div className="flex justify-center gap-3">
               <button
                 onClick={toggleMute}
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-smooth active:scale-90 ${
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-smooth active:scale-[0.96] ${
                   isMuted ? "border-white bg-white text-black" : "border-white/10 bg-white/5 text-white"
                 }`}
                 title={isMuted ? "Включить микрофон" : "Выключить микрофон"}
@@ -422,7 +422,7 @@ export function CallOverlay() {
 
               <button
                 onClick={handleSpeakerToggle}
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-smooth active:scale-90 ${
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-smooth active:scale-[0.96] ${
                   speakerMode === "alternate" ? "border-primary/80 bg-primary/20 text-primary" : "border-white/10 bg-white/5 text-white"
                 }`}
                 title="Громкая связь"
@@ -435,7 +435,7 @@ export function CallOverlay() {
               {isVideo && (
                 <button
                   onClick={toggleCamera}
-                  className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-smooth active:scale-90 ${
+                  className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-smooth active:scale-[0.96] ${
                     isCameraOff ? "border-white bg-white text-black" : "border-white/10 bg-white/5 text-white"
                   }`}
                   title={isCameraOff ? "Включить камеру" : "Выключить камеру"}
@@ -449,7 +449,7 @@ export function CallOverlay() {
               {isVideo && (
                 <button
                   onClick={() => void switchCamera()}
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition-smooth active:scale-90 disabled:opacity-40"
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition-smooth active:scale-[0.96] disabled:opacity-40"
                   disabled={isScreenSharing}
                   title="Переключить камеру"
                 >
@@ -460,7 +460,7 @@ export function CallOverlay() {
               )}
             </div>
 
-            <button onClick={endCall} className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger text-white shadow-xl shadow-danger/30 transition-smooth active:scale-90">
+            <button onClick={endCall} className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger text-white shadow-xl shadow-danger/30 transition-smooth active:scale-[0.96]">
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>

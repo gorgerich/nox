@@ -21,7 +21,7 @@ export function CallBackButton({
     <button
       type="button"
       onClick={() => void startCall(chatId, { displayName, avatarUrl }, { video: false })}
-      className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth hover:bg-primary/15 active:scale-95"
+      className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth hover:bg-primary/15 active:scale-[0.96]"
       aria-label={`Перезвонить: ${displayName}`}
     >
       <Phone className="h-5 w-5" strokeWidth={2.1} />

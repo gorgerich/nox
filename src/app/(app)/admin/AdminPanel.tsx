@@ -263,7 +263,7 @@ export function AdminPanel() {
         </div>
         <button 
           onClick={loadAdminData}
-          className={`touch-target h-11 w-11 flex items-center justify-center rounded-full bg-surface-muted border border-border-subtle/50 text-muted transition-smooth active:scale-90 ${loading ? 'animate-spin' : ''}`}
+          className={`touch-target h-11 w-11 flex items-center justify-center rounded-full bg-surface-muted border border-border-subtle/50 text-muted transition-smooth active:scale-[0.96] ${loading ? 'animate-spin' : ''}`}
           aria-label="Обновить"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -455,14 +455,14 @@ export function AdminPanel() {
                     {actionable && (
                       <div className="mt-5 flex gap-3">
                         <button
-                          className="flex-1 rounded-xl bg-red-500/10 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 transition-smooth active:scale-95 disabled:opacity-50"
+                          className="flex-1 rounded-xl bg-red-500/10 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 transition-smooth active:scale-[0.96] disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`deny-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/deny`)}
                         >
                           {pendingAction === `deny-recovery-${request.id}` ? "..." : "Отклонить"}
                         </button>
                         <button
-                          className="flex-1 rounded-xl bg-primary py-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-95 disabled:opacity-50"
+                          className="flex-1 rounded-xl bg-primary py-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-[0.96] disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`approve-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/approve`)}
                         >
@@ -529,7 +529,7 @@ function AdminActionButton({ label, onClick, pending, variant = "default" }: {
 }) {
   return (
     <button
-      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
+      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-[transform,background-color,color,opacity] active:scale-[0.96] ${
         variant === "danger" 
           ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" 
           : "bg-surface-hover text-muted hover:text-foreground"

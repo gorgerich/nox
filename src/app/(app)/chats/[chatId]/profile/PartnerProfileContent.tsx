@@ -159,13 +159,13 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         className="sticky top-0 z-50 flex items-center justify-between bg-background/95 px-3 py-2 backdrop-blur-xl"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95" aria-label="Назад">
+        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]" aria-label="Назад">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <button
           type="button"
           onClick={() => setIsEditSheetOpen(true)}
-          className="rounded-full bg-surface-elevated px-4 py-2 text-[16px] font-semibold text-foreground shadow-sm transition-smooth active:scale-95"
+          className="rounded-full bg-surface-elevated px-4 py-2 text-[16px] font-semibold text-foreground shadow-sm transition-smooth active:scale-[0.96]"
         >
           Изменить
         </button>
@@ -177,7 +177,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
             type="button"
             onClick={() => fullAvatarUrl && setShowAvatarViewer(true)}
             disabled={!fullAvatarUrl}
-            className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-95 disabled:cursor-default"
+            className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-[0.96] disabled:cursor-default"
             aria-label="Открыть фото профиля"
           >
             {fullAvatarUrl ? (
@@ -227,7 +227,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
               <button
                 type="button"
                 onClick={() => setIsEncryptionOpen(true)}
-                className="mt-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-primary transition-smooth active:scale-95"
+                className="mt-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-primary transition-smooth active:scale-[0.96]"
                 aria-label="Информация о шифровании"
               >
                 <QrIcon />
@@ -315,7 +315,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
 function ActionButton({ label, icon, onClick, destructive }: { label: string, icon: React.ReactNode, onClick: () => void, destructive?: boolean }) {
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-1.5">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-95 group-hover:bg-foreground/5 ${destructive ? "text-danger" : "text-primary"}`}>
+      <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-[0.96] group-hover:bg-foreground/5 ${destructive ? "text-danger" : "text-primary"}`}>
         {icon}
       </div>
       <span className={`text-[11px] font-medium ${destructive ? "text-danger" : "text-primary"}`}>{label}</span>
@@ -481,7 +481,7 @@ function SharedMediaTile({ item, chatId, currentUserId }: { item: PhotoItem, cha
   }, [chatId, currentUserId, item]);
 
   return (
-    <div className="aspect-square bg-surface-muted rounded-md overflow-hidden active:scale-95 transition-smooth relative">
+    <div className="aspect-square bg-surface-muted rounded-md overflow-hidden active:scale-[0.96] transition-smooth relative">
       {src && !error && item.type === "VIDEO" ? (
         <video src={src} className="h-full w-full object-cover" preload="metadata" muted playsInline />
       ) : src && !error ? (

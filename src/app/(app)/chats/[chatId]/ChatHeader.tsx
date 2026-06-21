@@ -94,7 +94,7 @@ export function ChatHeader({
           type="button"
           aria-label="Назад к чатам"
           onClick={handleBackToChats}
-          className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
+          className="touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]"
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />
         </button>
@@ -139,7 +139,7 @@ export function ChatHeader({
               aria-label="Аудиозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null })}
               disabled={status !== "idle"}
-              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96] disabled:opacity-30 disabled:grayscale"
               title="Аудиозвонок"
             >
               <Phone className="h-5 w-5" strokeWidth={2.1} />
@@ -149,7 +149,7 @@ export function ChatHeader({
               aria-label="Видеозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null }, { video: true })}
               disabled={status !== "idle"}
-              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95 disabled:opacity-30 disabled:grayscale"
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96] disabled:opacity-30 disabled:grayscale"
               title="Видеозвонок"
             >
               <Video className="h-5 w-5" strokeWidth={2.1} />
@@ -162,7 +162,7 @@ export function ChatHeader({
               type="button"
               aria-label="Ещё"
               onClick={() => setTimerMenuOpen((v) => !v)}
-              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-95"
+              className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]"
               title="Ещё"
             >
               <MoreVertical className="h-5 w-5" strokeWidth={2.2} />

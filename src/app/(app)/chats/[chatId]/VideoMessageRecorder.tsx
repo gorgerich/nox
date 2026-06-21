@@ -202,7 +202,7 @@ export function VideoMessageRecorder({
       )}
 
       <div className="flex items-center gap-8">
-        <button onClick={cancel} className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-90" title="Отмена">
+        <button onClick={cancel} className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96]" title="Отмена">
           <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
 
@@ -210,7 +210,7 @@ export function VideoMessageRecorder({
           <button
             onClick={startRecording}
             disabled={!ready || !!error}
-            className="flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-2xl shadow-danger/40 transition-smooth active:scale-90 disabled:opacity-40"
+            className="flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-2xl shadow-danger/40 transition-smooth active:scale-[0.96] disabled:opacity-40"
             title="Записать"
           >
             <span className="h-7 w-7 rounded-full bg-white" />
@@ -218,7 +218,7 @@ export function VideoMessageRecorder({
         ) : (
           <button
             onClick={stopRecording}
-            className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-white shadow-2xl shadow-primary/40 transition-smooth active:scale-90"
+            className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-white shadow-2xl shadow-primary/40 transition-smooth active:scale-[0.96]"
             title="Отправить"
           >
             <svg className="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -228,7 +228,7 @@ export function VideoMessageRecorder({
         <button
           onClick={() => void switchCamera()}
           disabled={!ready}
-          className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-90 disabled:opacity-40"
+          className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96] disabled:opacity-40"
           title="Переключить камеру"
         >
           <RotateCcw className="h-7 w-7" strokeWidth={2.3} />

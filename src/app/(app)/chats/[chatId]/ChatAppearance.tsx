@@ -412,7 +412,7 @@ export function ChatAppearanceSheet({
 
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold tracking-tight text-foreground">Оформление</h2>
-          <button onClick={onReset} className="touch-target text-sm font-semibold text-primary transition-smooth hover:opacity-80 active:scale-95">
+          <button onClick={onReset} className="touch-target text-sm font-semibold text-primary transition-smooth hover:opacity-80 active:scale-[0.96]">
             Сброс
           </button>
         </div>
@@ -427,7 +427,7 @@ export function ChatAppearanceSheet({
                   <button
                     key={id}
                     onClick={() => onUpdate({ preset: id, background: id })}
-                    className={`relative group flex flex-col items-center gap-2 rounded-2xl border p-1.5 transition-smooth active:scale-95 ${
+                    className={`relative group flex flex-col items-center gap-2 rounded-2xl border p-1.5 transition-smooth active:scale-[0.96] ${
                       settings.preset === id ? "border-primary bg-primary/5" : "border-border-subtle hover:border-muted"
                     }`}
                   >
@@ -450,7 +450,7 @@ export function ChatAppearanceSheet({
                 <button
                   key={color}
                   onClick={() => onUpdate({ outgoingColor: color })}
-                  className={`h-11 w-11 rounded-full border-2 transition-smooth active:scale-90 ${
+                  className={`h-11 w-11 rounded-full border-2 transition-smooth active:scale-[0.96] ${
                     settings.outgoingColor.toLowerCase() === color ? "scale-105 border-foreground" : "border-transparent"
                   }`}
                   style={{ backgroundColor: color }}
@@ -470,7 +470,7 @@ export function ChatAppearanceSheet({
                 <button
                   key={style.id}
                   onClick={() => onUpdate({ incomingStyle: style.id })}
-                  className={`touch-target h-11 rounded-xl border text-sm font-semibold transition-smooth active:scale-95 ${
+                  className={`touch-target h-11 rounded-xl border text-sm font-semibold transition-smooth active:scale-[0.96] ${
                     settings.incomingStyle === style.id ? "border-primary bg-primary/5 text-primary" : "border-border-subtle text-muted"
                   }`}
                 >
@@ -490,7 +490,7 @@ export function ChatAppearanceSheet({
                 <button
                   key={r.id}
                   onClick={() => onUpdate({ bubbleRadius: r.id })}
-                  className={`touch-target h-11 rounded-xl border text-sm font-semibold transition-smooth active:scale-95 ${
+                  className={`touch-target h-11 rounded-xl border text-sm font-semibold transition-smooth active:scale-[0.96] ${
                     settings.bubbleRadius === r.id ? "border-primary bg-primary/5 text-primary" : "border-border-subtle text-muted"
                   }`}
                 >
