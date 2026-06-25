@@ -7,18 +7,21 @@
   --app-muted: oklch(57% 0.018 252);
   --app-border: rgba(24, 37, 61, 0.08);
 
-  --glass-bg: rgba(248, 251, 255, 0.62);
-  --glass-bg-strong: rgba(250, 252, 255, 0.78);
-  --glass-panel-fill: rgba(248, 251, 255, 0.66);
-  --glass-panel-fill-strong: rgba(250, 252, 255, 0.84);
-  --glass-panel-border: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(30, 45, 72, 0.08);
-  --glass-highlight: rgba(255, 255, 255, 0.74);
-  --glass-shadow: rgba(25, 38, 62, 0.07);
+  --glass-bg: rgba(248, 251, 255, 0.5);
+  --glass-bg-strong: rgba(250, 252, 255, 0.68);
+  --glass-panel-fill: rgba(248, 251, 255, 0.54);
+  --glass-panel-fill-strong: rgba(250, 252, 255, 0.74);
+  --glass-panel-border: rgba(255, 255, 255, 0.62);
+  --glass-border: rgba(30, 45, 72, 0.07);
+  --glass-highlight: rgba(255, 255, 255, 0.82);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-sheen: rgba(255, 255, 255, 0.46);
+  --glass-caustic: rgba(37, 99, 235, 0.055);
+  --glass-shadow: rgba(25, 38, 62, 0.055);
   --glass-inner-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.68),
-    inset 0 -1px 0 rgba(24, 37, 61, 0.05);
-  --glass-filter: blur(20px) saturate(150%) contrast(101%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -1px 0 rgba(24, 37, 61, 0.035);
+  --glass-filter: blur(28px) saturate(178%) contrast(102%);
   --glass-material: var(--glass-panel-fill);
 
   --dock-bg: rgba(248, 251, 255, 0.74);
@@ -27,8 +30,8 @@
   --dock-active-bg: rgba(255, 255, 255, 0.86);
   --dock-active-fg: oklch(19% 0.014 252);
   --dock-shadow:
-    0 10px 24px rgba(25, 38, 62, 0.08),
-    0 1px 2px rgba(25, 38, 62, 0.05);
+    0 12px 28px rgba(25, 38, 62, 0.075),
+    0 1px 2px rgba(25, 38, 62, 0.04);
 
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -62,13 +65,13 @@
   --glass-overlay-clear: rgba(255, 255, 255, 0);
   --glass-overlay-soft: rgba(255, 255, 255, 0.16);
   --glass-panel-shadow:
-    0 10px 24px rgba(25, 38, 62, 0.07),
-    0 1px 2px rgba(25, 38, 62, 0.04);
+    0 10px 30px rgba(25, 38, 62, 0.065),
+    0 1px 2px rgba(25, 38, 62, 0.035);
   --glass-panel-shadow-strong:
-    0 16px 40px rgba(25, 38, 62, 0.1),
-    0 2px 6px rgba(25, 38, 62, 0.05);
-  --glass-specular: rgba(255, 255, 255, 0.58);
-  --glass-depth-soft: rgba(25, 38, 62, 0.06);
+    0 18px 48px rgba(25, 38, 62, 0.09),
+    0 2px 8px rgba(25, 38, 62, 0.045);
+  --glass-specular: rgba(255, 255, 255, 0.7);
+  --glass-depth-soft: rgba(25, 38, 62, 0.045);
   --liquid-noise-opacity: 0;
   --ambient-1: transparent;
   --ambient-2: transparent;
@@ -127,18 +130,21 @@
   --app-fg: oklch(96.5% 0.006 252);
   --app-muted: rgba(248, 250, 252, 0.58);
   --app-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(24, 29, 38, 0.66);
-  --glass-bg-strong: rgba(31, 37, 48, 0.82);
-  --glass-panel-fill: rgba(24, 29, 38, 0.7);
-  --glass-panel-fill-strong: rgba(31, 37, 48, 0.86);
-  --glass-panel-border: rgba(255, 255, 255, 0.12);
+  --glass-bg: rgba(24, 29, 38, 0.5);
+  --glass-bg-strong: rgba(31, 37, 48, 0.68);
+  --glass-panel-fill: rgba(24, 29, 38, 0.56);
+  --glass-panel-fill-strong: rgba(31, 37, 48, 0.76);
+  --glass-panel-border: rgba(255, 255, 255, 0.14);
   --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-highlight: rgba(255, 255, 255, 0.2);
-  --glass-shadow: rgba(0, 0, 0, 0.28);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-edge: rgba(255, 255, 255, 0.28);
+  --glass-sheen: rgba(255, 255, 255, 0.12);
+  --glass-caustic: rgba(59, 130, 246, 0.08);
+  --glass-shadow: rgba(0, 0, 0, 0.22);
   --glass-inner-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.24);
-  --glass-filter: blur(22px) saturate(145%) contrast(102%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  --glass-filter: blur(30px) saturate(162%) contrast(103%);
   --glass-material: var(--glass-panel-fill);
   --dock-bg: rgba(25, 30, 39, 0.78);
   --dock-border: rgba(255, 255, 255, 0.14);
@@ -146,8 +152,8 @@
   --dock-active-bg: rgba(255, 255, 255, 0.12);
   --dock-active-fg: oklch(96.5% 0.006 252);
   --dock-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.34),
-    0 2px 6px rgba(0, 0, 0, 0.22);
+    0 16px 36px rgba(0, 0, 0, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.18);
   --accent: #3b82f6;
   --accent-hover: #60a5fa;
   --accent-soft: rgba(59, 130, 246, 0.16);
@@ -180,13 +186,13 @@
   --glass-overlay-clear: rgba(255, 255, 255, 0);
   --glass-overlay-soft: rgba(255, 255, 255, 0.05);
   --glass-panel-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.28),
-    0 1px 4px rgba(0, 0, 0, 0.2);
+    0 14px 34px rgba(0, 0, 0, 0.24),
+    0 1px 4px rgba(0, 0, 0, 0.16);
   --glass-panel-shadow-strong:
-    0 20px 48px rgba(0, 0, 0, 0.38),
-    0 2px 8px rgba(0, 0, 0, 0.26);
-  --glass-specular: rgba(255, 255, 255, 0.16);
-  --glass-depth-soft: rgba(0, 0, 0, 0.22);
+    0 22px 54px rgba(0, 0, 0, 0.34),
+    0 2px 8px rgba(0, 0, 0, 0.22);
+  --glass-specular: rgba(255, 255, 255, 0.18);
+  --glass-depth-soft: rgba(0, 0, 0, 0.18);
   --liquid-noise-opacity: 0;
   --ambient-1: transparent;
   --ambient-2: transparent;
@@ -550,12 +556,19 @@ img {
   .glass-panel {
     position: relative;
     overflow: hidden;
-    background: var(--glass-material);
+    isolation: isolate;
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 38%),
+      radial-gradient(circle at 18% 0%, var(--glass-edge), transparent 34%),
+      radial-gradient(circle at 85% 110%, var(--glass-caustic), transparent 46%),
+      var(--glass-material);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);
     border: 1px solid var(--glass-panel-border);
     box-shadow:
+      inset 0 0 0 0.5px color-mix(in oklab, var(--glass-edge) 56%, transparent),
       inset 0 1px 0 var(--glass-highlight),
+      inset 0 -18px 28px rgba(255, 255, 255, 0.045),
       var(--glass-panel-shadow);
   }
 
@@ -563,18 +576,49 @@ img {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    background: var(--glass-material);
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 42%),
+      radial-gradient(circle at 18% 0%, var(--glass-edge), transparent 32%),
+      radial-gradient(circle at 88% 115%, var(--glass-caustic), transparent 48%),
+      var(--glass-material);
     border: 1px solid var(--glass-panel-border);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);
     box-shadow:
+      inset 0 0 0 0.5px color-mix(in oklab, var(--glass-edge) 60%, transparent),
       inset 0 1px 0 var(--glass-highlight),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -18px 28px rgba(255, 255, 255, 0.045),
       0 10px 24px var(--glass-depth-soft);
   }
 
   .premium-glass::before {
-    content: none;
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(115deg, transparent 0 30%, rgba(255, 255, 255, 0.26) 41%, transparent 53%),
+      radial-gradient(100% 70% at 50% -20%, rgba(255, 255, 255, 0.22), transparent 58%);
+    opacity: 0.72;
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  .premium-glass::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(100% 80% at 50% 100%, rgba(24, 37, 61, 0.05), transparent 62%);
+    pointer-events: none;
+  }
+
+  .premium-glass > * {
+    position: relative;
+    z-index: 1;
   }
 
   .fluid-hit {
@@ -603,22 +647,31 @@ img {
   }
 
   .dock-liquid {
-    background: var(--dock-background);
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 44%),
+      radial-gradient(circle at 20% 0%, var(--glass-edge), transparent 34%),
+      var(--dock-background);
     border-color: var(--dock-border);
-    backdrop-filter: blur(24px) saturate(180%) contrast(104%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%) contrast(104%);
+    backdrop-filter: blur(30px) saturate(190%) contrast(104%);
+    -webkit-backdrop-filter: blur(30px) saturate(190%) contrast(104%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      inset 0 -1px 0 rgba(24, 37, 61, 0.06),
+      inset 0 0 0 0.5px color-mix(in oklab, var(--glass-edge) 58%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -12px 22px rgba(255, 255, 255, 0.04),
       var(--dock-shadow);
   }
 
   .composer-liquid {
-    background: var(--chat-composer);
+    background:
+      linear-gradient(180deg, var(--glass-sheen), transparent 52%),
+      var(--chat-composer);
     border-color: var(--chat-composer-border);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);
     box-shadow:
+      inset 0 0 0 0.5px color-mix(in oklab, var(--glass-edge) 46%, transparent),
       inset 0 1px 0 var(--glass-highlight),
       0 -1px 0 rgba(24, 37, 61, 0.04);
   }
@@ -635,7 +688,12 @@ img {
 
   .card-premium {
     @apply border border-border-subtle rounded-2xl transition-smooth;
-    background: var(--glass-material);
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 46%),
+      radial-gradient(circle at 20% 0%, var(--glass-edge), transparent 32%),
+      var(--glass-material);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);
     box-shadow:
@@ -645,7 +703,9 @@ img {
 
   .input-nox {
     @apply w-full border border-border-subtle rounded-2xl px-5 py-4 text-base transition-smooth outline-none;
-    background: var(--input);
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--glass-edge) 24%, transparent), transparent 64%),
+      var(--input);
     color: var(--input-foreground);
     -webkit-appearance: none;
     box-shadow:
@@ -666,7 +726,9 @@ img {
   .btn-nox {
     @apply flex items-center justify-center font-bold rounded-2xl transition-smooth active:scale-[0.96] disabled:opacity-50;
     min-height: 44px;
-    background: var(--glass-material);
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 46%),
+      var(--glass-material);
     border: 1px solid var(--glass-panel-border);
     box-shadow:
       inset 0 1px 0 var(--glass-highlight),
@@ -793,7 +855,9 @@ img {
     gap: 10px;
     border-radius: var(--radius-full);
     border: 1px solid var(--glass-panel-border);
-    background: var(--glass-material);
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 46%),
+      var(--glass-material);
     color: var(--foreground);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);
@@ -959,7 +1023,10 @@ img {
   }
 
   .liquid-top-chrome {
-    background: var(--glass-material);
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 44%),
+      radial-gradient(circle at 18% 0%, var(--glass-edge), transparent 34%),
+      var(--glass-material);
     border: 1px solid var(--glass-panel-border);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);
