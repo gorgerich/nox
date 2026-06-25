@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
@@ -134,6 +135,27 @@ function getCopyableMessageText(message: Message | MessageWithDecrypted | null) 
   return text;
 }
 
+function E2EEDisclaimer() {
+  return (
+    <div className="px-3 pb-3 pt-1">
+      <Link
+        href="/safety"
+        className="mx-auto flex max-w-[34rem] items-start gap-3 rounded-[1.25rem] border border-border-subtle/50 bg-surface/82 px-4 py-3.5 text-left shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-smooth active:scale-[0.99]"
+      >
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+          <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3.75 5.5 6.4v5.35c0 4.08 2.76 7.9 6.5 8.95 3.74-1.05 6.5-4.87 6.5-8.95V6.4L12 3.75Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9.6 12.2 11.3 14l3.5-4" />
+          </svg>
+        </span>
+        <span className="text-[14px] font-semibold leading-5 text-foreground">
+          Сообщения и звонки защищены сквозным шифрованием. Никто вне этого чата, даже Nox, не может читать или слушать их. Нажмите, чтобы узнать больше.
+        </span>
+      </Link>
+    </div>
+  );
+}
+
 export function ChatMessages({
   chatId,
   currentUserId,
@@ -193,8 +215,8 @@ export function ChatMessages({
   // otherwise opening a chat fires 50 slide-ins at once. Only messages that
   // arrive afterwards animate in. Seeded with the first paint set and topped up
   // after the client-side history load resolves (see the loader effect below).
-  const initialMessageIdsRef = useRef<Set<string>>(
-    new Set(seedMessages.map((m) => m.id))
+  const [initialMessageIds, setInitialMessageIds] = useState<Set<string>>(
+    () => new Set(seedMessages.map((m) => m.id))
   );
   // Guard so the first client history load runs once and recomputes the
   // "unread" divider / animation-suppression set from the authoritative batch.
@@ -256,7 +278,7 @@ export function ChatMessages({
       });
       if (authoritative && !historyLoadedRef.current) {
         historyLoadedRef.current = true;
-        initialMessageIdsRef.current = new Set(incoming.map((m) => m.id));
+        setInitialMessageIds(new Set(incoming.map((m) => m.id)));
         for (const m of incoming) {
           if (m.senderUserId !== currentUserId && (m.receipts ?? []).some((r) => r.userId === currentUserId && !r.readAt)) {
             setFirstUnreadId(m.id);
@@ -1871,6 +1893,23 @@ export function ChatMessages({
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/25 border-t-primary/80" />
             </div>
           ) : null}
+          {messagesWithDecrypted.length === 0 ? (
+            <>
+              <div className="flex justify-center py-3">
+                <span
+                  className="rounded-full border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
+                  style={{
+                    backgroundColor: "var(--chat-date-bg)",
+                    color: "var(--chat-date-fg)",
+                    borderColor: "var(--chat-focus-ring)",
+                  }}
+                >
+                  {formatDateLabel(new Date())}
+                </span>
+              </div>
+              <E2EEDisclaimer />
+            </>
+          ) : null}
           {groupedMessages.map((item, idx) => (
             item.type === "date" ? (
               <div key={`date-${idx}`} className="flex justify-center py-3">
@@ -1889,7 +1928,7 @@ export function ChatMessages({
               <div
                 key={item.message.id}
                 ref={el => { messageRefs.current[item.message.id] = el; }}
-                className={`${initialMessageIdsRef.current.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-[transform,background-color,box-shadow] duration-200" : ""}`}
+                className={`${initialMessageIds.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-[transform,background-color,box-shadow] duration-200" : ""}`}
               >
                 {firstUnreadId === item.message.id ? (
                   <div className="my-3 flex items-center gap-3 px-2">

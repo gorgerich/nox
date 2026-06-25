@@ -21,6 +21,7 @@ export default async function ChatsPage() {
       initialIncomingRequests={data.incomingRequests}
       initialArchivedCount={data.archivedCount}
       initialChatFolders={data.chatFolders}
+      initialBuiltInFolders={data.chatFolderSettings.builtIns}
     />
   );
 }

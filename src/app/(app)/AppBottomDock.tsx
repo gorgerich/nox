@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
 
 const tabs = [
@@ -36,6 +36,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
   const dockRef = useRef<HTMLDivElement | null>(null);
   const swipeStartRef = useRef<DockSwipeStart | null>(null);
   const suppressClickRef = useRef(false);
+  const [isSuppressed, setIsSuppressed] = useState(false);
   const activeTab = tabs.find((tab) => tab.match(pathname)) ?? null;
   const activeTabIndex = activeTab ? tabs.findIndex((tab) => tab.href === activeTab.href) : -1;
   const isDockRoute = Boolean(activeTab);
@@ -123,6 +124,18 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
     };
   }, [activeTabIndex, router]);
 
+  useEffect(() => {
+    const handleDockVisibility = (event: Event) => {
+      const detail = (event as CustomEvent<{ hidden?: boolean }>).detail;
+      setIsSuppressed(Boolean(detail?.hidden));
+    };
+
+    window.addEventListener("nox:dock-visibility", handleDockVisibility);
+    return () => {
+      window.removeEventListener("nox:dock-visibility", handleDockVisibility);
+    };
+  }, []);
+
   const handleClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!suppressClickRef.current) {
       return;
@@ -137,7 +150,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
 
   // Four section tabs + one search action = five visible nav items. Section
   // screens keep dock; fullscreen task routes (active chat/call) own bottom UI.
-  if (!isDockRoute || isFullscreenRoute(pathname)) {
+  if (!isDockRoute || isFullscreenRoute(pathname) || isSuppressed) {
     return null;
   }
 

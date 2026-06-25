@@ -29,6 +29,7 @@ export default async function ProfilePage() {
       <ProfileContent
         user={dbUser}
         initialChatFolders={chatsData.chatFolders}
+        initialBuiltInFolders={chatsData.chatFolderSettings.builtIns}
         folderChats={chatsData.chats.map((chat) => ({
           id: chat.id,
           title: chat.isSelfChat

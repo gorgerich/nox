@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { getChatFolders, saveChatFolders } from "@/lib/chat-folders";
+import { getChatFolderSettings, saveChatFolderSettings } from "@/lib/chat-folders";
 
 const folderSchema = z.object({
   id: z.string().min(1).max(80),
@@ -12,6 +12,11 @@ const folderSchema = z.object({
 
 const saveSchema = z.object({
   folders: z.array(folderSchema).max(12),
+  builtIns: z.array(z.object({
+    key: z.enum(["personal", "important", "unread"]),
+    visible: z.boolean(),
+    order: z.number().int().min(0).max(10),
+  })).max(3).optional(),
 });
 
 export async function GET() {
@@ -21,7 +26,8 @@ export async function GET() {
     return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
   }
 
-  return NextResponse.json({ folders: await getChatFolders(user.id) });
+  const settings = await getChatFolderSettings(user.id);
+  return NextResponse.json(settings);
 }
 
 export async function PUT(request: Request) {
@@ -41,6 +47,10 @@ export async function PUT(request: Request) {
     );
   }
 
-  const folders = await saveChatFolders(user.id, parsed.data.folders);
-  return NextResponse.json({ folders });
+  const currentSettings = parsed.data.builtIns ? null : await getChatFolderSettings(user.id);
+  const settings = await saveChatFolderSettings(user.id, {
+    folders: parsed.data.folders,
+    builtIns: parsed.data.builtIns ?? currentSettings?.builtIns,
+  });
+  return NextResponse.json(settings);
 }

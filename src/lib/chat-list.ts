@@ -1,5 +1,5 @@
 import { getPrisma } from "@/lib/prisma";
-import { getChatFolders, type ChatFolderItem } from "@/lib/chat-folders";
+import { getChatFolderSettings, type BuiltInFolderItem, type ChatFolderItem } from "@/lib/chat-folders";
 
 export type ChatListItem = {
   id: string;
@@ -54,12 +54,12 @@ export type IncomingRequestCardItem = {
   };
 };
 
-export type { ChatFolderItem };
+export type { BuiltInFolderItem, ChatFolderItem };
 
 export async function getChatsPageData(userId: string) {
   const prisma = getPrisma();
 
-  const [memberships, incomingRequests, archivedCount, chatFolders] = await Promise.all([
+  const [memberships, incomingRequests, archivedCount, chatFolderSettings] = await Promise.all([
     prisma.chatMember.findMany({
       where: {
         userId,
@@ -148,7 +148,7 @@ export async function getChatsPageData(userId: string) {
         deletedAt: null,
       }
     }),
-    getChatFolders(userId),
+    getChatFolderSettings(userId),
   ]);
 
   const chatIds = memberships.map((membership) => membership.chatId);
@@ -252,6 +252,7 @@ export async function getChatsPageData(userId: string) {
       createdAt: request.createdAt.toISOString(),
     })) satisfies IncomingRequestCardItem[],
     archivedCount,
-    chatFolders,
+    chatFolders: chatFolderSettings.folders,
+    chatFolderSettings,
   };
 }

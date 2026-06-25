@@ -11,7 +11,7 @@ import { AvatarViewer } from "./AvatarViewer";
 import { CacheSettings } from "./CacheSettings";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { normalizeAvatarUrl } from "@/lib/media-url";
-import type { ChatFolderItem } from "@/lib/chat-list";
+import type { BuiltInFolderItem, ChatFolderItem } from "@/lib/chat-list";
 
 type UserWithProfile = {
   id: string;
@@ -35,10 +35,12 @@ type FolderChatOption = {
 export function ProfileContent({
   user,
   initialChatFolders,
+  initialBuiltInFolders,
   folderChats,
 }: {
   user: UserWithProfile;
   initialChatFolders: ChatFolderItem[];
+  initialBuiltInFolders: BuiltInFolderItem[];
   folderChats: FolderChatOption[];
 }) {
   const router = useRouter();
@@ -52,6 +54,7 @@ export function ProfileContent({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [chatFolders, setChatFolders] = useState(initialChatFolders);
+  const [builtInFolders, setBuiltInFolders] = useState(initialBuiltInFolders);
   const [folderName, setFolderName] = useState("");
   const [folderChatIds, setFolderChatIds] = useState<Set<string>>(new Set());
   const [folderPending, setFolderPending] = useState(false);
@@ -229,20 +232,23 @@ export function ProfileContent({
     }
   }
 
-  async function saveFolders(nextFolders: ChatFolderItem[], successMessage: string) {
+  const orderedBuiltInFolders = [...builtInFolders].sort((left, right) => left.order - right.order);
+
+  async function saveFolders(nextFolders: ChatFolderItem[], nextBuiltIns: BuiltInFolderItem[], successMessage: string) {
     setFolderPending(true);
     setFolderMessage("");
     try {
       const res = await fetch("/api/chat-folders", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ folders: nextFolders }),
+        body: JSON.stringify({ folders: nextFolders, builtIns: nextBuiltIns }),
       });
-      const data = (await res.json().catch(() => null)) as { folders?: ChatFolderItem[]; error?: string } | null;
-      if (!res.ok || !data?.folders) {
+      const data = (await res.json().catch(() => null)) as { folders?: ChatFolderItem[]; builtIns?: BuiltInFolderItem[]; error?: string } | null;
+      if (!res.ok || !data?.folders || !data.builtIns) {
         throw new Error(data?.error || "Не удалось сохранить папки.");
       }
       setChatFolders(data.folders);
+      setBuiltInFolders(data.builtIns);
       setFolderMessage(successMessage);
       router.refresh();
     } catch (error) {
@@ -263,14 +269,46 @@ export function ProfileContent({
       createdAt: new Date().toISOString(),
     };
 
-    await saveFolders([...chatFolders, nextFolder], "Папка создана.");
+    await saveFolders([...chatFolders, nextFolder], builtInFolders, "Папка создана.");
     setFolderName("");
     setFolderChatIds(new Set());
   }
 
   async function deleteFolder(folderId: string) {
     if (folderPending) return;
-    await saveFolders(chatFolders.filter((folder) => folder.id !== folderId), "Папка удалена.");
+    await saveFolders(chatFolders.filter((folder) => folder.id !== folderId), builtInFolders, "Папка удалена.");
+  }
+
+  async function toggleBuiltInFolder(folderKey: BuiltInFolderItem["key"]) {
+    if (folderPending) return;
+    const nextBuiltIns = builtInFolders.map((folder) =>
+      folder.key === folderKey ? { ...folder, visible: !folder.visible } : folder,
+    );
+    await saveFolders(chatFolders, nextBuiltIns, "Папки обновлены.");
+  }
+
+  async function moveBuiltInFolder(folderKey: BuiltInFolderItem["key"], direction: -1 | 1) {
+    if (folderPending) return;
+    const nextBuiltIns = [...orderedBuiltInFolders];
+    const index = nextBuiltIns.findIndex((folder) => folder.key === folderKey);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= nextBuiltIns.length) return;
+    [nextBuiltIns[index], nextBuiltIns[targetIndex]] = [nextBuiltIns[targetIndex], nextBuiltIns[index]];
+    await saveFolders(
+      chatFolders,
+      nextBuiltIns.map((folder, nextIndex) => ({ ...folder, order: nextIndex })),
+      "Порядок обновлён.",
+    );
+  }
+
+  async function moveCustomFolder(folderId: string, direction: -1 | 1) {
+    if (folderPending) return;
+    const nextFolders = [...chatFolders];
+    const index = nextFolders.findIndex((folder) => folder.id === folderId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= nextFolders.length) return;
+    [nextFolders[index], nextFolders[targetIndex]] = [nextFolders[targetIndex], nextFolders[index]];
+    await saveFolders(nextFolders, builtInFolders, "Порядок обновлён.");
   }
 
   function toggleFolderChat(chatId: string) {
@@ -380,7 +418,7 @@ export function ProfileContent({
               <div className="h-px bg-border-subtle/30 mx-4" />
               <SettingsMenuButton
                 label="Папки чатов"
-                subtitle={chatFolders.length > 0 ? `${chatFolders.length} папок` : "Свои разделы в списке чатов"}
+                subtitle={`${orderedBuiltInFolders.filter((folder) => folder.visible).length + chatFolders.length} активных`}
                 onClick={() => setActiveScreen("folders")}
                 icon={<FoldersIcon />}
               />
@@ -645,7 +683,7 @@ export function ProfileContent({
             <section className="rounded-2xl border border-border-subtle bg-surface p-4">
               <h2 className="text-base font-semibold tracking-tight text-foreground">Новая папка</h2>
               <p className="mt-1 text-sm font-medium leading-relaxed text-muted">
-                Папка появится рядом с «Все», «Личное», «Важное» и «Непрочитанные».
+                Папка появится рядом с системными разделами в выбранном вами порядке.
               </p>
 
               <div className="mt-4 space-y-3">
@@ -696,6 +734,61 @@ export function ProfileContent({
 
             <section className="space-y-3">
               <div className="px-1">
+                <h2 className="text-sm font-semibold text-muted">Системные папки</h2>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+                {orderedBuiltInFolders.map((folder, index) => (
+                  <div key={folder.key}>
+                    {index > 0 ? <div className="mx-4 h-px bg-border-subtle/40" /> : null}
+                    <div className="flex items-center gap-3 px-4 py-3.5">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${folder.visible ? "bg-primary/10 text-primary" : "bg-foreground/5 text-muted"}`}>
+                        <FoldersIcon />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{folder.label}</p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-muted">
+                          {folder.visible ? "Показывается в чатах" : "Скрыта из списка чатов"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void moveBuiltInFolder(folder.key, -1)}
+                          disabled={folderPending || index === 0}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
+                          aria-label="Выше"
+                        >
+                          <ArrowUpIcon />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void moveBuiltInFolder(folder.key, 1)}
+                          disabled={folderPending || index === orderedBuiltInFolders.length - 1}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
+                          aria-label="Ниже"
+                        >
+                          <ArrowDownIcon />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void toggleBuiltInFolder(folder.key)}
+                        disabled={folderPending}
+                        className={`rounded-full px-3 py-2 text-xs font-semibold transition-smooth active:scale-[0.96] disabled:opacity-45 ${
+                          folder.visible ? "bg-danger/10 text-danger" : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {folder.visible ? "Скрыть" : "Вернуть"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="px-1">
                 <h2 className="text-sm font-semibold text-muted">Мои папки</h2>
               </div>
 
@@ -713,6 +806,26 @@ export function ProfileContent({
                           <p className="mt-0.5 truncate text-xs font-medium text-muted">
                             {folder.chatIds.length} {folder.chatIds.length === 1 ? "чат" : folder.chatIds.length > 1 && folder.chatIds.length < 5 ? "чата" : "чатов"}
                           </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void moveCustomFolder(folder.id, -1)}
+                            disabled={folderPending || index === 0}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
+                            aria-label="Выше"
+                          >
+                            <ArrowUpIcon />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void moveCustomFolder(folder.id, 1)}
+                            disabled={folderPending || index === chatFolders.length - 1}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
+                            aria-label="Ниже"
+                          >
+                            <ArrowDownIcon />
+                          </button>
                         </div>
                         <button
                           type="button"
@@ -847,6 +960,8 @@ function AppearanceIcon() { return <svg className="h-5 w-5" fill="none" viewBox=
 function SecurityIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
 function FoldersIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M3 7.5A2.5 2.5 0 015.5 5h4.2c.55 0 1.08.22 1.47.61l1.22 1.22c.39.39.92.61 1.47.61h4.64A2.5 2.5 0 0121 9.94V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9Z" /></svg>; }
 function DataIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
+function ArrowUpIcon() { return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m6 15 6-6 6 6" /></svg>; }
+function ArrowDownIcon() { return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m6 9 6 6 6-6" /></svg>; }
 
 type E2EEDevice = {
   deviceId: string;

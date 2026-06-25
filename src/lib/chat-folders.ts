@@ -8,8 +8,27 @@ export type ChatFolderItem = {
   createdAt: string;
 };
 
+export type BuiltInFolderKey = "personal" | "important" | "unread";
+
+export type BuiltInFolderItem = {
+  key: BuiltInFolderKey;
+  label: string;
+  visible: boolean;
+  order: number;
+};
+
+export type ChatFolderSettings = {
+  builtIns: BuiltInFolderItem[];
+  folders: ChatFolderItem[];
+};
+
 const MAX_FOLDERS = 12;
 const MAX_FOLDER_CHATS = 200;
+const BUILT_IN_FOLDERS: BuiltInFolderItem[] = [
+  { key: "personal", label: "Личное", visible: true, order: 0 },
+  { key: "important", label: "Важное", visible: true, order: 1 },
+  { key: "unread", label: "Непрочитанные", visible: true, order: 2 },
+];
 
 function settingKey(userId: string) {
   return `chatFolders:${userId}`;
@@ -35,24 +54,67 @@ function normalizeFolders(value: unknown): ChatFolderItem[] {
     .slice(0, MAX_FOLDERS);
 }
 
-export async function getChatFolders(userId: string) {
+function normalizeBuiltIns(value: unknown): BuiltInFolderItem[] {
+  const submitted = Array.isArray(value) ? value : [];
+  const byKey = new Map(
+    submitted
+      .map((item) => item as Partial<BuiltInFolderItem>)
+      .filter((item): item is Partial<BuiltInFolderItem> & { key: BuiltInFolderKey } =>
+        item.key === "personal" || item.key === "important" || item.key === "unread",
+      )
+      .map((item) => [item.key, item]),
+  );
+
+  return BUILT_IN_FOLDERS.map((defaultItem) => {
+    const current = byKey.get(defaultItem.key);
+    return {
+      ...defaultItem,
+      visible: typeof current?.visible === "boolean" ? current.visible : defaultItem.visible,
+      order: typeof current?.order === "number" && Number.isFinite(current.order) ? current.order : defaultItem.order,
+    };
+  })
+    .sort((left, right) => left.order - right.order)
+    .map((item, index) => ({ ...item, order: index }));
+}
+
+function normalizeSettings(value: unknown): ChatFolderSettings {
+  if (Array.isArray(value)) {
+    return {
+      builtIns: normalizeBuiltIns(null),
+      folders: normalizeFolders(value),
+    };
+  }
+
+  const settings = value as Partial<ChatFolderSettings> | null;
+  return {
+    builtIns: normalizeBuiltIns(settings?.builtIns),
+    folders: normalizeFolders(settings?.folders),
+  };
+}
+
+export async function getChatFolderSettings(userId: string): Promise<ChatFolderSettings> {
   const prisma = getPrisma();
   const setting = await prisma.systemSetting.findUnique({
     where: { key: settingKey(userId) },
     select: { value: true },
   });
 
-  if (!setting?.value) return [];
+  if (!setting?.value) return normalizeSettings(null);
 
   try {
-    return normalizeFolders(JSON.parse(setting.value));
+    return normalizeSettings(JSON.parse(setting.value));
   } catch {
-    return [];
+    return normalizeSettings(null);
   }
 }
 
-export async function saveChatFolders(userId: string, folders: unknown) {
-  const normalized = normalizeFolders(folders);
+export async function getChatFolders(userId: string) {
+  const settings = await getChatFolderSettings(userId);
+  return settings.folders;
+}
+
+export async function saveChatFolderSettings(userId: string, settings: unknown): Promise<ChatFolderSettings> {
+  const normalized = normalizeSettings(settings);
   const prisma = getPrisma();
 
   await prisma.systemSetting.upsert({
@@ -67,4 +129,10 @@ export async function saveChatFolders(userId: string, folders: unknown) {
   });
 
   return normalized;
+}
+
+export async function saveChatFolders(userId: string, folders: unknown) {
+  const current = await getChatFolderSettings(userId);
+  const settings = await saveChatFolderSettings(userId, { folders, builtIns: current.builtIns });
+  return settings.folders;
 }
