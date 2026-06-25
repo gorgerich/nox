@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, MessageCircle, Search, Send, UserPlus, Users } from "lucide-react";
 
 import { useSocket } from "@/hooks/useSocket";
-import type { ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
+import type { ChatFolderItem, ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
 import { getChatCache, putChatHeader, putChatList, putChatPreview } from "@/lib/chat-cache";
 import { getMessagePreview } from "@/lib/chat-list-format";
 
@@ -21,6 +21,7 @@ type ChatsPageClientProps = {
   initialChats: ChatListItem[];
   initialIncomingRequests: IncomingRequestCardItem[];
   initialArchivedCount?: number;
+  initialChatFolders?: ChatFolderItem[];
 };
 
 const FOLDERS = [
@@ -30,6 +31,7 @@ const FOLDERS = [
   { key: "unread", label: "Непрочитанные" },
 ] as const;
 type FolderKey = (typeof FOLDERS)[number]["key"];
+type SelectedFolderKey = FolderKey | `custom:${string}`;
 
 type InviteSheetState = {
   code: string;
@@ -60,6 +62,7 @@ export function ChatsPageClient({
   initialChats,
   initialIncomingRequests,
   initialArchivedCount = 0,
+  initialChatFolders = [],
 }: ChatsPageClientProps) {
   const router = useRouter();
   const { socket } = useSocket();
@@ -76,20 +79,26 @@ export function ChatsPageClient({
   const [invitePending, setInvitePending] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<FolderKey>("all");
+  const [chatFolders, setChatFolders] = useState(initialChatFolders);
+  const [selectedFolder, setSelectedFolder] = useState<SelectedFolderKey>("all");
 
   // Local folder filtering — no reload. Self chat ("Личное") floats to the top
   // in "all" and "personal". Important = pinned (no separate field yet).
   const filteredChats = useMemo(() => {
     let list = chats;
-    if (selectedFolder === "personal") list = chats.filter((c) => c.type === "DIRECT");
+    if (selectedFolder.startsWith("custom:")) {
+      const folderId = selectedFolder.slice("custom:".length);
+      const folder = chatFolders.find((item) => item.id === folderId);
+      const allowedIds = new Set(folder?.chatIds ?? []);
+      list = chats.filter((c) => allowedIds.has(c.id));
+    } else if (selectedFolder === "personal") list = chats.filter((c) => c.type === "DIRECT");
     else if (selectedFolder === "important") list = chats.filter((c) => Boolean(c.pinnedAt));
     else if (selectedFolder === "unread") list = chats.filter((c) => c.unreadCount > 0);
     if (selectedFolder === "all" || selectedFolder === "personal") {
       list = [...list].sort((a, b) => (a.isSelfChat === b.isSelfChat ? 0 : a.isSelfChat ? -1 : 1));
     }
     return list;
-  }, [chats, selectedFolder]);
+  }, [chatFolders, chats, selectedFolder]);
   const folderCounts = useMemo<Record<FolderKey, number>>(() => {
     // Single pass instead of three independent .filter().length scans.
     let personal = 0;
@@ -103,6 +112,14 @@ export function ChatsPageClient({
     return { all: chats.length, personal, important, unread };
   }, [chats]);
   const unreadTotal = folderCounts.unread;
+  const customFolderCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    for (const folder of chatFolders) {
+      const allowedIds = new Set(folder.chatIds);
+      counts[folder.id] = chats.reduce((count, chat) => count + (allowedIds.has(chat.id) ? 1 : 0), 0);
+    }
+    return counts;
+  }, [chatFolders, chats]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullProgress, setPullProgress] = useState(0);
   const syncAbortRef = useRef<AbortController | null>(null);
@@ -125,11 +142,15 @@ export function ChatsPageClient({
         chats: ChatListItem[];
         incomingRequests: IncomingRequestCardItem[];
         archivedCount?: number;
+        chatFolders?: ChatFolderItem[];
       };
       setChats(data.chats);
       setIncomingRequests(data.incomingRequests);
       if (data.archivedCount !== undefined) {
         setArchivedCount(data.archivedCount);
+      }
+      if (data.chatFolders) {
+        setChatFolders(data.chatFolders);
       }
       debugRealtime("chat list synced", { chats: data.chats.length, requests: data.incomingRequests.length });
     } catch (error) {
@@ -745,6 +766,28 @@ export function ChatsPageClient({
             </button>
           );
         })}
+        {chatFolders.map((folder) => {
+          const selectedKey = `custom:${folder.id}` as const;
+          const active = selectedFolder === selectedKey;
+          const count = customFolderCounts[folder.id] ?? 0;
+          return (
+            <button
+              key={folder.id}
+              type="button"
+              onClick={() => setSelectedFolder(selectedKey)}
+              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                active ? "bg-primary/12 text-primary" : "text-muted/72 hover:bg-surface-muted"
+              }`}
+            >
+              <span>{folder.name}</span>
+              {count > 0 ? (
+                <span className={`text-[11px] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
+                  {count > 99 ? "99+" : count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
       {incomingRequests.length > 0 ? (
@@ -797,11 +840,13 @@ export function ChatsPageClient({
           <h2 className="text-lg font-semibold text-foreground/85">
             {selectedFolder === "important" ? "Нет важных чатов"
               : selectedFolder === "unread" ? "Нет непрочитанных"
+              : selectedFolder.startsWith("custom:") ? "Папка пустая"
               : "Нет личных чатов"}
           </h2>
           <p className="mx-auto mt-2 max-w-[260px] text-sm leading-relaxed text-muted/60">
             {selectedFolder === "important" ? "Закрепите чат или отметьте его как важный, чтобы он появился здесь."
               : selectedFolder === "unread" ? "Все сообщения уже просмотрены."
+              : selectedFolder.startsWith("custom:") ? "Добавьте чаты в папку через настройки профиля."
               : "Личные диалоги появятся здесь."}
           </p>
         </div>

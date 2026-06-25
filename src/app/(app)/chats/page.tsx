@@ -20,6 +20,7 @@ export default async function ChatsPage() {
       initialChats={data.chats}
       initialIncomingRequests={data.incomingRequests}
       initialArchivedCount={data.archivedCount}
+      initialChatFolders={data.chatFolders}
     />
   );
 }

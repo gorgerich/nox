@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { getChatsPageData } from "@/lib/chat-list";
 import { ProfileContent } from "./ProfileContent";
 
 export default async function ProfilePage() {
@@ -7,10 +8,13 @@ export default async function ProfilePage() {
   if (!user) return null;
 
   const prisma = getPrisma();
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    include: { profile: true },
-  });
+  const [dbUser, chatsData] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      include: { profile: true },
+    }),
+    getChatsPageData(user.id),
+  ]);
 
   if (!dbUser) return null;
 
@@ -22,7 +26,19 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      <ProfileContent user={dbUser} />
+      <ProfileContent
+        user={dbUser}
+        initialChatFolders={chatsData.chatFolders}
+        folderChats={chatsData.chats.map((chat) => ({
+          id: chat.id,
+          title: chat.isSelfChat
+            ? "Личное"
+            : chat.type === "GROUP"
+              ? chat.title || "Группа"
+              : chat.otherMember?.displayName || chat.otherMember?.username || "Чат",
+          subtitle: chat.type === "GROUP" ? "Группа" : chat.isSelfChat ? "Сообщения самому себе" : chat.otherMember?.username ? `@${chat.otherMember.username}` : "Личный чат",
+        }))}
+      />
     </div>
   );
 }

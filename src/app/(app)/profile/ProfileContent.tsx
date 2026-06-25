@@ -11,6 +11,7 @@ import { AvatarViewer } from "./AvatarViewer";
 import { CacheSettings } from "./CacheSettings";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import type { ChatFolderItem } from "@/lib/chat-list";
 
 type UserWithProfile = {
   id: string;
@@ -25,10 +26,24 @@ type UserWithProfile = {
   } | null;
 };
 
-export function ProfileContent({ user }: { user: UserWithProfile }) {
+type FolderChatOption = {
+  id: string;
+  title: string;
+  subtitle: string;
+};
+
+export function ProfileContent({
+  user,
+  initialChatFolders,
+  folderChats,
+}: {
+  user: UserWithProfile;
+  initialChatFolders: ChatFolderItem[];
+  folderChats: FolderChatOption[];
+}) {
   const router = useRouter();
 
-  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security" | "data">("main");
+  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security" | "folders" | "data">("main");
 
   const [displayName, setDisplayName] = useState(user.profile?.displayName || "");
   const [username, setUsername] = useState(user.username);
@@ -36,6 +51,11 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
   const [avatarUrl, setAvatarUrl] = useState(user.profile?.avatarUrl || null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [chatFolders, setChatFolders] = useState(initialChatFolders);
+  const [folderName, setFolderName] = useState("");
+  const [folderChatIds, setFolderChatIds] = useState<Set<string>>(new Set());
+  const [folderPending, setFolderPending] = useState(false);
+  const [folderMessage, setFolderMessage] = useState("");
   const [showFullscreenAvatar, setShowFullscreenAvatar] = useState(false);
   const [cropImage, setCropImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +229,62 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
     }
   }
 
+  async function saveFolders(nextFolders: ChatFolderItem[], successMessage: string) {
+    setFolderPending(true);
+    setFolderMessage("");
+    try {
+      const res = await fetch("/api/chat-folders", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ folders: nextFolders }),
+      });
+      const data = (await res.json().catch(() => null)) as { folders?: ChatFolderItem[]; error?: string } | null;
+      if (!res.ok || !data?.folders) {
+        throw new Error(data?.error || "Не удалось сохранить папки.");
+      }
+      setChatFolders(data.folders);
+      setFolderMessage(successMessage);
+      router.refresh();
+    } catch (error) {
+      setFolderMessage(error instanceof Error ? error.message : "Не удалось сохранить папки.");
+    } finally {
+      setFolderPending(false);
+    }
+  }
+
+  async function createFolder() {
+    const name = folderName.trim();
+    if (!name || folderChatIds.size === 0 || folderPending) return;
+
+    const nextFolder: ChatFolderItem = {
+      id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      name,
+      chatIds: Array.from(folderChatIds),
+      createdAt: new Date().toISOString(),
+    };
+
+    await saveFolders([...chatFolders, nextFolder], "Папка создана.");
+    setFolderName("");
+    setFolderChatIds(new Set());
+  }
+
+  async function deleteFolder(folderId: string) {
+    if (folderPending) return;
+    await saveFolders(chatFolders.filter((folder) => folder.id !== folderId), "Папка удалена.");
+  }
+
+  function toggleFolderChat(chatId: string) {
+    setFolderChatIds((current) => {
+      const next = new Set(current);
+      if (next.has(chatId)) {
+        next.delete(chatId);
+      } else {
+        next.add(chatId);
+      }
+      return next;
+    });
+  }
+
   return (
     <>
       {activeScreen === "main" && (
@@ -300,6 +376,13 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
                 subtitle="Пароль и восстановление"
                 onClick={() => setActiveScreen("security")}
                 icon={<SecurityIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Папки чатов"
+                subtitle={chatFolders.length > 0 ? `${chatFolders.length} папок` : "Свои разделы в списке чатов"}
+                onClick={() => setActiveScreen("folders")}
+                icon={<FoldersIcon />}
               />
               <div className="h-px bg-border-subtle/30 mx-4" />
               <SettingsMenuButton
@@ -548,6 +631,115 @@ export function ProfileContent({ user }: { user: UserWithProfile }) {
         </div>
       )}
 
+      {activeScreen === "folders" && (
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+             </button>
+             <h1 className="text-base font-semibold tracking-tight">Папки чатов</h1>
+             <div className="w-10" />
+          </header>
+
+          <div className="space-y-7 p-6 animate-in fade-in zoom-in-95 duration-500">
+            <section className="rounded-2xl border border-border-subtle bg-surface p-4">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">Новая папка</h2>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-muted">
+                Папка появится рядом с «Все», «Личное», «Важное» и «Непрочитанные».
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <input
+                  className="input-nox h-12 rounded-full"
+                  value={folderName}
+                  onChange={(event) => setFolderName(event.target.value)}
+                  placeholder="Название папки"
+                  maxLength={28}
+                />
+
+                <div className="max-h-72 overflow-y-auto rounded-2xl border border-border-subtle/60 bg-background/50">
+                  {folderChats.length > 0 ? folderChats.map((chat) => {
+                    const selected = folderChatIds.has(chat.id);
+                    return (
+                      <button
+                        key={chat.id}
+                        type="button"
+                        onClick={() => toggleFolderChat(chat.id)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-smooth hover:bg-foreground/5 active:scale-[0.98]"
+                      >
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-smooth ${selected ? "border-primary bg-primary text-primary-foreground" : "border-border-subtle"}`}>
+                          {selected ? (
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                          ) : null}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-foreground">{chat.title}</span>
+                          <span className="mt-0.5 block truncate text-xs font-medium text-muted">{chat.subtitle}</span>
+                        </span>
+                      </button>
+                    );
+                  }) : (
+                    <p className="px-4 py-5 text-sm font-semibold text-muted">Сначала создайте чат.</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void createFolder()}
+                  disabled={folderPending || !folderName.trim() || folderChatIds.size === 0 || chatFolders.length >= 12}
+                  className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+                >
+                  {folderPending ? "Сохранение..." : "Создать папку"}
+                </button>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="px-1">
+                <h2 className="text-sm font-semibold text-muted">Мои папки</h2>
+              </div>
+
+              {chatFolders.length > 0 ? (
+                <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+                  {chatFolders.map((folder, index) => (
+                    <div key={folder.id}>
+                      {index > 0 ? <div className="mx-4 h-px bg-border-subtle/40" /> : null}
+                      <div className="flex items-center gap-3 px-4 py-3.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <FoldersIcon />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">{folder.name}</p>
+                          <p className="mt-0.5 truncate text-xs font-medium text-muted">
+                            {folder.chatIds.length} {folder.chatIds.length === 1 ? "чат" : folder.chatIds.length > 1 && folder.chatIds.length < 5 ? "чата" : "чатов"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void deleteFolder(folder.id)}
+                          disabled={folderPending}
+                          className="rounded-full bg-danger/10 px-3 py-2 text-xs font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-45"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
+                  Папок пока нет.
+                </div>
+              )}
+
+              {folderMessage ? (
+                <p className="px-1 text-center text-sm font-semibold text-primary">{folderMessage}</p>
+              ) : null}
+            </section>
+          </div>
+        </div>
+      )}
+
       {activeScreen === "data" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
@@ -653,6 +845,7 @@ function ProfileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 
 function DevicesIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
 function AppearanceIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
 function SecurityIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
+function FoldersIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M3 7.5A2.5 2.5 0 015.5 5h4.2c.55 0 1.08.22 1.47.61l1.22 1.22c.39.39.92.61 1.47.61h4.64A2.5 2.5 0 0121 9.94V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9Z" /></svg>; }
 function DataIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
 
 type E2EEDevice = {
