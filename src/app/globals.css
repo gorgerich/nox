@@ -548,6 +548,24 @@ img {
     box-shadow: none;
   }
 
+  .chat-emoji-panel {
+    width: min(20rem, calc(100vw - 5.5rem));
+    max-height: min(15rem, 36vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 1.35rem;
+    border: 1px solid var(--glass-panel-border);
+    background:
+      linear-gradient(135deg, var(--glass-sheen), transparent 42%),
+      var(--glass-panel-fill-strong);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+    box-shadow:
+      inset 0 0 0 0.5px color-mix(in oklab, var(--glass-edge) 48%, transparent),
+      inset 0 1px 0 var(--glass-highlight),
+      var(--glass-panel-shadow-strong);
+  }
+
   .nav-blur {
     @apply fixed bottom-0 left-0 right-0 z-50 border-t;
     background: var(--nav-background);

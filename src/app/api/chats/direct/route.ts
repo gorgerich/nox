@@ -35,6 +35,18 @@ export async function POST(request: Request) {
   const existingChat = await findDirectChatBetween(prisma, user.id, targetUser.id);
 
   if (existingChat) {
+    await prisma.chatMember.update({
+      where: {
+        chatId_userId: {
+          chatId: existingChat.id,
+          userId: user.id,
+        },
+      },
+      data: {
+        deletedAt: null,
+        archivedAt: null,
+      },
+    });
     return NextResponse.json({ chat: existingChat });
   }
 

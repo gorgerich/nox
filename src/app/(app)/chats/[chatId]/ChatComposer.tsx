@@ -253,7 +253,8 @@ export function ChatComposer({
             >
               {showEmoji && (
                 <div
-                  className="premium-glass absolute bottom-[calc(100%+8px)] left-0 z-30 grid w-[min(20rem,calc(100vw-2rem))] grid-cols-8 gap-1 rounded-xl p-3 animate-in fade-in slide-in-from-bottom-2 duration-150"
+                  className="chat-emoji-panel absolute bottom-[calc(100%+10px)] left-0 z-40 grid grid-cols-8 gap-1 p-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
+                  data-nox-swipe-ignore="true"
                 >
                   {EMOJIS.map((emoji) => (
                     <button

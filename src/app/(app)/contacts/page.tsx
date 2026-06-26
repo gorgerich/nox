@@ -22,7 +22,6 @@ export default async function ContactsPage() {
       where: {
         userId: user.id,
         status: "ACTIVE",
-        deletedAt: null,
         chat: { type: "DIRECT" },
       },
       select: {
