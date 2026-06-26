@@ -538,6 +538,16 @@ img {
       0 -1px 0 rgba(24, 37, 61, 0.04);
   }
 
+  .chat-composer-shell {
+    position: sticky;
+    bottom: 0;
+    z-index: 50;
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
   .nav-blur {
     @apply fixed bottom-0 left-0 right-0 z-50 border-t;
     background: var(--nav-background);

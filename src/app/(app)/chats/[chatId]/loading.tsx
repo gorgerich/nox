@@ -27,7 +27,7 @@ export default function ChatLoading() {
         </div>
       </div>
 
-      <div className="glass-composer flex items-center gap-2 px-3 py-2.5">
+      <div className="chat-composer-shell flex items-center gap-2">
         <div className="h-9 w-9 shrink-0 rounded-full bg-surface-muted/60" />
         <div className="h-10 flex-1 rounded-full bg-surface-muted/50" />
         <div className="h-9 w-9 shrink-0 rounded-full bg-surface-muted/60" />

@@ -171,7 +171,7 @@ export function ChatComposer({
   if (isLocked) {
     return (
       <div
-        className="composer-liquid border-t px-4 py-3 safe-bottom"
+        className="chat-composer-shell"
       >
         <div className="rounded-xl bg-foreground/5 p-3 text-center">
           <p className="text-sm font-medium text-muted">Чат закрыт для участников</p>
@@ -182,7 +182,7 @@ export function ChatComposer({
 
   return (
       <div 
-        className="composer-liquid border-t px-3 py-2 transition-smooth safe-bottom"
+        className="chat-composer-shell transition-smooth"
       >
       {(replyingTo || editingTo) && (
         <div className="mb-2 flex flex-col gap-2">
