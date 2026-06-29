@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Check, Clock3, MoreVertical, Phone, Search, Video } from "lucide-react";
+import { ArrowLeft, Check, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
@@ -18,6 +18,7 @@ export function ChatHeader({
   disappearingSeconds = null,
   onSetDisappearing,
   onSearchClick,
+  onAppearanceClick,
 }: {
   chatId: string;
   chatType: string;
@@ -80,7 +81,7 @@ export function ChatHeader({
 
   return (
     <header
-      className="sticky top-0 z-50 flex items-center justify-between border-b px-2 transition-smooth"
+      className="chat-liquid-header sticky top-0 z-50 flex items-center justify-between border-b px-2 transition-smooth"
       style={{
         backgroundColor: "var(--chat-header-bg)",
         color: "var(--chat-header-fg)",
@@ -156,7 +157,7 @@ export function ChatHeader({
             </button>
           </>
         )}
-        {(onSetDisappearing || onSearchClick) && (
+        {(onSetDisappearing || onSearchClick || onAppearanceClick) && (
           <div className="relative">
             <button
               type="button"
@@ -170,7 +171,7 @@ export function ChatHeader({
             {timerMenuOpen && (
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
-                <div className="absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-xl border border-border-subtle bg-surface-elevated shadow-lg animate-in fade-in zoom-in-95 duration-150">
+                <div className="apple-glass-control absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-150">
                   {onSearchClick && (
                     <button
                       type="button"
@@ -181,7 +182,17 @@ export function ChatHeader({
                       Поиск по чату
                     </button>
                   )}
-                  {onSetDisappearing && onSearchClick && <div className="mx-4 h-px bg-border-subtle" />}
+                  {onAppearanceClick && (
+                    <button
+                      type="button"
+                      onClick={() => { onAppearanceClick(); setTimerMenuOpen(false); }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-smooth hover:bg-foreground/5"
+                    >
+                      <Palette className="h-4 w-4 text-muted" strokeWidth={2.1} />
+                      Оформление чата
+                    </button>
+                  )}
+                  {onSetDisappearing && (onSearchClick || onAppearanceClick) && <div className="mx-4 h-px bg-border-subtle" />}
                   {onSetDisappearing && (
                   <>
                   <p className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs font-medium text-muted">

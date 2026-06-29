@@ -167,7 +167,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom transition-smooth">
       <header
-        className="sticky top-0 z-50 flex items-center justify-between border-b border-border-subtle bg-background px-3 py-2"
+        className="liquid-top-chrome sticky top-0 z-50 flex items-center justify-between px-3 py-2"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]" aria-label="Назад">

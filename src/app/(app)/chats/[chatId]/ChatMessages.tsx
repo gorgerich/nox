@@ -1800,10 +1800,11 @@ export function ChatMessages({
   }, []);
 
   return (
-    <div 
-      className={`chat-screen transition-[opacity] duration-150 ${menuState ? "overflow-hidden" : ""}`} 
+    <div
+      className={`chat-screen relative isolate transition-[opacity] duration-150 ${menuState ? "overflow-hidden" : ""}`}
       style={themeVars as React.CSSProperties}
     >
+      <div className="chat-wallpaper-layer" aria-hidden="true" />
       <ChatHeader
         chatId={chatId}
         chatType={chatInfo.type}
@@ -1820,6 +1821,7 @@ export function ChatMessages({
         disappearingSeconds={disappearingSeconds}
         onSetDisappearing={changeDisappearing}
         onSearchClick={() => setIsSearchOpen(true)}
+        onAppearanceClick={() => setIsAppearanceOpen(true)}
       />
 
       {isSearchOpen && (
@@ -1884,7 +1886,7 @@ export function ChatMessages({
       <div 
         ref={scrollContainerRef} 
         onScroll={handleScroll}
-        className="min-h-0 flex-1 overflow-y-auto px-1 py-4 scrollbar-hide overscroll-contain"
+        className="relative z-10 min-h-0 flex-1 overflow-y-auto px-1 py-4 scrollbar-hide overscroll-contain"
         style={{ overflowAnchor: "none" }}
       >
         <div className="mx-auto max-w-3xl">

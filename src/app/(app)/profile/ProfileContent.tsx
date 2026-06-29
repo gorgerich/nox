@@ -12,6 +12,7 @@ import { CacheSettings } from "./CacheSettings";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import type { BuiltInFolderItem, ChatFolderItem } from "@/lib/chat-list";
+import { ChatWallpaperControls, useGlobalChatAppearance } from "../chats/[chatId]/ChatAppearance";
 
 type UserWithProfile = {
   id: string;
@@ -66,6 +67,11 @@ export function ProfileContent({
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
   const { isSubscribed, subscribe, unsubscribe } = usePushNotifications();
   const { theme, setTheme, accent, setAccent } = useTheme();
+  const {
+    settings: globalChatAppearance,
+    updateSettings: updateGlobalChatAppearance,
+    resetSettings: resetGlobalChatAppearance,
+  } = useGlobalChatAppearance();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -470,7 +476,7 @@ export function ProfileContent({
 
       {activeScreen === "profile" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
@@ -527,7 +533,7 @@ export function ProfileContent({
 
       {activeScreen === "devices" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
@@ -543,7 +549,7 @@ export function ProfileContent({
 
       {activeScreen === "appearance" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
@@ -597,13 +603,30 @@ export function ProfileContent({
                 ))}
               </div>
             </section>
+
+            <section className="space-y-3">
+              <div className="flex items-start justify-between gap-4 px-1">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Фон чатов</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">Настройка применяется ко всем чатам по умолчанию.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetGlobalChatAppearance}
+                  className="fluid-hit shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
+                >
+                  Сбросить
+                </button>
+              </div>
+              <ChatWallpaperControls settings={globalChatAppearance} onUpdate={updateGlobalChatAppearance} />
+            </section>
           </div>
         </div>
       )}
 
       {activeScreen === "security" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
@@ -671,7 +694,7 @@ export function ProfileContent({
 
       {activeScreen === "folders" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
@@ -855,7 +878,7 @@ export function ProfileContent({
 
       {activeScreen === "data" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
-          <header className="sticky top-0 z-50 flex min-h-14 items-center justify-between border-b border-border-subtle bg-background px-3 py-2">
+          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
