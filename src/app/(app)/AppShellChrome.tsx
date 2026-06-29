@@ -8,6 +8,7 @@ import { AppBottomDock } from "./AppBottomDock";
 interface AppShellChromeProps {
   user: {
     role: string;
+    avatarUrl: string | null;
   };
   incomingRequestCount: number;
   children: React.ReactNode;
@@ -47,7 +48,7 @@ function isFullscreenRoute(pathname: string) {
   return isChatDetail || pathname === "/calls/incoming";
 }
 
-export function AppShellChrome({ incomingRequestCount, children }: AppShellChromeProps) {
+export function AppShellChrome({ user, incomingRequestCount, children }: AppShellChromeProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts" || pathname === "/admin";
@@ -256,7 +257,7 @@ export function AppShellChrome({ incomingRequestCount, children }: AppShellChrom
         </main>
       </div>
 
-      <AppBottomDock incomingRequestCount={incomingRequestCount} />
+      <AppBottomDock incomingRequestCount={incomingRequestCount} avatarUrl={user.avatarUrl} />
     </>
   );
 }

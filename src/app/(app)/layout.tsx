@@ -32,7 +32,10 @@ export default async function AppLayout({
       <E2EEInitializer userId={user.id} />
       <ChatCacheHydrator userId={user.id} />
       <AccountRecoveryListener />
-      <AppShellChrome user={{ role: user.role }} incomingRequestCount={incomingRequestCount}>
+      <AppShellChrome
+        user={{ role: user.role, avatarUrl: user.profile?.avatarUrl ?? null }}
+        incomingRequestCount={incomingRequestCount}
+      >
         {children}
       </AppShellChrome>
       <CallOverlay />

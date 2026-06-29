@@ -4,13 +4,32 @@ import { Check, Mic, Paperclip, Send, Smile, Video, X } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
 
-const EMOJIS = [
-  "😀","😁","😂","🤣","😊","😍","😘","😎","🤔","🙄","😴","😭","😡","🥳","😅","😉",
-  "👍","👎","👏","🙏","💪","🤝","✌️","🤞","👌","🫶","🔥","💯","🎉","✨","⭐","🌟",
-  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💋","💕","😻","🥰","😱","😬","🤯",
-  "😇","🤗","🤤","😋","😜","🤪","😏","😶","🫡","🤐","🥶","🤒","🤧","🥹","🫠","💀",
-  "👋","🙌","🤙","👇","👆","👀","🧠","🫀","🍕","☕","🍺","🎁","💰","📎","✅","❌",
-];
+const EMOJI_GROUPS = [
+  {
+    label: "Частые",
+    emojis: ["😂", "❤️", "👍", "🔥", "🥹", "😍", "🙏", "🎉", "💯", "✨", "👏", "🤝"],
+  },
+  {
+    label: "Эмоции",
+    emojis: [
+      "😀", "😁", "🤣", "😊", "😘", "😎", "🤔", "🙄", "😴", "😭", "😡", "🥳",
+      "😅", "😉", "🥰", "😱", "😬", "🤯", "😇", "🤗", "🤤", "😋", "😜", "🤪",
+      "😏", "😶", "🫡", "🤐", "🥶", "🤒", "🤧", "🫠", "💀",
+    ],
+  },
+  {
+    label: "Жесты",
+    emojis: ["👍", "👎", "👏", "🙏", "💪", "🤝", "✌️", "🤞", "👌", "🫶", "👋", "🙌", "🤙", "👇", "👆"],
+  },
+  {
+    label: "Символы",
+    emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "💋", "💕", "⭐", "🌟", "✅", "❌"],
+  },
+  {
+    label: "Разное",
+    emojis: ["👀", "🧠", "🫀", "🍕", "☕", "🍺", "🎁", "💰", "📎"],
+  },
+] as const;
 
 export function ChatComposer({
   chatId,
@@ -51,6 +70,8 @@ export function ChatComposer({
   const [showCaptureMenu, setShowCaptureMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiPanelRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const editingIdRef = useRef<string | null>(null);
   const draftKey = `nox:draft:${chatId}`;
 
@@ -63,7 +84,6 @@ export function ChatComposer({
       onTyping(next);
       requestAnimationFrame(() => {
         if (el) {
-          el.focus();
           const pos = start + emoji.length;
           el.setSelectionRange(pos, pos);
           el.style.height = "auto";
@@ -73,6 +93,23 @@ export function ChatComposer({
       return next;
     });
   }, [onTyping]);
+
+  useEffect(() => {
+    if (!showEmoji) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (
+        !emojiPanelRef.current?.contains(target) &&
+        !emojiButtonRef.current?.contains(target)
+      ) {
+        setShowEmoji(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [showEmoji]);
 
   // Restore a saved draft for this chat (client-only to avoid hydration mismatch).
   useEffect(() => {
@@ -239,6 +276,50 @@ export function ChatComposer({
         />
 
         <div className="relative flex-1">
+          {showEmoji && !isRecording ? (
+            <div
+              ref={emojiPanelRef}
+              className="chat-emoji-panel animate-in fade-in slide-in-from-bottom-2 duration-150"
+              data-nox-swipe-ignore="true"
+              role="dialog"
+              aria-label="Выбор эмодзи"
+            >
+              <div className="chat-emoji-header">
+                <p className="text-[13px] font-semibold text-foreground">Эмодзи</p>
+                <button
+                  type="button"
+                  aria-label="Закрыть эмодзи"
+                  onClick={() => setShowEmoji(false)}
+                  className="fluid-hit flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-foreground/8 hover:text-foreground"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.2} />
+                </button>
+              </div>
+              <div className="chat-emoji-scroll">
+                {EMOJI_GROUPS.map((group) => (
+                  <section key={group.label} className="mb-3 last:mb-0">
+                    <h3 className="mb-1.5 px-1 text-[11px] font-semibold text-muted">
+                      {group.label}
+                    </h3>
+                    <div className="grid grid-cols-8 gap-0.5">
+                      {group.emojis.map((emoji) => (
+                        <button
+                          key={`${group.label}-${emoji}`}
+                          type="button"
+                          onClick={() => insertEmoji(emoji)}
+                          className="chat-emoji-button fluid-hit"
+                          aria-label={`Вставить ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {isRecording ? (
             <div className="flex min-h-11 items-center justify-between rounded-[22px] border border-danger/20 bg-danger/10 px-4 animate-pulse">
               <div className="flex items-center gap-3">
@@ -251,30 +332,13 @@ export function ChatComposer({
             <div 
               className="premium-glass relative flex items-end rounded-full pl-4 pr-1 transition-smooth focus-within:border-primary/35"
             >
-              {showEmoji && (
-                <div
-                  className="chat-emoji-panel absolute bottom-[calc(100%+10px)] left-0 z-40 grid grid-cols-8 gap-1 p-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
-                  data-nox-swipe-ignore="true"
-                >
-                  {EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => insertEmoji(emoji)}
-                      className="fluid-hit flex h-9 w-9 items-center justify-center rounded-lg text-xl transition-smooth hover:bg-foreground/10"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
               <textarea
                 ref={inputRef}
                 className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."
                 rows={1}
                 value={text}
+                onFocus={() => setShowEmoji(false)}
                 onChange={(e) => {
                   setText(e.target.value);
                   onTyping(e.target.value);
@@ -289,10 +353,14 @@ export function ChatComposer({
                 }}
               />
               <button
+                ref={emojiButtonRef}
                 type="button"
                 aria-label="Эмодзи"
                 onClick={() => {
-                  setShowEmoji((v) => !v);
+                  setShowEmoji((visible) => {
+                    if (!visible) inputRef.current?.blur();
+                    return !visible;
+                  });
                   setShowCaptureMenu(false);
                 }}
                 className={`touch-target fluid-hit mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-smooth ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}

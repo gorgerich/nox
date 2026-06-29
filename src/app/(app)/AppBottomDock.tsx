@@ -1,13 +1,15 @@
 "use client";
 
 import clsx from "clsx";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Contact2, MessageCircle, Phone, Search, UserRound } from "lucide-react";
+import { MessageCircle, Phone, Search, UserRound, UsersRound } from "lucide-react";
+import { normalizeAvatarUrl } from "@/lib/media-url";
 
 const tabs = [
-  { href: "/contacts", label: "Контакты", icon: Contact2, match: (pathname: string) => pathname.startsWith("/contacts") || pathname.startsWith("/users/") },
+  { href: "/contacts", label: "Контакты", icon: UsersRound, match: (pathname: string) => pathname.startsWith("/contacts") || pathname.startsWith("/users/") },
   { href: "/calls", label: "Звонки", icon: Phone, match: (pathname: string) => pathname.startsWith("/calls") },
   { href: "/chats", label: "Чаты", icon: MessageCircle, match: (pathname: string) => pathname.startsWith("/chats") },
   { href: "/profile", label: "Профиль", icon: UserRound, match: (pathname: string) => pathname.startsWith("/profile") || pathname.startsWith("/admin") },
@@ -30,7 +32,13 @@ function isFullscreenRoute(pathname: string) {
   return isChatDetail || pathname === "/calls/incoming";
 }
 
-export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: number }) {
+export function AppBottomDock({
+  incomingRequestCount,
+  avatarUrl,
+}: {
+  incomingRequestCount: number;
+  avatarUrl: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const dockRef = useRef<HTMLDivElement | null>(null);
@@ -41,6 +49,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
   const activeTabIndex = activeTab ? tabs.findIndex((tab) => tab.href === activeTab.href) : -1;
   const isDockRoute = Boolean(activeTab);
   const isSearchActive = pathname === "/chats/search";
+  const normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
   const markSearchMotion = () => {
     try {
@@ -169,8 +178,7 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
         onClickCapture={handleClickCapture}
       >
         <div
-          className="premium-glass dock-liquid grid min-w-0 flex-1 rounded-full p-1.5"
-          style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+          className="premium-glass dock-liquid flex min-w-0 flex-1 items-center rounded-full p-1.5"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -183,7 +191,8 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 key={tab.href}
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
-                  "fast-tap fluid-hit flex min-h-11 flex-col items-center justify-center gap-1 rounded-full px-1.5 py-1",
+                  "dock-tab fast-tap fluid-hit flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1",
+                  isActive ? "dock-tab-active flex-[1.6]" : "flex-1",
                   isActive ? "bg-[var(--dock-active-pill)] text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
                 )}
                 href={tab.href}
@@ -192,15 +201,38 @@ export function AppBottomDock({ incomingRequestCount }: { incomingRequestCount: 
                 draggable={false}
                 onDragStart={(event) => event.preventDefault()}
               >
-                <span className="relative">
-                  <Icon className="h-[1.22rem] w-[1.22rem]" strokeWidth={isActive ? 2.55 : 2.25} />
+                <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+                  {tab.href === "/profile" && normalizedAvatarUrl ? (
+                    <Image
+                      src={normalizedAvatarUrl}
+                      alt=""
+                      width={24}
+                      height={24}
+                      className={clsx(
+                        "dock-profile-avatar h-6 w-6 rounded-full object-cover outline-none",
+                        isActive && "dock-profile-avatar-active",
+                      )}
+                    />
+                  ) : (
+                    <Icon
+                      className={clsx("dock-tab-icon h-[1.28rem] w-[1.28rem]", isActive && "dock-tab-icon-active")}
+                      strokeWidth={isActive ? 2.45 : 2.05}
+                    />
+                  )}
                   {shouldShowBadge ? (
                     <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
                       {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                     </span>
                   ) : null}
                 </span>
-                <span className="truncate text-[9px] font-semibold leading-none tracking-normal">{tab.label}</span>
+                <span
+                  className={clsx(
+                    "dock-tab-label overflow-hidden whitespace-nowrap text-[11px] font-semibold leading-none tracking-normal",
+                    isActive ? "max-w-16 opacity-100" : "max-w-0 opacity-0",
+                  )}
+                >
+                  {tab.label}
+                </span>
               </Link>
             );
           })}
