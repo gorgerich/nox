@@ -7,6 +7,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
 import { getMediaUrl, putMediaUrl } from "@/lib/media-cache";
+import { escapeRegExp } from "@/lib/text";
 
 const SWIPE_REPLY_THRESHOLD = 64;
 const SWIPE_REPLY_MAX = 92;
@@ -796,7 +797,7 @@ export const MessageBubble = memo(function MessageBubble({
             {message.body && (
               <p className="mb-1 whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.3] last:mb-0">
                 {searchQuery ? (
-                  message.body.split(new RegExp(`(${searchQuery})`, "gi")).map((part, i) =>
+                  message.body.split(new RegExp(`(${escapeRegExp(searchQuery)})`, "gi")).map((part, i) =>
                     part.toLowerCase() === searchQuery.toLowerCase() ? (
                       <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5">
                         {part}

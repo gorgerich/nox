@@ -312,6 +312,7 @@ export default async function ChatPage({
   return (
     <div className="chat-screen bg-background transition-smooth overflow-hidden">
       <ChatMessages
+        key={chat.id}
         chatId={chat.id}
         currentRole={myMembership.role}
         currentUserId={user.id}

@@ -39,6 +39,24 @@ export function VideoMessageRecorder({
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
+  const discardRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    shouldCaptureOnStopRef.current = false;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") {
+        try {
+          recorder.stop();
+        } catch {
+          // Recorder may already be stopping.
+        }
+      }
+    }
+    recorderRef.current = null;
+    chunksRef.current = [];
+  }, []);
+
   const bindPreview = useCallback((stream: MediaStream) => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
@@ -110,8 +128,12 @@ export function VideoMessageRecorder({
         setError("Нет доступа к камере. Разрешите камеру и микрофон.");
       }
     })();
-    return () => { cancelled = true; stopStream(); };
-  }, [bindPreview, openStream, stopStream]);
+    return () => {
+      cancelled = true;
+      discardRecording();
+      stopStream();
+    };
+  }, [bindPreview, discardRecording, openStream, stopStream]);
 
   const startRecording = useCallback(() => {
     const stream = streamRef.current;
@@ -135,28 +157,21 @@ export function VideoMessageRecorder({
   }, [ready, error, startRecording]);
 
   const cancel = useCallback(() => {
-    if (recorderRef.current?.state === "recording") {
-      shouldCaptureOnStopRef.current = false;
-      recorderRef.current.onstop = null;
-      recorderRef.current.stop();
-    }
+    discardRecording();
     stopStream();
     onClose();
-  }, [onClose, stopStream]);
+  }, [discardRecording, onClose, stopStream]);
 
   const switchCamera = useCallback(async () => {
     const stream = streamRef.current;
     if (!stream) return;
     const nextFacingMode = facingMode === "user" ? "environment" : "user";
+    const wasRecording = recorderRef.current?.state === "recording";
 
     try {
-      const wasRecording = recorderRef.current?.state === "recording";
-      if (wasRecording && recorderRef.current) {
-        shouldCaptureOnStopRef.current = false;
-        recorderRef.current.onstop = null;
-        recorderRef.current.stop();
-        recorderRef.current = null;
-        chunksRef.current = [];
+      setReady(false);
+      if (wasRecording) {
+        discardRecording();
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -170,14 +185,26 @@ export function VideoMessageRecorder({
       streamRef.current = nextStream;
       bindPreview(nextStream);
       setFacingMode(nextFacingMode);
+      setReady(true);
       if (wasRecording) {
         startRecordingForStream(nextStream);
       }
     } catch {
+      try {
+        const fallbackStream = await openStream(facingMode);
+        streamRef.current = fallbackStream;
+        bindPreview(fallbackStream);
+        setReady(true);
+        if (wasRecording) {
+          startRecordingForStream(fallbackStream);
+        }
+      } catch {
+        setReady(false);
+      }
       setError("Не удалось переключить камеру.");
       setTimeout(() => setError(null), 2200);
     }
-  }, [bindPreview, facingMode, openStream, startRecordingForStream]);
+  }, [bindPreview, discardRecording, facingMode, openStream, startRecordingForStream]);
 
   if (typeof document === "undefined") return null;
 

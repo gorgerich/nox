@@ -293,7 +293,7 @@ export function ChatsPageClient({
       });
     };
     socket.on("message:new", handleMessageNew);
-    socket.on("message:receipts-updated", (payload: { chatId: string; messageId?: string; deliveredAt?: string | Date | null; readAt?: string | Date | null }) => {
+    const handleReceiptsUpdated = (payload: { chatId: string; messageId?: string; deliveredAt?: string | Date | null; readAt?: string | Date | null }) => {
       setChats(prev => prev.map((chat) => {
         if (
           chat.id !== payload.chatId
@@ -320,7 +320,8 @@ export function ChatsPageClient({
           },
         };
       }));
-    });
+    };
+    socket.on("message:receipts-updated", handleReceiptsUpdated);
     socket.on("chat-request:new", refreshList);
     socket.on("chat-request:accepted", refreshList);
     socket.on("chat-request:declined", refreshList);
@@ -330,7 +331,7 @@ export function ChatsPageClient({
     return () => {
       socket.off("chat:updated", refreshList);
       socket.off("message:new", handleMessageNew);
-      socket.off("message:receipts-updated");
+      socket.off("message:receipts-updated", handleReceiptsUpdated);
       socket.off("chat-request:new", refreshList);
       socket.off("chat-request:accepted", refreshList);
       socket.off("chat-request:declined", refreshList);

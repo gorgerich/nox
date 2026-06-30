@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import { escapeRegExp } from "@/lib/text";
 
 type SearchResult = {
   people: { id: string; username: string; displayName: string; isSelf?: boolean; profile?: { avatarUrl: string | null } }[];
@@ -67,7 +68,7 @@ export function ChatSearch() {
 
   const highlightText = (text: string, q: string) => {
     if (!q.trim()) return text;
-    const parts = text.split(new RegExp(`(${q})`, "gi"));
+    const parts = text.split(new RegExp(`(${escapeRegExp(q)})`, "gi"));
     return parts.map((part, i) =>
       part.toLowerCase() === q.toLowerCase() ? (
         <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5 font-bold">

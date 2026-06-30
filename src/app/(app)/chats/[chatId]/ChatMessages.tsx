@@ -19,6 +19,7 @@ import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersi
 import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getChatMessages, putChatMessages } from "@/lib/chat-cache";
+import { escapeRegExp } from "@/lib/text";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -932,18 +933,52 @@ export function ChatMessages({
     setReplyingToMessage(message);
   }, []);
 
-  const handleDeleteQuietly = useCallback((id: string) => {
-    setMessages(curr => curr.filter(m => m.id !== id));
+  const handleDeleteQuietly = useCallback(async (id: string) => {
     setMenuState(null);
-    try { fetch(`/api/messages/${id}`, { method: "DELETE" }); } catch {}
+    setComposerError("");
+
+    try {
+      const response = await fetch(`/api/messages/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось удалить сообщение.");
+      }
+      setMessages((current) => current.filter((message) => message.id !== id));
+    } catch (error) {
+      setComposerError(error instanceof Error ? error.message : "Не удалось удалить сообщение.");
+    }
   }, []);
 
   const handleDeleteSelected = useCallback(async () => {
     const ids = Array.from(selectedIds);
-    setMessages(curr => curr.filter(m => !selectedIds.has(m.id)));
+    setComposerError("");
+
+    const results = await Promise.all(ids.map(async (id) => {
+      try {
+        const response = await fetch(`/api/messages/${id}`, { method: "DELETE" });
+        return response.ok ? id : null;
+      } catch {
+        return null;
+      }
+    }));
+    const deletedIds = new Set(results.filter((id): id is string => Boolean(id)));
+    const failedIds = ids.filter((id) => !deletedIds.has(id));
+
+    if (deletedIds.size > 0) {
+      setMessages((current) => current.filter((message) => !deletedIds.has(message.id)));
+    }
+    if (failedIds.length > 0) {
+      setSelectedIds(new Set(failedIds));
+      setComposerError(
+        failedIds.length === 1
+          ? "Не удалось удалить сообщение."
+          : `Не удалось удалить сообщений: ${failedIds.length}.`,
+      );
+      return;
+    }
+
     setIsSelectionMode(false);
     setSelectedIds(new Set());
-    for (const id of ids) fetch(`/api/messages/${id}`, { method: "DELETE" }).catch(() => {});
   }, [selectedIds]);
 
   const togglePin = useCallback(async (message: Message) => {
@@ -1264,13 +1299,19 @@ export function ChatMessages({
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     try {
-      await fetch(`/api/messages/${messageId}/reactions`, {
+      const response = await fetch(`/api/messages/${messageId}/reactions`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Не удалось обновить реакцию.");
+      }
       setMenuState(null);
-    } catch {}
+    } catch (error) {
+      setComposerError(error instanceof Error ? error.message : "Не удалось обновить реакцию.");
+    }
   }, []);
 
   const handleTyping = useCallback((text: string) => {
@@ -1850,7 +1891,7 @@ export function ChatMessages({
                      </div>
                      <p className="text-xs truncate text-foreground/80">
                         {searchQuery ? (
-                          m.body.split(new RegExp(`(${searchQuery})`, "gi")).map((part, i) =>
+                          m.body.split(new RegExp(`(${escapeRegExp(searchQuery)})`, "gi")).map((part, i) =>
                             part.toLowerCase() === searchQuery.toLowerCase() ? (
                               <mark key={i} className="bg-primary/30 text-inherit rounded-sm px-0.5 font-bold">
                                 {part}

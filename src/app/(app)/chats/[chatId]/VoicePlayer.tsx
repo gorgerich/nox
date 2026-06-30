@@ -52,6 +52,9 @@ export function VoicePlayer({
       setCurrentTime(0);
     };
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
     const handleError = () => {
       setError(true);
     };
@@ -60,23 +63,33 @@ export function VoicePlayer({
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
 
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
     };
   }, []);
 
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(() => setError(true));
-      }
-      setIsPlaying(!isPlaying);
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      return;
+    }
+
+    try {
+      await audio.play();
+    } catch {
+      setIsPlaying(false);
+      setError(true);
     }
   };
 
@@ -90,7 +103,7 @@ export function VoicePlayer({
       <audio ref={audioRef} src={src} preload="metadata" />
       
       <button
-        onClick={togglePlay}
+        onClick={() => void togglePlay()}
         disabled={error}
         className={`touch-target h-11 w-11 flex shrink-0 items-center justify-center transition-smooth active:scale-[0.96] hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm ${radiusClass}`}
         style={{ backgroundColor: bgControl, color: activeWaveColor }}

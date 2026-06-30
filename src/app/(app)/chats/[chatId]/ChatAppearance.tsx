@@ -400,9 +400,14 @@ export function useChatAppearance(chatId: string) {
       return DEFAULT_APPEARANCE;
     }
 
-    const saved =
-      localStorage.getItem(`nox:chat-appearance:${chatId}:v2`) ??
-      localStorage.getItem("nox:chat-appearance:global:v2");
+    let saved: string | null = null;
+    try {
+      saved =
+        localStorage.getItem(`nox:chat-appearance:${chatId}:v2`) ??
+        localStorage.getItem("nox:chat-appearance:global:v2");
+    } catch {
+      return DEFAULT_APPEARANCE;
+    }
 
     if (!saved) {
       return DEFAULT_APPEARANCE;
@@ -427,17 +432,27 @@ export function useChatAppearance(chatId: string) {
   const updateSettings = (newSettings: Partial<AppearanceSettings>, isGlobal = false) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
-      localStorage.setItem(`nox:chat-appearance:${chatId}:v2`, JSON.stringify(updated));
-      if (isGlobal) {
-        localStorage.setItem("nox:chat-appearance:global:v2", JSON.stringify(updated));
+      try {
+        localStorage.setItem(`nox:chat-appearance:${chatId}:v2`, JSON.stringify(updated));
+        if (isGlobal) {
+          localStorage.setItem("nox:chat-appearance:global:v2", JSON.stringify(updated));
+        }
+      } catch {
+        // Appearance still applies for current session when storage is unavailable.
       }
       return updated;
     });
   };
 
   const resetSettings = () => {
-    localStorage.removeItem(`nox:chat-appearance:${chatId}:v2`);
-    const global = localStorage.getItem("nox:chat-appearance:global:v2");
+    let global: string | null = null;
+    try {
+      localStorage.removeItem(`nox:chat-appearance:${chatId}:v2`);
+      global = localStorage.getItem("nox:chat-appearance:global:v2");
+    } catch {
+      setSettings(DEFAULT_APPEARANCE);
+      return;
+    }
     if (!global) {
       setSettings(DEFAULT_APPEARANCE);
       return;
@@ -456,7 +471,12 @@ export function useChatAppearance(chatId: string) {
 export function useGlobalChatAppearance() {
   const [settings, setSettings] = useState<AppearanceSettings>(() => {
     if (typeof window === "undefined") return DEFAULT_APPEARANCE;
-    const saved = localStorage.getItem("nox:chat-appearance:global:v2");
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("nox:chat-appearance:global:v2");
+    } catch {
+      return DEFAULT_APPEARANCE;
+    }
     if (!saved) return DEFAULT_APPEARANCE;
 
     try {
@@ -469,14 +489,22 @@ export function useGlobalChatAppearance() {
   const updateSettings = (patch: Partial<AppearanceSettings>) => {
     setSettings((current) => {
       const next = normalizeAppearance({ ...current, ...patch });
-      localStorage.setItem("nox:chat-appearance:global:v2", JSON.stringify(next));
+      try {
+        localStorage.setItem("nox:chat-appearance:global:v2", JSON.stringify(next));
+      } catch {
+        // Keep session-only appearance when storage is unavailable.
+      }
       return next;
     });
   };
 
   const resetSettings = () => {
     setSettings(DEFAULT_APPEARANCE);
-    localStorage.removeItem("nox:chat-appearance:global:v2");
+    try {
+      localStorage.removeItem("nox:chat-appearance:global:v2");
+    } catch {
+      // State reset still succeeds.
+    }
   };
 
   return { settings, updateSettings, resetSettings };
