@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node server.js",
     "build": "prisma generate && next build --webpack",
-    "start": "node server.js",
+    "start": "NODE_ENV=production node server.js",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts"
   },
@@ -17,7 +17,7 @@
     "date-fns": "^4.1.0",
     "jose": "^6.2.2",
     "lucide-react": "^1.9.0",
-    "next": "16.2.4",
+    "next": "16.2.9",
     "pg": "^8.20.0",
     "prisma": "^7.8.0",
     "react": "19.2.4",
@@ -38,9 +38,14 @@
     "@types/uuid": "^10.0.0",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@hono/node-server": "1.19.13",
+    "esbuild": "0.28.1",
+    "postcss": "8.5.10"
   }
 }

@@ -4,7 +4,6 @@ const { loadEnvConfig } = require("@next/env");
 loadEnvConfig(process.cwd());
 
 const { createServer } = require("http");
-const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
 const { v4: uuidv4 } = require("uuid");
@@ -434,8 +433,7 @@ async function joinUserChatRooms(socket, userId) {
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
-    const parsedUrl = parse(req.url, true);
-    handle(req, res, parsedUrl);
+    handle(req, res);
   });
 
   const io = new Server(server, {
