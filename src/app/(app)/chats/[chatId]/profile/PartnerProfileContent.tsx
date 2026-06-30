@@ -262,14 +262,15 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       </div>
 
       {isEditSheetOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
-            <h3 className="mb-5 text-xl font-semibold">Изменить контакт</h3>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="edit-contact-title">
+          <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-5">
+            <h2 id="edit-contact-title" className="mb-5 text-xl font-semibold">Изменить контакт</h2>
             <input 
               className="input-nox mb-6" 
               value={newName} 
               onChange={e => setNewName(e.target.value)}
               placeholder="Введите имя..."
+              aria-label="Имя контакта"
               autoFocus
             />
             <button
@@ -289,10 +290,10 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       )}
 
       {isEncryptionOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="encryption-title">
+          <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Шифрование</h3>
+              <h2 id="encryption-title" className="text-xl font-semibold">Шифрование</h2>
               <button type="button" onClick={() => setIsEncryptionOpen(false)} className="text-sm font-semibold text-primary">Закрыть</button>
             </div>
             <p className="mb-4 text-sm leading-relaxed text-muted">
@@ -329,8 +330,8 @@ function ActionMenuButton({ label, icon, options, onSelect }: { label: string, i
     <div className="relative">
       <ActionButton onClick={() => setIsOpen(!isOpen)} label={label} icon={icon} />
       {isOpen && (
-        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)}>
-          <div className="absolute left-1/2 top-1/2 w-64 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border-subtle bg-surface p-2 shadow-lg animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label={label}>
+          <div className="apple-glass-control absolute left-1/2 top-1/2 w-64 -translate-x-1/2 -translate-y-1/2 rounded-2xl p-2 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             {options.map((opt) => (
               <button key={opt.value} onClick={() => { onSelect(opt.value); setIsOpen(false); }} className="w-full rounded-xl px-5 py-3.5 text-left text-sm font-medium transition-smooth hover:bg-foreground/5">
                 {opt.label}
@@ -361,8 +362,8 @@ function MoreProfileButton({
     <div className="relative">
       <ActionButton onClick={() => setIsOpen((v) => !v)} label="ещё" icon={<MoreIcon />} />
       {isOpen && (
-        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)}>
-          <div className="absolute right-5 top-[calc(env(safe-area-inset-top,0px)+17rem)] w-64 overflow-hidden rounded-2xl border border-border-subtle bg-surface-elevated p-2 shadow-xl animate-in zoom-in-95" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label="Дополнительные действия">
+          <div className="apple-glass-control absolute right-5 top-[calc(env(safe-area-inset-top,0px)+17rem)] w-64 overflow-hidden rounded-2xl p-2 animate-in zoom-in-95" onClick={(event) => event.stopPropagation()}>
             <MenuItem onClick={() => { setIsOpen(false); onSearch(); }} icon={<SearchIcon />} label="Поиск" />
             <MenuItem onClick={() => { setIsOpen(false); onClear(); }} icon={<TrashIcon />} label="Очистить диалог" destructive disabled={disabled} />
             <MenuItem onClick={() => { setIsOpen(false); onBlock(); }} icon={<BlockIcon />} label={isBlocked ? "Разблокировать" : "Блок"} destructive={!isBlocked} />

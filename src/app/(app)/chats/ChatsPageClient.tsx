@@ -654,6 +654,9 @@ export function ChatsPageClient({
       {plusMenuOpen && (
         <div
           className="fixed inset-0 z-[460] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Создать или найти"
           onClick={() => setPlusMenuOpen(false)}
         >
           <div
@@ -698,6 +701,9 @@ export function ChatsPageClient({
       {(invitePending || inviteSheet) && (
         <div
           className="fixed inset-0 z-[470] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invite-sheet-title"
           onClick={() => {
             if (!invitePending) {
               setInviteSheet(null);
@@ -715,7 +721,7 @@ export function ChatsPageClient({
                 <UserPlus className="h-6 w-6" strokeWidth={2.1} />
               </div>
               <div className="min-w-0">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Пригласить в Nox</h2>
+                <h2 id="invite-sheet-title" className="text-xl font-semibold tracking-tight text-foreground">Пригласить в Nox</h2>
                 <p className="mt-1 text-sm leading-5 text-muted">
                   {invitePending
                     ? "Создаём одноразовую ссылку..."
@@ -786,7 +792,10 @@ export function ChatsPageClient({
       )}
 
       {/* Folder filter — segmented pills. Filters the list locally (no reload). */}
-      <div className="mb-2 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 scrollbar-hide">
+      <div
+        className="mb-2 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 scrollbar-hide"
+        data-nox-horizontal-scroll="true"
+      >
         {FOLDERS.map((folder) => {
           const active = activeSelectedFolder === folder.key;
           const count = folderCounts[folder.key];
@@ -936,10 +945,10 @@ export function ChatsPageClient({
       )}
 
       {muteSheetChat ? (
-        <div className="fixed inset-0 z-[450] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[450] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="mute-sheet-title">
           <div className="premium-glass w-full max-w-md rounded-[2rem] p-5">
             <div className="mb-4 h-1.5 w-12 rounded-full bg-border mx-auto" />
-            <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">Отключить уведомления</h2>
+            <h2 id="mute-sheet-title" className="mb-2 text-lg font-semibold tracking-tight text-foreground">Отключить уведомления</h2>
             <p className="mb-5 text-sm text-muted">Выберите срок для этого чата.</p>
             <div className="space-y-2">
               {MUTE_OPTIONS.map((option) => (

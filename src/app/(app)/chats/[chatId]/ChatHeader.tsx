@@ -162,6 +162,7 @@ export function ChatHeader({
             <button
               type="button"
               aria-label="Ещё"
+              aria-expanded={timerMenuOpen}
               onClick={() => setTimerMenuOpen((v) => !v)}
               className="touch-target flex h-11 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]"
               title="Ещё"
@@ -171,10 +172,15 @@ export function ChatHeader({
             {timerMenuOpen && (
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
-                <div className="apple-glass-control absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-150">
+                <div
+                  className="apple-glass-control absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-150"
+                  role="menu"
+                  aria-label="Действия чата"
+                >
                   {onSearchClick && (
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={() => { onSearchClick(); setTimerMenuOpen(false); }}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-smooth hover:bg-foreground/5"
                     >
@@ -185,6 +191,7 @@ export function ChatHeader({
                   {onAppearanceClick && (
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={() => { onAppearanceClick(); setTimerMenuOpen(false); }}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-smooth hover:bg-foreground/5"
                     >
@@ -205,6 +212,8 @@ export function ChatHeader({
                       <button
                         key={opt.label}
                         type="button"
+                        role="menuitemradio"
+                        aria-checked={active}
                         onClick={() => { onSetDisappearing(opt.seconds); setTimerMenuOpen(false); }}
                         className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
                       >

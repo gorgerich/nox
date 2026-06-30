@@ -17,10 +17,17 @@ export function AvatarViewer({
   useEffect(() => {
     if (!src) return;
     document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [src]);
+  }, [onClose, src]);
 
   if (!src || typeof document === "undefined") return null;
 
@@ -59,13 +66,16 @@ export function AvatarViewer({
   return createPortal(
     <div
       className="fixed inset-0 z-[1200] flex flex-col bg-black animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Фото профиля ${alt}`}
       onClick={onClose}
     >
-      <header className="safe-top flex items-center justify-between px-4 py-4 text-white">
+      <header className="safe-top flex items-center justify-between px-4 py-4 text-white" onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
-          className="touch-target flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition-smooth active:scale-[0.96]"
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-smooth active:scale-[0.96]"
           aria-label="Закрыть"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +86,7 @@ export function AvatarViewer({
         <button
           type="button"
           onClick={handleSave}
-          className="touch-target flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition-smooth active:scale-[0.96]"
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-smooth active:scale-[0.96]"
           aria-label="Сохранить"
           title="Сохранить"
         >

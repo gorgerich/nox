@@ -179,6 +179,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       <section className="flex flex-col items-center px-6 pb-8 pt-7">
         <div className="group relative mb-5 h-32 w-32">
           <button 
+            type="button"
+            aria-label={permissions.canEditGroup ? "Изменить фото группы" : `Фото группы ${chat.title}`}
             onClick={() => permissions.canEditGroup && fileInputRef.current?.click()}
             disabled={pending || !permissions.canEditGroup}
             className={`absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth ${permissions.canEditGroup ? 'hover:opacity-90 active:scale-[0.96]' : ''}`}
@@ -296,10 +298,10 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       </div>
 
       {isEditingTitle && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg">
-            <h3 className="mb-5 text-xl font-semibold">Название группы</h3>
-            <input className="input-nox mb-6" value={newTitle} onChange={e => setNewTitle(e.target.value)} autoFocus />
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="edit-group-title">
+          <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-5">
+            <h2 id="edit-group-title" className="mb-5 text-xl font-semibold">Название группы</h2>
+            <input className="input-nox mb-6" aria-label="Название группы" value={newTitle} onChange={e => setNewTitle(e.target.value)} autoFocus />
             <div className="flex gap-4">
               <button onClick={() => setIsEditingTitle(false)} className="flex-1 py-3 text-sm font-semibold text-muted">Отмена</button>
               <button onClick={() => { updateGroup({ title: newTitle }); setIsEditingTitle(false); }} className="flex-1 py-3 text-sm font-semibold text-primary">Сохранить</button>
@@ -309,14 +311,14 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       )}
 
       {isAddingMembers && (
-        <div className="fixed inset-0 z-[600] flex flex-col bg-surface safe-top animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[600] flex flex-col bg-surface safe-top animate-in slide-in-from-bottom duration-300" role="dialog" aria-modal="true" aria-labelledby="add-members-title">
            <header className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
              <button onClick={() => setIsAddingMembers(false)} className="text-sm font-semibold text-muted">Отмена</button>
-             <h3 className="text-sm font-semibold">Добавить участников</h3>
+             <h2 id="add-members-title" className="text-sm font-semibold">Добавить участников</h2>
              <div className="w-12" />
            </header>
            <div className="p-4">
-             <input className="input-nox" placeholder="Введите username..." value={searchUser} onChange={e => searchUsers(e.target.value)} />
+             <input className="input-nox" aria-label="Поиск пользователя по username" placeholder="Введите username..." value={searchUser} onChange={e => searchUsers(e.target.value)} />
            </div>
            <div className="flex-1 overflow-y-auto px-4">
               {foundUsers.map(u => (

@@ -23,10 +23,18 @@ export function MediaViewer({
     } else {
       document.body.style.overflow = "";
     }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [item]);
+  }, [item, onClose]);
 
   if (!item || typeof document === "undefined") return null;
 
@@ -72,15 +80,23 @@ export function MediaViewer({
   };
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 z-[200] flex flex-col bg-black/95 transition-opacity animate-in fade-in duration-300"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Просмотр файла ${item.fileName}`}
       onClick={onClose}
     >
       {/* Header */}
-      <header className="safe-top flex items-center justify-between px-4 py-4 text-white">
-        <button 
+      <header
+        className="safe-top flex items-center justify-between px-4 py-4 text-white"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-label="Закрыть просмотр"
           onClick={onClose}
-          className="touch-target flex h-10 w-10 items-center justify-center rounded-full bg-white/10 active:scale-[0.96] transition-transform"
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-transform active:scale-[0.96]"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -88,13 +104,14 @@ export function MediaViewer({
         </button>
         
         <div className="min-w-0 flex-1 px-4 text-center">
-          <p className="truncate text-sm font-bold uppercase tracking-widest opacity-80">{item.fileName}</p>
+          <p className="truncate text-sm font-medium text-white/82">{item.fileName}</p>
         </div>
 
-        <button 
+        <button
+          type="button"
+          aria-label="Сохранить файл"
           onClick={handleDownload}
-          className="touch-target flex h-10 w-10 items-center justify-center rounded-full bg-white/10 active:scale-[0.96] transition-transform"
-          title="Сохранить"
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-transform active:scale-[0.96]"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -123,10 +140,7 @@ export function MediaViewer({
         )}
       </main>
 
-      {/* Footer / Info */}
-      <footer className="safe-bottom p-6 text-center text-white/40">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Nox Media Viewer</p>
-      </footer>
+      <div className="safe-bottom h-4 shrink-0" aria-hidden="true" />
     </div>,
     document.body
   );

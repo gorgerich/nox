@@ -272,7 +272,11 @@ export function AdminPanel() {
         </button>
       </div>
 
-      <nav className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-border-subtle/50 bg-surface-muted p-1 scrollbar-hide">
+      <nav
+        className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-border-subtle/50 bg-surface-muted p-1 scrollbar-hide"
+        data-nox-horizontal-scroll="true"
+        aria-label="Разделы админ-панели"
+      >
         {sections.map((s) => (
           <button
             key={s.id}
@@ -358,7 +362,7 @@ export function AdminPanel() {
                     onChange={(e) => setInviteForm({...inviteForm, expiresAt: e.target.value})}
                   />
                 </div>
-                <button className="btn-primary w-full" disabled={pendingAction !== ""}>
+                <button type="submit" className="btn-primary w-full" disabled={pendingAction !== ""}>
                   {pendingAction === "create-invite" ? "..." : "Сгенерировать"}
                 </button>
               </form>

@@ -70,8 +70,13 @@ export function AccountRecoveryListener() {
   }
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in p-6">
-      <div className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl">
+    <div
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm animate-in fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recovery-request-title"
+    >
+      <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-6">
         <div className="mb-4 flex justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
             <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,18 +84,18 @@ export function AccountRecoveryListener() {
             </svg>
           </div>
         </div>
-        <h3 className="text-xl font-black mb-2 text-center text-foreground">Сброс пароля</h3>
-        <p className="text-sm text-center text-muted mb-4 font-bold leading-relaxed">
+        <h2 id="recovery-request-title" className="mb-2 text-center text-xl font-semibold text-foreground">Сброс пароля</h2>
+        <p className="mb-4 text-center text-sm leading-relaxed text-muted">
           На другом устройстве был запрошен сброс пароля для вашего аккаунта.
         </p>
 
         <div className="rounded-2xl border border-border-subtle bg-foreground/5 p-4 mb-6 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted mb-1">Код подтверждения</p>
-          <p className="text-3xl font-black tracking-[0.2em] text-primary">{request.publicCode}</p>
+          <p className="mb-1 text-xs font-medium text-muted">Код подтверждения</p>
+          <p className="text-3xl font-semibold tracking-[0.12em] text-primary">{request.publicCode}</p>
         </div>
 
         {request.requesterUserAgent && (
-          <p className="text-[10px] text-center text-muted/60 uppercase tracking-widest mb-6">
+          <p className="mb-6 text-center text-xs text-muted/60">
             Устройство: {request.requesterUserAgent.substring(0, 30)}...
           </p>
         )}
@@ -101,16 +106,18 @@ export function AccountRecoveryListener() {
         {!message && (
           <div className="flex gap-4">
             <button 
-              onClick={handleDeny} 
+              type="button"
+              onClick={handleDeny}
               disabled={pending}
-              className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-xl bg-danger/10 text-danger transition-smooth active:scale-[0.96] disabled:opacity-50"
+              className="min-h-12 flex-1 rounded-full bg-danger/10 px-4 text-sm font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-50"
             >
               Отклонить
             </button>
             <button 
-              onClick={handleApprove} 
+              type="button"
+              onClick={handleApprove}
               disabled={pending}
-              className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-xl bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-[0.96] disabled:opacity-50"
+              className="min-h-12 flex-1 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-smooth active:scale-[0.96] disabled:opacity-50"
             >
               Разрешить
             </button>

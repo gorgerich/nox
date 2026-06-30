@@ -149,11 +149,11 @@ export function MediaCropModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[1100] flex flex-col bg-black backdrop-blur-3xl animate-in fade-in duration-300 touch-none">
+    <div className="fixed inset-0 z-[1100] flex flex-col bg-black animate-in fade-in duration-300 touch-none" role="dialog" aria-modal="true" aria-label="Обрезка изображения">
       <header className="safe-top flex items-center justify-between px-6 py-4 text-white z-10">
-        <button onClick={onCancel} className="h-10 px-2 flex items-center text-sm font-bold text-white/70 hover:text-white transition-colors active:scale-[0.96]">Отмена</button>
+        <button type="button" onClick={onCancel} className="h-10 px-2 flex items-center text-sm font-semibold text-white/70 hover:text-white transition-colors active:scale-[0.96]">Отмена</button>
         <h2 className="text-sm font-black uppercase tracking-widest text-white/90">Кадрирование</h2>
-        <button onClick={handleApply} className="h-10 px-2 flex items-center text-sm font-bold text-primary hover:text-primary-light transition-colors active:scale-[0.96]">Готово</button>
+        <button type="button" onClick={handleApply} className="h-10 px-2 flex items-center text-sm font-semibold text-primary transition-colors hover:opacity-80 active:scale-[0.96]">Готово</button>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 w-full h-full relative overflow-hidden">

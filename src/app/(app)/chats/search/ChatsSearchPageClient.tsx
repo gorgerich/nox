@@ -154,7 +154,10 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
           </form>
         </div>
 
-        <section className="mt-5 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section
+          className="mt-5 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          data-nox-horizontal-scroll="true"
+        >
           <div className="flex gap-4">
             {recentChats.map((chat) => {
               const title = chatTitle(chat);

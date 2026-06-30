@@ -655,6 +655,9 @@ export function ChatAppearanceSheet({
   return (
     <div
       className="fixed inset-0 z-[300] flex items-end justify-center bg-black/35 backdrop-blur-[2px] transition-smooth animate-in fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chat-appearance-title"
       onClick={onClose}
     >
       <div
@@ -664,8 +667,8 @@ export function ChatAppearanceSheet({
         <div className="mx-auto mb-5 h-1 w-9 rounded-full bg-foreground/15" />
 
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Оформление</h2>
-          <button onClick={onReset} className="fluid-hit flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-primary hover:bg-primary/10">
+          <h2 id="chat-appearance-title" className="text-xl font-semibold tracking-tight text-foreground">Оформление</h2>
+          <button type="button" onClick={onReset} className="fluid-hit flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-primary hover:bg-primary/10">
             <RotateCcw className="h-4 w-4" strokeWidth={2.1} />
             Сбросить
           </button>

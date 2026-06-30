@@ -209,7 +209,7 @@ export function VideoMessageRecorder({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1100] flex flex-col items-center justify-center bg-neutral-950/95 p-8 backdrop-blur-xl animate-in fade-in">
+    <div className="fixed inset-0 z-[1100] flex flex-col items-center justify-center bg-neutral-950 p-8 animate-in fade-in" role="dialog" aria-modal="true" aria-label="Запись видеосообщения">
       <div className="relative mb-8 h-72 w-72 overflow-hidden rounded-full border-4 border-white/15 bg-neutral-900 shadow-2xl">
         <video ref={videoRef} autoPlay playsInline muted className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`} />
         {recording && (
@@ -223,40 +223,43 @@ export function VideoMessageRecorder({
       {error ? (
         <p className="mb-6 max-w-xs rounded-xl border border-danger/20 bg-danger/10 px-4 py-2 text-center text-xs font-bold text-danger">{error}</p>
       ) : (
-        <p className="mb-6 text-xs font-black uppercase tracking-widest text-white/60">
+        <p className="mb-6 text-sm font-medium text-white/60">
           {recording ? "Идёт запись — нажмите, чтобы отправить" : "Видеосообщение"}
         </p>
       )}
 
       <div className="flex items-center gap-8">
-        <button onClick={cancel} className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96]" title="Отмена">
+        <button type="button" onClick={cancel} className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96]" aria-label="Отмена">
           <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
 
         {!recording ? (
           <button
+            type="button"
             onClick={startRecording}
             disabled={!ready || !!error}
-            className="flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-2xl shadow-danger/40 transition-smooth active:scale-[0.96] disabled:opacity-40"
-            title="Записать"
+            className="flex h-20 w-20 items-center justify-center rounded-full bg-danger text-white shadow-lg transition-smooth active:scale-[0.96] disabled:opacity-40"
+            aria-label="Начать запись"
           >
             <span className="h-7 w-7 rounded-full bg-white" />
           </button>
         ) : (
           <button
+            type="button"
             onClick={stopRecording}
-            className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-white shadow-2xl shadow-primary/40 transition-smooth active:scale-[0.96]"
-            title="Отправить"
+            className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-smooth active:scale-[0.96]"
+            aria-label="Отправить видеосообщение"
           >
             <svg className="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
           </button>
         )}
 
         <button
+          type="button"
           onClick={() => void switchCamera()}
           disabled={!ready}
-          className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96] disabled:opacity-40"
-          title="Переключить камеру"
+          className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96] disabled:opacity-40"
+          aria-label="Переключить камеру"
         >
           <RotateCcw className="h-7 w-7" strokeWidth={2.3} />
           <Camera className="absolute h-3.5 w-3.5 translate-x-1.5 translate-y-1.5" strokeWidth={2.4} />

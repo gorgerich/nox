@@ -336,6 +336,8 @@ export function ProfileContent({
           <section className="mt-4 flex flex-col items-center text-center">
             <div className="group relative mb-5">
               <button
+                type="button"
+                aria-label={fullAvatarUrl ? "Открыть фото профиля" : "Добавить фото профиля"}
                 onClick={() => {
                   if (fullAvatarUrl) setShowFullscreenAvatar(true);
                   else fileInputRef.current?.click();
@@ -367,6 +369,8 @@ export function ProfileContent({
               />
 
               <button
+                type="button"
+                aria-label="Изменить фото профиля"
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-surface bg-primary text-primary-foreground transition-smooth active:scale-[0.96]"
                 title="Изменить фото"
@@ -378,6 +382,8 @@ export function ProfileContent({
 
               {avatarUrl && (
                 <button
+                  type="button"
+                  aria-label="Удалить фото профиля"
                   onClick={handleAvatarDelete}
                   className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-red-400 transition-smooth active:scale-[0.96]"
                 >
@@ -477,7 +483,7 @@ export function ProfileContent({
       {activeScreen === "profile" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Мой профиль</h1>
@@ -534,7 +540,7 @@ export function ProfileContent({
       {activeScreen === "devices" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Устройства</h1>
@@ -550,7 +556,7 @@ export function ProfileContent({
       {activeScreen === "appearance" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Оформление</h1>
@@ -627,7 +633,7 @@ export function ProfileContent({
       {activeScreen === "security" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Безопасность</h1>
@@ -695,7 +701,7 @@ export function ProfileContent({
       {activeScreen === "folders" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Папки чатов</h1>
@@ -879,7 +885,7 @@ export function ProfileContent({
       {activeScreen === "data" && (
         <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
+             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
              <h1 className="text-base font-semibold tracking-tight">Данные и кэш</h1>
@@ -896,13 +902,16 @@ export function ProfileContent({
       {showTrustedReset && (
         <div
           className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/55 p-6 animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="trusted-reset-title"
           onClick={() => setShowTrustedReset(false)}
         >
           <div
-            className="relative w-full max-w-sm rounded-2xl bg-surface p-5 shadow-lg"
+            className="premium-glass relative w-full max-w-sm rounded-[1.75rem] p-5"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="mb-2 text-center text-xl font-semibold">Сброс пароля</h3>
+            <h2 id="trusted-reset-title" className="mb-2 text-center text-xl font-semibold">Сброс пароля</h2>
             <p className="text-xs text-muted text-center mb-6 leading-relaxed">
               Это устройство уже авторизовано. После смены пароля ваши сообщения на этом устройстве останутся доступны.
             </p>
@@ -914,6 +923,7 @@ export function ProfileContent({
                 value={trustedNewPassword}
                 onChange={(e) => setTrustedNewPassword(e.target.value)}
                 placeholder="Новый пароль (минимум 8 символов)"
+                aria-label="Новый пароль"
                 required
                 minLength={8}
               />

@@ -277,7 +277,7 @@ function AttachmentPreview({
     ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
     : { minHeight: "12rem" };
 
-  const toggleRoundVideo = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+  const toggleRoundVideo = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     const video = roundVideoRef.current;
     if (!video) return;
@@ -339,7 +339,9 @@ function AttachmentPreview({
           cornerRadius={settings.bubbleRadius}
         />
       ) : isImage ? (
-        <div
+        <button
+          type="button"
+          aria-label={`Открыть изображение ${attachment.fileName}`}
           className="relative w-full max-w-xs cursor-pointer overflow-hidden rounded-xl transition-opacity active:opacity-90"
           style={{ ...ratioStyle, maxHeight: "24rem" }}
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "IMAGE", url: sourceUrl, fileName: attachment.fileName }); }}
@@ -351,9 +353,11 @@ function AttachmentPreview({
             className="absolute inset-0 h-full w-full object-cover transition-smooth hover:scale-[1.02]"
             loading="lazy"
           />
-        </div>
+        </button>
       ) : isRoundVideo ? (
-        <div
+        <button
+          type="button"
+          aria-label={roundExpanded ? "Свернуть видеосообщение" : "Воспроизвести видеосообщение"}
           className={`relative mx-auto my-1 cursor-pointer overflow-hidden rounded-full shadow-sm transition-[width,height,opacity,transform,box-shadow] duration-300 active:opacity-90 ${
             roundExpanded ? "h-[min(76vw,24rem)] w-[min(76vw,24rem)]" : "h-56 w-56"
           }`}
@@ -402,9 +406,11 @@ function AttachmentPreview({
           <div className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold text-white">
             <svg className="inline h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           </div>
-        </div>
+        </button>
       ) : isVideo ? (
-        <div
+        <button
+          type="button"
+          aria-label={`Открыть видео ${attachment.fileName}`}
           className="relative flex w-full max-w-xs cursor-pointer items-center justify-center overflow-hidden rounded-xl transition-opacity active:opacity-90"
           style={{
             ...ratioStyle,
@@ -420,9 +426,11 @@ function AttachmentPreview({
               <Play className="ml-0.5 h-6 w-6" fill="currentColor" strokeWidth={0} />
             </div>
           </div>
-        </div>
+        </button>
       ) : (
-        <div
+        <button
+          type="button"
+          aria-label={`Скачать файл ${attachment.fileName}`}
           className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-smooth active:opacity-85"
           style={{
             backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
@@ -446,7 +454,7 @@ function AttachmentPreview({
               {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
             </p>
           </div>
-        </div>
+        </button>
       )}
     </div>
   );
@@ -720,8 +728,18 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <div 
       ref={rowRef}
+      role={selectionMode ? "button" : undefined}
+      tabIndex={selectionMode ? 0 : undefined}
+      aria-pressed={selectionMode ? isSelected : undefined}
+      aria-label={selectionMode ? `${isSelected ? "Снять выбор" : "Выбрать"} сообщение` : undefined}
       className={`relative ${isGroupEnd ? "mb-2" : "mb-[3px]"} flex w-full items-center transition-colors duration-200 ${selectionMode ? "cursor-pointer" : ""} ${isSelected ? "bg-primary/5" : ""} touch-pan-y no-select`}
       onClick={handleClick}
+      onKeyDown={(event) => {
+        if (selectionMode && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
@@ -772,8 +790,11 @@ export const MessageBubble = memo(function MessageBubble({
               }}
             >
           {message.replyToMessage && (
-            <div
+            <button
+              type="button"
               className={`mb-1.5 border-l-2 py-0.5 pl-2.5 text-xs leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
+              disabled={Boolean(message.replyToMessage.deletedAt)}
+              aria-label="Перейти к сообщению, на которое ответили"
               style={{
                 borderColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
                 color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)",
@@ -790,7 +811,7 @@ export const MessageBubble = memo(function MessageBubble({
               <p className="truncate line-clamp-1 italic opacity-70">
                 {message.replyToMessage.deletedAt ? "Исходное сообщение удалено" : (message.replyToMessage.body || "Вложение")}
               </p>
-            </div>
+            </button>
           )}
 
           <>

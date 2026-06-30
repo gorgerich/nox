@@ -1661,7 +1661,12 @@ export function ChatMessages({
     if (!menuState || !focusedMessage || !mounted) return null;
 
     return createPortal(
-      <div className="fixed inset-0 z-[900] flex flex-col no-select">
+      <div
+        className="fixed inset-0 z-[900] flex flex-col no-select"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Действия с сообщением"
+      >
         {/* Backdrop */}
         <div 
           className="absolute inset-0 bg-black/35 backdrop-blur-xl animate-in fade-in duration-300" 
@@ -1732,6 +1737,8 @@ export function ChatMessages({
                {ALLOWED_REACTIONS.map(emoji => (
                  <button 
                   key={emoji} 
+                  type="button"
+                  aria-label={`Реакция ${emoji}`}
                   className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
                   onClick={() => toggleReaction(menuState.id, emoji)}
                  >
@@ -1878,7 +1885,7 @@ export function ChatMessages({
                  />
                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </div>
-              <button onClick={closeSearch} className="text-sm font-black uppercase text-primary">Отмена</button>
+              <button type="button" onClick={closeSearch} className="text-sm font-semibold text-primary">Отмена</button>
            </div>
            
            {searchResults.length > 0 && (
@@ -1886,7 +1893,7 @@ export function ChatMessages({
                 {searchResults.map(m => (
                   <button key={m.id} onClick={() => jumpToMessage(m.id)} className="w-full text-left p-3 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.98]">
                      <div className="flex justify-between mb-1">
-                        <span className="text-[10px] font-black uppercase text-primary">{m.senderName}</span>
+                        <span className="text-xs font-semibold text-primary">{m.senderName}</span>
                         <span className="text-[9px] font-bold text-muted">{new Date(m.createdAt).toLocaleDateString()}</span>
                      </div>
                      <p className="text-xs truncate text-foreground/80">
@@ -1915,12 +1922,16 @@ export function ChatMessages({
         <div className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-border-subtle/30 px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2">
            <div className="flex items-center gap-3 min-w-0">
               <div className="h-8 w-1 bg-primary rounded-full" />
-              <div className="min-w-0 cursor-pointer" onClick={() => jumpToMessage(pinnedMessage.id)}>
-                 <p className="text-[10px] font-black uppercase text-primary">Закреплённое сообщение</p>
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                onClick={() => jumpToMessage(pinnedMessage.id)}
+              >
+                 <p className="text-xs font-semibold text-primary">Закреплённое сообщение</p>
                  <p className="text-xs truncate text-foreground/60">{pinnedMessage.body || pinnedMessage.attachments[0]?.fileName || "Вложение"}</p>
-              </div>
+              </button>
            </div>
-           <button onClick={() => void togglePin(pinnedMessage)} className="text-muted p-2"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+           <button type="button" aria-label="Открепить сообщение" onClick={() => void togglePin(pinnedMessage)} className="touch-target text-muted"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
       )}
 
@@ -2027,10 +2038,10 @@ export function ChatMessages({
 
       {isSelectionMode ? (
         <div className="glass-composer px-6 py-4 flex items-center justify-between animate-in slide-in-from-bottom-full duration-300">
-           <button onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} className="text-sm font-black uppercase text-primary">Отмена</button>
+           <button type="button" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} className="text-sm font-semibold text-primary">Отмена</button>
            <div className="flex gap-6">
-              <button onClick={handleDeleteSelected} disabled={selectedIds.size === 0} className="touch-target h-12 w-12 rounded-2xl bg-danger/10 text-danger disabled:opacity-30"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-              <button onClick={() => initiateForward(messages.filter(m => selectedIds.has(m.id)))} disabled={selectedIds.size === 0} className="touch-target h-12 w-12 rounded-2xl bg-primary/10 text-primary disabled:opacity-30"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg></button>
+              <button type="button" aria-label="Удалить выбранные сообщения" onClick={handleDeleteSelected} disabled={selectedIds.size === 0} className="touch-target h-12 w-12 rounded-full bg-danger/10 text-danger disabled:opacity-30"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+              <button type="button" aria-label="Переслать выбранные сообщения" onClick={() => initiateForward(messages.filter(m => selectedIds.has(m.id)))} disabled={selectedIds.size === 0} className="touch-target h-12 w-12 rounded-full bg-primary/10 text-primary disabled:opacity-30"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg></button>
            </div>
         </div>
       ) : (
@@ -2069,9 +2080,9 @@ export function ChatMessages({
       ) : null}
 
       {showForwardPicker && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/80 backdrop-blur-xl p-6 animate-in fade-in">
-           <div className="w-full max-w-sm rounded-[2.5rem] bg-surface p-6 shadow-2xl">
-              <h2 className="text-xl font-black mb-6 px-2">Переслать в...</h2>
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="forward-picker-title">
+           <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-6">
+              <h2 id="forward-picker-title" className="mb-6 px-2 text-xl font-semibold">Переслать</h2>
               <div className="max-h-80 overflow-y-auto space-y-2 pr-2 scrollbar-hide">
                  {recentChatsLoading && recentChats.length === 0 ? (
                    <div className="flex items-center justify-center gap-3 p-6 text-sm font-medium text-muted">
@@ -2084,15 +2095,15 @@ export function ChatMessages({
                    </div>
                  ) : recentChats.map(c => (
                    <button key={c.id} onClick={() => void confirmForward(c.id)} disabled={isForwarding} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.96] disabled:opacity-50">
-                      <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                      <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-semibold text-primary">
                         {c.title[0]}
                       </div>
-                      <span className="font-bold truncate">{c.title}</span>
-                      {isForwarding ? <span className="ml-auto text-xs font-black uppercase text-muted">...</span> : null}
+                      <span className="truncate font-semibold">{c.title}</span>
+                      {isForwarding ? <span className="ml-auto text-xs font-semibold text-muted">...</span> : null}
                    </button>
                  ))}
               </div>
-              <button onClick={() => setShowForwardPicker(false)} className="w-full mt-6 py-4 font-black uppercase text-muted hover:text-foreground">Отмена</button>
+              <button type="button" onClick={() => setShowForwardPicker(false)} className="mt-6 w-full py-4 font-semibold text-muted hover:text-foreground">Отмена</button>
            </div>
         </div>
       )}

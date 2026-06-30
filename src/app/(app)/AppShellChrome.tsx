@@ -38,6 +38,24 @@ function getTabIndex(pathname: string) {
   return -1;
 }
 
+function readScrollPosition(key: string) {
+  try {
+    const saved = window.sessionStorage.getItem(key);
+    const value = saved ? Number(saved) : 0;
+    return Number.isFinite(value) ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveScrollPosition(key: string) {
+  try {
+    window.sessionStorage.setItem(key, String(Math.max(0, Math.round(window.scrollY))));
+  } catch {
+    // Tab navigation still works when storage is unavailable.
+  }
+}
+
 function isFullscreenRoute(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
   const isChatDetail =
@@ -129,9 +147,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
       return;
     }
 
-    const saved = window.sessionStorage.getItem(key);
-    const nextY = saved ? Number(saved) : 0;
-    const restoreY = Number.isFinite(nextY) ? nextY : 0;
+    const restoreY = readScrollPosition(key);
     // Restore the saved scroll position over a couple of frames (content paints
     // async), but abort the instant the user touches the screen so we never
     // yank them back mid-scroll. Skip entirely when restoring to the top.
@@ -160,7 +176,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
       if (saveFrameId !== null) return;
       saveFrameId = window.requestAnimationFrame(() => {
         saveFrameId = null;
-        window.sessionStorage.setItem(key, String(Math.max(0, Math.round(window.scrollY))));
+        saveScrollPosition(key);
       });
     };
 
@@ -172,7 +188,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
       if (saveFrameId !== null) {
         window.cancelAnimationFrame(saveFrameId);
       }
-      window.sessionStorage.setItem(key, String(Math.max(0, Math.round(window.scrollY))));
+      saveScrollPosition(key);
       window.removeEventListener("scroll", saveScroll);
       window.removeEventListener("pagehide", saveScroll);
     };
@@ -185,7 +201,7 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     }
 
     const target = event.target as HTMLElement | null;
-    if (target?.closest("input, textarea, select, button, [role='button'], [data-nox-swipe-ignore='true']")) {
+    if (target?.closest("input, textarea, select, button, [role='button'], [data-nox-swipe-ignore='true'], [data-nox-horizontal-scroll='true']")) {
       swipeStartRef.current = null;
       return;
     }

@@ -116,13 +116,13 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
   });
 
   return (
-    <div className="fixed inset-0 z-[500] bg-black/45 backdrop-blur-xl p-4 sm:p-6 flex flex-col items-center justify-center animate-in fade-in transition-smooth">
-        <div className="w-full max-w-md bg-surface rounded-[1.75rem] p-5 space-y-5 shadow-xl overflow-hidden flex flex-col max-h-full">
+    <div className="fixed inset-0 z-[500] flex flex-col items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in transition-smooth sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-group-title">
+        <div className="premium-glass flex max-h-full w-full max-w-md flex-col space-y-5 overflow-hidden rounded-[1.75rem] p-5">
             <div className="shrink-0 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 text-primary">
                 <UsersRound className="h-6 w-6" strokeWidth={1.9} />
               </div>
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground">Новая группа</h2>
+              <h2 id="new-group-title" className="text-2xl font-semibold tracking-tight text-foreground">Новая группа</h2>
               <p className="mt-1 text-sm text-muted">Выберите участников и задайте название.</p>
             </div>
             
@@ -166,9 +166,11 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                     const isSelected = selectedUsers.has(u.id);
                     const fullAvatarUrl = normalizeAvatarUrl(u.avatarUrl);
                     return (
-                      <div 
+                      <button
+                          type="button"
                           key={u.id} 
-                          className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-smooth fast-tap border ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-surface-elevated border-transparent"}`}
+                          aria-pressed={isSelected}
+                          className={`flex w-full items-center justify-between rounded-2xl border p-3 text-left transition-smooth fast-tap ${isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-surface-elevated border-transparent"}`}
                           onClick={() => toggleUser(u)}
                       >
                           <div className="flex items-center gap-3">
@@ -183,13 +185,14 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                           <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-smooth ${isSelected ? "bg-primary border-primary" : "border-border-subtle"}`}>
                               {isSelected && <svg className="h-4 w-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                           </div>
-                      </div>
+                      </button>
                     );
                 })}
             </div>
 
             <div className="shrink-0 space-y-3 pt-2">
               <button 
+                  type="button"
                   className="fast-tap w-full bg-primary h-12 rounded-full text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
                   onClick={createGroup} 
                   disabled={pending || !title.trim() || selectedUsers.size === 0}
@@ -197,6 +200,7 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                   {pending ? "Создаём" : `Создать (${selectedUsers.size})`}
               </button>
               <button 
+                  type="button"
                   className="w-full h-11 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96] fast-tap"
                   onClick={onClose}
               >

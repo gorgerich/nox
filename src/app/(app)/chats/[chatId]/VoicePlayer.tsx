@@ -103,6 +103,8 @@ export function VoicePlayer({
       <audio ref={audioRef} src={src} preload="metadata" />
       
       <button
+        type="button"
+        aria-label={error ? "Голосовое сообщение недоступно" : isPlaying ? "Пауза" : "Воспроизвести голосовое сообщение"}
         onClick={() => void togglePlay()}
         disabled={error}
         className={`touch-target h-11 w-11 flex shrink-0 items-center justify-center transition-smooth active:scale-[0.96] hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none shadow-sm ${radiusClass}`}
