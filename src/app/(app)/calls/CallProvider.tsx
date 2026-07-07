@@ -118,7 +118,15 @@ const CallContext = createContext<CallContextType | null>(null);
 function getRtcConfig(): { config: RTCConfiguration; serverUrls: string[] } {
   const stunUrls = process.env.NEXT_PUBLIC_STUN_URLS
     ? process.env.NEXT_PUBLIC_STUN_URLS.split(",").map(u => u.trim()).filter(Boolean)
-    : ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
+    // Multiple providers for redundancy. Google STUN can be unreliable on some
+    // networks (incl. RU); Cloudflare/Twilio give diversity. STUN alone still
+    // cannot traverse symmetric/CGNAT (mobile) — that needs TURN (env below).
+    : [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun.cloudflare.com:3478",
+        "stun:global.stun.twilio.com:3478",
+      ];
   const iceServers: RTCIceServer[] = stunUrls.map((url) => ({ urls: url }));
 
   if (process.env.NEXT_PUBLIC_TURN_URLS) {
