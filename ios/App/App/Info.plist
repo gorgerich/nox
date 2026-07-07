@@ -32,6 +32,11 @@
 	<string>Nox сохраняет выбранные пользователем медиа в библиотеку фото.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Nox открывает фото и видео, которые вы выбираете для отправки.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>voip</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
