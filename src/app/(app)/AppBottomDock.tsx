@@ -22,6 +22,10 @@ type DockSwipeStart = {
   dragging: boolean;
 };
 
+function getTabScrollKey(href: string) {
+  return `nox:tab-scroll:${href}`;
+}
+
 function isFullscreenRoute(pathname: string) {
   const segments = pathname.split("/").filter(Boolean);
   const isChatDetail =
@@ -157,6 +161,22 @@ export function AppBottomDock({
     }, 0);
   }, []);
 
+  const handleTabClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>, href: string, isActive: boolean) => {
+    if (!isActive || pathname !== href) {
+      return;
+    }
+
+    event.preventDefault();
+    try {
+      window.sessionStorage.setItem(getTabScrollKey(href), "0");
+    } catch {
+      // ignore unavailable sessionStorage
+    }
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  }, [pathname]);
+
   // Four section tabs + one search action = five visible nav items. Section
   // screens keep dock; fullscreen task routes (active chat/call) own bottom UI.
   if (!isDockRoute || isFullscreenRoute(pathname) || isSuppressed) {
@@ -199,6 +219,7 @@ export function AppBottomDock({
                 prefetch={true}
                 scroll={false}
                 draggable={false}
+                onClick={(event) => handleTabClick(event, tab.href, isActive)}
                 onDragStart={(event) => event.preventDefault()}
               >
                 <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">

@@ -332,7 +332,7 @@ export function ProfileContent({
   return (
     <>
       {activeScreen === "main" && (
-        <div className="pb-32 animate-in fade-in slide-in-from-bottom-4 duration-300 safe-top">
+        <div className="pb-[var(--bottom-dock-clearance)] animate-in fade-in slide-in-from-bottom-4 duration-300 safe-top">
           <section className="mt-4 flex flex-col items-center text-center">
             <div className="group relative mb-5">
               <button
@@ -481,7 +481,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "profile" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -538,7 +538,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "devices" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -554,7 +554,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "appearance" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -631,7 +631,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "security" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -699,7 +699,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "folders" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -883,7 +883,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "data" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-32 animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>

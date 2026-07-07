@@ -6,6 +6,7 @@
   --app-fg: oklch(19% 0.014 252);
   --app-muted: oklch(57% 0.018 252);
   --app-border: rgba(24, 37, 61, 0.08);
+  --bottom-dock-clearance: max(112px, calc(env(safe-area-inset-bottom, 0px) + 96px));
 
   --glass-bg: rgba(248, 251, 255, 0.5);
   --glass-bg-strong: rgba(250, 252, 255, 0.68);
@@ -1099,7 +1100,7 @@ body {
     padding-left: 20px;
     padding-right: 20px;
     padding-top: calc(env(safe-area-inset-top, 0px) + 22px);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+    padding-bottom: var(--bottom-dock-clearance);
   }
 
   .app-section-header {
@@ -1161,6 +1162,19 @@ body {
     box-shadow:
       inset 0 1px 0 var(--glass-highlight),
       0 6px 14px var(--glass-depth-soft);
+    transition:
+      border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .nox-search-pill:focus-within {
+    border-color: color-mix(in oklab, var(--primary) 28%, var(--glass-panel-border));
+    background: color-mix(in oklab, var(--glass-material) 94%, var(--surface-elevated));
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 0 0 4px color-mix(in oklab, var(--primary) 10%, transparent),
+      0 8px 18px var(--glass-depth-soft);
   }
 
   .nox-section-label {
@@ -1197,6 +1211,17 @@ body {
   .nox-list-row:active {
     transform: scale(0.992);
     background: var(--surface-hover);
+  }
+
+  .nox-list-row:focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--primary) 42%, transparent);
+    outline-offset: -2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .nox-list-row:hover {
+      background: color-mix(in oklab, var(--surface-hover) 78%, transparent);
+    }
   }
 
   .nox-list-row + .nox-list-row::before {
@@ -1430,6 +1455,15 @@ body {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .route-pop-search,
+  .route-slide-left,
+  .route-slide-right {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    will-change: auto !important;
   }
 }
 

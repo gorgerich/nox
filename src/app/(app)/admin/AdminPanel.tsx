@@ -256,7 +256,7 @@ export function AdminPanel() {
   }
 
   return (
-    <div className="app-section transition-smooth !max-w-5xl !pb-[calc(env(safe-area-inset-bottom,0px)+112px)]">
+    <div className="app-section transition-smooth !max-w-5xl !pb-[var(--bottom-dock-clearance)]">
       <div className="mb-6 flex items-center justify-between gap-4 px-1">
         <div>
           <h1 className="nox-page-title">Админ</h1>

@@ -118,7 +118,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
   }
 
   return (
-    <div className="min-h-dvh bg-background pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
+    <div className="min-h-dvh bg-background pb-[var(--bottom-dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
       <div className="mx-auto flex w-full max-w-2xl flex-col">
         <div className="flex items-center gap-2 px-4">
           <button
@@ -154,30 +154,32 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
           </form>
         </div>
 
-        <section
-          className="mt-5 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          data-nox-horizontal-scroll="true"
-        >
-          <div className="flex gap-4">
-            {recentChats.map((chat) => {
-              const title = chatTitle(chat);
-              const avatarUrl = chatAvatar(chat);
-              return (
-                <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex w-20 shrink-0 flex-col items-center gap-2 text-center">
-                  <div className="premium-glass relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold text-primary">
-                    {avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={avatarUrl.startsWith("http") ? avatarUrl : `/api/avatars/${avatarUrl}`} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      avatarInitial(title)
-                    )}
-                  </div>
-                  <span className="line-clamp-1 w-full text-[13px] font-medium leading-4 text-foreground">{title}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        {recentChats.length > 0 ? (
+          <section
+            className="mt-5 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            data-nox-horizontal-scroll="true"
+          >
+            <div className="flex gap-4">
+              {recentChats.map((chat) => {
+                const title = chatTitle(chat);
+                const avatarUrl = chatAvatar(chat);
+                return (
+                  <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex w-20 shrink-0 flex-col items-center gap-2 text-center">
+                    <div className="premium-glass relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold text-primary">
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={avatarUrl.startsWith("http") ? avatarUrl : `/api/avatars/${avatarUrl}`} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        avatarInitial(title)
+                      )}
+                    </div>
+                    <span className="line-clamp-1 w-full text-[13px] font-medium leading-4 text-foreground">{title}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {query.trim() ? (
           <section className="mt-6">
