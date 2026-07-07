@@ -293,7 +293,7 @@ export function AdminPanel() {
       </nav>
 
       {error && <p className="bg-red-500/10 text-red-400 text-xs font-bold p-3 rounded-xl text-center border border-red-500/20">{error}</p>}
-      {loading && <p className="text-center text-xs font-bold uppercase tracking-widest text-muted animate-pulse py-12">Загрузка...</p>}
+      {loading && <p className="py-12 text-center text-sm font-semibold text-muted animate-pulse">Загрузка...</p>}
 
       {!loading && (
         <div className="animate-in fade-in duration-500">
@@ -345,7 +345,7 @@ export function AdminPanel() {
           {activeSection === "invites" && (
             <div className="space-y-6">
               <form className="card-clean p-6 space-y-4" onSubmit={createInvite} method="POST">
-                <h2 className="text-sm font-bold uppercase tracking-widest">Создать код</h2>
+                <h2 className="text-base font-semibold">Создать код</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     className="input-nox"
@@ -369,7 +369,7 @@ export function AdminPanel() {
 
               {rawInviteCode && (
                 <div className="card-clean border-primary/30 bg-primary/5 p-6 text-center animate-in zoom-in-95 duration-300">
-                  <p className="text-xs font-bold text-primary uppercase mb-3">{notice}</p>
+                  <p className="mb-3 text-sm font-semibold text-primary">{notice}</p>
                   <code className="block bg-background p-4 rounded-xl border border-border-subtle font-mono text-sm select-all">
                     {rawInviteCode}
                   </code>
@@ -377,7 +377,7 @@ export function AdminPanel() {
               )}
 
               <div className="space-y-3">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-muted px-2">Активные коды</h2>
+                <h2 className="nox-section-label !m-0 px-2">Активные коды</h2>
                 {invites.map((invite) => (
                   <article key={invite.id} className="card-clean p-4 flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -390,7 +390,7 @@ export function AdminPanel() {
                       </p>
                     </div>
                     <button 
-                      className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition"
+                      className="text-xs font-semibold text-red-400 transition hover:text-red-300"
                       onClick={() => runAction(`revoke-invite-${invite.id}`, `/api/admin/invites/${invite.id}/revoke`)}
                     >
                       Отозвать
@@ -411,7 +411,7 @@ export function AdminPanel() {
               </div>
 
               {recoveryRequests.length === 0 && (
-                <p className="py-12 text-center text-xs font-bold uppercase tracking-widest text-muted">
+                <p className="py-12 text-center text-sm font-semibold text-muted">
                   Заявок нет
                 </p>
               )}
@@ -427,7 +427,7 @@ export function AdminPanel() {
                           <h3 className="font-bold">
                             {request.user.profile?.displayName ?? request.user.username}
                           </h3>
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${
+                          <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
                             actionable ? "bg-amber-500/10 text-amber-500" : "bg-surface-hover text-muted"
                           }`}>
                             {getRecoveryStatusLabel(request.status, request.expiresAt)}
@@ -438,7 +438,7 @@ export function AdminPanel() {
                           {request.user.login ? ` • login: ${request.user.login}` : ""}
                           {request.user.email ? ` • ${request.user.email}` : ""}
                         </p>
-                        <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-muted/70">
+                        <p className="mt-3 text-[11px] font-semibold text-muted/70">
                           Создан: {formatDate(request.createdAt)} • до {formatDate(request.expiresAt)}
                         </p>
                         {request.requesterUserAgent && (
@@ -449,8 +449,8 @@ export function AdminPanel() {
                       </div>
 
                       <div className="shrink-0 rounded-2xl border border-border-subtle bg-foreground/5 px-4 py-3 text-center">
-                        <p className="mb-1 text-[9px] font-black uppercase tracking-widest text-muted">Код</p>
-                        <code className="select-all font-mono text-xl font-black tracking-[0.2em] text-primary">
+                        <p className="mb-1 text-[11px] font-semibold text-muted">Код</p>
+                        <code className="select-all font-mono text-xl font-bold tracking-[0.14em] text-primary">
                           {request.publicCode}
                         </code>
                       </div>
@@ -459,14 +459,14 @@ export function AdminPanel() {
                     {actionable && (
                       <div className="mt-5 flex gap-3">
                         <button
-                          className="flex-1 rounded-xl bg-red-500/10 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 transition-smooth active:scale-[0.96] disabled:opacity-50"
+                          className="flex-1 rounded-xl bg-red-500/10 py-3 text-sm font-semibold text-red-400 transition-smooth active:scale-[0.96] disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`deny-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/deny`)}
                         >
                           {pendingAction === `deny-recovery-${request.id}` ? "..." : "Отклонить"}
                         </button>
                         <button
-                          className="flex-1 rounded-xl bg-primary py-3 text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-xl shadow-primary/20 transition-smooth active:scale-[0.96] disabled:opacity-50"
+                          className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`approve-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/approve`)}
                         >
@@ -533,7 +533,7 @@ function AdminActionButton({ label, onClick, pending, variant = "default" }: {
 }) {
   return (
     <button
-      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-[transform,background-color,color,opacity] active:scale-[0.96] ${
+      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-[transform,background-color,color,opacity] active:scale-[0.96] ${
         variant === "danger" 
           ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" 
           : "bg-surface-hover text-muted hover:text-foreground"

@@ -46,13 +46,13 @@ export default async function CallsPage() {
 
       {logs.length === 0 ? (
         <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
-          <div className="nox-empty-icon">
+          <div className="nox-empty-icon text-primary">
             <Phone className="h-9 w-9" strokeWidth={1.6} />
           </div>
           
-          <h2 className="nox-empty-title">Список звонков пуст</h2>
+          <h2 className="nox-empty-title">Звонков пока нет</h2>
           <p className="nox-empty-copy">
-            Вы можете позвонить любому пользователю прямо из личного чата. История звонков появится в этом разделе позже.
+            История появится здесь после первого аудио или видеозвонка.
           </p>
         </div>
       ) : (

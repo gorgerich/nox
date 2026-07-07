@@ -93,7 +93,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
         </Link>
       </header>
 
-      <label className="nox-search-pill mb-4 px-4">
+      <label className="nox-search-pill mb-3 px-4">
         <Search className="h-5 w-5 shrink-0 text-muted/70" strokeWidth={2.1} />
         <input
           value={query}
@@ -112,16 +112,16 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
 
       {contacts.length === 0 ? (
         <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
-          <div className="nox-empty-icon">
+          <div className="nox-empty-icon text-primary">
             <UsersRound className="h-9 w-9" strokeWidth={1.7} />
           </div>
           <h2 className="nox-empty-title">Контактов пока нет</h2>
           <p className="nox-empty-copy">
             Начните новый чат, чтобы контакт появился здесь.
           </p>
-          <Link href="/chats/new" className="mt-8 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]">
-            <Search className="h-4 w-4" strokeWidth={2.2} />
-            Найти людей
+          <Link href="/chats/new" className="mt-7 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]">
+            <Plus className="h-4 w-4" strokeWidth={2.2} />
+            Добавить контакт
           </Link>
         </div>
       ) : filteredContacts.length === 0 ? (

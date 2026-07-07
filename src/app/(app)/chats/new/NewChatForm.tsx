@@ -172,13 +172,13 @@ export function NewChatForm() {
   }
 
   return (
-    <div className="space-y-7 transition-smooth">
-      <div className="rounded-[1.75rem] border border-border-subtle bg-surface p-3 shadow-sm">
+    <div className="space-y-5 transition-smooth">
+      <div>
         <form className="flex items-center gap-2" onSubmit={searchUser} method="POST">
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" strokeWidth={2.1} />
             <input
-              className="h-12 w-full rounded-full border border-border-subtle bg-background px-11 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+              className="h-12 w-full rounded-full border border-border-subtle bg-input px-11 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
               maxLength={32}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="@username"
@@ -198,7 +198,7 @@ export function NewChatForm() {
         {notice ? <p className="px-3 pt-3 text-sm font-semibold text-primary animate-in fade-in">{notice}</p> : null}
 
         {foundUser && (
-          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200 rounded-[1.5rem] border border-border-subtle bg-background p-4">
+          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200 rounded-[1.5rem] border border-border-subtle bg-surface/70 p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
                 {foundUser.displayName.slice(0, 1).toLocaleUpperCase("ru-RU")}
@@ -241,7 +241,7 @@ export function NewChatForm() {
             ) : (
               <div className="mt-4 space-y-3">
                 <textarea
-                  className="min-h-24 w-full resize-none rounded-2xl border border-border-subtle bg-surface px-4 py-3 text-sm font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                  className="min-h-24 w-full resize-none rounded-2xl border border-border-subtle bg-background/70 px-4 py-3 text-sm font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
                   maxLength={500}
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Сообщение к запросу (необязательно)"
@@ -261,10 +261,10 @@ export function NewChatForm() {
         )}
       </div>
 
-      <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300 sm:grid-cols-2">
+      <div className="grid gap-5 animate-in fade-in slide-in-from-bottom-4 duration-300 sm:grid-cols-2">
         <section className="space-y-3">
           <h2 className="px-1 text-[13px] font-semibold text-muted">Входящие запросы</h2>
-          <div className="overflow-hidden rounded-[1.5rem] border border-border-subtle bg-surface">
+          <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">
             {incoming.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted">Запросов пока нет</p>
             ) : (
@@ -298,7 +298,7 @@ export function NewChatForm() {
 
         <section className="space-y-3">
           <h2 className="px-1 text-[13px] font-semibold text-muted">Ваши запросы</h2>
-          <div className="overflow-hidden rounded-[1.5rem] border border-border-subtle bg-surface">
+          <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">
             {outgoing.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted">Вы не отправляли запросов</p>
             ) : (

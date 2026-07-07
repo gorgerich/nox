@@ -62,12 +62,13 @@ export function CallLogRow({
   const startAudioCall = () => {
     void startCall(chatId, { displayName, avatarUrl }, { video: false });
   };
+  const needsAttention = status === "missed";
 
   return (
     <div
       role="button"
       tabIndex={0}
-      className="nox-list-row group fast-tap"
+      className={`nox-list-row group fast-tap ${needsAttention ? "bg-danger/[0.025]" : ""}`}
       onClick={startAudioCall}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -103,7 +104,7 @@ export function CallLogRow({
 
       <Link
         href={`/users/${partnerId}`}
-        className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted/50 transition-smooth hover:bg-foreground/5 hover:text-muted active:scale-[0.96]"
+        className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted/48 transition-smooth hover:bg-foreground/5 hover:text-muted active:scale-[0.96]"
         aria-label={`Профиль: ${displayName}`}
         onClick={(event) => event.stopPropagation()}
       >

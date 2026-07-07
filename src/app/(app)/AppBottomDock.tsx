@@ -165,7 +165,7 @@ export function AppBottomDock({
 
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.5rem)] max-w-[23rem] lg:hidden"
+      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.75rem)] max-w-[22.5rem] lg:hidden"
       style={{
         bottom: "max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))",
         transform: "translateX(-50%)",
@@ -174,7 +174,7 @@ export function AppBottomDock({
     >
       <div
         ref={dockRef}
-        className="pointer-events-auto flex w-full touch-pan-y select-none items-center gap-2"
+        className="pointer-events-auto flex w-full touch-pan-y select-none items-center gap-1.5"
         onClickCapture={handleClickCapture}
       >
         <div
@@ -192,7 +192,7 @@ export function AppBottomDock({
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
                   "dock-tab fast-tap fluid-hit flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1",
-                  isActive ? "dock-tab-active flex-[1.6]" : "flex-1",
+                  isActive ? "dock-tab-active flex-[1.45]" : "flex-1",
                   isActive ? "bg-[var(--dock-active-pill)] text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
                 )}
                 href={tab.href}

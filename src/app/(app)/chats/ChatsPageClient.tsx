@@ -608,7 +608,7 @@ export function ChatsPageClient({
 
   return (
     <div 
-      className="app-section relative !px-4 !pt-[calc(env(safe-area-inset-top,0px)+18px)] transition-smooth"
+      className="app-section relative !px-4 !pt-[calc(env(safe-area-inset-top,0px)+16px)] transition-smooth"
       onTouchStart={handlePullTouchStart}
       onTouchMove={handlePullTouchMove}
       onTouchEnd={handlePullTouchEnd}
@@ -627,10 +627,10 @@ export function ChatsPageClient({
         </div>
       )}
 
-      <div className="mb-3 flex items-end justify-between gap-3 px-1">
+      <div className="nox-page-header !mb-3">
         <div className="min-w-0">
           <div className="flex items-baseline gap-2">
-            <h1 className="text-[30px] font-bold leading-none tracking-[-0.02em] text-foreground">Чаты</h1>
+            <h1 className="nox-page-title">Чаты</h1>
             {unreadTotal > 0 ? (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
                 {unreadTotal} новых
@@ -653,14 +653,14 @@ export function ChatsPageClient({
 
       {plusMenuOpen && (
         <div
-          className="fixed inset-0 z-[460] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in"
+          className="nox-sheet-backdrop"
           role="dialog"
           aria-modal="true"
           aria-label="Создать или найти"
           onClick={() => setPlusMenuOpen(false)}
         >
           <div
-            className="premium-glass w-full max-w-md rounded-[1.75rem] p-2 animate-in slide-in-from-bottom-2"
+            className="premium-glass nox-bottom-sheet p-2"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -700,7 +700,7 @@ export function ChatsPageClient({
 
       {(invitePending || inviteSheet) && (
         <div
-          className="fixed inset-0 z-[470] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in"
+          className="nox-sheet-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="invite-sheet-title"
@@ -712,7 +712,7 @@ export function ChatsPageClient({
           }}
         >
           <div
-            className="premium-glass w-full max-w-md rounded-[1.75rem] p-5 animate-in slide-in-from-bottom-2"
+            className="premium-glass nox-bottom-sheet p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border" />
@@ -793,7 +793,7 @@ export function ChatsPageClient({
 
       {/* Folder filter — segmented pills. Filters the list locally (no reload). */}
       <div
-        className="mb-2 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 scrollbar-hide"
+        className="mb-3 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 scrollbar-hide"
         data-nox-horizontal-scroll="true"
       >
         {FOLDERS.map((folder) => {
@@ -891,12 +891,12 @@ export function ChatsPageClient({
       )}
 
       {chats.length === 0 ? (
-        <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-200">
-          <div className="mx-auto mb-7 flex h-20 w-20 items-center justify-center rounded-full border border-border-subtle/60 bg-surface-muted text-primary">
+        <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+          <div className="nox-empty-icon text-primary">
             <MessageCircle className="h-9 w-9" strokeWidth={1.8} />
           </div>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground/90">Начните общение</h2>
-          <p className="mx-auto mt-3 max-w-[240px] text-base font-medium leading-relaxed text-muted/60">
+          <h2 className="nox-empty-title">Начните общение</h2>
+          <p className="nox-empty-copy">
             Здесь будут отображаться ваши диалоги с другими пользователями.
           </p>
           <Link
@@ -908,14 +908,14 @@ export function ChatsPageClient({
           </Link>
         </div>
       ) : filteredChats.length === 0 ? (
-        <div className="mt-16 px-6 text-center animate-in fade-in duration-200">
-          <h2 className="text-lg font-semibold text-foreground/85">
+        <div className="nox-empty-state min-h-64 animate-in fade-in duration-200">
+          <h2 className="nox-empty-title">
             {activeSelectedFolder === "important" ? "Нет важных чатов"
               : activeSelectedFolder === "unread" ? "Нет непрочитанных"
               : activeSelectedFolder.startsWith("custom:") ? "Папка пустая"
               : "Нет личных чатов"}
           </h2>
-          <p className="mx-auto mt-2 max-w-[260px] text-sm leading-relaxed text-muted/60">
+          <p className="nox-empty-copy">
             {activeSelectedFolder === "important" ? "Закрепите чат или отметьте его как важный, чтобы он появился здесь."
               : activeSelectedFolder === "unread" ? "Все сообщения уже просмотрены."
               : activeSelectedFolder.startsWith("custom:") ? "Добавьте чаты в папку через настройки профиля."
@@ -945,8 +945,8 @@ export function ChatsPageClient({
       )}
 
       {muteSheetChat ? (
-        <div className="fixed inset-0 z-[450] flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="mute-sheet-title">
-          <div className="premium-glass w-full max-w-md rounded-[2rem] p-5">
+        <div className="nox-sheet-backdrop" role="dialog" aria-modal="true" aria-labelledby="mute-sheet-title">
+          <div className="premium-glass nox-bottom-sheet p-5">
             <div className="mb-4 h-1.5 w-12 rounded-full bg-border mx-auto" />
             <h2 id="mute-sheet-title" className="mb-2 text-lg font-semibold tracking-tight text-foreground">Отключить уведомления</h2>
             <p className="mb-5 text-sm text-muted">Выберите срок для этого чата.</p>
