@@ -968,6 +968,8 @@ body {
   }
 
   .nox-chat-topbar {
+    min-width: 0;
+    padding-bottom: 6px;
     background:
       linear-gradient(
         to bottom,
@@ -984,41 +986,49 @@ body {
   .nox-chat-actions-pill {
     position: relative;
     isolation: isolate;
+    contain: paint;
     overflow: hidden;
-    border: 1px solid var(--glass-panel-border);
+    overflow: clip;
+    clip-path: inset(0 round 9999px);
+    border: 1px solid color-mix(in oklab, var(--chat-composer-border) 78%, var(--glass-panel-border));
     background:
-      linear-gradient(135deg, color-mix(in oklab, var(--glass-highlight) 42%, transparent), transparent 42%),
-      var(--glass-panel-fill-strong);
+      linear-gradient(135deg, color-mix(in oklab, var(--glass-highlight) 28%, transparent), transparent 44%),
+      color-mix(in oklab, var(--chat-header) 92%, transparent);
     -webkit-backdrop-filter: var(--glass-filter-strong);
     backdrop-filter: var(--glass-filter-strong);
     box-shadow:
       inset 0 1px 0 var(--glass-highlight),
-      inset 0 -1px 0 color-mix(in oklab, var(--glass-edge) 18%, transparent),
-      0 10px 26px var(--glass-shadow);
+      inset 0 -1px 0 color-mix(in oklab, var(--glass-edge) 14%, transparent),
+      0 5px 16px color-mix(in oklab, var(--glass-shadow) 72%, transparent);
+    transform: translateZ(0);
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
   }
 
   .nox-chat-profile-pill {
     display: flex;
-    min-height: 54px;
+    flex: 1 1 auto;
+    max-width: min(13.25rem, 50vw);
+    min-height: 46px;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     overflow: hidden;
     border-radius: 9999px;
-    padding: 4px 14px 4px 4px;
+    padding: 3px 12px 3px 3px;
   }
 
   .nox-chat-actions-pill {
     display: flex;
-    min-height: 54px;
+    flex: 0 0 auto;
+    min-height: 46px;
     align-items: center;
-    gap: 2px;
+    gap: 0;
     border-radius: 9999px;
-    padding: 4px;
+    padding: 2px;
   }
 
   .nox-chat-action-button {
     display: flex;
-    height: 42px;
+    height: 38px;
     width: 34px;
     align-items: center;
     justify-content: center;
@@ -1042,17 +1052,18 @@ body {
     }
 
     .nox-chat-profile-pill {
-      min-height: 50px;
-      padding-right: 10px;
+      max-width: min(12rem, 48vw);
+      min-height: 44px;
+      padding-right: 9px;
     }
 
     .nox-chat-actions-pill {
-      min-height: 50px;
+      min-height: 44px;
     }
 
     .nox-chat-action-button {
-      height: 38px;
-      width: 30px;
+      height: 36px;
+      width: 32px;
     }
   }
 

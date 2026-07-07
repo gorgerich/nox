@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, Check, Clock3, LockKeyhole, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
+import { ArrowLeft, Check, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
@@ -84,7 +84,7 @@ export function ChatHeader({
       className="nox-chat-topbar sticky top-0 z-50 flex items-center gap-2 px-3 transition-smooth"
       style={{
         color: "var(--chat-header-fg)",
-        minHeight: "calc(4.35rem + env(safe-area-inset-top, 0px))",
+        minHeight: "calc(3.8rem + env(safe-area-inset-top, 0px))",
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
@@ -92,35 +92,35 @@ export function ChatHeader({
         type="button"
         aria-label="Назад к чатам"
         onClick={handleBackToChats}
-        className="nox-chat-back-button touch-target flex h-13 w-13 shrink-0 items-center justify-center rounded-full text-foreground transition-smooth active:scale-[0.96]"
+        className="nox-chat-back-button touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-smooth active:scale-[0.96]"
       >
-        <ArrowLeft className="h-7 w-7" strokeWidth={2.35} />
+        <ArrowLeft className="h-6 w-6" strokeWidth={2.35} />
       </button>
 
       <button
         type="button"
         aria-label="Открыть профиль чата"
-        className="nox-chat-profile-pill min-w-0 flex-1 text-left transition-smooth active:scale-[0.985]"
+        className="nox-chat-profile-pill min-w-0 text-left transition-smooth active:scale-[0.985]"
         onClick={handleHeaderClick}
       >
         <div className="relative shrink-0">
           {fullAvatarUrl ? (
-            <div className="relative h-12 w-12 overflow-hidden rounded-full bg-surface-muted transition-smooth">
-              <Image src={fullAvatarUrl} alt={title} fill sizes="48px" className="object-cover" />
+            <div className="relative h-10 w-10 overflow-hidden rounded-full bg-surface-muted transition-smooth">
+              <Image src={fullAvatarUrl} alt={title} fill sizes="40px" className="object-cover" />
             </div>
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-full transition-smooth" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full transition-smooth" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
               <span className="text-base font-semibold">{title.substring(0, 1).toUpperCase()}</span>
             </div>
           )}
           {!isGroup && isConnected && (
-            <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface bg-primary" />
+            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-primary" />
           )}
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-[18px] font-semibold leading-[1.05] text-[var(--chat-header-fg)]">{title}</h1>
+          <h1 className="truncate text-[16px] font-semibold leading-[1.05] text-[var(--chat-header-fg)]">{title}</h1>
           <p
-            className="mt-0.5 truncate text-[13px] font-normal leading-tight"
+            className="mt-0.5 truncate text-[12px] font-normal leading-tight"
             style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
           >
             {displaySubtitle}
@@ -153,17 +153,6 @@ export function ChatHeader({
             </button>
           </>
         )}
-        {onSetDisappearing && (
-          <button
-            type="button"
-            aria-label="Безопасность чата"
-            onClick={() => setTimerMenuOpen((v) => !v)}
-            className="nox-chat-action-button touch-target text-primary"
-            title="Безопасность чата"
-          >
-            <LockKeyhole className="h-5 w-5" strokeWidth={2.2} />
-          </button>
-        )}
         {(onSetDisappearing || onSearchClick || onAppearanceClick) && (
           <div className="relative">
             <button
@@ -180,7 +169,7 @@ export function ChatHeader({
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
                 <div
-                  className="apple-glass-control absolute right-0 top-12 z-[201] w-56 overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-150"
+                  className="apple-glass-control absolute right-0 top-11 z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-150"
                   role="menu"
                   aria-label="Действия чата"
                 >
