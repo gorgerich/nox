@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       profile: {
         select: {
           displayName: true,
+          avatarUrl: true,
         },
       },
     },
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
       id: foundUser.id,
       username: foundUser.username,
       displayName: foundUser.profile?.displayName ?? foundUser.username,
+      avatarUrl: foundUser.profile?.avatarUrl ?? null,
       isSelf: foundUser.id === user.id,
     },
   });

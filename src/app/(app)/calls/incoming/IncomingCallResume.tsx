@@ -14,7 +14,7 @@ export function IncomingCallResume({ callId }: { callId: string | null }) {
     resumePendingCall(callId);
     // Safety net: never hang on "Подключаемся" forever. If the call never
     // surfaces (cold socket never connected, etc.) show a retry path.
-    const t = setTimeout(() => setTimedOut(true), 15000);
+    const t = setTimeout(() => setTimedOut(true), 8000);
     return () => clearTimeout(t);
   }, [callId, resumePendingCall]);
 
@@ -22,9 +22,9 @@ export function IncomingCallResume({ callId }: { callId: string | null }) {
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-6 text-center text-foreground">
-      <div className="max-w-sm rounded-3xl border border-border-subtle bg-surface/80 p-6 shadow-xl">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-muted">Nox call</p>
-        <h1 className="mt-3 text-2xl font-black tracking-tight">
+      <div className="premium-glass max-w-sm rounded-[1.75rem] p-6">
+        <p className="text-sm font-semibold text-primary">Nox Call</p>
+        <h1 className="mt-3 text-2xl font-semibold leading-tight tracking-tight">
           {!callId ? "Вызов не найден" : stuck ? "Не удалось открыть вызов" : "Открываем входящий звонок"}
         </h1>
         <p className="mt-3 text-sm font-semibold text-muted">
@@ -37,7 +37,7 @@ export function IncomingCallResume({ callId }: { callId: string | null }) {
           <button
             type="button"
             onClick={() => { setTimedOut(false); resumePendingCall(callId); }}
-            className="mt-5 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white active:scale-[0.96]"
+            className="mt-5 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition-smooth active:scale-[0.96]"
           >
             Повторить
           </button>
@@ -46,7 +46,7 @@ export function IncomingCallResume({ callId }: { callId: string | null }) {
           <button
             type="button"
             onClick={() => router.push("/chats")}
-            className="mt-3 rounded-2xl bg-foreground/5 px-5 py-3 text-sm font-black text-foreground active:scale-[0.96]"
+            className="mt-3 rounded-full bg-foreground/5 px-5 py-3 text-sm font-semibold text-foreground transition-smooth active:scale-[0.96]"
           >
             Вернуться в чаты
           </button>

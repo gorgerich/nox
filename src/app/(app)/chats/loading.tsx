@@ -20,16 +20,16 @@ export default function ChatsLoading() {
 
   return (
     <div className="app-section" aria-busy="true" aria-label="Загрузка чатов">
-      <div className="app-section-header px-2">
-        <h1 className="app-section-title">Чаты</h1>
-        <div className="flex items-center gap-1">
-          <div className="h-11 w-11 rounded-full bg-surface-muted/70" />
-          <div className="h-11 w-11 rounded-full bg-surface-muted/70" />
-        </div>
+      <div className="nox-page-header !mb-3">
+        <h1 className="nox-page-title">Чаты</h1>
+        <div className="h-10 w-10 rounded-full bg-surface-muted/70" />
       </div>
 
-      <div className="mb-8 px-2">
-        <div className="h-10 w-full rounded-xl bg-surface-muted/70" />
+      <div className="mb-3 -mx-1 flex gap-1 overflow-hidden px-1 pb-1">
+        <div className="h-8 w-16 rounded-full bg-primary/10" />
+        <div className="h-8 w-20 rounded-full bg-surface-muted/60" />
+        <div className="h-8 w-20 rounded-full bg-surface-muted/60" />
+        <div className="h-8 w-28 rounded-full bg-surface-muted/60" />
       </div>
 
       <div className="-mx-5">
@@ -48,7 +48,7 @@ export default function ChatsLoading() {
               const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
               return (
                 <div key={chat.id} className="flex items-center gap-3 px-3 py-2">
-                  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
+                <div className="relative flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
                     {chat.isSelfChat ? (
                       <div className="flex h-full w-full items-center justify-center bg-primary/15 text-primary">
                         <Bookmark className="h-6 w-6" />
@@ -59,7 +59,7 @@ export default function ChatsLoading() {
                       <span className="text-xl font-semibold uppercase text-primary">{title[0]}</span>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-2">
+                  <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-1.5">
                     <div className="mb-0.5 flex items-center gap-2">
                       <p className="min-w-0 flex-1 truncate text-[16px] font-semibold text-foreground">{title}</p>
                       <span className="shrink-0 text-[13px] tabular-nums text-muted/60">
@@ -91,8 +91,8 @@ export default function ChatsLoading() {
             })
           : SKELETON_ROWS.map((_, index) => (
               <div key={index} className="flex items-center gap-3 px-3 py-2">
-                <div className="h-14 w-14 shrink-0 rounded-full bg-surface-muted/70 animate-pulse" />
-                <div className="min-w-0 flex-1 border-b border-border-subtle/40 py-2">
+                <div className="h-[50px] w-[50px] shrink-0 rounded-full bg-surface-muted/70 animate-pulse" />
+                <div className="min-w-0 flex-1 border-b border-border-subtle/40 py-1.5">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="h-3.5 w-2/5 rounded-full bg-surface-muted/70 animate-pulse" />
                     <div className="h-2.5 w-10 rounded-full bg-surface-muted/50 animate-pulse" />

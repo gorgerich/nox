@@ -18,12 +18,8 @@ export default function ChatLoading() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-hidden px-3 pb-2">
-        <div className="mx-auto flex h-full max-w-3xl flex-col justify-end gap-3 pb-2">
-          <div className="h-9 w-40 self-start rounded-2xl bg-surface-muted/45" />
-          <div className="h-9 w-52 self-end rounded-2xl bg-primary/15" />
-          <div className="h-14 w-56 self-start rounded-2xl bg-surface-muted/45" />
-          <div className="h-9 w-36 self-end rounded-2xl bg-primary/15" />
-          <div className="h-10 w-44 self-start rounded-2xl bg-surface-muted/45" />
+        <div className="mx-auto flex h-full max-w-3xl items-center justify-center">
+          <div className="h-10 w-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
         </div>
       </div>
 

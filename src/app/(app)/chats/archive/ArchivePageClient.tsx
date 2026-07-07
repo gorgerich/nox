@@ -12,6 +12,7 @@ type ArchivePageClientProps = {
 export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
   const [chats, setChats] = useState(initialChats);
   const [openRowId, setOpenRowId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   const applyChatMutation = useCallback(async (
     chat: ChatListItem,
@@ -21,6 +22,7 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
   ) => {
     setOpenRowId(null);
     setChats(optimisticUpdater);
+    setError("");
 
     try {
       const response = await fetch(`/api/chats/${chat.id}/settings`, {
@@ -34,7 +36,7 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
       }
     } catch (error) {
       setChats(rollback);
-      alert(error instanceof Error ? error.message : "Не удалось обновить настройки чата");
+      setError(error instanceof Error ? error.message : "Не удалось обновить настройки чата");
     }
   }, []);
 
@@ -64,17 +66,17 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
 
   if (chats.length === 0) {
     return (
-      <div className="mt-20 text-center animate-in fade-in zoom-in-95 duration-200">
-        <h2 className="text-2xl font-black tracking-tight text-foreground/90">В архиве пусто</h2>
-        <p className="mx-auto mt-3 max-w-[240px] text-base font-medium leading-relaxed text-muted/60">
+      <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+        <h2 className="nox-empty-title">В архиве пусто</h2>
+        <p className="nox-empty-copy">
           Сюда попадают скрытые чаты.
         </p>
         <Link
-          className="btn-nox mt-10 inline-flex h-14 items-center rounded-3xl bg-surface-elevated border border-border-subtle px-10 text-sm font-black text-foreground shadow-sm transition-smooth active:scale-[0.96]"
+          className="mt-7 inline-flex h-11 items-center rounded-full bg-surface-elevated px-5 text-sm font-semibold text-foreground transition-smooth active:scale-[0.96]"
           href="/chats"
           prefetch
         >
-          НАЗАД К ЧАТАМ
+          Назад к чатам
         </Link>
       </div>
     );
@@ -82,6 +84,11 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
 
   return (
     <div className="space-y-1 animate-in fade-in duration-180">
+      {error ? (
+        <div className="mx-4 mb-3 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
+          {error}
+        </div>
+      ) : null}
       {chats.map((chat) => (
         <SwipeableChatRow
           key={chat.id}

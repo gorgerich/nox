@@ -37,6 +37,14 @@ interface AudioItem { id: string; url: string; fileName: string; createdAt: stri
 interface FileItem { id: string; fileName: string; size: number; createdAt: string }
 interface LinkItem { url: string; createdAt: string }
 
+interface FoundGroupUser {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  isSelf: boolean;
+}
+
 interface SharedMedia {
   photos: PhotoItem[];
   audio: AudioItem[];
@@ -54,8 +62,9 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   const [newTitle, setNewTitle] = useState(chat.title);
   const [isAddingMembers, setIsAddingMembers] = useState(false);
   const [searchUser, setSearchUser] = useState("");
-  const [foundUsers, setFoundUser] = useState<GroupMember[]>([]);
+  const [foundUsers, setFoundUser] = useState<FoundGroupUser[]>([]);
   const [pending, setPending] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const { settings: appearance, updateSettings, resetSettings } = useChatAppearance(chatId);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -66,6 +75,41 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       .then(data => { setShared(data); setLoadingShared(false); })
       .catch(() => setLoadingShared(false));
   }, [chatId]);
+
+  useEffect(() => {
+    const query = searchUser.trim();
+    if (!isAddingMembers || query.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const res = await fetch("/api/users/search-by-username", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: query }),
+          signal: controller.signal,
+        });
+        const data = (await res.json().catch(() => null)) as { user?: FoundGroupUser; error?: string } | null;
+        if (!res.ok || !data?.user) {
+          setFoundUser([]);
+          return;
+        }
+        const alreadyMember = members.some((member) => member.userId === data.user?.id);
+        setFoundUser(alreadyMember || data.user.isSelf ? [] : [data.user]);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setFoundUser([]);
+        }
+      }
+    }, 220);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [isAddingMembers, members, searchUser]);
 
   const updateGroup = async (patch: { title?: string, avatarUrl?: string | null }) => {
     try {
@@ -95,10 +139,10 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         router.refresh();
       } else {
         const data = await res.json();
-        alert(data.error || "Ошибка при загрузке аватара");
+        setStatusMessage(data.error || "Ошибка при загрузке аватара");
       }
     } catch {
-      alert("Ошибка сети");
+      setStatusMessage("Ошибка сети");
     } finally {
       setPending(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -127,8 +171,12 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       if (res.ok) {
         setMembers(prev => prev.filter(m => m.userId !== userId));
         router.refresh();
+      } else {
+        setStatusMessage("Не удалось удалить участника");
       }
-    } catch (e) { console.error(e); }
+    } catch {
+      setStatusMessage("Ошибка сети");
+    }
   };
 
   const handleAddMembers = async (userIds: string[]) => {
@@ -140,25 +188,17 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       });
       if (res.ok) {
         setIsAddingMembers(false);
+        setSearchUser("");
+        setFoundUser([]);
         router.refresh();
         // Reload members
         fetch(`/api/chats/${chatId}/group-profile`).then(r => r.json()).then(d => setMembers(d.members));
+      } else {
+        setStatusMessage("Не удалось добавить участника");
       }
-    } catch (e) { console.error(e); }
-  };
-
-  const searchUsers = async (val: string) => {
-    setSearchUser(val);
-    if (val.length < 2) return;
-    try {
-        const res = await fetch("/api/users/search-by-username", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: val })
-        });
-        const data = await res.json();
-        if (data.user) setFoundUser([data.user]); else setFoundUser([]);
-    } catch {}
+    } catch {
+      setStatusMessage("Ошибка сети");
+    }
   };
 
   const fullAvatarUrl = normalizeAvatarUrl(chat.avatarUrl);
@@ -228,6 +268,11 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         <h2 className="text-center text-3xl font-semibold tracking-tight">{chat.title}</h2>
         <p className="mt-1 text-sm font-normal text-muted">{members.length} участников</p>
         <p className="mt-3 text-xs font-normal text-muted">Группа создана {new Date(chat.createdAt).toLocaleDateString()}</p>
+        {statusMessage ? (
+          <p className="mt-3 rounded-full bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger">
+            {statusMessage}
+          </p>
+        ) : null}
       </section>
 
       {/* Quick Actions */}
@@ -313,30 +358,42 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       {isAddingMembers && (
         <div className="fixed inset-0 z-[600] flex flex-col bg-surface safe-top animate-in slide-in-from-bottom duration-300" role="dialog" aria-modal="true" aria-labelledby="add-members-title">
            <header className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-             <button onClick={() => setIsAddingMembers(false)} className="text-sm font-semibold text-muted">Отмена</button>
+             <button onClick={() => { setIsAddingMembers(false); setSearchUser(""); setFoundUser([]); }} className="text-sm font-semibold text-muted">Отмена</button>
              <h2 id="add-members-title" className="text-sm font-semibold">Добавить участников</h2>
              <div className="w-12" />
            </header>
            <div className="p-4">
-             <input className="input-nox" aria-label="Поиск пользователя по username" placeholder="Введите username..." value={searchUser} onChange={e => searchUsers(e.target.value)} />
+             <input
+               className="input-nox"
+               aria-label="Поиск пользователя по username"
+               placeholder="Введите username..."
+               value={searchUser}
+               onChange={(event) => {
+                 const nextValue = event.target.value;
+                 setSearchUser(nextValue);
+                 if (nextValue.trim().length < 2) {
+                   setFoundUser([]);
+                 }
+               }}
+             />
            </div>
            <div className="flex-1 overflow-y-auto px-4">
               {foundUsers.map(u => (
-                <div key={u.userId} className="flex items-center justify-between border-b border-border-subtle py-3">
+                <div key={u.id} className="flex items-center justify-between border-b border-border-subtle py-3">
                   <div className="flex items-center gap-3">
                     <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">
                         {normalizeAvatarUrl(u.avatarUrl) ? (
-                          <Image src={normalizeAvatarUrl(u.avatarUrl) || ""} alt={u.name} fill className="object-cover" />
+                          <Image src={normalizeAvatarUrl(u.avatarUrl) || ""} alt={u.displayName} fill className="object-cover" />
                         ) : (
-                          <span className="text-sm font-semibold text-primary">{u.name[0]}</span>
+                          <span className="text-sm font-semibold text-primary">{u.displayName[0]?.toLocaleUpperCase("ru-RU")}</span>
                         )}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">{u.name}</p>
+                      <p className="text-sm font-semibold">{u.displayName}</p>
                       <p className="text-xs text-muted">@{u.username}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleAddMembers([u.userId])} className="h-9 rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary transition-smooth active:scale-[0.96]">Добавить</button>
+                  <button onClick={() => handleAddMembers([u.id])} className="h-9 rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary transition-smooth active:scale-[0.96]">Добавить</button>
                 </div>
               ))}
            </div>
