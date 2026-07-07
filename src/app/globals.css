@@ -897,6 +897,92 @@ body {
       0 1px 0 rgba(24, 37, 61, 0.04);
   }
 
+  .nox-chat-topbar {
+    background:
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--chat-background) 86%, transparent) 0%,
+        color-mix(in oklab, var(--chat-background) 58%, transparent) 72%,
+        transparent 100%
+      );
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+  }
+
+  .nox-chat-back-button,
+  .nox-chat-profile-pill,
+  .nox-chat-actions-pill {
+    border: 1px solid var(--glass-panel-border);
+    background:
+      linear-gradient(135deg, color-mix(in oklab, var(--glass-highlight) 42%, transparent), transparent 42%),
+      var(--glass-panel-fill-strong);
+    -webkit-backdrop-filter: var(--glass-filter-strong);
+    backdrop-filter: var(--glass-filter-strong);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      inset 0 -1px 0 color-mix(in oklab, var(--glass-edge) 18%, transparent),
+      0 10px 26px var(--glass-shadow);
+  }
+
+  .nox-chat-profile-pill {
+    display: flex;
+    min-height: 54px;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    border-radius: 9999px;
+    padding: 4px 14px 4px 4px;
+  }
+
+  .nox-chat-actions-pill {
+    display: flex;
+    min-height: 54px;
+    align-items: center;
+    gap: 2px;
+    border-radius: 9999px;
+    padding: 4px;
+  }
+
+  .nox-chat-action-button {
+    display: flex;
+    height: 42px;
+    width: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    transition:
+      transform 160ms cubic-bezier(0.2, 0.82, 0.2, 1),
+      background-color 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .nox-chat-action-button:active {
+    transform: scale(0.92);
+    background-color: color-mix(in oklab, var(--primary) 12%, transparent);
+  }
+
+  @media (max-width: 380px) {
+    .nox-chat-topbar {
+      gap: 6px;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    .nox-chat-profile-pill {
+      min-height: 50px;
+      padding-right: 10px;
+    }
+
+    .nox-chat-actions-pill {
+      min-height: 50px;
+    }
+
+    .nox-chat-action-button {
+      height: 38px;
+      width: 30px;
+    }
+  }
+
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
     min-height: 100dvh;
