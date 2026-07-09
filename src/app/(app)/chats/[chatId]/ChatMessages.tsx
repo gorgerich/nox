@@ -1668,9 +1668,9 @@ export function ChatMessages({
         aria-label="Действия с сообщением"
       >
         {/* Backdrop */}
-        <div 
-          className="absolute inset-0 bg-black/35 backdrop-blur-xl animate-in fade-in duration-300" 
-          onClick={() => setMenuState(null)} 
+        <div
+          className="absolute inset-0 bg-black/32 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setMenuState(null)}
         />
 
         {/* Selected Message Clone */}
@@ -1706,7 +1706,7 @@ export function ChatMessages({
         {/* Action Menu & Reactions */}
         <div className="menu-content" style={menuPosition as React.CSSProperties}>
           <div
-            className="reaction-bar self-center mb-4 rounded-[2rem] border p-2 shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 duration-200"
+            className="reaction-bar self-center mb-3 rounded-[1.45rem] border p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.16)] backdrop-blur-2xl animate-in zoom-in-95 duration-200"
             style={{
               backgroundColor: "var(--message-menu-bg)",
               borderColor: "var(--chat-menu-border)",
@@ -1716,7 +1716,7 @@ export function ChatMessages({
              {/* Readers summary for groups */}
              {chatInfo.type === "GROUP" && focusedMessage.senderUserId === currentUserId && (
                <div className="flex items-center justify-between gap-3 mb-2 px-3 py-1.5 bg-foreground/5 rounded-2xl">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-muted/80">
+                 <span className="text-[11px] font-semibold text-muted/80">
                    {!menuState.readers ? "Загрузка..." : menuState.readers.length === 0 ? "Никто не прочитал" : `${menuState.readers.length} прочитали`}
                  </span>
                  <div className="flex items-center -space-x-1.5">
@@ -1725,7 +1725,7 @@ export function ChatMessages({
                        {r.avatarUrl ? (
                          <Image src={normalizeAvatarUrl(r.avatarUrl) || ""} fill className="object-cover" alt={r.name} />
                        ) : (
-                         <span className="text-[9px] font-black text-primary">{r.name[0]?.toUpperCase()}</span>
+                         <span className="text-[9px] font-semibold text-primary">{r.name[0]?.toUpperCase()}</span>
                        )}
                      </div>
                    ))}
@@ -1739,7 +1739,7 @@ export function ChatMessages({
                   key={emoji} 
                   type="button"
                   aria-label={`Реакция ${emoji}`}
-                  className={`reaction-btn rounded-full px-1.5 text-2xl transition-smooth hover:scale-125 active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
+                  className={`reaction-btn rounded-full px-1.5 text-2xl transition-[transform,background-color] duration-150 active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
                   onClick={() => toggleReaction(menuState.id, emoji)}
                  >
                   {emoji}
@@ -1749,7 +1749,7 @@ export function ChatMessages({
           </div>
 
           <div
-            className={`action-menu min-w-[220px] overflow-hidden rounded-[2rem] border shadow-2xl backdrop-blur-3xl animate-in slide-in-from-bottom-4 duration-300 ${focusedMessage.senderUserId === currentUserId ? "self-end" : "self-start"}`}
+            className={`action-menu min-w-[220px] overflow-hidden rounded-[1.45rem] border shadow-[0_14px_42px_rgba(15,23,42,0.18)] backdrop-blur-3xl animate-in zoom-in-95 duration-200 ${focusedMessage.senderUserId === currentUserId ? "self-end origin-top-right" : "self-start origin-top-left"}`}
             style={{
               backgroundColor: "var(--surface)",
               borderColor: "rgba(150,150,150,0.15)",
@@ -1873,7 +1873,7 @@ export function ChatMessages({
       />
 
       {isSearchOpen && (
-        <div className="sticky top-0 z-[150] glass-header px-4 py-3 animate-in slide-in-from-top-full duration-300 shadow-xl">
+        <div className="sticky top-0 z-[150] glass-header px-4 py-3 animate-in slide-in-from-top-2 duration-200 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
            <div className="relative flex items-center gap-3">
               <div className="relative flex-1">
                  <input 
@@ -1951,7 +1951,7 @@ export function ChatMessages({
             <>
               <div className="flex justify-center py-3">
                 <span
-                  className="rounded-full border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
+                  className="rounded-full border px-3 py-1.5 text-[11px] font-semibold backdrop-blur-md"
                   style={{
                     backgroundColor: "var(--chat-date-bg)",
                     color: "var(--chat-date-fg)",
@@ -1968,7 +1968,7 @@ export function ChatMessages({
             item.type === "date" ? (
               <div key={`date-${idx}`} className="flex justify-center py-3">
                 <span
-                  className="rounded-full border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
+                  className="rounded-full border px-3 py-1.5 text-[11px] font-semibold backdrop-blur-md"
                   style={{
                     backgroundColor: "var(--chat-date-bg)",
                     color: "var(--chat-date-fg)",
@@ -1982,12 +1982,12 @@ export function ChatMessages({
               <div
                 key={item.message.id}
                 ref={el => { messageRefs.current[item.message.id] = el; }}
-                className={`${initialMessageIds.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-180"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-[transform,background-color,box-shadow] duration-200" : ""}`}
+                className={`${initialMessageIds.has(item.message.id) ? "" : "animate-in fade-in slide-in-from-bottom-2 duration-200"} ${highlightedId === item.message.id ? "ring-2 ring-primary rounded-3xl ring-offset-4 ring-offset-transparent bg-primary/5 scale-[1.02] transition-[transform,background-color,box-shadow] duration-200" : ""}`}
               >
                 {firstUnreadId === item.message.id ? (
                   <div className="my-3 flex items-center gap-3 px-2">
                     <div className="h-px flex-1 bg-primary/30" />
-                    <span className="rounded-full bg-primary/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">Непрочитанные</span>
+                    <span className="rounded-full bg-primary/15 px-3 py-1 text-[11px] font-semibold text-primary">Непрочитанные</span>
                     <div className="h-px flex-1 bg-primary/30" />
                   </div>
                 ) : null}
@@ -2023,13 +2023,13 @@ export function ChatMessages({
         <button
           onClick={() => forceScrollBottom("smooth")}
           aria-label="Вниз к последним сообщениям"
-          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/40 bg-surface shadow-xl transition-smooth active:scale-[0.96] animate-in fade-in zoom-in-90"
+          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle/40 bg-surface shadow-[0_10px_24px_rgba(15,23,42,0.10)] transition-smooth active:scale-[0.96] animate-in fade-in zoom-in-90"
         >
           <svg className="h-6 w-6 text-foreground/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
           {unseenCount > 0 ? (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black text-primary-foreground shadow">
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground shadow">
               {unseenCount > 99 ? "99+" : unseenCount}
             </span>
           ) : null}
@@ -2037,7 +2037,7 @@ export function ChatMessages({
       ) : null}
 
       {isSelectionMode ? (
-        <div className="glass-composer px-6 py-4 flex items-center justify-between animate-in slide-in-from-bottom-full duration-300">
+        <div className="glass-composer px-6 py-4 flex items-center justify-between animate-in slide-in-from-bottom-4 duration-200">
            <button type="button" onClick={() => { setIsSelectionMode(false); setSelectedIds(new Set()); }} className="text-sm font-semibold text-primary">Отмена</button>
            <div className="flex gap-6">
               <button type="button" aria-label="Удалить выбранные сообщения" onClick={handleDeleteSelected} disabled={selectedIds.size === 0} className="touch-target h-12 w-12 rounded-full bg-danger/10 text-danger disabled:opacity-30"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
@@ -2074,7 +2074,7 @@ export function ChatMessages({
       {renderOverlay()}
 
       {toastMessage ? (
-        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] z-[1000] -translate-x-1/2 rounded-full border border-border-subtle bg-surface-elevated/95 px-4 py-2 text-xs font-bold text-foreground shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2">
+        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] z-[1000] -translate-x-1/2 rounded-full border border-border-subtle bg-surface-elevated/95 px-4 py-2 text-xs font-semibold text-foreground shadow-[0_10px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2">
           {toastMessage}
         </div>
       ) : null}

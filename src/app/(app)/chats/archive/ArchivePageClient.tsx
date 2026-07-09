@@ -83,7 +83,7 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
   }
 
   return (
-    <div className="space-y-1 animate-in fade-in duration-180">
+    <div className="space-y-1 animate-in fade-in duration-200">
       {error ? (
         <div className="mx-4 mb-3 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
           {error}

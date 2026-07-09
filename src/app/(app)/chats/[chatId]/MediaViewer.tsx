@@ -81,7 +81,7 @@ export function MediaViewer({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex flex-col bg-black/95 transition-opacity animate-in fade-in duration-300"
+      className="fixed inset-0 z-[200] flex flex-col bg-black/95 transition-opacity animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-label={`Просмотр файла ${item.fileName}`}
@@ -123,10 +123,10 @@ export function MediaViewer({
       <main className="flex flex-1 items-center justify-center overflow-hidden p-2">
         {item.type === "IMAGE" ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img 
-            src={item.url} 
-            alt={item.fileName} 
-            className="max-h-full max-w-full object-contain animate-in zoom-in-95 duration-300" 
+          <img
+            src={item.url}
+            alt={item.fileName}
+            className="max-h-full max-w-full object-contain animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
@@ -134,7 +134,7 @@ export function MediaViewer({
             src={item.url} 
             controls 
             autoPlay
-            className="max-h-full max-w-full animate-in zoom-in-95 duration-300"
+            className="max-h-full max-w-full animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           />
         )}

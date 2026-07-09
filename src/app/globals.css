@@ -7,6 +7,9 @@
   --app-muted: oklch(57% 0.018 252);
   --app-border: rgba(24, 37, 61, 0.08);
   --bottom-dock-clearance: max(112px, calc(env(safe-area-inset-bottom, 0px) + 96px));
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   --glass-bg: rgba(248, 251, 255, 0.5);
   --glass-bg-strong: rgba(250, 252, 255, 0.68);
@@ -359,11 +362,11 @@
 }
 
 @utility transition-smooth {
-  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms cubic-bezier(0.22, 1, 0.36, 1), background-color 160ms cubic-bezier(0.22, 1, 0.36, 1), border-color 160ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 180ms var(--ease-out);
 }
 
 @utility transition-polish {
-  transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), filter 180ms var(--ease-out), box-shadow 200ms var(--ease-out);
 }
 
 @keyframes animate-fade-in {
@@ -430,7 +433,7 @@
 @utility animate-in {
   animation-duration: 200ms;
   animation-fill-mode: forwards;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-timing-function: var(--ease-out);
 }
 
 
@@ -443,7 +446,6 @@
 @utility slide-in-from-top-4 { animation-name: animate-slide-in-from-top; }
 @utility slide-in-from-top-full { animation-name: animate-slide-in-from-top-full; }
 @utility slide-in-from-right { animation-name: animate-slide-in-from-right; }
-@utility duration-180 { animation-duration: 180ms; }
 
 @utility touch-target {
   @apply flex items-center justify-center;
@@ -452,7 +454,7 @@
 }
 
 .fast-tap {
-  transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  transition: transform 140ms var(--ease-out), opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -559,6 +561,7 @@ body {
       inset 0 0 0 0.5px color-mix(in oklab, var(--glass-edge) 48%, transparent),
       inset 0 1px 0 var(--glass-highlight),
       var(--glass-panel-shadow-strong);
+    transform-origin: bottom center;
   }
 
   .chat-emoji-header {
@@ -589,11 +592,28 @@ body {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
     font-size: clamp(1.35rem, 6.4vw, 1.75rem);
     line-height: 1;
+    transition:
+      transform 140ms var(--ease-out),
+      background-color 140ms ease,
+      opacity 140ms ease;
     -webkit-tap-highlight-color: transparent;
   }
 
+  .chat-emoji-button:focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--primary) 45%, transparent);
+    outline-offset: 2px;
+  }
+
   .chat-emoji-button:active {
+    transform: scale(0.92);
     background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .chat-emoji-button:hover {
+      transform: translate3d(0, -1px, 0);
+      background: color-mix(in oklab, var(--foreground) 7%, transparent);
+    }
   }
 
   .nav-blur {
@@ -702,11 +722,11 @@ body {
   .fluid-hit {
     transform: translateZ(0);
     transition:
-      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform 180ms var(--ease-out),
+      opacity 180ms var(--ease-out),
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 220ms var(--ease-out);
   }
 
   .fluid-hit:active {
@@ -715,13 +735,15 @@ body {
 
   .surface-rise {
     transition:
-      transform 190ms cubic-bezier(0.22, 1, 0.36, 1),
-      background-color 190ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform 190ms var(--ease-out),
+      background-color 190ms ease,
+      box-shadow 220ms var(--ease-out);
   }
 
-  .surface-rise:hover {
-    transform: translate3d(0, -1px, 0);
+  @media (hover: hover) and (pointer: fine) {
+    .surface-rise:hover {
+      transform: translate3d(0, -1px, 0);
+    }
   }
 
   .dock-liquid {
@@ -739,15 +761,15 @@ body {
 
   .dock-tab {
     transition:
-      flex-grow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      flex-grow 220ms var(--ease-out),
       color 180ms ease,
       background-color 180ms ease,
-      transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform 160ms var(--ease-out);
   }
 
   .dock-tab-icon {
     transition:
-      transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 220ms var(--ease-out),
       stroke-width 180ms ease;
   }
 
@@ -757,7 +779,7 @@ body {
 
   .dock-tab-label {
     transition:
-      max-width 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      max-width 220ms var(--ease-out),
       opacity 160ms ease;
   }
 

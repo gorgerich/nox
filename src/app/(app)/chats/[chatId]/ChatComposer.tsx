@@ -279,7 +279,7 @@ export function ChatComposer({
           {showEmoji && !isRecording ? (
             <div
               ref={emojiPanelRef}
-              className="chat-emoji-panel animate-in fade-in slide-in-from-bottom-2 duration-150"
+              className="chat-emoji-panel animate-in fade-in zoom-in-95 duration-200"
               data-nox-swipe-ignore="true"
               role="dialog"
               aria-label="Выбор эмодзи"
@@ -321,7 +321,7 @@ export function ChatComposer({
           ) : null}
 
           {isRecording ? (
-            <div className="flex min-h-11 items-center justify-between rounded-[22px] border border-danger/20 bg-danger/10 px-4 animate-pulse">
+            <div className="flex min-h-11 items-center justify-between rounded-[22px] border border-danger/20 bg-danger/10 px-4">
               <div className="flex items-center gap-3">
                 <div className="h-2 w-2 rounded-full bg-danger animate-ping" />
                 <span className="text-sm font-semibold text-danger">Запись {formatDuration(recordingDuration)}</span>
@@ -374,7 +374,7 @@ export function ChatComposer({
 
         <div className="relative">
           {showCaptureMenu && !text.trim() && !isRecording ? (
-            <div className="premium-glass absolute bottom-[calc(100%+10px)] right-0 z-30 flex min-w-44 flex-col overflow-hidden rounded-2xl p-1 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="premium-glass absolute bottom-[calc(100%+10px)] right-0 z-30 flex min-w-44 origin-bottom-right flex-col overflow-hidden rounded-2xl p-1 animate-in fade-in zoom-in-95 duration-200">
               <button
                 type="button"
                 onClick={() => {

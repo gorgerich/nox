@@ -296,7 +296,7 @@ export function AdminPanel() {
       {loading && <p className="py-12 text-center text-sm font-semibold text-muted animate-pulse">Загрузка...</p>}
 
       {!loading && (
-        <div className="animate-in fade-in duration-500">
+        <div className="animate-in fade-in duration-200">
           {activeSection === "users" && (
             <div className="space-y-3">
               {users.map((user) => (
@@ -368,7 +368,7 @@ export function AdminPanel() {
               </form>
 
               {rawInviteCode && (
-                <div className="card-clean border-primary/30 bg-primary/5 p-6 text-center animate-in zoom-in-95 duration-300">
+                <div className="card-clean border-primary/30 bg-primary/5 p-6 text-center animate-in zoom-in-95 duration-200">
                   <p className="mb-3 text-sm font-semibold text-primary">{notice}</p>
                   <code className="block bg-background p-4 rounded-xl border border-border-subtle font-mono text-sm select-all">
                     {rawInviteCode}

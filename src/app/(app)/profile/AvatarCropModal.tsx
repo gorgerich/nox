@@ -149,10 +149,10 @@ export function AvatarCropModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[1100] flex flex-col bg-black animate-in fade-in duration-300 touch-none" role="dialog" aria-modal="true" aria-label="Обрезка фото профиля">
+    <div className="fixed inset-0 z-[1100] flex flex-col bg-black animate-in fade-in duration-200 touch-none" role="dialog" aria-modal="true" aria-label="Обрезка фото профиля">
       <header className="safe-top flex items-center justify-between px-6 py-4 text-white z-10">
         <button type="button" onClick={onCancel} className="h-10 px-2 flex items-center text-sm font-semibold text-white/70 hover:text-white transition-colors active:scale-[0.96]">Отмена</button>
-        <h2 className="text-sm font-black uppercase tracking-widest text-white/90">Кадрирование</h2>
+        <h2 className="text-sm font-semibold text-white/90">Кадрирование</h2>
         <button type="button" onClick={handleApply} className="h-10 px-2 flex items-center text-sm font-semibold text-primary transition-colors hover:opacity-80 active:scale-[0.96]">Готово</button>
       </header>
 
@@ -195,7 +195,7 @@ export function AvatarCropModal({
       {/* Footer controls */}
       <footer className="safe-bottom p-6 z-10 flex flex-col items-center justify-center w-full bg-gradient-to-t from-black to-transparent">
         <div className="w-full max-w-xs space-y-4">
-           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/60 px-1">
+           <div className="flex justify-between px-1 text-[11px] font-semibold text-white/60">
               <span>Масштаб</span>
               <span>{Math.round(zoom * 100)}%</span>
            </div>

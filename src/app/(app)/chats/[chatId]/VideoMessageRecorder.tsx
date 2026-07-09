@@ -210,7 +210,7 @@ export function VideoMessageRecorder({
 
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex flex-col items-center justify-center bg-neutral-950 p-8 animate-in fade-in" role="dialog" aria-modal="true" aria-label="Запись видеосообщения">
-      <div className="relative mb-8 h-72 w-72 overflow-hidden rounded-full border-4 border-white/15 bg-neutral-900 shadow-2xl">
+      <div className="relative mb-8 h-72 w-72 overflow-hidden rounded-full border-4 border-white/15 bg-neutral-900 shadow-[0_18px_52px_rgba(0,0,0,0.32)]">
         <video ref={videoRef} autoPlay playsInline muted className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`} />
         {recording && (
           <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1">

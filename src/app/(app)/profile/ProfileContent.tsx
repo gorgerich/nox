@@ -481,7 +481,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "profile" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -490,7 +490,7 @@ export function ProfileContent({
              <div className="w-10" />
           </header>
 
-          <form onSubmit={handleUpdate} className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
+          <form onSubmit={handleUpdate} className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
              <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="ml-4 text-sm font-medium text-muted">Имя</label>
@@ -538,7 +538,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "devices" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -547,14 +547,14 @@ export function ProfileContent({
              <div className="w-10" />
           </header>
 
-          <div className="animate-in fade-in zoom-in-95 duration-500">
+          <div className="animate-in fade-in zoom-in-95 duration-200">
             <E2EEDevicesPanel userId={user.id} />
           </div>
         </div>
       )}
 
       {activeScreen === "appearance" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -563,7 +563,7 @@ export function ProfileContent({
              <div className="w-10" />
           </header>
 
-          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
+          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
             <section className="space-y-3">
               <div className="px-1">
                 <h2 className="text-sm font-semibold text-muted">Тема приложения</h2>
@@ -631,7 +631,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "security" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -640,7 +640,7 @@ export function ProfileContent({
              <div className="w-10" />
           </header>
 
-          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-500">
+          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
             <form onSubmit={handlePasswordChange} className="space-y-6">
                <div className="space-y-4">
                   <div className="space-y-2">
@@ -699,7 +699,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "folders" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -708,7 +708,7 @@ export function ProfileContent({
              <div className="w-10" />
           </header>
 
-          <div className="space-y-7 p-6 animate-in fade-in zoom-in-95 duration-500">
+          <div className="space-y-7 p-6 animate-in fade-in zoom-in-95 duration-200">
             <section className="rounded-2xl border border-border-subtle bg-surface p-4">
               <h2 className="text-base font-semibold tracking-tight text-foreground">Новая папка</h2>
               <p className="mt-1 text-sm font-medium leading-relaxed text-muted">
@@ -883,7 +883,7 @@ export function ProfileContent({
       )}
 
       {activeScreen === "data" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-300 safe-top">
+        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
@@ -892,7 +892,7 @@ export function ProfileContent({
              <div className="w-10" />
           </header>
 
-          <div className="p-6 animate-in fade-in zoom-in-95 duration-500">
+          <div className="p-6 animate-in fade-in zoom-in-95 duration-200">
             <CacheSettings />
           </div>
         </div>

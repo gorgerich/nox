@@ -163,8 +163,8 @@ export function MediaPreviewComposer({
               <video src={currentItem.previewUrl} controls className="max-w-full max-h-full object-contain" autoPlay loop muted playsInline />
             )}
             {currentItem.type === "FILE" && (
-              <div className="flex flex-col items-center justify-center p-8 bg-white/5 rounded-[2rem] border border-white/10">
-                <div className="h-20 w-20 bg-primary/20 text-primary rounded-3xl flex items-center justify-center mb-6">
+              <div className="flex flex-col items-center justify-center rounded-[1.5rem] border border-white/10 bg-white/5 p-8">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[1.25rem] bg-primary/20 text-primary">
                   <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                 </div>
                 <p className="text-white font-bold max-w-[200px] truncate text-center">{currentItem.file.name}</p>

@@ -283,7 +283,7 @@ export function CallOverlay() {
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 z-0 h-full w-full bg-black object-cover transition-opacity duration-300 ${remoteStream ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 z-0 h-full w-full bg-black object-cover transition-opacity duration-200 ${remoteStream ? "opacity-100" : "opacity-0"}`}
           />
           {/* Legibility gradient over the video for the name/controls. */}
           <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-black/50 via-transparent to-black/75" />
@@ -293,7 +293,7 @@ export function CallOverlay() {
             autoPlay
             playsInline
             muted
-            className={`absolute right-3 top-20 z-20 h-32 w-24 -scale-x-100 rounded-2xl border border-white/15 bg-neutral-900 object-cover shadow-2xl transition-opacity duration-200 ${isCameraOff || !controlsVisible ? "opacity-0" : "opacity-100"}`}
+            className={`absolute right-3 top-20 z-20 h-32 w-24 -scale-x-100 rounded-2xl border border-white/15 bg-neutral-900 object-cover shadow-[0_14px_36px_rgba(0,0,0,0.28)] transition-opacity duration-200 ${isCameraOff || !controlsVisible ? "opacity-0" : "opacity-100"}`}
           />
         </>
       )}
