@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getPrisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { emitToUser } from "@/lib/realtime";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const forgotPasswordSchema = z.object({
   usernameOrEmail: z.string().min(1),
@@ -10,6 +11,14 @@ const forgotPasswordSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const rateLimit = checkRateLimit(request, "auth:forgot-password", { limit: 6, windowMs: 15 * 60_000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Слишком много запросов. Попробуйте позже." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const parsed = forgotPasswordSchema.safeParse(body);
 

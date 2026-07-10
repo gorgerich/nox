@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   publicCode: z.string().min(1),
@@ -11,6 +12,14 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const rateLimit = checkRateLimit(request, "auth:approved-reset", { limit: 10, windowMs: 15 * 60_000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Слишком много попыток. Попробуйте позже." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const parsed = schema.safeParse(body);
 
@@ -43,7 +52,7 @@ export async function POST(request: Request) {
     }
 
     const user = recoveryRequest.user;
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({

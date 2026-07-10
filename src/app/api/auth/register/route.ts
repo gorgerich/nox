@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { createCredentialStamp, createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { validateInvite } from "@/lib/invites";
 import { getPrisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   login: z
@@ -24,6 +25,14 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, "auth:register", { limit: 10, windowMs: 60 * 60_000 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Слишком много попыток регистрации. Попробуйте позже." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
 
@@ -110,7 +119,11 @@ export async function POST(request: Request) {
       return createdUser;
     });
 
-    const token = await createSessionToken({ userId: user.id, role: user.role });
+    const token = await createSessionToken({
+      userId: user.id,
+      role: user.role,
+      credentialStamp: createCredentialStamp(passwordHash),
+    });
     const response = NextResponse.json({ user });
     response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
 

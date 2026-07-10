@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getPrisma } from "@/lib/prisma";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1),
@@ -11,6 +12,14 @@ const resetPasswordSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const rateLimit = checkRateLimit(request, "auth:reset-password", { limit: 10, windowMs: 15 * 60_000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Слишком много попыток. Попробуйте позже." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const parsed = resetPasswordSchema.safeParse(body);
 
@@ -45,7 +54,7 @@ export async function POST(request: Request) {
     const user = resetToken.user;
 
     // Hash the new password
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     // Perform the password reset and session invalidation atomically
     await prisma.$transaction(async (tx) => {

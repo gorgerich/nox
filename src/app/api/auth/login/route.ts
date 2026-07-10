@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { createCredentialStamp, createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { canUseApp, isEmergencyLocked } from "@/lib/permissions";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   login: z.string().min(3).max(128).trim(),
@@ -11,6 +12,14 @@ const loginSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, "auth:login", { limit: 20, windowMs: 15 * 60_000 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Слишком много попыток. Попробуйте позже." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
 
@@ -76,7 +85,11 @@ export async function POST(request: Request) {
       console.error("Failed to update lastSeenAt on login", error);
     });
 
-    const token = await createSessionToken({ userId: user.id, role: user.role });
+    const token = await createSessionToken({
+      userId: user.id,
+      role: user.role,
+      credentialStamp: createCredentialStamp(user.passwordHash),
+    });
     const response = NextResponse.json({
       user: {
         id: user.id,

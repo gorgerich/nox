@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { createCredentialStamp, createSessionToken, getCurrentUser, getSessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const prisma = getPrisma();
     const { newPassword, revokeOtherSessions } = parsed.data;
 
-    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -50,7 +50,14 @@ export async function POST(request: Request) {
       });
     });
 
-    return NextResponse.json({ message: "Пароль успешно изменен с доверенного устройства." });
+    const token = await createSessionToken({
+      userId: user.id,
+      role: user.role,
+      credentialStamp: createCredentialStamp(newPasswordHash),
+    });
+    const response = NextResponse.json({ message: "Пароль успешно изменен с доверенного устройства." });
+    response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
+    return response;
   } catch (error) {
     console.error("Trusted device reset error:", error);
     return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });

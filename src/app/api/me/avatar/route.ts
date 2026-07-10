@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
-import { saveObject } from "@/lib/storage";
+import { detectImageMimeType, saveObject } from "@/lib/storage";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -17,10 +17,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Выберите файл." }, { status: 400 });
   }
 
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Разрешены только изображения." }, { status: 400 });
-  }
-
   // Max 5MB for avatars
   if (file.size > 5 * 1024 * 1024) {
     return NextResponse.json({ error: "Файл слишком большой (макс. 5МБ)." }, { status: 400 });
@@ -28,6 +24,10 @@ export async function POST(request: Request) {
 
   try {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const detectedMimeType = detectImageMimeType(fileBuffer);
+    if (!detectedMimeType) {
+      return NextResponse.json({ error: "Разрешены JPEG, PNG и WebP." }, { status: 400 });
+    }
     const { storageKey } = await saveObject(fileBuffer);
     
     // We store the storage key in the avatarUrl field. 

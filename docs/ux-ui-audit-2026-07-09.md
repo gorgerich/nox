@@ -100,3 +100,22 @@
 3. Довести contacts/add-contact и admin safe areas.
 4. Полностью пройти onboarding/login copy and layout.
 5. Снять локальные скриншоты ключевых экранов и убрать визуальные артефакты.
+
+## Liquid Glass + security pass — 10 July 2026
+
+| Before | After | Why |
+| --- | --- | --- |
+| Glass applied to controls and content cards alike | Strong glass reserved for dock, headers, composer, sheets and menus; content cards use standard material | Matches Apple hierarchy and reduces visual noise/GPU blur work |
+| `22–28px` blur plus specular pseudo-layers on nearly every surface | `16–22px` adaptive blur; specular layers only on functional chrome | Cleaner edges, less muddy scrolling |
+| Reduced motion supported, increased contrast incomplete | Added reduced-transparency fallback and high-contrast tokens | Better accessibility on iOS/macOS settings |
+| Password reset claimed to invalidate sessions, but JWT stayed valid for seven days | Session carries signed credential stamp derived from current password hash | Any password reset invalidates every previously issued session without DB migration |
+| Auth endpoints had no application-level throttling | Added scoped login/register/recovery/reset rate limits and `Retry-After` | Slows credential stuffing and recovery abuse |
+| Avatar upload trusted client MIME and serving forced `image/jpeg` | JPEG/PNG/WebP signatures validated and correct MIME returned | Blocks SVG/script payloads and fixes PNG/WebP rendering with `nosniff` |
+| Global browser hardening absent | Added clickjacking, MIME, referrer, permissions and service-worker CSP headers | Smaller browser attack surface |
+
+Remaining high-priority architecture work:
+
+1. Replace process-local auth throttling with shared Redis/Postgres limiter before horizontal scaling.
+2. Change “clear dialog” from global message deletion to a per-member `clearedAt` cursor. Current API clears history for every participant.
+3. Add a nonce-based global CSP. Current inline theme bootstrap needs nonce plumbing before strict CSP can be enabled safely.
+4. Migrate from Capacitor `WKWebView` shell to SwiftUI navigation if native iOS 26 `glassEffect` is required. Current app has no SwiftUI view hierarchy.

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { jwtVerify, SignJWT } from "jose";
 import { getPrisma } from "@/lib/prisma";
@@ -9,6 +10,7 @@ export const SESSION_COOKIE_NAME = "pm_session";
 export type SessionPayload = {
   userId: string;
   role: UserRole;
+  credentialStamp: string;
 };
 
 function getJwtSecret() {
@@ -19,6 +21,19 @@ function getJwtSecret() {
   }
 
   return new TextEncoder().encode(secret);
+}
+
+export function createCredentialStamp(passwordHash: string | null) {
+  return createHmac("sha256", getJwtSecret())
+    .update(passwordHash ?? "no-password")
+    .digest("base64url");
+}
+
+function credentialStampsMatch(actual: string, expected: string) {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
 export async function createSessionToken(payload: SessionPayload) {
@@ -41,9 +56,14 @@ export async function verifySessionToken(token: string) {
       return null;
     }
 
+    if (typeof payload.credentialStamp !== "string" || payload.credentialStamp.length < 32) {
+      return null;
+    }
+
     return {
       userId: payload.userId,
       role: payload.role,
+      credentialStamp: payload.credentialStamp,
     } satisfies SessionPayload;
   } catch {
     return null;
@@ -83,6 +103,7 @@ export const getCurrentUser = cache(async () => {
         username: true,
         role: true,
         status: true,
+        passwordHash: true,
         createdAt: true,
         profile: {
           select: {
@@ -95,7 +116,7 @@ export const getCurrentUser = cache(async () => {
     isEmergencyLocked(),
   ]);
 
-  if (!user) {
+  if (!user || !credentialStampsMatch(session.credentialStamp, createCredentialStamp(user.passwordHash))) {
     return null;
   }
 
@@ -103,7 +124,8 @@ export const getCurrentUser = cache(async () => {
     return null;
   }
 
-  return user;
+  const { passwordHash: _passwordHash, ...safeUser } = user;
+  return safeUser;
 });
 
 export function getSessionCookieOptions() {

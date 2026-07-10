@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { createCredentialStamp, createSessionToken, getCurrentUser, getSessionCookieOptions, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     // Hash new password
-    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     // Get current device info (if available via headers or a dedicated mechanism in the future)
     // For now, if revokeOtherDevices is requested, we might revoke all or implement a way to keep current.
@@ -76,7 +76,14 @@ export async function POST(request: Request) {
        // Note: E2EE local keys remain untouched as this is an authenticated change.
     });
 
-    return NextResponse.json({ message: "Пароль успешно изменен" });
+    const token = await createSessionToken({
+      userId: user.id,
+      role: user.role,
+      credentialStamp: createCredentialStamp(newPasswordHash),
+    });
+    const response = NextResponse.json({ message: "Пароль успешно изменен" });
+    response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
+    return response;
 
   } catch (error) {
     console.error("Change password error:", error);

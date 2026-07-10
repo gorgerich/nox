@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "crypto";
 import { createReadStream } from "fs";
-import { mkdir, stat, writeFile } from "fs/promises";
+import { mkdir, open, stat, writeFile } from "fs/promises";
 import path from "path";
 
 export type AllowedAttachmentMimeType =
@@ -21,6 +21,7 @@ export type AllowedAttachmentMimeType =
   | "audio/x-m4a";
 
 export type AttachmentKind = "IMAGE" | "VIDEO" | "FILE" | "VOICE";
+export type SafeImageMimeType = "image/jpeg" | "image/png" | "image/webp";
 
 const MB = 1024 * 1024;
 
@@ -58,6 +59,38 @@ export function normalizeAttachmentMimeType(mimeType: string) {
 export function getAttachmentRule(mimeType: string) {
   const normalizedMimeType = normalizeAttachmentMimeType(mimeType);
   return attachmentRules[normalizedMimeType as AllowedAttachmentMimeType] ?? null;
+}
+
+export function detectImageMimeType(buffer: Uint8Array): SafeImageMimeType | null {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (buffer.length >= 8 && pngSignature.every((byte, index) => buffer[index] === byte)) {
+    return "image/png";
+  }
+
+  if (
+    buffer.length >= 12 &&
+    String.fromCharCode(...buffer.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...buffer.slice(8, 12)) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  return null;
+}
+
+export async function getStoredImageMimeType(objectPath: string) {
+  const handle = await open(objectPath, "r");
+  try {
+    const signature = Buffer.alloc(12);
+    const { bytesRead } = await handle.read(signature, 0, signature.length, 0);
+    return detectImageMimeType(signature.subarray(0, bytesRead));
+  } finally {
+    await handle.close();
+  }
 }
 
 function getUploadRoot() {
