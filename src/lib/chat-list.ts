@@ -89,6 +89,7 @@ export async function getChatsPageData(userId: string) {
               orderBy: { joinedAt: "asc" },
             },
             messages: {
+              where: { deletedAt: null },
               orderBy: { createdAt: "desc" },
               take: 1,
               include: {
@@ -152,6 +153,10 @@ export async function getChatsPageData(userId: string) {
   ]);
 
   const chatIds = memberships.map((membership) => membership.chatId);
+  const visibleMessageScopes = memberships.map((membership) => ({
+    chatId: membership.chatId,
+    ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
+  }));
   // Aggregate unread counts in the database (GROUP BY chatId) instead of
   // streaming every unread receipt row into Node and counting in JS. A user
   // with thousands of unread messages no longer transfers thousands of rows on
@@ -161,7 +166,7 @@ export async function getChatsPageData(userId: string) {
     ? await prisma.message.groupBy({
         by: ["chatId"],
         where: {
-          chatId: { in: chatIds },
+          OR: visibleMessageScopes,
           deletedAt: null,
           receipts: { some: { userId, readAt: null } },
         },
@@ -179,7 +184,10 @@ export async function getChatsPageData(userId: string) {
   const chats = memberships
     .map((membership) => {
       const otherMember = membership.chat.members.find((member) => member.user.id !== userId);
-      const lastMessage = membership.chat.messages[0];
+      const latestMessage = membership.chat.messages[0];
+      const lastMessage = latestMessage && (
+        !membership.clearedAt || latestMessage.createdAt > membership.clearedAt
+      ) ? latestMessage : undefined;
       const lastMessageReceipts = lastMessage?.receipts ?? [];
       const readAt = lastMessageReceipts.find((receipt) => receipt.readAt)?.readAt ?? null;
       const deliveredAt = lastMessageReceipts.find((receipt) => receipt.deliveredAt)?.deliveredAt ?? null;

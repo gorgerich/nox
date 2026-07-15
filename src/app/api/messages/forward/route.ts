@@ -33,18 +33,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Чат закрыт." }, { status: 403 });
   }
 
+  const sourceMemberships = await prisma.chatMember.findMany({
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+      chat: { messages: { some: { id: { in: messageIds } } } },
+    },
+    select: { chatId: true, clearedAt: true },
+  });
+  const visibleSourceScopes = sourceMemberships.map((sourceMembership) => ({
+    chatId: sourceMembership.chatId,
+    ...(sourceMembership.clearedAt
+      ? { createdAt: { gt: sourceMembership.clearedAt } }
+      : {}),
+  }));
+
   const sourceMessages = await prisma.message.findMany({
     where: {
       id: { in: messageIds },
       deletedAt: null,
-      chat: {
-        members: {
-          some: {
-            userId: user.id,
-            status: "ACTIVE",
-          },
-        },
-      },
+      OR: visibleSourceScopes,
     },
     orderBy: { createdAt: "asc" },
     include: {

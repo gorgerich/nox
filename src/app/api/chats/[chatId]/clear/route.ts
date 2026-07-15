@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireActiveChatMembership } from "@/lib/chats";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
-import { emitToChat } from "@/lib/realtime";
+import { emitToUser } from "@/lib/realtime";
 
 export async function DELETE(
   _request: Request,
@@ -22,15 +22,18 @@ export async function DELETE(
 
   const prisma = getPrisma();
   const now = new Date();
-  const result = await prisma.message.updateMany({
+  await prisma.chatMember.update({
     where: {
-      chatId,
-      deletedAt: null,
+      chatId_userId: { chatId, userId: user.id },
     },
-    data: { deletedAt: now },
+    data: {
+      clearedAt: now,
+      lastReadAt: now,
+      lastReadMessageId: null,
+    },
   });
 
-  emitToChat(chatId, "chat:cleared", { chatId });
+  emitToUser(user.id, "chat:cleared", { chatId, clearedAt: now.toISOString() });
 
-  return NextResponse.json({ cleared: result.count });
+  return NextResponse.json({ clearedAt: now.toISOString() });
 }

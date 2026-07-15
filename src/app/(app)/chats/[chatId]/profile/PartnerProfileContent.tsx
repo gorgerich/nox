@@ -115,7 +115,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   };
 
   const clearDialog = async () => {
-    if (!window.confirm("Очистить диалог? Все сообщения в этом чате будут удалены.")) return;
+    if (!window.confirm("Очистить диалог? История будет скрыта только у вас.")) return;
     setIsBusy(true);
     try {
       const res = await fetch(`/api/chats/${chatId}/clear`, { method: "DELETE" });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminUser } from "@/lib/admin";
+import { requireOwnerUser } from "@/lib/admin";
 import { logAdminAction } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
 
@@ -7,7 +7,7 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ userId: string }> },
 ) {
-  const { user: admin, response } = await requireAdminUser();
+  const { user: admin, response } = await requireOwnerUser();
 
   if (response) {
     return response;
@@ -22,6 +22,10 @@ export async function POST(
 
   if (!target) {
     return NextResponse.json({ error: "Пользователь не найден." }, { status: 404 });
+  }
+
+  if (target.id === admin.id || target.role !== "MEMBER") {
+    return NextResponse.json({ error: "Роль этого пользователя нельзя изменить." }, { status: 400 });
   }
 
   if (target.status !== "ACTIVE") {
@@ -44,4 +48,3 @@ export async function POST(
 
   return NextResponse.json({ user: updatedUser });
 }
-

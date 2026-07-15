@@ -32,7 +32,10 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
 
-  const urlToOpen = new URL(event.notification.data.url || '/chats', self.location.origin).href;
+  const requestedUrl = new URL(event.notification.data.url || '/chats', self.location.origin);
+  const urlToOpen = requestedUrl.origin === self.location.origin
+    ? requestedUrl.href
+    : new URL('/chats', self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {

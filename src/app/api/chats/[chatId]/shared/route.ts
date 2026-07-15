@@ -21,6 +21,7 @@ export async function GET(
     where: { 
       chatId,
       deletedAt: null,
+      ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
     },
     include: {
       attachments: {

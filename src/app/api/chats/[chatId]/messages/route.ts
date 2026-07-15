@@ -5,6 +5,7 @@ import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
 import { emitToChat, emitToUser, emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
 import { checkBlockStatus } from "@/lib/contacts";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
 
@@ -17,10 +18,10 @@ const envelopeSchema = z.object({
   recipientUserId: z.string().uuid(),
   recipientDeviceId: z.string().min(8).max(120),
   senderDeviceId: z.string().min(8).max(120),
-  ciphertext: z.string().trim().min(1),
-  iv: z.string().trim().min(1),
-  salt: z.string().trim().min(1),
-  algorithm: z.string().trim().min(1),
+  ciphertext: z.string().trim().min(1).max(16_384),
+  iv: z.string().trim().min(16).max(64),
+  salt: z.string().trim().min(16).max(128),
+  algorithm: z.string().trim().min(1).max(120),
   encryptionVersion: z.literal(2),
 });
 
@@ -33,11 +34,11 @@ const messageSchema = z.object({
   type: z.literal("TEXT").optional(),
   encryptionVersion: z.number().int().positive().optional(),
   senderDeviceId: z.string().min(8).max(120).optional(),
-  envelopes: z.array(envelopeSchema).optional(),
-  ciphertext: z.string().trim().min(1).optional(),
-  iv: z.string().trim().min(1).optional(),
-  salt: z.string().trim().min(1).optional(),
-  algorithm: z.string().trim().min(1).optional(),
+  envelopes: z.array(envelopeSchema).min(1).max(64).optional(),
+  ciphertext: z.string().trim().min(1).max(16_384).optional(),
+  iv: z.string().trim().min(16).max(64).optional(),
+  salt: z.string().trim().min(16).max(128).optional(),
+  algorithm: z.string().trim().min(1).max(120).optional(),
   senderKeyId: z.string().trim().min(1).max(160).optional(),
 });
 
@@ -171,6 +172,7 @@ export async function GET(
     where: {
       chatId,
       deletedAt: null,
+      ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
       // Hide disappearing messages whose timer has elapsed.
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
@@ -196,6 +198,11 @@ export async function POST(
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
+
+  const rateLimit = checkRateLimit(request, `messages:create:${user.id}`, { limit: 120, windowMs: 60_000 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Слишком много сообщений. Подождите немного." }, { status: 429 });
+  }
 
   const { chatId } = await context.params;
   const prisma = getPrisma();

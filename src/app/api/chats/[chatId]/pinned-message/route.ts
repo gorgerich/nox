@@ -39,6 +39,7 @@ export async function PATCH(
         id: parsed.data.messageId,
         chatId,
         deletedAt: null,
+        ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
       },
       select: { id: true },
     });

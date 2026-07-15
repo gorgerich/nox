@@ -1961,7 +1961,7 @@ export function ChatMessages({
                   {formatDateLabel(new Date())}
                 </span>
               </div>
-              <E2EEDisclaimer />
+              {chatInfo.type === "DIRECT" ? <E2EEDisclaimer /> : null}
             </>
           ) : null}
           {groupedMessages.map((item, idx) => (

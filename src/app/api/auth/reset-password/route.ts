@@ -58,16 +58,16 @@ export async function POST(request: Request) {
 
     // Perform the password reset and session invalidation atomically
     await prisma.$transaction(async (tx) => {
+      const claim = await tx.passwordResetToken.updateMany({
+        where: { id: resetToken.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (claim.count !== 1) throw new Error("RESET_TOKEN_ALREADY_USED");
+
       // 1. Update user's password
       await tx.user.update({
         where: { id: user.id },
         data: { passwordHash },
-      });
-
-      // 2. Mark token as used
-      await tx.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { usedAt: new Date() },
       });
 
       // 3. Revoke all active devices for this user
@@ -128,6 +128,9 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
+    if (error instanceof Error && error.message === "RESET_TOKEN_ALREADY_USED") {
+      return NextResponse.json({ error: "Этот токен уже был использован" }, { status: 409 });
+    }
     console.error("Reset password error:", error);
     return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
   }

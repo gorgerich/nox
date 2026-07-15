@@ -42,6 +42,7 @@ export default async function ArchivePage() {
             orderBy: { joinedAt: "asc" },
           },
           messages: {
+            where: { deletedAt: null },
             orderBy: { createdAt: "desc" },
             take: 1,
             include: {
@@ -75,6 +76,10 @@ export default async function ArchivePage() {
   });
 
   const chatIds = memberships.map((membership) => membership.chatId);
+  const visibleMessageScopes = memberships.map((membership) => ({
+    chatId: membership.chatId,
+    ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
+  }));
   const unreadReceipts = chatIds.length > 0
     ? await prisma.messageReceipt.findMany({
         where: {
@@ -82,7 +87,7 @@ export default async function ArchivePage() {
           readAt: null,
           message: {
             deletedAt: null,
-            chatId: { in: chatIds },
+            OR: visibleMessageScopes,
           },
         },
         select: {
@@ -104,7 +109,10 @@ export default async function ArchivePage() {
   const archivedChats = memberships
     .map((membership) => {
       const otherMember = membership.chat.members.find((member) => member.user.id !== user.id);
-      const lastMessage = membership.chat.messages[0];
+      const latestMessage = membership.chat.messages[0];
+      const lastMessage = latestMessage && (
+        !membership.clearedAt || latestMessage.createdAt > membership.clearedAt
+      ) ? latestMessage : undefined;
       const lastMessageReceipts = lastMessage?.receipts ?? [];
       const readAt = lastMessageReceipts.find((receipt) => receipt.readAt)?.readAt ?? null;
       const deliveredAt = lastMessageReceipts.find((receipt) => receipt.deliveredAt)?.deliveredAt ?? null;

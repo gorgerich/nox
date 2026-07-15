@@ -300,7 +300,9 @@ export default async function ChatPage({
 
   const otherMember = chat.members.find((member) => member.user.id !== user.id);
   const otherMemberIsOnline = otherMember ? isUserOnline(otherMember.user.id) : false;
-  const pinnedMessage = chat.pinnedMessage
+  const pinnedMessage = chat.pinnedMessage && (
+    !myMembership.clearedAt || chat.pinnedMessage.createdAt > myMembership.clearedAt
+  )
     ? serializeMessage(filterMessageEnvelopesForUser(chat.pinnedMessage as BaseMessage, user.id))
     : null;
   // Only the pinned message is seeded from the server; the full history is

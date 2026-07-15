@@ -6,7 +6,7 @@ import crypto from "crypto";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
-  publicCode: z.string().min(1),
+  publicCode: z.string().trim().regex(/^[A-F0-9]{12}$/i),
   newPassword: z.string().min(8, "Пароль должен быть не менее 8 символов"),
 });
 
@@ -55,17 +55,20 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.$transaction(async (tx) => {
+      const claim = await tx.accountRecoveryRequest.updateMany({
+        where: {
+          id: recoveryRequest.id,
+          status: "APPROVED",
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { usedAt: new Date(), status: "USED" },
+      });
+      if (claim.count !== 1) throw new Error("RECOVERY_REQUEST_ALREADY_USED");
+
       await tx.user.update({
         where: { id: user.id },
         data: { passwordHash },
-      });
-
-      await tx.accountRecoveryRequest.update({
-        where: { id: recoveryRequest.id },
-        data: { 
-          usedAt: new Date(),
-          status: "USED", 
-        },
       });
 
       const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -90,6 +93,9 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
+    if (error instanceof Error && error.message === "RECOVERY_REQUEST_ALREADY_USED") {
+      return NextResponse.json({ error: "Этот код уже был использован" }, { status: 409 });
+    }
     console.error("Reset password with request error:", error);
     return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
   }

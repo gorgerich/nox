@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { isValidEcdhPublicKey } from "@/lib/e2ee/validation";
+import { z } from "zod";
+
+async function canAccessKeyBundle(currentUserId: string, targetUserId: string) {
+  if (currentUserId === targetUserId) return true;
+  const prisma = getPrisma();
+  const sharedDirectChat = await prisma.chat.findFirst({
+    where: {
+      type: "DIRECT",
+      members: { some: { userId: currentUserId, status: "ACTIVE" } },
+      AND: { members: { some: { userId: targetUserId, status: "ACTIVE" } } },
+    },
+    select: { id: true },
+  });
+  return Boolean(sharedDirectChat);
+}
 
 /**
  * GET /api/e2ee/key-bundle?userId=...
@@ -13,8 +29,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
 
-  if (!userId) {
+  if (!userId || !z.string().uuid().safeParse(userId).success) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  }
+
+  if (!(await canAccessKeyBundle(user.id, userId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const prisma = getPrisma();
@@ -40,7 +60,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const { ecdhPublicKey } = body || {};
 
-  if (!ecdhPublicKey) {
+  if (!isValidEcdhPublicKey(ecdhPublicKey)) {
     return NextResponse.json({ error: "ecdhPublicKey is required" }, { status: 400 });
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminUser } from "@/lib/admin";
+import { canManageUser, requireAdminUser } from "@/lib/admin";
 import { logAdminAction } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
 
@@ -17,11 +17,15 @@ export async function POST(
   const prisma = getPrisma();
   const target = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, status: true },
+    select: { id: true, role: true, status: true },
   });
 
   if (!target) {
     return NextResponse.json({ error: "Пользователь не найден." }, { status: 404 });
+  }
+
+  if (!canManageUser(admin, target)) {
+    return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
   }
 
   if (target.status === "REVOKED") {
@@ -44,4 +48,3 @@ export async function POST(
 
   return NextResponse.json({ user: updatedUser });
 }
-

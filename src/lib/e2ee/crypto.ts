@@ -88,7 +88,7 @@ export async function generateKeyPair(): Promise<CryptoKeyPair> {
       name: "ECDH",
       namedCurve: "P-256",
     },
-    true, // extractable
+    false, // public key stays exportable; private key cannot be exported from Web Crypto
     ["deriveKey", "deriveBits"]
   );
 }

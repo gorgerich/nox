@@ -30,6 +30,7 @@ export async function GET(
       body: { contains: query, mode },
       isEncrypted: false,
       deletedAt: null,
+      ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
     },
     include: {
       sender: {

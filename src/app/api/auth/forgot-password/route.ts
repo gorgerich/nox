@@ -55,20 +55,47 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
-    // Generate an 8-character uppercase alphanumeric code (easily typable)
-    const publicCode = crypto.randomBytes(4).toString("hex").toUpperCase(); 
+    // 48 bits keeps the code typable while making online guessing impractical.
+    const publicCode = crypto.randomBytes(6).toString("hex").toUpperCase();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const recoveryRequest = await prisma.$transaction(async (tx) => {
+      await tx.accountRecoveryRequest.updateMany({
+        where: { userId: user.id, status: "PENDING" },
+        data: { status: "EXPIRED" },
+      });
+      await tx.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
 
-    // Create AccountRecoveryRequest unconditionally so even if socket delivery fails,
-    // if the user has another way to view it (or later opens the app within 10 mins), it's there.
-    const recoveryRequest = await prisma.accountRecoveryRequest.create({
-      data: {
-        userId: user.id,
-        publicCode,
-        expiresAt,
-        requesterIpHash: ipHash,
-        requesterUserAgent: userAgent,
+      const createdRequest = await tx.accountRecoveryRequest.create({
+        data: {
+          userId: user.id,
+          publicCode,
+          expiresAt,
+          requesterIpHash: ipHash,
+          requesterUserAgent: userAgent,
+        },
+      });
+
+      if (user.email) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+        await tx.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            tokenHash,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+            ipHash,
+            userAgent,
+          },
+        });
+        if (process.env.NODE_ENV !== "production" || process.env.DEBUG_AUTH === "true") {
+          console.log(`[DEV ONLY] Password reset token for ${user.username}: ${token}`);
+        }
       }
+
+      return createdRequest;
     });
 
     // Emit to active user sessions
@@ -80,24 +107,6 @@ export async function POST(request: Request) {
     });
 
     console.log(`[AUTH] Recovery request emitted for user id: ${user.id}`);
-
-    // Also support email fallback if email exists
-    if (user.email) {
-      const token = crypto.randomBytes(32).toString("hex");
-      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      await prisma.passwordResetToken.create({
-        data: {
-          userId: user.id,
-          tokenHash,
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
-          ipHash,
-          userAgent,
-        },
-      });
-      if (process.env.NODE_ENV !== "production" || process.env.DEBUG_AUTH === "true") {
-        console.log(`[DEV ONLY] Password reset token for ${user.username}: ${token}`);
-      }
-    }
 
     return genericSuccessResponse;
   } catch (error) {

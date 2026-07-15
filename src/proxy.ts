@@ -34,12 +34,35 @@ async function verifyMiddlewareSession(token: string) {
   }
 }
 
-function isAdminRole(role: string) {
-  return role === "OWNER" || role === "ADMIN";
+function isUnsafeMethod(method: string) {
+  return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
+}
+
+function hasTrustedBrowserOrigin(request: NextRequest) {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (fetchSite === "cross-site") return false;
+
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+
+  try {
+    return new URL(origin).origin === request.nextUrl.origin;
+  } catch {
+    return false;
+  }
 }
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/api/") && isUnsafeMethod(request.method) && !hasTrustedBrowserOrigin(request)) {
+    return NextResponse.json({ error: "Недоверенный источник запроса." }, { status: 403 });
+  }
+
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifyMiddlewareSession(token) : null;
 
@@ -49,13 +72,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith("/admin") && !isAdminRole(session.role)) {
-    return NextResponse.redirect(new URL("/chats", request.url));
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/chats/:path*", "/admin/:path*"],
+  matcher: ["/api/:path*", "/chats/:path*", "/admin/:path*"],
 };

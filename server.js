@@ -10,12 +10,20 @@ const { v4: uuidv4 } = require("uuid");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const webpush = require("web-push");
+const { createHmac, timingSafeEqual } = require("crypto");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 const DEBUG_CALLS = process.env.NEXT_PUBLIC_DEBUG_CALLS === "true";
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
 const DEBUG_PRESENCE = process.env.DEBUG_PRESENCE === "true";
 const CALL_TIMEOUT_MS = 45_000;
+const MAX_CALL_LIFETIME_MS = 8 * 60 * 60_000;
+const MAX_SIGNAL_PAYLOAD_BYTES = 64 * 1024;
+const MAX_ICE_PAYLOAD_BYTES = 16 * 1024;
+const MAX_QUEUED_ICE_PER_USER = 128;
+const MAX_JSON_API_BODY_BYTES = 256 * 1024;
+const MAX_AVATAR_BODY_BYTES = 8 * 1024 * 1024;
+const MAX_ATTACHMENT_BODY_BYTES = 160 * 1024 * 1024;
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
@@ -79,8 +87,7 @@ function isUserSocketReachable(io, userId) {
 }
 
 function isCallExpired(call) {
-  // Only ringing calls should expire based on expiresAt
-  return !call || (call.status === "ringing" && Date.now() > call.expiresAt);
+  return !call || Date.now() - call.createdAt > MAX_CALL_LIFETIME_MS || (call.status === "ringing" && Date.now() > call.expiresAt);
 }
 
 function clearCallExpiryTimer(callId) {
@@ -301,6 +308,56 @@ function getJwtSecret() {
   return new TextEncoder().encode(secret);
 }
 
+function createCredentialStamp(passwordHash) {
+  return createHmac("sha256", getJwtSecret())
+    .update(passwordHash || "no-password")
+    .digest("base64url");
+}
+
+function credentialStampsMatch(actual, expected) {
+  if (typeof actual !== "string" || typeof expected !== "string") return false;
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function payloadFits(value, maxBytes) {
+  try {
+    return Buffer.byteLength(JSON.stringify(value), "utf8") <= maxBytes;
+  } catch {
+    return false;
+  }
+}
+
+function getApiBodyLimit(pathname) {
+  if (/^\/api\/chats\/[^/]+\/attachments\/?$/.test(pathname)) return MAX_ATTACHMENT_BODY_BYTES;
+  if (pathname === "/api/me/avatar" || /^\/api\/chats\/[^/]+\/group-avatar\/?$/.test(pathname)) {
+    return MAX_AVATAR_BODY_BYTES;
+  }
+  return MAX_JSON_API_BODY_BYTES;
+}
+
+function configuredSocketOrigins() {
+  const origins = new Set(["https://noxchat.ru", "capacitor://localhost"]);
+  for (const value of [process.env.APP_URL, process.env.NEXT_PUBLIC_APP_URL, process.env.CAPACITOR_SERVER_URL]) {
+    if (!value) continue;
+    try {
+      origins.add(new URL(value).origin);
+    } catch {
+      // Invalid deployment config must not broaden socket access.
+    }
+  }
+  return origins;
+}
+
+const allowedSocketOrigins = configuredSocketOrigins();
+
+function isAllowedSocketOrigin(origin) {
+  if (!origin) return true;
+  if (allowedSocketOrigins.has(origin)) return true;
+  return dev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 function getCookie(cookieHeader, name) {
   if (!cookieHeader) {
     return null;
@@ -320,7 +377,7 @@ async function verifySocketUser(socket) {
   const { jwtVerify } = await import("jose");
   const { payload } = await jwtVerify(token, getJwtSecret());
 
-  if (typeof payload.userId !== "string") {
+  if (typeof payload.userId !== "string" || typeof payload.credentialStamp !== "string") {
     return null;
   }
 
@@ -332,6 +389,7 @@ async function verifySocketUser(socket) {
         username: true,
         role: true,
         status: true,
+        passwordHash: true,
         profile: {
           select: {
             displayName: true,
@@ -346,7 +404,11 @@ async function verifySocketUser(socket) {
     }),
   ]);
 
-  if (!user || user.status !== "ACTIVE") {
+  if (
+    !user ||
+    user.status !== "ACTIVE" ||
+    !credentialStampsMatch(payload.credentialStamp, createCredentialStamp(user.passwordHash))
+  ) {
     return null;
   }
 
@@ -354,7 +416,9 @@ async function verifySocketUser(socket) {
     return null;
   }
 
-  return user;
+  const safeUser = { ...user };
+  delete safeUser.passwordHash;
+  return safeUser;
 }
 
 async function getDirectCallContext(chatId, userId) {
@@ -433,13 +497,28 @@ async function joinUserChatRooms(socket, userId) {
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
+    if (req.url?.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(req.method || "GET")) {
+      const contentLength = Number(req.headers["content-length"] || 0);
+      const pathname = new URL(req.url, "http://localhost").pathname;
+      if (Number.isFinite(contentLength) && contentLength > getApiBodyLimit(pathname)) {
+        res.writeHead(413, { "Content-Type": "application/json; charset=utf-8", Connection: "close" });
+        res.end(JSON.stringify({ error: "Тело запроса слишком большое." }));
+        return;
+      }
+    }
     handle(req, res);
   });
 
   const io = new Server(server, {
+    maxHttpBufferSize: 256 * 1024,
     cors: {
-      origin: "*",
+      origin(origin, callback) {
+        callback(null, isAllowedSocketOrigin(origin));
+      },
       methods: ["GET", "POST"],
+    },
+    allowRequest(req, callback) {
+      callback(null, isAllowedSocketOrigin(req.headers.origin));
     },
   });
 
@@ -472,6 +551,18 @@ app.prepare().then(() => {
   io.on("connection", async (socket) => {
     const user = socket.data.user;
     const userId = user.id;
+    const eventBuckets = new Map();
+
+    function consumeEventBudget(scope, limit, windowMs) {
+      const now = Date.now();
+      const current = eventBuckets.get(scope);
+      const entry = !current || current.resetAt <= now
+        ? { count: 0, resetAt: now + windowMs }
+        : current;
+      entry.count += 1;
+      eventBuckets.set(scope, entry);
+      return entry.count <= limit;
+    }
 
     logRealtime("user connected", { userId, socketId: socket.id });
 
@@ -535,7 +626,12 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("typing:start", async ({ chatId }, callback) => {
+    socket.on("typing:start", async (payload, callback) => {
+      const chatId = payload && typeof payload === "object" ? payload.chatId : null;
+      if (!consumeEventBudget("typing", 120, 60_000)) {
+        callback?.({ ok: false, error: "Слишком много событий" });
+        return;
+      }
       if (typeof chatId !== "string" || !(await isActiveMember(chatId, userId))) {
         callback?.({ ok: false, error: "Нет доступа" });
         return;
@@ -550,7 +646,12 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("typing:stop", async ({ chatId }, callback) => {
+    socket.on("typing:stop", async (payload, callback) => {
+      const chatId = payload && typeof payload === "object" ? payload.chatId : null;
+      if (!consumeEventBudget("typing", 120, 60_000)) {
+        callback?.({ ok: false, error: "Слишком много событий" });
+        return;
+      }
       if (typeof chatId !== "string" || !(await isActiveMember(chatId, userId))) {
         callback?.({ ok: false, error: "Нет доступа" });
         return;
@@ -565,12 +666,26 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("call:start", async ({ callId: requestedCallId, chatId, offer, video }, callback) => {
+    socket.on("call:start", async (payload, callback) => {
+      const { callId: requestedCallId, chatId, offer, video } = payload && typeof payload === "object" ? payload : {};
       sweepExpiredCalls(io);
       logCall("call:start received", { chatId, userId, video: video === true });
 
-      if (typeof chatId !== "string" || !offer) {
+      if (
+        !consumeEventBudget("call:start", 10, 60_000) ||
+        typeof chatId !== "string" ||
+        !offer ||
+        !payloadFits(offer, MAX_SIGNAL_PAYLOAD_BYTES)
+      ) {
         callback?.({ ok: false, error: "Некорректный звонок" });
+        return;
+      }
+
+      const alreadyInCall = Array.from(activeCalls.values()).some((call) =>
+        call.callerId === userId || call.calleeId === userId,
+      );
+      if (alreadyInCall) {
+        callback?.({ ok: false, error: "CALLER_BUSY" });
         return;
       }
 
@@ -666,7 +781,8 @@ app.prepare().then(() => {
       });
     });
 
-    socket.on("call:resume-pending", async ({ callId }, callback) => {
+    socket.on("call:resume-pending", async (payload, callback) => {
+      const callId = payload && typeof payload === "object" ? payload.callId : null;
       sweepExpiredCalls(io);
       const call = activeCalls.get(callId);
       logCall("call:resume-pending received", { callId, userId, exists: Boolean(call), status: call?.status ?? null });
@@ -717,7 +833,8 @@ app.prepare().then(() => {
       callback?.({ ok: true, call: incomingPayload, queuedIce: queuedForCallee });
     });
 
-    socket.on("call:answer", async ({ callId, chatId, answer }, callback) => {
+    socket.on("call:answer", async (payload, callback) => {
+      const { callId, chatId, answer } = payload && typeof payload === "object" ? payload : {};
       sweepExpiredCalls(io);
       const call = activeCalls.get(callId);
       logCall("call:answer received", {
@@ -728,7 +845,7 @@ app.prepare().then(() => {
         exists: Boolean(call),
       });
 
-      if (!call || call.chatId !== chatId) {
+      if (!call || call.chatId !== chatId || !answer || !payloadFits(answer, MAX_SIGNAL_PAYLOAD_BYTES)) {
         callback?.({ ok: false, error: "CALL_NOT_FOUND" });
         return;
       }
@@ -771,8 +888,13 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("call:ice-candidate", async ({ callId, chatId, candidate }, callback) => {
+    socket.on("call:ice-candidate", async (payload, callback) => {
+      const { callId, chatId, candidate } = payload && typeof payload === "object" ? payload : {};
       sweepExpiredCalls(io);
+      if (!consumeEventBudget("call:ice", 300, 60_000) || !candidate || !payloadFits(candidate, MAX_ICE_PAYLOAD_BYTES)) {
+        callback?.({ ok: false, error: "INVALID_ICE_CANDIDATE" });
+        return;
+      }
       const call = activeCalls.get(callId);
       if (!call) {
         logCall("ice rejected: call not found", { callId, fromUserId: userId });
@@ -807,6 +929,10 @@ app.prepare().then(() => {
       } else {
         if (!call.queuedIceByUser) call.queuedIceByUser = {};
         if (!call.queuedIceByUser[targetId]) call.queuedIceByUser[targetId] = [];
+        if (call.queuedIceByUser[targetId].length >= MAX_QUEUED_ICE_PER_USER) {
+          callback?.({ ok: false, error: "ICE_QUEUE_FULL" });
+          return;
+        }
         call.queuedIceByUser[targetId].push(candidate);
         logCall("ice queued for offline target", { callId, targetId, count: call.queuedIceByUser[targetId].length });
       }
@@ -819,7 +945,8 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("call:declined", async ({ callId, reason }, callback) => {
+    socket.on("call:declined", async (payload, callback) => {
+      const { callId, reason } = payload && typeof payload === "object" ? payload : {};
       const call = activeCalls.get(callId);
       if (!call) {
         callback?.({ ok: false, error: "CALL_NOT_FOUND" });
@@ -838,7 +965,8 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
-    socket.on("call:ended", async ({ callId, reason }, callback) => {
+    socket.on("call:ended", async (payload, callback) => {
+      const { callId, reason } = payload && typeof payload === "object" ? payload : {};
       const call = activeCalls.get(callId);
       if (!call) {
         callback?.({ ok: false, error: "CALL_NOT_FOUND" });

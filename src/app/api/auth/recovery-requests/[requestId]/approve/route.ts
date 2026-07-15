@@ -31,15 +31,16 @@ export async function POST(
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
-    await prisma.$transaction([
-      prisma.accountRecoveryRequest.update({
-        where: { id: requestId },
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.accountRecoveryRequest.updateMany({
+        where: { id: requestId, userId: user.id, status: "PENDING", expiresAt: { gt: new Date() } },
         data: {
           status: "APPROVED",
           approvedAt: new Date(),
         },
-      }),
-      prisma.adminActionLog.create({
+      });
+      if (updated.count !== 1) throw new Error("RECOVERY_REQUEST_CONFLICT");
+      await tx.adminActionLog.create({
         data: {
           adminUserId: user.id,
           action: "ACCOUNT_RECOVERY_APPROVED",
@@ -47,11 +48,14 @@ export async function POST(
           targetId: requestId,
           ipHash,
         }
-      })
-    ]);
+      });
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof Error && error.message === "RECOVERY_REQUEST_CONFLICT") {
+      return NextResponse.json({ error: "Request is expired or no longer pending" }, { status: 409 });
+    }
     console.error("Approve recovery error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

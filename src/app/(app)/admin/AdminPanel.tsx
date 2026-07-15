@@ -146,7 +146,13 @@ async function readJson<T>(url: string, init?: RequestInit) {
   return data;
 }
 
-export function AdminPanel() {
+export function AdminPanel({
+  currentUserId,
+  currentUserRole,
+}: {
+  currentUserId: string;
+  currentUserRole: "OWNER" | "ADMIN";
+}) {
   const [activeSection, setActiveSection] = useState<AdminSection>("users");
   const [users, setUsers] = useState<UserItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
@@ -311,32 +317,37 @@ export function AdminPanel() {
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-2">
-                    <AdminActionButton 
-                      label="Блок" 
-                      onClick={() => runAction(`block-${user.id}`, `/api/admin/users/${user.id}/block`)}
-                      pending={pendingAction === `block-${user.id}`}
-                      variant="danger"
-                    />
-                    <AdminActionButton 
-                      label="Разблок" 
-                      onClick={() => runAction(`unblock-${user.id}`, `/api/admin/users/${user.id}/unblock`)}
-                      pending={pendingAction === `unblock-${user.id}`}
-                    />
-                    {user.role !== "ADMIN" ? (
+                  {user.id !== currentUserId && (currentUserRole === "OWNER" || user.role === "MEMBER") ? (
+                    <div className="flex flex-wrap gap-2">
+                      {user.status === "BLOCKED" ? (
+                        <AdminActionButton
+                          label="Разблок"
+                          onClick={() => runAction(`unblock-${user.id}`, `/api/admin/users/${user.id}/unblock`)}
+                          pending={pendingAction === `unblock-${user.id}`}
+                        />
+                      ) : (
+                        <AdminActionButton
+                          label="Блок"
+                          onClick={() => runAction(`block-${user.id}`, `/api/admin/users/${user.id}/block`)}
+                          pending={pendingAction === `block-${user.id}`}
+                          variant="danger"
+                        />
+                      )}
+                      {currentUserRole === "OWNER" && user.role === "MEMBER" ? (
                       <AdminActionButton 
                         label="+Админ" 
                         onClick={() => runAction(`make-admin-${user.id}`, `/api/admin/users/${user.id}/make-admin`)}
                         pending={pendingAction === `make-admin-${user.id}`}
                       />
-                    ) : (
+                      ) : currentUserRole === "OWNER" && user.role === "ADMIN" ? (
                       <AdminActionButton 
                         label="-Админ" 
                         onClick={() => runAction(`remove-admin-${user.id}`, `/api/admin/users/${user.id}/remove-admin`)}
                         pending={pendingAction === `remove-admin-${user.id}`}
                       />
-                    )}
-                  </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>

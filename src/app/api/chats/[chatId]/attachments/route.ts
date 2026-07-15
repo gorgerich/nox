@@ -1,23 +1,27 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { isChatAdminRole, requireActiveChatMembership } from "@/lib/chats";
 import { getPrisma } from "@/lib/prisma";
 import { emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
 import { getAttachmentRule, normalizeAttachmentMimeType, saveObject } from "@/lib/storage";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
 const MEDIA_KEY_ALGORITHM = "ECDH-P256-HKDF-SHA256-AES-GCM-MEDIA-KEY";
 
-type MediaKeyEnvelopeInput = {
-  recipientUserId: string;
-  recipientDeviceId: string;
-  senderDeviceId: string;
-  encryptedMediaKey: string;
-  iv: string;
-  salt: string;
-  algorithm: string;
-  encryptionVersion: 1;
-};
+const mediaKeyEnvelopeSchema = z.object({
+  recipientUserId: z.string().uuid(),
+  recipientDeviceId: z.string().min(8).max(120),
+  senderDeviceId: z.string().min(8).max(120),
+  encryptedMediaKey: z.string().min(1).max(2_048),
+  iv: z.string().min(16).max(64),
+  salt: z.string().min(16).max(128),
+  algorithm: z.literal(MEDIA_KEY_ALGORITHM),
+  encryptionVersion: z.literal(1),
+});
+
+type MediaKeyEnvelopeInput = z.infer<typeof mediaKeyEnvelopeSchema>;
 
 function logRealtime(label: string, data: Record<string, unknown>) {
   if (!DEBUG_REALTIME) {
@@ -48,6 +52,11 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
+  }
+
+  const rateLimit = checkRateLimit(request, `attachments:create:${user.id}`, { limit: 30, windowMs: 5 * 60_000 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Слишком много файлов. Подождите немного." }, { status: 429 });
   }
 
   const { chatId } = await context.params;
@@ -128,9 +137,9 @@ export async function POST(
     }
 
     try {
-      const parsed = JSON.parse(envelopesRaw);
-      if (!Array.isArray(parsed)) throw new Error("not-array");
-      mediaKeyEnvelopes = parsed as MediaKeyEnvelopeInput[];
+      const parsed = z.array(mediaKeyEnvelopeSchema).min(1).max(64).safeParse(JSON.parse(envelopesRaw));
+      if (!parsed.success) throw new Error("invalid-envelopes");
+      mediaKeyEnvelopes = parsed.data;
     } catch {
       return NextResponse.json({ error: "Некорректные media key envelopes." }, { status: 400 });
     }

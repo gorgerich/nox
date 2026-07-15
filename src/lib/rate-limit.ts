@@ -6,9 +6,21 @@ type RateLimitEntry = {
 const buckets = new Map<string, RateLimitEntry>();
 let lastCleanupAt = 0;
 
-function getClientAddress(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || request.headers.get("x-real-ip")?.trim() || "unknown";
+export function getClientAddress(request: Request) {
+  const directAddress = request.headers.get("x-real-ip")?.trim();
+  if (directAddress) return directAddress;
+
+  const cloudflareAddress = request.headers.get("cf-connecting-ip")?.trim();
+  if (cloudflareAddress) return cloudflareAddress;
+
+  // A reverse proxy appends its observed client to the right side. Reading the
+  // first value lets a client-supplied prefix bypass IP-scoped rate limits.
+  const forwarded = request.headers.get("x-forwarded-for")
+    ?.split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return forwarded?.at(-1) || "unknown";
 }
 
 export function checkRateLimit(

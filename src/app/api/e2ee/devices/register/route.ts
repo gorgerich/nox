@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { isValidEcdhPublicKey } from "@/lib/e2ee/validation";
+
+const E2EE_ALGORITHM = "ECDH-P256-HKDF-SHA256-AES-GCM";
 
 const registerSchema = z.object({
   deviceId: z.string().min(8).max(120),
-  publicKey: z.string().min(20),
-  algorithm: z.string().min(1).max(120),
+  publicKey: z.string().min(20).max(2_048),
+  algorithm: z.literal(E2EE_ALGORITHM),
   name: z.string().max(120).optional(),
   userAgent: z.string().max(600).optional(),
   platform: z.string().max(120).optional(),
@@ -25,6 +28,10 @@ export async function POST(request: Request) {
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid device registration" }, { status: 400 });
+  }
+
+  if (!isValidEcdhPublicKey(parsed.data.publicKey)) {
+    return NextResponse.json({ error: "Invalid ECDH public key" }, { status: 400 });
   }
 
   const prisma = getPrisma();

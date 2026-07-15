@@ -35,15 +35,16 @@ export async function POST(
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
-    await prisma.$transaction([
-      prisma.accountRecoveryRequest.update({
-        where: { id: requestId },
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.accountRecoveryRequest.updateMany({
+        where: { id: requestId, status: "PENDING", expiresAt: { gt: new Date() } },
         data: {
           status: "APPROVED",
           approvedAt: new Date(),
         },
-      }),
-      prisma.adminActionLog.create({
+      });
+      if (updated.count !== 1) throw new Error("RECOVERY_REQUEST_CONFLICT");
+      await tx.adminActionLog.create({
         data: {
           adminUserId: adminUser.id,
           action: "ACCOUNT_RECOVERY_ADMIN_APPROVED",
@@ -54,11 +55,14 @@ export async function POST(
           },
           ipHash,
         },
-      }),
-    ]);
+      });
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof Error && error.message === "RECOVERY_REQUEST_CONFLICT") {
+      return NextResponse.json({ error: "Запрос уже обработан." }, { status: 409 });
+    }
     console.error("Admin approve recovery error:", error);
     return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
   }

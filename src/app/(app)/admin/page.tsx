@@ -10,6 +10,5 @@ export default async function AdminPage() {
     redirect("/chats");
   }
 
-  return <AdminPanel />;
+  return <AdminPanel currentUserId={user.id} currentUserRole={user.role} />;
 }
-

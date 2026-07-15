@@ -24,6 +24,14 @@ export async function GET(request: Request) {
 
   const prisma = getPrisma();
   const mode: Prisma.QueryMode = "insensitive";
+  const activeMemberships = await prisma.chatMember.findMany({
+    where: { userId: user.id, status: "ACTIVE", deletedAt: null },
+    select: { chatId: true, clearedAt: true },
+  });
+  const visibleMessageScopes: Prisma.MessageWhereInput[] = activeMemberships.map((membership) => ({
+    chatId: membership.chatId,
+    ...(membership.clearedAt ? { createdAt: { gt: membership.clearedAt } } : {}),
+  }));
 
   const [people, chats, messages] = await Promise.all([
     prisma.user.findMany({
@@ -53,6 +61,7 @@ export async function GET(request: Request) {
           some: {
             userId: user.id,
             status: "ACTIVE",
+            deletedAt: null,
           },
         },
         OR: [
@@ -111,18 +120,11 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: "desc" },
       take: CHATS_LIMIT,
     }),
-    prisma.message.findMany({
+    visibleMessageScopes.length > 0 ? prisma.message.findMany({
       where: {
+        OR: visibleMessageScopes,
         deletedAt: null,
         body: { contains: q, mode },
-        chat: {
-          members: {
-            some: {
-              userId: user.id,
-              status: "ACTIVE",
-            },
-          },
-        },
       },
       select: {
         id: true,
@@ -142,7 +144,7 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: "desc" },
       take: MESSAGES_LIMIT,
-    }),
+    }) : Promise.resolve([]),
   ]);
 
   return NextResponse.json({

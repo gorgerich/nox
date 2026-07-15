@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { findDirectChatBetween } from "@/lib/direct-chats";
 import { getPrisma } from "@/lib/prisma";
 import { emitToUser } from "@/lib/realtime";
+import { checkBlockStatus } from "@/lib/contacts";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const createRequestSchema = z.object({
   targetUsername: z
@@ -65,6 +67,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Требуется вход." }, { status: 401 });
   }
 
+  const rateLimit = checkRateLimit(request, `chat-request:create:${user.id}`, { limit: 20, windowMs: 60 * 60_000 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "Слишком много запросов. Попробуйте позже." }, { status: 429 });
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = createRequestSchema.safeParse(body);
 
@@ -84,6 +91,10 @@ export async function POST(request: Request) {
 
   if (targetUser.id === user.id) {
     return NextResponse.json({ error: "Нельзя отправить запрос самому себе." }, { status: 400 });
+  }
+
+  if (await checkBlockStatus(user.id, targetUser.id)) {
+    return NextResponse.json({ error: "Запрос этому пользователю недоступен." }, { status: 403 });
   }
 
   const existingChat = await findDirectChatBetween(prisma, user.id, targetUser.id);

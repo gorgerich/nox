@@ -44,6 +44,7 @@ export async function GET(
                 where: { userId: user.id },
                 select: {
                   status: true,
+                  clearedAt: true,
                 },
               },
             },
@@ -59,7 +60,8 @@ export async function GET(
     !attachment ||
     attachment.message.deletedAt ||
     !membership ||
-    membership.status !== "ACTIVE"
+    membership.status !== "ACTIVE" ||
+    (membership.clearedAt !== null && attachment.message.createdAt <= membership.clearedAt)
   ) {
     return NextResponse.json({ error: "Файл не найден." }, { status: 404 });
   }
@@ -73,6 +75,7 @@ export async function GET(
   const rangeHeader = request.headers.get("range");
   const baseHeaders = {
     "Accept-Ranges": "bytes",
+    "Cache-Control": "private, no-store",
     "Content-Disposition": getContentDisposition(
       attachment.isEncrypted ? "application/octet-stream" : attachment.mimeType,
       attachment.isEncrypted ? "encrypted-media.bin" : attachment.fileName,

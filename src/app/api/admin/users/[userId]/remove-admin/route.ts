@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminUser } from "@/lib/admin";
+import { requireOwnerUser } from "@/lib/admin";
 import { logAdminAction } from "@/lib/audit";
 import { getPrisma } from "@/lib/prisma";
 
@@ -7,7 +7,7 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ userId: string }> },
 ) {
-  const { user: admin, response } = await requireAdminUser();
+  const { user: admin, response } = await requireOwnerUser();
 
   if (response) {
     return response;
@@ -24,18 +24,8 @@ export async function POST(
     return NextResponse.json({ error: "Пользователь не найден." }, { status: 404 });
   }
 
-  if (target.role === "OWNER") {
-    if (admin.role !== "OWNER") {
-      return NextResponse.json({ error: "Нет доступа." }, { status: 403 });
-    }
-
-    const ownerCount = await prisma.user.count({
-      where: { role: "OWNER", status: { not: "REVOKED" } },
-    });
-
-    if (ownerCount <= 1) {
-      return NextResponse.json({ error: "Нельзя снять роль у последнего владельца." }, { status: 400 });
-    }
+  if (target.id === admin.id || target.role !== "ADMIN") {
+    return NextResponse.json({ error: "Роль этого пользователя нельзя изменить." }, { status: 400 });
   }
 
   const updatedUser = await prisma.user.update({
