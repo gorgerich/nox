@@ -20,6 +20,8 @@ import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getChatMessages, putChatMessages } from "@/lib/chat-cache";
 import { escapeRegExp } from "@/lib/text";
+import { EMOJI_GROUPS } from "@/lib/emoji-data";
+import { ChevronDown } from "lucide-react";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -603,6 +605,9 @@ export function ChatMessages({
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect; readers?: { name: string; avatarUrl: string | null }[] } | null>(null);
+  // Whether the quick reaction strip has morphed into the full emoji picker
+  // (chevron tap). Reset explicitly on every long-press open below.
+  const [reactionPickerExpanded, setReactionPickerExpanded] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<File[]>([]);
@@ -699,6 +704,7 @@ export function ChatMessages({
   const handleLongPress = useCallback(async (id: string, rect: DOMRect) => {
     if (isSelectionMode) return;
     setMenuState({ id, rect });
+    setReactionPickerExpanded(false);
     if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(40);
 
     if (chatInfo.type === "GROUP") {
@@ -1706,15 +1712,25 @@ export function ChatMessages({
         {/* Action Menu & Reactions */}
         <div className="menu-content" style={menuPosition as React.CSSProperties}>
           <div
-            className="reaction-bar self-center mb-3 rounded-[1.45rem] border p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.16)] backdrop-blur-2xl animate-in zoom-in-95 duration-200"
+            className="reaction-bar relative self-center mb-4 rounded-[1.45rem] border p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.16)] backdrop-blur-2xl animate-in zoom-in-95 duration-200"
             style={{
               backgroundColor: "var(--message-menu-bg)",
               borderColor: "var(--chat-menu-border)",
               color: "var(--message-menu-fg)",
+              width: reactionPickerExpanded ? "min(21rem, calc(100vw - 2rem))" : undefined,
             }}
           >
-             {/* Readers summary for groups */}
-             {chatInfo.type === "GROUP" && focusedMessage.senderUserId === currentUserId && (
+             {/* Cloudy tail pointing down at the focused bubble. */}
+             <span
+               aria-hidden="true"
+               className="absolute left-1/2 top-full -mt-[7px] h-3.5 w-3.5 -translate-x-1/2 rotate-45 rounded-[3px] border-b border-r"
+               style={{ backgroundColor: "var(--message-menu-bg)", borderColor: "var(--chat-menu-border)" }}
+             />
+
+             {/* Readers summary for groups (quick-strip mode only — keeps the
+                 expanded picker focused on emoji, matching the strip morphing
+                 into a picker rather than stacking more chrome). */}
+             {!reactionPickerExpanded && chatInfo.type === "GROUP" && focusedMessage.senderUserId === currentUserId && (
                <div className="flex items-center justify-between gap-3 mb-2 px-3 py-1.5 bg-foreground/5 rounded-2xl">
                  <span className="text-[11px] font-semibold text-muted/80">
                    {!menuState.readers ? "Загрузка..." : menuState.readers.length === 0 ? "Никто не прочитал" : `${menuState.readers.length} прочитали`}
@@ -1733,19 +1749,52 @@ export function ChatMessages({
                </div>
              )}
 
-             <div className="flex gap-1">
-               {ALLOWED_REACTIONS.map(emoji => (
-                 <button 
-                  key={emoji} 
-                  type="button"
-                  aria-label={`Реакция ${emoji}`}
-                  className={`reaction-btn rounded-full px-1.5 text-2xl transition-[transform,background-color] duration-150 active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
-                  onClick={() => toggleReaction(menuState.id, emoji)}
+             {reactionPickerExpanded ? (
+               <div className="max-h-72 w-full overflow-y-auto scrollbar-hide animate-in fade-in duration-150">
+                 {EMOJI_GROUPS.map((group) => (
+                   <div key={group.label} className="mb-2 last:mb-0">
+                     <p className="mb-1 px-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted/60">{group.label}</p>
+                     <div className="grid grid-cols-8 gap-0.5">
+                       {group.emojis.map((emoji) => (
+                         <button
+                           key={emoji}
+                           type="button"
+                           aria-label={`Реакция ${emoji}`}
+                           className={`reaction-btn rounded-lg p-1 text-xl transition-transform active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
+                           onClick={() => toggleReaction(menuState.id, emoji)}
+                         >
+                           {emoji}
+                         </button>
+                       ))}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             ) : (
+               <div className="flex items-center gap-1">
+                 {ALLOWED_REACTIONS.map((emoji, index) => (
+                   <button
+                    key={emoji}
+                    type="button"
+                    aria-label={`Реакция ${emoji}`}
+                    className={`reaction-btn reaction-pop rounded-full px-1.5 text-2xl transition-[transform,background-color] duration-150 active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
+                    style={{ animationDelay: `${index * 28}ms` }}
+                    onClick={() => toggleReaction(menuState.id, emoji)}
+                   >
+                    {emoji}
+                   </button>
+                 ))}
+                 <button
+                   type="button"
+                   aria-label="Больше эмодзи"
+                   className="reaction-pop flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted/70 transition-colors hover:bg-foreground/5 active:scale-95"
+                   style={{ animationDelay: `${ALLOWED_REACTIONS.length * 28}ms` }}
+                   onClick={() => setReactionPickerExpanded(true)}
                  >
-                  {emoji}
+                   <ChevronDown className="h-5 w-5" strokeWidth={2.4} />
                  </button>
-               ))}
-             </div>
+               </div>
+             )}
           </div>
 
           <div

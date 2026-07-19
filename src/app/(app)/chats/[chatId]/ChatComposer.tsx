@@ -3,33 +3,7 @@
 import { Check, Mic, Paperclip, Send, Smile, Video, X } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
-
-const EMOJI_GROUPS = [
-  {
-    label: "Частые",
-    emojis: ["😂", "❤️", "👍", "🔥", "🥹", "😍", "🙏", "🎉", "💯", "✨", "👏", "🤝"],
-  },
-  {
-    label: "Эмоции",
-    emojis: [
-      "😀", "😁", "🤣", "😊", "😘", "😎", "🤔", "🙄", "😴", "😭", "😡", "🥳",
-      "😅", "😉", "🥰", "😱", "😬", "🤯", "😇", "🤗", "🤤", "😋", "😜", "🤪",
-      "😏", "😶", "🫡", "🤐", "🥶", "🤒", "🤧", "🫠", "💀",
-    ],
-  },
-  {
-    label: "Жесты",
-    emojis: ["👍", "👎", "👏", "🙏", "💪", "🤝", "✌️", "🤞", "👌", "🫶", "👋", "🙌", "🤙", "👇", "👆"],
-  },
-  {
-    label: "Символы",
-    emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "💋", "💕", "⭐", "🌟", "✅", "❌"],
-  },
-  {
-    label: "Разное",
-    emojis: ["👀", "🧠", "🫀", "🍕", "☕", "🍺", "🎁", "💰", "📎"],
-  },
-] as const;
+import { EMOJI_GROUPS } from "@/lib/emoji-data";
 
 export function ChatComposer({
   chatId,
