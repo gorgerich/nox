@@ -38,6 +38,21 @@ function isUnsafeMethod(method: string) {
   return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
 }
 
+// Behind a reverse proxy (Railway terminates TLS at the edge and forwards
+// internally), the request `NextRequest.nextUrl` sees can have a different
+// protocol/host than the public origin the browser actually sent — e.g. an
+// internal HTTP hop while the public site is HTTPS. Relying on
+// `request.nextUrl.origin` there mismatches the browser's real `Origin`
+// header for every unsafe-method API call, including login, hard-locking
+// everyone out. Read the edge-set X-Forwarded-* headers first.
+function getExpectedOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const host = forwardedHost || request.headers.get("host") || request.nextUrl.host;
+  const proto = forwardedProto || request.nextUrl.protocol.replace(":", "");
+  return { origin: `${proto}://${host}`, hostname: host };
+}
+
 function hasTrustedBrowserOrigin(request: NextRequest) {
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite === "cross-site") return false;
@@ -45,11 +60,20 @@ function hasTrustedBrowserOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
 
+  let originUrl: URL;
   try {
-    return new URL(origin).origin === request.nextUrl.origin;
+    originUrl = new URL(origin);
   } catch {
     return false;
   }
+
+  // A same-site request always carries a truthful (browser-set, un-spoofable)
+  // Origin header. Compare against the forwarded host primarily; also accept
+  // a hostname-only match so a proxy-layer scheme mismatch alone can't lock
+  // real users out — the security boundary this guards (which SITE issued
+  // the request) is unaffected by http vs https on the internal hop.
+  const expected = getExpectedOrigin(request);
+  return originUrl.origin === expected.origin || originUrl.hostname === expected.hostname;
 }
 
 export async function proxy(request: NextRequest) {
