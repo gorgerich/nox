@@ -45,8 +45,16 @@ function hasTrustedBrowserOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
   if (!origin) return true;
 
+  // Behind a reverse proxy (Railway, etc.) the app only sees the internal
+  // bind address, so request.nextUrl.origin does not reflect the public
+  // host the browser actually connected to. Compare against the Host (or
+  // X-Forwarded-Host) header instead, mirroring how Next.js itself checks
+  // Server Action origins.
+  const requestHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (!requestHost) return false;
+
   try {
-    return new URL(origin).origin === request.nextUrl.origin;
+    return new URL(origin).host === requestHost;
   } catch {
     return false;
   }
