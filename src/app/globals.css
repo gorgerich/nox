@@ -1422,10 +1422,6 @@ body {
     @apply fixed inset-0 z-[900] bg-black/35 backdrop-blur-xl animate-in fade-in;
   }
 
-  .menu-content {
-    @apply fixed z-[910] flex flex-col pointer-events-auto;
-  }
-
   .focused-message-clone {
     @apply fixed z-[905] transition-polish duration-300 pointer-events-none;
   }

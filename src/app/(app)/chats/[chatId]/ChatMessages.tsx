@@ -1641,27 +1641,50 @@ export function ChatMessages({
     return getCopyableMessageText(messagesWithDecrypted.find((message) => message.id === menuState.id) ?? null);
   }, [menuState, messagesWithDecrypted]);
 
-  // Safe Area Insets for positioning
-  const envTop = typeof window !== 'undefined' ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0') : 0;
+  // The reaction bar is pinned right above the focused bubble and the action
+  // menu right below it — each independently clamped to stay on-screen —
+  // instead of the old single "menu block" positioned by a fixed magic offset
+  // from the bubble's top. That old offset was tuned for a short single-line
+  // message: any taller bubble (multi-line text, image, reply quote, reactions
+  // row) let the action menu start ABOVE the bubble's real bottom edge,
+  // visually covering / hiding the selected message behind it.
+  //
+  // Safe-area inset is read lazily inside these memos (only when the overlay
+  // is actually open) instead of as a standalone render-time constant —
+  // getComputedStyle forces a style recalc, and this component re-renders on
+  // every keystroke/incoming message, so computing it unconditionally on every
+  // render was a needless layout cost paid on the hot path.
+  const GAP = 10;
+  const getSafeAreaTop = () =>
+    typeof window !== 'undefined'
+      ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0')
+      : 0;
 
-  const menuPosition = useMemo(() => {
+  const reactionBarStyle = useMemo(() => {
+    if (!menuState) return null;
+    const envTop = getSafeAreaTop();
+    const estimatedHeight = reactionPickerExpanded ? 330 : 64;
+    const centerX = menuState.rect.left + menuState.rect.width / 2;
+    const halfWidth = (reactionPickerExpanded ? 336 : 260) / 2;
+    const left = Math.min(window.innerWidth - 16 - halfWidth, Math.max(16 + halfWidth, centerX));
+    const maxBottom = Math.max(20, window.innerHeight - estimatedHeight - envTop - 16);
+    const bottom = Math.min(window.innerHeight - menuState.rect.top + GAP, maxBottom);
+    return { left, bottom, transform: "translateX(-50%)" } as React.CSSProperties;
+  }, [menuState, reactionPickerExpanded]);
+
+  const actionMenuStyle = useMemo(() => {
     if (!menuState || !focusedMessage) return null;
-    const spaceBelow = window.innerHeight - menuState.rect.bottom;
-    const spaceAbove = menuState.rect.top;
-    const menuHeight = 320;
-    const showAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
-    
-    // Clamp values to screen
-    const top = showAbove ? 'auto' : Math.max(envTop + 80, Math.min(window.innerHeight - menuHeight - 20, menuState.rect.top - 60));
-    const bottom = showAbove ? Math.max(20, window.innerHeight - menuState.rect.top + 10) : 'auto';
-    
+    const envTop = getSafeAreaTop();
+    const estimatedHeight = 320;
+    const candidateTop = menuState.rect.bottom + GAP;
+    const top = Math.min(candidateTop, Math.max(envTop + 16, window.innerHeight - estimatedHeight - 16));
+    const mine = focusedMessage.senderUserId === currentUserId;
     return {
       top,
-      bottom,
-      left: focusedMessage.senderUserId === currentUserId ? 'auto' : Math.min(window.innerWidth - 260, Math.max(16, menuState.rect.left)),
-      right: focusedMessage.senderUserId === currentUserId ? Math.min(window.innerWidth - 260, Math.max(16, window.innerWidth - menuState.rect.right)) : 'auto',
-    };
-  }, [menuState, focusedMessage, currentUserId, envTop]);
+      left: mine ? 'auto' : Math.min(window.innerWidth - 260, Math.max(16, menuState.rect.left)),
+      right: mine ? Math.min(window.innerWidth - 260, Math.max(16, window.innerWidth - menuState.rect.right)) : 'auto',
+    } as React.CSSProperties;
+  }, [menuState, focusedMessage]);
 
   const renderOverlay = () => {
     if (!menuState || !focusedMessage || !mounted) return null;
@@ -1709,10 +1732,11 @@ export function ChatMessages({
           />
         </div>
 
-        {/* Action Menu & Reactions */}
-        <div className="menu-content" style={menuPosition as React.CSSProperties}>
+        {/* Reactions — pinned right above the bubble, independently of the
+            action menu, so it never fights the menu for vertical space. */}
+        <div className="fixed z-[910] pointer-events-auto" style={reactionBarStyle as React.CSSProperties}>
           <div
-            className="reaction-bar relative self-center mb-4 rounded-[1.45rem] border p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.16)] backdrop-blur-2xl animate-in zoom-in-95 duration-200"
+            className="reaction-bar relative rounded-[1.45rem] border p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.16)] backdrop-blur-2xl animate-in zoom-in-95 duration-200"
             style={{
               backgroundColor: "var(--message-menu-bg)",
               borderColor: "var(--chat-menu-border)",
@@ -1796,9 +1820,14 @@ export function ChatMessages({
                </div>
              )}
           </div>
+        </div>
 
+        {/* Action menu — pinned right below the bubble; the message is never
+            hidden behind it since this position is derived from the bubble's
+            real bottom edge, not a fixed guess. */}
+        <div className="fixed z-[910] pointer-events-auto" style={actionMenuStyle as React.CSSProperties}>
           <div
-            className={`action-menu min-w-[220px] overflow-hidden rounded-[1.45rem] border shadow-[0_14px_42px_rgba(15,23,42,0.18)] backdrop-blur-3xl animate-in zoom-in-95 duration-200 ${focusedMessage.senderUserId === currentUserId ? "self-end origin-top-right" : "self-start origin-top-left"}`}
+            className={`action-menu min-w-[220px] overflow-hidden rounded-[1.45rem] border shadow-[0_14px_42px_rgba(15,23,42,0.18)] backdrop-blur-3xl animate-in zoom-in-95 duration-200 ${focusedMessage.senderUserId === currentUserId ? "origin-top-right" : "origin-top-left"}`}
             style={{
               backgroundColor: "var(--surface)",
               borderColor: "rgba(150,150,150,0.15)",
