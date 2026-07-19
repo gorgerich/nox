@@ -1660,16 +1660,35 @@ export function ChatMessages({
       ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0')
       : 0;
 
-  const reactionBarStyle = useMemo(() => {
+  // When expanded, the scrollable emoji grid is capped to exactly the room
+  // available above the bubble (not a fixed guess) — so the bar's own height
+  // can never grow past the bubble and overlap it, whatever the screen size or
+  // where the bubble sits. The action menu is hidden while expanded (see JSX
+  // below): letting two independently-sized floating panels coexist above/
+  // below the same bubble was what produced the overlapping mess when the
+  // picker grew tall — removing one side of that conflict fixes it outright
+  // instead of trying to out-guess every combination of sizes.
+  const reactionBarLayout = useMemo(() => {
     if (!menuState) return null;
     const envTop = getSafeAreaTop();
-    const estimatedHeight = reactionPickerExpanded ? 330 : 64;
     const centerX = menuState.rect.left + menuState.rect.width / 2;
     const halfWidth = (reactionPickerExpanded ? 336 : 260) / 2;
     const left = Math.min(window.innerWidth - 16 - halfWidth, Math.max(16 + halfWidth, centerX));
-    const maxBottom = Math.max(20, window.innerHeight - estimatedHeight - envTop - 16);
+
+    if (!reactionPickerExpanded) {
+      const barHeight = 64;
+      const maxBottom = Math.max(20, window.innerHeight - barHeight - envTop - 16);
+      const bottom = Math.min(window.innerHeight - menuState.rect.top + GAP, maxBottom);
+      return { style: { left, bottom, transform: "translateX(-50%)" } as React.CSSProperties, pickerMaxHeight: 0 };
+    }
+
+    const chrome = 34; // bar padding + border + tail clearance
+    const availableAbove = menuState.rect.top - envTop - GAP - 16 - chrome;
+    const pickerMaxHeight = Math.max(160, Math.min(420, availableAbove));
+    const barHeight = pickerMaxHeight + chrome;
+    const maxBottom = Math.max(20, window.innerHeight - barHeight - envTop - 16);
     const bottom = Math.min(window.innerHeight - menuState.rect.top + GAP, maxBottom);
-    return { left, bottom, transform: "translateX(-50%)" } as React.CSSProperties;
+    return { style: { left, bottom, transform: "translateX(-50%)" } as React.CSSProperties, pickerMaxHeight };
   }, [menuState, reactionPickerExpanded]);
 
   const actionMenuStyle = useMemo(() => {
@@ -1734,7 +1753,7 @@ export function ChatMessages({
 
         {/* Reactions — pinned right above the bubble, independently of the
             action menu, so it never fights the menu for vertical space. */}
-        <div className="fixed z-[910] pointer-events-auto" style={reactionBarStyle as React.CSSProperties}>
+        <div className="fixed z-[910] pointer-events-auto" style={reactionBarLayout?.style}>
           <div
             className="reaction-bar relative rounded-[1.45rem] border p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.16)] backdrop-blur-2xl animate-in zoom-in-95 duration-200"
             style={{
@@ -1774,7 +1793,10 @@ export function ChatMessages({
              )}
 
              {reactionPickerExpanded ? (
-               <div className="max-h-72 w-full overflow-y-auto scrollbar-hide animate-in fade-in duration-150">
+               <div
+                 className="w-full overflow-y-auto scrollbar-hide animate-in fade-in duration-150"
+                 style={{ maxHeight: reactionBarLayout?.pickerMaxHeight || 288 }}
+               >
                  {EMOJI_GROUPS.map((group) => (
                    <div key={group.label} className="mb-2 last:mb-0">
                      <p className="mb-1 px-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted/60">{group.label}</p>
@@ -1824,7 +1846,10 @@ export function ChatMessages({
 
         {/* Action menu — pinned right below the bubble; the message is never
             hidden behind it since this position is derived from the bubble's
-            real bottom edge, not a fixed guess. */}
+            real bottom edge, not a fixed guess. Hidden while the reaction
+            picker is expanded: two independently-floating panels around the
+            same bubble is exactly what produced the overlapping mess. */}
+        {!reactionPickerExpanded && (
         <div className="fixed z-[910] pointer-events-auto" style={actionMenuStyle as React.CSSProperties}>
           <div
             className={`action-menu min-w-[220px] overflow-hidden rounded-[1.45rem] border shadow-[0_14px_42px_rgba(15,23,42,0.18)] backdrop-blur-3xl animate-in zoom-in-95 duration-200 ${focusedMessage.senderUserId === currentUserId ? "origin-top-right" : "origin-top-left"}`}
@@ -1874,6 +1899,7 @@ export function ChatMessages({
             </button>
           </div>
         </div>
+        )}
       </div>,
       document.body
     );
