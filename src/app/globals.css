@@ -1017,7 +1017,7 @@ body {
     contain: paint;
     overflow: hidden;
     overflow: clip;
-    clip-path: inset(0 round 9999px);
+    border-radius: 9999px;
     border: 1px solid color-mix(in oklab, var(--chat-composer-border) 78%, var(--glass-panel-border));
     background:
       linear-gradient(135deg, color-mix(in oklab, var(--glass-highlight) 28%, transparent), transparent 44%),
@@ -1029,7 +1029,11 @@ body {
       inset 0 -1px 0 color-mix(in oklab, var(--glass-edge) 14%, transparent),
       0 5px 16px color-mix(in oklab, var(--glass-shadow) 72%, transparent);
     transform: translateZ(0);
-    -webkit-mask-image: -webkit-radial-gradient(white, black);
+    /* NB: no clip-path/radial -webkit-mask here — combined with a sibling
+       backdrop-filter layer (the "ещё" dropdown), iOS WebView expanded the
+       mask's reference box to the whole compositing layer, painting a giant
+       white circle over the header. border-radius + overflow: clip give the
+       pill shape safely. */
   }
 
   .nox-chat-profile-pill {
@@ -1052,6 +1056,12 @@ body {
     gap: 0;
     border-radius: 9999px;
     padding: 2px;
+    /* The "ещё" dropdown is an absolutely-positioned child of this pill; the
+       shared clip (overflow: clip / contain: paint) would crop it to the pill.
+       backdrop-filter still respects border-radius, so dropping the clip keeps
+       the glass rounded while letting the menu escape. */
+    overflow: visible;
+    contain: none;
   }
 
   .nox-chat-action-button {

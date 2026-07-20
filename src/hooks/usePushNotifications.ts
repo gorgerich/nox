@@ -18,6 +18,7 @@ export type PushStatus = "unsupported" | "loading" | "granted" | "denied" | "def
 export function usePushNotifications() {
   const [status, setStatus] = useState<PushStatus>("loading");
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   const checkSupport = useCallback(async () => {
@@ -57,34 +58,54 @@ export function usePushNotifications() {
   }, [checkSupport, syncStatus]);
 
   const subscribe = async () => {
-    if (!swRegistration) return;
+    setError(null);
+
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      // Android System WebView (Capacitor) doesn't implement the Push API — this
+      // is the common "toggle does nothing on Android" cause. Surface it instead
+      // of silently returning.
+      setStatus("unsupported");
+      setError("Push-уведомления не поддерживаются в этой среде. Откройте сайт в браузере (Chrome) или установите как приложение с экрана «Домой».");
+      return;
+    }
+
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+      setError("Сервер не настроен для push-уведомлений (нет ключа). Обратитесь к администратору.");
+      return;
+    }
 
     try {
       const permission = await Notification.requestPermission();
       setStatus(permission as PushStatus);
-      
-      if (permission !== "granted") return;
 
-      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!publicKey) {
-        console.error("VAPID public key missing");
+      if (permission !== "granted") {
+        setError(permission === "denied"
+          ? "Уведомления заблокированы. Разрешите их в настройках браузера для этого сайта."
+          : "Разрешение на уведомления не выдано.");
         return;
       }
 
-      const subscription = await swRegistration.pushManager.subscribe({
+      // Wait for the service worker to actually activate before subscribing —
+      // on Android Chrome, subscribing against a freshly-registered (not yet
+      // active) worker throws, which looked like the toggle "not working".
+      const reg = swRegistration ?? (await navigator.serviceWorker.ready);
+      const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
 
-      await fetch("/api/push/subscribe", {
+      const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(subscription),
       });
+      if (!res.ok) throw new Error(`subscribe endpoint ${res.status}`);
 
       setIsSubscribed(true);
     } catch (err) {
       console.error("Failed to subscribe to push", err);
+      setError("Не удалось включить уведомления. Попробуйте ещё раз.");
     }
   };
 
@@ -107,5 +128,5 @@ export function usePushNotifications() {
     }
   };
 
-  return { status, isSubscribed, subscribe, unsubscribe };
+  return { status, error, isSubscribed, subscribe, unsubscribe };
 }

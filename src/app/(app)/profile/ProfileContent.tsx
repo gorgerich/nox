@@ -65,7 +65,7 @@ export function ProfileContent({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
-  const { isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+  const { status: pushStatus, error: pushError, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
   const { theme, setTheme, accent, setAccent } = useTheme();
   const {
     settings: globalChatAppearance,
@@ -447,10 +447,19 @@ export function ProfileContent({
               <div className="flex items-center justify-between gap-4 p-4">
                  <div className="min-w-0">
                    <p className="mb-1 text-sm font-semibold text-foreground">Push-уведомления</p>
+                   {(pushError || pushStatus === "unsupported" || pushStatus === "denied") && (
+                     <p className="text-xs leading-snug text-muted">
+                       {pushError
+                         || (pushStatus === "unsupported"
+                           ? "Недоступно в этой среде. Откройте сайт в браузере или установите приложение с экрана «Домой»."
+                           : "Уведомления заблокированы в настройках браузера.")}
+                     </p>
+                   )}
                  </div>
                  <button
                    onClick={isSubscribed ? unsubscribe : subscribe}
-                   className={`h-10 rounded-full px-4 text-sm font-semibold transition-smooth active:scale-[0.96] ${
+                   disabled={pushStatus === "unsupported"}
+                   className={`h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition-smooth active:scale-[0.96] disabled:opacity-40 ${
                      isSubscribed ? "border border-primary/20 bg-primary/10 text-primary" : "bg-primary text-primary-foreground"
                    }`}
                  >
