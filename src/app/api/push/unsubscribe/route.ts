@@ -7,7 +7,8 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const parsed = z.object({ endpoint: z.string().url().max(2_048) }).safeParse(
+  // endpoint is a web-push URL or (for kind="fcm" rows) a raw FCM token.
+  const parsed = z.object({ endpoint: z.string().min(16).max(4_096) }).safeParse(
     await request.json().catch(() => null),
   );
   if (!parsed.success) {

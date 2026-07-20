@@ -36,6 +36,58 @@ if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
   );
 }
 
+// Firebase Admin for native Android push (FCM). Optional: without the env the
+// server keeps working with web push only.
+let firebaseMessaging = null;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const { initializeApp, cert, getApps } = require("firebase-admin/app");
+    const { getMessaging } = require("firebase-admin/messaging");
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    const credentials = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const existing = getApps();
+    const firebaseApp = existing.length > 0
+      ? existing[0]
+      : initializeApp({ credential: cert(credentials) });
+    firebaseMessaging = getMessaging(firebaseApp);
+  } catch (error) {
+    console.error("[fcm] init failed", error);
+  }
+}
+
+async function sendFcmNotification(token, payload) {
+  if (!firebaseMessaging) return { ok: false, dead: false };
+  try {
+    await firebaseMessaging.send({
+      token,
+      notification: { title: payload.title, body: payload.body },
+      data: {
+        url: payload.url || "",
+        type: payload.type || "message",
+        ...(payload.chatId ? { chatId: payload.chatId } : {}),
+        ...(payload.callId ? { callId: payload.callId } : {}),
+      },
+      android: {
+        priority: payload.type === "call" ? "high" : "normal",
+        notification: {
+          tag: payload.tag,
+          channelId: payload.type === "call" ? "calls" : "messages",
+          priority: payload.type === "call" ? "max" : "default",
+        },
+      },
+    });
+    return { ok: true, dead: false };
+  } catch (err) {
+    const code = (err && err.code) || "";
+    const dead = code === "messaging/registration-token-not-registered"
+      || code === "messaging/invalid-registration-token"
+      || code === "messaging/invalid-argument";
+    if (!dead) console.error("[fcm] send failed", code || err);
+    return { ok: false, dead };
+  }
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required.");
@@ -196,8 +248,9 @@ function sweepExpiredCalls(io) {
 }
 
 async function sendPushToUser(userId, payload) {
-  if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
-    logCall("push skipped for offline callee", { userId, reason: "vapid_not_configured" });
+  const webpushConfigured = Boolean(process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+  if (!webpushConfigured && !firebaseMessaging) {
+    logCall("push skipped for offline callee", { userId, reason: "push_not_configured" });
     return { sent: 0, total: 0 };
   }
 
@@ -207,6 +260,19 @@ async function sendPushToUser(userId, payload) {
 
   const results = await Promise.allSettled(
     subscriptions.map(async (sub) => {
+      if (sub.kind === "fcm") {
+        const { ok, dead } = await sendFcmNotification(sub.endpoint, payload);
+        if (dead) {
+          await prisma.pushSubscription.update({
+            where: { endpoint: sub.endpoint },
+            data: { disabledAt: new Date() },
+          });
+        }
+        if (!ok) throw new Error("FCM send failed");
+        return;
+      }
+
+      if (!webpushConfigured) throw new Error("webpush not configured");
       try {
         await webpush.sendNotification(
           {

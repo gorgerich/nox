@@ -168,6 +168,9 @@ model ContactSettings {
 model PushSubscription {
   id         String    @id @default(uuid())
   userId     String
+  // "webpush" (endpoint = push service URL, p256dh/auth set) or
+  // "fcm" (endpoint = FCM device token, p256dh/auth empty strings).
+  kind       String    @default("webpush")
   endpoint   String    @unique
   p256dh     String
   auth       String

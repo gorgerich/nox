@@ -27,6 +27,21 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
 
   const results = await Promise.allSettled(
     subscriptions.map(async (sub) => {
+      // Native Android devices register an FCM token instead of a web-push
+      // subscription (kind="fcm", endpoint = token).
+      if (sub.kind === "fcm") {
+        const { sendFcmToToken } = await import("./fcm");
+        const { ok, dead } = await sendFcmToToken(sub.endpoint, payload);
+        if (dead) {
+          await prisma.pushSubscription.update({
+            where: { endpoint: sub.endpoint },
+            data: { disabledAt: new Date() },
+          });
+        }
+        if (!ok) throw new Error("FCM send failed");
+        return;
+      }
+
       try {
         await webpush.sendNotification(
           {
