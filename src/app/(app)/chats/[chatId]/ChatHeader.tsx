@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Check, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type MouseEvent, useEffect, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useAudioCall } from "../../calls/CallProvider";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
@@ -36,6 +37,21 @@ export function ChatHeader({
   const router = useRouter();
   const { startCall, status } = useAudioCall();
   const [timerMenuOpen, setTimerMenuOpen] = useState(false);
+  // The dropdown renders via a body portal: nesting a backdrop-filter menu
+  // inside the header (itself backdrop-filtered + pseudo-layered glass pills)
+  // broke iOS WebView compositing — the header exploded into a giant circle
+  // with scattered icons whenever the menu opened. Portaled + anchored to the
+  // trigger's rect, the menu lives outside that subtree entirely.
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
+
+  const openMenu = () => {
+    const rect = moreButtonRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMenuAnchor({ top: rect.bottom + 8, right: Math.max(12, window.innerWidth - rect.right) });
+    }
+    setTimerMenuOpen((v) => !v);
+  };
   const DISAPPEARING_OPTIONS: { label: string; seconds: number | null }[] = [
     { label: "Выключить", seconds: null },
     { label: "1 час", seconds: 3600 },
@@ -156,20 +172,22 @@ export function ChatHeader({
         {(onSetDisappearing || onSearchClick || onAppearanceClick) && (
           <div className="relative">
             <button
+              ref={moreButtonRef}
               type="button"
               aria-label="Ещё"
               aria-expanded={timerMenuOpen}
-              onClick={() => setTimerMenuOpen((v) => !v)}
+              onClick={openMenu}
               className="nox-chat-action-button touch-target text-primary"
               title="Ещё"
             >
               <MoreVertical className="h-5 w-5" strokeWidth={2.2} />
             </button>
-            {timerMenuOpen && (
+            {timerMenuOpen && menuAnchor && createPortal(
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
                 <div
-                  className="apple-glass-control absolute right-0 top-11 z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl animate-in fade-in zoom-in-95 duration-150"
+                  className="apple-glass-control fixed z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl origin-top-right animate-in fade-in zoom-in-95 duration-150"
+                  style={{ top: menuAnchor.top, right: menuAnchor.right }}
                   role="menu"
                   aria-label="Действия чата"
                 >
@@ -221,7 +239,8 @@ export function ChatHeader({
                   </>
                   )}
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
         )}
