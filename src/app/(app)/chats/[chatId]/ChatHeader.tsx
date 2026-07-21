@@ -43,15 +43,26 @@ export function ChatHeader({
   // with scattered icons whenever the menu opened. Portaled + anchored to the
   // trigger's rect, the menu lives outside that subtree entirely.
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number }>({ top: 64, right: 12 });
 
-  const openMenu = () => {
+  const anchorToButton = () => {
     const rect = moreButtonRef.current?.getBoundingClientRect();
-    if (rect) {
+    if (rect && rect.width > 0) {
       setMenuAnchor({ top: rect.bottom + 8, right: Math.max(12, window.innerWidth - rect.right) });
     }
+  };
+
+  const openMenu = () => {
+    anchorToButton();
     setTimerMenuOpen((v) => !v);
   };
+
+  // Re-measure once the menu is open (layout may shift between tap and paint,
+  // e.g. sticky header settling on iOS) so the anchor is always correct.
+  useEffect(() => {
+    if (timerMenuOpen) anchorToButton();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerMenuOpen]);
   const DISAPPEARING_OPTIONS: { label: string; seconds: number | null }[] = [
     { label: "Выключить", seconds: null },
     { label: "1 час", seconds: 3600 },
@@ -182,7 +193,7 @@ export function ChatHeader({
             >
               <MoreVertical className="h-5 w-5" strokeWidth={2.2} />
             </button>
-            {timerMenuOpen && menuAnchor && createPortal(
+            {timerMenuOpen && createPortal(
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
                 <div

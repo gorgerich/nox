@@ -1069,7 +1069,8 @@ body {
      "круглый дропдаун" bug). An opaque panel avoids the compositing entirely
      and looks identical. */
   .nox-chat-menu {
-    position: relative;
+    /* No position here — the element is positioned by the Tailwind `fixed`
+       utility (same @layer utilities); a position value here could fight it. */
     isolation: isolate;
     border: 1px solid var(--glass-panel-border);
     background: rgb(252, 253, 255);
