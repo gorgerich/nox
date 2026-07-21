@@ -186,7 +186,7 @@ export function ChatHeader({
               <>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
                 <div
-                  className="apple-glass-control fixed z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl origin-top-right animate-in fade-in zoom-in-95 duration-150"
+                  className="nox-chat-menu fixed z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl origin-top-right animate-in fade-in zoom-in-95 duration-150"
                   style={{ top: menuAnchor.top, right: menuAnchor.right }}
                   role="menu"
                   aria-label="Действия чата"

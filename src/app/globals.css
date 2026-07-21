@@ -1062,6 +1062,24 @@ body {
     contain: none;
   }
 
+  /* Chat "ещё" dropdown. Deliberately SOLID — no backdrop-filter, no glass
+     ::before. It animates in with a transform (zoom-in), and on iOS WebView
+     backdrop-filter + transform makes the blurred backdrop region escape the
+     border-radius and paint as a giant white circle behind the menu (the
+     "круглый дропдаун" bug). An opaque panel avoids the compositing entirely
+     and looks identical. */
+  .nox-chat-menu {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid var(--glass-panel-border);
+    background: rgb(252, 253, 255);
+    box-shadow: var(--glass-panel-shadow-strong);
+  }
+
+  [data-theme="dark"] .nox-chat-menu {
+    background: rgb(34, 42, 58);
+  }
+
   .nox-chat-action-button {
     display: flex;
     height: 38px;
