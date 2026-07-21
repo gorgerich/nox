@@ -1099,8 +1099,12 @@ app.prepare().then(() => {
   });
 
   const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
-    console.log(`> Ready on http://localhost:${PORT}`);
+  // Bind explicitly to 0.0.0.0: with the host omitted Node can end up on an
+  // IPv6-only socket, which the platform's IPv4 proxy cannot reach — the
+  // deployment goes green while every request 404s at the edge.
+  const HOST = process.env.HOST || "0.0.0.0";
+  server.listen(PORT, HOST, () => {
+    console.log(`> Ready on http://${HOST}:${PORT}`);
   });
 
   // Keep the (serverless/auto-suspending) database compute warm so the first
@@ -1113,4 +1117,10 @@ app.prepare().then(() => {
     });
   }, DB_KEEPALIVE_MS);
   if (typeof keepAlive.unref === "function") keepAlive.unref();
+}).catch((error) => {
+  // app.prepare() had no rejection handler: if it ever fails, the process dies
+  // before listening and the platform only reports "no port", with the real
+  // cause never reaching the logs. Fail loudly instead.
+  console.error("[server] Next.js failed to start", error);
+  process.exit(1);
 });
