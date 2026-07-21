@@ -23,6 +23,7 @@
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.7",
     "firebase-admin": "^14.2.0",
     "jose": "^6.2.2",
     "lucide-react": "^1.9.0",
