@@ -340,7 +340,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                 <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/40" />
               ) : null}
               {hasUnread ? (
-                <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
+                <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-none tabular-nums text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
                   {chat.unreadCount}
                 </span>
               ) : null}

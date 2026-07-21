@@ -215,7 +215,7 @@ export function VideoMessageRecorder({
         {recording && (
           <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-3 py-1">
             <span className="h-2 w-2 animate-ping rounded-full bg-danger" />
-            <span className="text-xs font-black text-white">{Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}</span>
+            <span className="text-xs font-black text-white tabular-nums">{Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, "0")}</span>
           </div>
         )}
       </div>

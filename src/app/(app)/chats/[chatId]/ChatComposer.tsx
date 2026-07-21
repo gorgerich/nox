@@ -298,7 +298,7 @@ export function ChatComposer({
             <div className="flex min-h-11 items-center justify-between rounded-[22px] border border-danger/20 bg-danger/10 px-4">
               <div className="flex items-center gap-3">
                 <div className="h-2 w-2 rounded-full bg-danger animate-ping" />
-                <span className="text-sm font-semibold text-danger">Запись {formatDuration(recordingDuration)}</span>
+                <span className="text-sm font-semibold text-danger">Запись <span className="tabular-nums">{formatDuration(recordingDuration)}</span></span>
               </div>
               <button type="button" onClick={onVoiceCancel} className="touch-target px-2 text-sm font-semibold text-danger/70 transition-smooth hover:text-danger active:scale-[0.96]">Отмена</button>
             </div>

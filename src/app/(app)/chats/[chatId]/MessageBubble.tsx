@@ -849,7 +849,7 @@ export const MessageBubble = memo(function MessageBubble({
 
           <div className={`${visualOnlyMessage ? "absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-white" : "mt-0.5"} flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
             <span
-              className="text-[11px] font-medium"
+              className="text-[11px] font-medium tabular-nums"
               style={{ color: visualOnlyMessage ? "white" : mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
             >
               {message.editedAt && "изм. "}{time}
