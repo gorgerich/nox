@@ -51,6 +51,15 @@ export function AppBottomDock({
   const [isSuppressed, setIsSuppressed] = useState(false);
   const activeTab = tabs.find((tab) => tab.match(pathname)) ?? null;
   const activeTabIndex = activeTab ? tabs.findIndex((tab) => tab.href === activeTab.href) : -1;
+
+  // Sliding highlight pill (expo-glass-tabs style): a single element that
+  // glides between tabs instead of each tab swapping its own background. Its
+  // geometry is measured from the active tab and tracked while that tab grows
+  // (the label expands over 220ms), so the pill follows in lockstep.
+  const tabsBoxRef = useRef<HTMLDivElement | null>(null);
+  const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const pillAnimatedRef = useRef(false);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
   const isDockRoute = Boolean(activeTab);
   const isSearchActive = pathname === "/chats/search";
   const normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
@@ -149,6 +158,62 @@ export function AppBottomDock({
     };
   }, []);
 
+  const measurePill = useCallback(() => {
+    const box = tabsBoxRef.current;
+    const el = tabRefs.current[activeTabIndex];
+    if (!box || !el || activeTabIndex < 0) {
+      setPill(null);
+      return;
+    }
+    const boxRect = box.getBoundingClientRect();
+    const tabRect = el.getBoundingClientRect();
+    setPill({ left: tabRect.left - boxRect.left, width: tabRect.width });
+  }, [activeTabIndex]);
+
+  // Measure the active tab and keep tracking it while it grows (label expand)
+  // or the viewport resizes, so the sliding pill stays glued to it.
+  useEffect(() => {
+    measurePill();
+    const box = tabsBoxRef.current;
+    const el = tabRefs.current[activeTabIndex];
+    if (!box || !el || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => measurePill());
+    observer.observe(box);
+    observer.observe(el);
+    window.addEventListener("resize", measurePill);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measurePill);
+    };
+  }, [measurePill, activeTabIndex]);
+
+  // Enable the glide only after the first placement so the pill doesn't slide
+  // in from the corner on mount.
+  useEffect(() => {
+    if (pill) {
+      const id = window.requestAnimationFrame(() => { pillAnimatedRef.current = true; });
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [pill]);
+
+  // Subtle haptic tick when the active tab actually changes (native/coarse only).
+  const prevTabIndexRef = useRef(activeTabIndex);
+  useEffect(() => {
+    if (
+      prevTabIndexRef.current !== activeTabIndex &&
+      prevTabIndexRef.current !== -1 &&
+      activeTabIndex !== -1 &&
+      typeof navigator !== "undefined" &&
+      typeof navigator.vibrate === "function" &&
+      window.matchMedia("(pointer: coarse)").matches
+    ) {
+      navigator.vibrate(8);
+    }
+    prevTabIndexRef.current = activeTabIndex;
+  }, [activeTabIndex]);
+
   const handleClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!suppressClickRef.current) {
       return;
@@ -198,9 +263,23 @@ export function AppBottomDock({
         onClickCapture={handleClickCapture}
       >
         <div
-          className="premium-glass dock-liquid flex min-w-0 flex-1 items-center rounded-full p-1.5"
+          ref={tabsBoxRef}
+          className="premium-glass dock-liquid relative flex min-w-0 flex-1 items-center rounded-full p-1.5"
         >
-          {tabs.map((tab) => {
+          {pill ? (
+            <span
+              aria-hidden="true"
+              className="dock-slide-pill"
+              style={{
+                transform: `translateX(${pill.left}px)`,
+                width: `${pill.width}px`,
+                transition: pillAnimatedRef.current
+                  ? "transform 340ms var(--ease-out), width 340ms var(--ease-out)"
+                  : "none",
+              }}
+            />
+          ) : null}
+          {tabs.map((tab, index) => {
             const Icon = tab.icon;
             const isActive = activeTab?.href === tab.href;
             const isChatsTab = tab.href === "/chats";
@@ -209,11 +288,12 @@ export function AppBottomDock({
             return (
               <Link
                 key={tab.href}
+                ref={(node) => { tabRefs.current[index] = node; }}
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
-                  "dock-tab fast-tap fluid-hit flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1",
+                  "dock-tab fast-tap fluid-hit relative z-10 flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1",
                   isActive ? "dock-tab-active flex-[1.45]" : "flex-1",
-                  isActive ? "bg-[var(--dock-active-pill)] text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
+                  isActive ? "text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
                 )}
                 href={tab.href}
                 prefetch={true}

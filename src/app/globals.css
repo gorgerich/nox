@@ -774,6 +774,29 @@ body {
       transform 160ms var(--ease-out);
   }
 
+  /* Single highlight that glides between tabs (transform + width only, GPU). */
+  .dock-slide-pill {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    z-index: 0;
+    border-radius: 9999px;
+    background: var(--dock-active-pill);
+    border: 1px solid var(--dock-pill-border);
+    box-shadow:
+      inset 0 1px 0 var(--dock-pill-highlight),
+      0 1px 3px rgba(15, 23, 42, 0.08);
+    pointer-events: none;
+    will-change: transform, width;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dock-slide-pill {
+      transition: none !important;
+    }
+  }
+
   .dock-tab-icon {
     transition:
       transform 220ms var(--ease-out),
