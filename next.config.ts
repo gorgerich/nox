@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
+  // Astryx ships ESM with "use client" entries; let Next transpile it.
+  transpilePackages: ["@astryxdesign/core"],
   async headers() {
     return [
       {
