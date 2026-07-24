@@ -229,52 +229,61 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
 
   return (
     <div ref={rowRef} className="relative isolate overflow-hidden" data-nox-swipe-ignore="true">
-      {/* Left Actions (visible when swiping right) — iOS/Telegram-style solid blocks */}
+      {/* Left Actions (visible when swiping right) — round icon buttons with a
+          label underneath, the way Telegram renders swipe actions. */}
       <div
-        className="absolute inset-y-0 left-0 z-0 flex items-stretch transition-opacity duration-150"
+        className="absolute inset-y-0 left-0 z-0 flex items-center gap-1 pl-2 transition-opacity duration-150"
         style={{ opacity: leftActionsVisible ? 1 : 0, pointerEvents: leftActionsVisible ? "auto" : "none" }}
       >
         {!isArchiveMode ? (
           <button
             type="button"
             onClick={() => { onPin?.(chat); onOpen(null); }}
-            className="flex w-[74px] flex-col items-center justify-center gap-1 bg-sky-500 text-[11px] font-medium text-white active:opacity-80 fast-tap"
+            className="swipe-action fast-tap"
           >
-            <Pin className="h-5 w-5" />
-            {pinned ? "Открепить" : "Закрепить"}
+            <span className="swipe-action-circle bg-sky-500">
+              <Pin className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
+            </span>
+            <span className="swipe-action-label">{pinned ? "Открепить" : "Закрепить"}</span>
           </button>
         ) : null}
         <button
           type="button"
           onClick={() => { onArchive(chat); onOpen(null); }}
-          className="flex w-[74px] flex-col items-center justify-center gap-1 bg-slate-500 text-[11px] font-medium text-white active:opacity-80 fast-tap"
+          className="swipe-action fast-tap"
         >
-          <Archive className="h-5 w-5" />
-          {isArchiveMode ? "Вернуть" : "Архив"}
+          <span className="swipe-action-circle bg-slate-400">
+            <Archive className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
+          </span>
+          <span className="swipe-action-label">{isArchiveMode ? "Вернуть" : "Архив"}</span>
         </button>
       </div>
 
       {/* Right Actions (visible when swiping left) */}
       <div
-        className="absolute inset-y-0 right-0 z-0 flex items-stretch transition-opacity duration-150"
+        className="absolute inset-y-0 right-0 z-0 flex items-center gap-1 pr-2 transition-opacity duration-150"
         style={{ opacity: rightActionsVisible ? 1 : 0, pointerEvents: rightActionsVisible ? "auto" : "none" }}
       >
         <button
           type="button"
           onClick={() => { onMute(chat); onOpen(null); }}
-          className="flex w-[74px] flex-col items-center justify-center gap-1 bg-amber-500 text-[11px] font-medium text-white active:opacity-80 fast-tap disabled:opacity-40"
+          className="swipe-action fast-tap disabled:opacity-40"
           disabled={isArchiveMode}
         >
-          <BellOff className="h-5 w-5" />
-          {muted ? "Звук" : "Без звука"}
+          <span className="swipe-action-circle bg-amber-500">
+            <BellOff className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
+          </span>
+          <span className="swipe-action-label">{muted ? "Звук" : "Без звука"}</span>
         </button>
         <button
           type="button"
           onClick={() => { onDelete(chat); onOpen(null); }}
-          className="flex w-[74px] flex-col items-center justify-center gap-1 bg-danger text-[11px] font-medium text-white active:opacity-80 fast-tap"
+          className="swipe-action fast-tap"
         >
-          <Trash2 className="h-5 w-5" />
-          Удалить
+          <span className="swipe-action-circle bg-danger">
+            <Trash2 className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
+          </span>
+          <span className="swipe-action-label">Удалить</span>
         </button>
       </div>
 

@@ -1,10 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-// Astryx design-system styles. Imported before globals.css so its cascade
-// layer (astryx-base) sits below the app's own rules; the components use
-// hashed StyleX atomic classes, so nothing here restyles the existing UI.
-import "@astryxdesign/core/reset.css";
-import "@astryxdesign/core/astryx.css";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 

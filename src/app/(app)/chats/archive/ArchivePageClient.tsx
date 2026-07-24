@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import type { ChatListItem } from "@/lib/chat-list";
 import { SwipeableChatRow } from "../SwipeableChatRow";
+import { ArchiveIntroSheet } from "./ArchiveIntroSheet";
 
 type ArchivePageClientProps = {
   initialChats: ChatListItem[];
@@ -67,6 +68,7 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
   if (chats.length === 0) {
     return (
       <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+        <ArchiveIntroSheet />
         <h2 className="nox-empty-title">В архиве пусто</h2>
         <p className="nox-empty-copy">
           Сюда попадают скрытые чаты.
@@ -84,6 +86,7 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
 
   return (
     <div className="space-y-1 animate-in fade-in duration-200">
+      <ArchiveIntroSheet />
       {error ? (
         <div className="mx-4 mb-3 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
           {error}
