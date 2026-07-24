@@ -8,6 +8,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, Phone, Search, UserRound, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
+// Four section tabs in the bar; search stays a separate adjacent control (see
+// the search button below), sharing the dock's material and height so the two
+// read as one bottom assembly rather than two unrelated islands.
 const tabs = [
   { href: "/contacts", label: "Контакты", icon: UsersRound, match: (pathname: string) => pathname.startsWith("/contacts") || pathname.startsWith("/users/") },
   { href: "/calls", label: "Звонки", icon: Phone, match: (pathname: string) => pathname.startsWith("/calls") },
@@ -293,7 +296,10 @@ export function AppBottomDock({
                 className={clsx(
                   "dock-tab fast-tap fluid-hit relative z-10 flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1",
                   isActive ? "dock-tab-active flex-[1.45]" : "flex-1",
-                  isActive ? "text-primary" : "text-foreground/64 hover:bg-[var(--dock-hover-bg)] dark:text-white/62",
+                  // Inactive items used to sit at 62-64% opacity, which made them
+                  // nearly invisible on the light dock. They now use the
+                  // secondary-text token, which is contrast-checked in both themes.
+                  isActive ? "text-primary" : "text-[var(--dock-inactive)] hover:bg-[var(--dock-hover-bg)]",
                 )}
                 href={tab.href}
                 prefetch={true}
@@ -340,9 +346,10 @@ export function AppBottomDock({
         </div>
         <Link
           aria-label="Поиск"
+          aria-current={isSearchActive ? "page" : undefined}
           className={clsx(
-            "premium-glass dock-liquid fast-tap fluid-hit flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-foreground dark:text-white",
-            isSearchActive && "text-primary",
+            "premium-glass dock-liquid fast-tap fluid-hit flex h-[3.25rem] w-[3.25rem] shrink-0 items-center justify-center rounded-full transition-smooth active:scale-[0.94]",
+            isSearchActive ? "text-primary" : "text-[var(--dock-inactive)]",
           )}
           href="/chats/search"
           prefetch={true}
@@ -351,7 +358,7 @@ export function AppBottomDock({
           draggable={false}
           onDragStart={(event) => event.preventDefault()}
         >
-          <Search className="h-[1.35rem] w-[1.35rem]" strokeWidth={2.45} />
+          <Search className="h-[1.3rem] w-[1.3rem]" strokeWidth={2.2} />
         </Link>
       </div>
     </nav>

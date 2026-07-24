@@ -615,12 +615,19 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-:where(h1, h2, h3, .nox-page-title, .app-section-title, .nox-empty-title) {
-  text-wrap: balance;
-}
+/* These live in @layer base on purpose. `text-wrap` is a shorthand for
+   text-wrap-mode, so an unlayered `text-wrap: pretty` outranks Tailwind's
+   layered `truncate` (white-space: nowrap) and silently re-enables wrapping —
+   which made every truncated title and message preview in the app wrap to
+   multiple lines instead of ellipsing. */
+@layer base {
+  :where(h1, h2, h3, .nox-page-title, .app-section-title, .nox-empty-title) {
+    text-wrap: balance;
+  }
 
-:where(p, li, figcaption, .nox-empty-copy, .nox-row-subtitle) {
-  text-wrap: pretty;
+  :where(p, li, figcaption, .nox-empty-copy, .nox-row-subtitle) {
+    text-wrap: pretty;
+  }
 }
 
 :where(a, button, input, textarea, select):focus-visible {
@@ -880,6 +887,44 @@ body {
       color 180ms ease,
       background-color 180ms ease,
       transform 160ms var(--ease-out);
+  }
+
+  /* Chat list row. The list reads as one continuous structure — a shared
+     background with hairline separators inset past the avatar — rather than a
+     stack of individual cards. Height is fixed so the rhythm stays even
+     whether a preview wraps to one line or two. */
+  .nox-chat-row {
+    min-height: 76px;
+    background: var(--surface-primary);
+    transition: background-color 140ms ease;
+  }
+
+  /* The separator starts at the text column, not under the avatar — the
+     inset is what makes a list read as grouped rows rather than full-width
+     rules. */
+  .nox-chat-row-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 76px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--separator);
+  }
+
+  /* Pinned / saved rows get a whisper of tint, not a full-strength block. */
+  .nox-chat-row-pinned {
+    background: color-mix(in srgb, var(--accent) 4%, var(--surface-primary));
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .nox-chat-row:hover {
+      background: color-mix(in srgb, var(--surface-pressed) 60%, var(--surface-primary));
+    }
+  }
+
+  .nox-chat-row:active {
+    background: color-mix(in srgb, var(--surface-pressed) 100%, var(--surface-primary));
   }
 
   /* Telegram-style swipe actions: a round colored icon button with its label
@@ -1351,6 +1396,63 @@ body {
     font-weight: 700;
     letter-spacing: 0;
     color: var(--foreground);
+  }
+
+  /* Horizontal folder filters under the large title. Compact chips that scroll
+     sideways when they overflow, with the active one carrying a soft accent
+     wash rather than a heavy border or shadow. */
+  .nox-filter-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 -16px 8px;
+    padding: 0 16px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nox-filter-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nox-filter-chip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 9999px;
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      transform 140ms var(--ease-out);
+  }
+
+  .nox-filter-chip:active {
+    transform: scale(0.97);
+  }
+
+  .nox-filter-chip-active {
+    background: var(--accent-muted);
+    color: var(--accent);
+  }
+
+  .nox-filter-chip-count {
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-tertiary);
+  }
+
+  .nox-filter-chip-active .nox-filter-chip-count {
+    color: var(--accent);
   }
 
   .nox-page-header {

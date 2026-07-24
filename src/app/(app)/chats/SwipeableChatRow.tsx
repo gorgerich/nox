@@ -299,25 +299,24 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
           href={`/chats/${chat.id}`}
           prefetch={true}
           onClick={handleOpenChat}
-          className={`group surface-rise fluid-hit relative flex w-full items-center gap-3 px-4 py-1.5 text-left transition-colors duration-100 hover:bg-surface-muted/55 active:bg-surface-hover ${
-            hasUnread ? "bg-primary/[0.035]" : ""
+          className={`group nox-chat-row fluid-hit relative flex w-full items-center gap-3 px-4 text-left ${
+            pinned || chat.isSelfChat ? "nox-chat-row-pinned" : ""
           }`}
-          style={{
-            backgroundColor: pinned || chat.isSelfChat ? "var(--surface-muted)" : undefined,
-          }}
         >
-          <div className="relative flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
+          {/* Fallback avatars carry a tinted disc so the initial never floats on
+              a bare row — a plain surface tint is invisible on white in light. */}
+          <div className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-muted">
             {chat.isSelfChat ? (
-              <div className="flex h-full w-full items-center justify-center bg-primary/15 text-primary">
+              <div className="flex h-full w-full items-center justify-center bg-accent-muted text-primary">
                 <Bookmark className="h-5.5 w-5.5" />
               </div>
             ) : fullAvatarUrl && !avatarFailed ? (
-              <Image src={fullAvatarUrl} alt={title} fill className="object-cover" onError={() => setAvatarFailed(true)} />
+              <Image src={fullAvatarUrl} alt={title} fill sizes="52px" className="object-cover" onError={() => setAvatarFailed(true)} />
             ) : (
               <span className="text-lg font-semibold uppercase text-primary">{title[0]}</span>
             )}
           </div>
-          <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/35 py-1.5 group-last:border-none">
+          <div className="nox-chat-row-body min-w-0 flex-1 self-stretch group-last:border-none">
             <div className="mb-0.5 flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 {hasUnread ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" /> : null}
