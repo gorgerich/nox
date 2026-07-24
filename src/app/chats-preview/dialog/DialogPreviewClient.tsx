@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { MessageBubble, type Message } from "../../(app)/chats/[chatId]/MessageBubble";
 import { ChatComposer } from "../../(app)/chats/[chatId]/ChatComposer";
+import { AttachmentSheet } from "../../(app)/chats/[chatId]/AttachmentSheet";
+import { InlineConnectionNotice, type ConnectionStatus } from "../../(app)/chats/[chatId]/InlineConnectionNotice";
 import { DEFAULT_APPEARANCE, getChatAppearanceVars } from "../../(app)/chats/[chatId]/ChatAppearance";
+import { startsGroup, endsGroup, needsDateSeparator, formatDateLabel } from "@/lib/message-grouping";
 
-// Fixtures only. Nothing here calls the API or the database.
+// Fixtures only — this harness never calls the API or the database.
 const ME = "me";
 const THEM = "them";
+const OTHER = "other";
 
-function make(over: Partial<Message> & { id: string }): Message {
+function make(over: Partial<Message> & { id: string; createdAt: string }): Message {
   return {
     body: null,
     type: "TEXT",
@@ -17,8 +21,7 @@ function make(over: Partial<Message> & { id: string }): Message {
     deletedAt: null,
     editedAt: null,
     replyToMessageId: null,
-    deliveredAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
+    deliveredAt: over.createdAt,
     sender: { id: THEM, username: "angelina", profile: { displayName: "Angelina", avatarUrl: null } },
     attachments: [],
     reactions: [],
@@ -28,63 +31,143 @@ function make(over: Partial<Message> & { id: string }): Message {
   } as Message;
 }
 
-const mine = (over: Partial<Message> & { id: string }) =>
+const day = (h: number, m: number, dayOffset = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+};
+
+const mine = (over: Partial<Message> & { id: string; createdAt: string }) =>
   make({ senderUserId: ME, sender: { id: ME, username: "me", profile: { displayName: "Я", avatarUrl: null } }, ...over });
 
-const MESSAGES: Message[] = [
-  make({ id: "1", body: "Привет! Как дела с поездкой?" }),
-  mine({ id: "2", body: "Ок", receipts: [{ userId: THEM, deliveredAt: new Date().toISOString(), readAt: new Date().toISOString() }] }),
-  mine({
-    id: "3",
-    body: "Длинное сообщение на русском, чтобы проверить перенос строк, межстрочный интервал и максимальную ширину пузыря на узком экране.",
-    receipts: [{ userId: THEM, deliveredAt: new Date().toISOString(), readAt: null }],
-  }),
+const BASE: Message[] = [
+  make({ id: "y1", body: "Вчерашнее сообщение", createdAt: day(18, 5, -1) }),
+  // Same author, consecutive — should group tightly.
+  make({ id: "g1", body: "Привет! Как дела с поездкой?", createdAt: day(10, 0) }),
+  make({ id: "g2", body: "Билеты я уже посмотрела", createdAt: day(10, 1) }),
+  make({ id: "g3", body: "Осталось выбрать даты", createdAt: day(10, 2) }),
+  mine({ id: "m1", body: "Ок", createdAt: day(10, 3), receipts: [{ userId: THEM, deliveredAt: day(10, 3), readAt: day(10, 4) }] }),
+  mine({ id: "m2", body: "Давай на следующей неделе", createdAt: day(10, 4), receipts: [{ userId: THEM, deliveredAt: day(10, 4), readAt: null }] }),
+  // Large gap — new group even though the author is the same.
+  mine({ id: "m3", body: "Ещё раз: не забудь паспорт", createdAt: day(12, 40) }),
   make({
-    id: "4",
-    body: "Отвечаю на твоё сообщение",
-    replyToMessageId: "3",
+    id: "r1",
+    body: "Хорошо, положила",
+    createdAt: day(12, 45),
+    replyToMessageId: "m3",
     replyToMessage: {
-      id: "3",
-      body: "Длинное сообщение на русском, чтобы проверить перенос строк…",
+      id: "m3",
+      body: "Ещё раз: не забудь паспорт",
       deletedAt: null,
       type: "TEXT",
       sender: { username: "me", profile: { displayName: "Я" } },
     },
   }),
   make({
-    id: "5",
-    body: "С реакциями",
+    id: "react1",
+    body: "И билеты распечатала",
+    createdAt: day(12, 46),
     reactions: [
       { emoji: "🔥", userId: ME, user: { id: ME, username: "me", profile: { displayName: "Я" } } },
-      { emoji: "👍", userId: THEM, user: { id: THEM, username: "angelina", profile: { displayName: "Angelina" } } },
+      { emoji: "👍", userId: OTHER, user: { id: OTHER, username: "kate", profile: { displayName: "Катя" } } },
     ],
   }),
   make({
-    id: "6",
+    id: "f1",
     type: "FILE",
-    body: null,
-    attachments: [{ id: "a1", fileName: "Договор-аренды-2026.pdf", mimeType: "application/pdf", sizeBytes: 284_119 }],
+    createdAt: day(12, 47),
+    attachments: [{ id: "a1", fileName: "Договор-аренды-2026-длинное-имя.pdf", mimeType: "application/pdf", sizeBytes: 284_119 }],
   }),
-  mine({ id: "7", body: "Отправляется прямо сейчас" }),
-  mine({ id: "temp-failed", body: "Это сообщение не ушло" }),
+  make({ id: "del1", body: null, deletedAt: day(12, 48), createdAt: day(12, 48) }),
+  mine({ id: "s1", body: "Отправляется прямо сейчас", createdAt: day(12, 50) }),
+  mine({ id: "temp-failed", body: "Это сообщение не ушло", createdAt: day(12, 51) }),
 ];
 
-const SCENARIOS = ["Обычный", "Ответ", "Изменение"] as const;
+type Scenario =
+  | "grouped"
+  | "unread"
+  | "typing"
+  | "offline"
+  | "reconnecting"
+  | "pagination"
+  | "attachment"
+  | "recording"
+  | "empty";
+
+const SCENARIOS: { id: Scenario; label: string }[] = [
+  { id: "grouped", label: "Группировка" },
+  { id: "unread", label: "Непрочитанные" },
+  { id: "typing", label: "Печатает" },
+  { id: "offline", label: "Оффлайн" },
+  { id: "reconnecting", label: "Переподключение" },
+  { id: "pagination", label: "Пагинация" },
+  { id: "attachment", label: "Вложения" },
+  { id: "recording", label: "Запись" },
+  { id: "empty", label: "Пустой чат" },
+];
+
+function DateSeparator({ date }: { date: Date }) {
+  return (
+    <div className="my-3 flex justify-center">
+      <span
+        className="rounded-full px-3 py-1 text-[12px] font-semibold"
+        style={{ background: "var(--chat-date-bg)", color: "var(--chat-date-fg)" }}
+      >
+        {formatDateLabel(date)}
+      </span>
+    </div>
+  );
+}
+
+function UnreadSeparator({ count }: { count: number }) {
+  return (
+    <div className="my-3 flex items-center gap-3 px-1" role="separator" aria-label={`Непрочитанных сообщений: ${count}`}>
+      <span className="h-px flex-1" style={{ background: "var(--accent-muted)" }} />
+      <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
+        Новые сообщения
+      </span>
+      <span className="h-px flex-1" style={{ background: "var(--accent-muted)" }} />
+    </div>
+  );
+}
+
+function TypingIndicator({ names }: { names: string[] }) {
+  const label =
+    names.length === 1 ? `${names[0]} печатает…` : `${names.slice(0, 2).join(", ")} и ещё ${names.length - 2 > 0 ? names.length - 2 : ""} печатают…`;
+  return (
+    <div className="flex items-center gap-2 px-2 py-2" aria-live="polite">
+      <span className="flex gap-1" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-1.5 w-1.5 rounded-full motion-reduce:animate-none animate-pulse"
+            style={{ background: "var(--text-tertiary)", animationDelay: `${i * 150}ms` }}
+          />
+        ))}
+      </span>
+      <span className="truncate text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+        {label}
+      </span>
+    </div>
+  );
+}
 
 export function DialogPreviewClient() {
-  const [scenario, setScenario] = useState<(typeof SCENARIOS)[number]>("Обычный");
+  const [scenario, setScenario] = useState<Scenario>("grouped");
+  const [sheetOpen, setSheetOpen] = useState(false);
   const vars = getChatAppearanceVars(DEFAULT_APPEARANCE) as React.CSSProperties;
 
-  const replyingTo =
-    scenario === "Ответ"
-      ? { id: "3", body: "Длинное сообщение на русском, чтобы проверить перенос строк…", sender: { profile: { displayName: "Я" }, username: "me" } }
-      : null;
-  const editingTo = scenario === "Изменение" ? { id: "2", body: "Ок" } : null;
+  const messages = scenario === "empty" ? [] : BASE;
+  const unreadFromId = scenario === "unread" ? "r1" : null;
+
+  const connection: ConnectionStatus =
+    scenario === "offline" ? "offline" : scenario === "reconnecting" ? "reconnecting" : "online";
 
   return (
     <div className="flex h-[100dvh] flex-col" style={vars}>
       <header
-        className="flex shrink-0 items-center gap-3 border-b px-4 py-3"
+        className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5"
         style={{ background: "var(--chat-header-bg)", borderColor: "var(--separator)" }}
       >
         <div className="h-10 w-10 shrink-0 rounded-full bg-accent-muted" />
@@ -93,55 +176,72 @@ export function DialogPreviewClient() {
             Екатерина Александровна Комиссарова
           </p>
           <p className="truncate text-[13px]" style={{ color: "var(--bubble-incoming-muted)" }}>
-            в сети
+            {scenario === "typing" ? "печатает…" : "в сети"}
           </p>
-        </div>
-        <div className="flex min-w-0 shrink gap-1 overflow-x-auto">
-          {SCENARIOS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setScenario(s)}
-              className={`nox-filter-chip ${scenario === s ? "nox-filter-chip-active" : ""}`}
-            >
-              {s}
-            </button>
-          ))}
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3" style={{ background: "var(--chat-bg)" }}>
-        <div className="mx-auto flex w-full max-w-3xl flex-col">
-          <div className="my-3 flex justify-center">
-            <span
-              className="rounded-full px-3 py-1 text-[12px] font-semibold"
-              style={{ background: "var(--chat-date-bg)", color: "var(--chat-date-fg)" }}
-            >
-              Сегодня
-            </span>
-          </div>
+      <div className="flex shrink-0 gap-1.5 overflow-x-auto px-3 py-2" style={{ borderBottom: "1px solid var(--separator)" }}>
+        {SCENARIOS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => { setScenario(s.id); setSheetOpen(s.id === "attachment"); }}
+            className={`nox-filter-chip ${scenario === s.id ? "nox-filter-chip-active" : ""}`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
-          {MESSAGES.map((m, i) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              mine={m.senderUserId === ME}
-              settings={DEFAULT_APPEARANCE}
-              onLongPress={() => {}}
-              onReaction={() => {}}
-              onMediaClick={() => {}}
-              isGroupStart={i === 0 || MESSAGES[i - 1].senderUserId !== m.senderUserId}
-              isGroupEnd={i === MESSAGES.length - 1 || MESSAGES[i + 1].senderUserId !== m.senderUserId}
-              showDisplayName={false}
-              selectionMode={false}
-              isSelected={false}
-              onSelect={() => {}}
-              isFocused={false}
-              currentUserId={ME}
-              isFailed={m.id === "temp-failed"}
-              onRetry={() => {}}
-            />
-          ))}
+      <InlineConnectionNotice status={connection} />
+
+      <div className="flex-1 overflow-y-auto px-3 py-2" style={{ background: "var(--chat-bg)" }}>
+        <div className="mx-auto flex w-full max-w-3xl flex-col">
+          {scenario === "pagination" && (
+            <div className="flex items-center justify-center gap-2 py-3 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
+              Загружаем предыдущие сообщения…
+            </div>
+          )}
+
+          {messages.length === 0 && (
+            <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+              <p className="text-[17px] font-semibold text-foreground">Пока нет сообщений</p>
+              <p className="mt-1 text-[14px] text-muted">Напишите первым — сообщения шифруютсяend-to-end.</p>
+            </div>
+          )}
+
+          {messages.map((m, i) => {
+            const prev = messages[i - 1];
+            const next = messages[i + 1];
+            return (
+              <div key={m.id}>
+                {needsDateSeparator(m, prev) && <DateSeparator date={new Date(m.createdAt)} />}
+                {unreadFromId === m.id && <UnreadSeparator count={4} />}
+                <MessageBubble
+                  message={m}
+                  mine={m.senderUserId === ME}
+                  settings={DEFAULT_APPEARANCE}
+                  onLongPress={() => {}}
+                  onReaction={() => {}}
+                  onMediaClick={() => {}}
+                  isGroupStart={startsGroup(m, prev)}
+                  isGroupEnd={endsGroup(m, next)}
+                  showDisplayName={false}
+                  selectionMode={false}
+                  isSelected={false}
+                  onSelect={() => {}}
+                  isFocused={false}
+                  currentUserId={ME}
+                  isFailed={m.id === "temp-failed"}
+                  onRetry={() => {}}
+                />
+              </div>
+            );
+          })}
+
+          {scenario === "typing" && <TypingIndicator names={["Angelina"]} />}
         </div>
       </div>
 
@@ -152,14 +252,16 @@ export function DialogPreviewClient() {
         onVoiceStart={() => {}}
         onVoiceStop={() => {}}
         onVoiceCancel={() => {}}
-        isRecording={false}
-        recordingDuration={0}
+        isRecording={scenario === "recording"}
+        recordingDuration={scenario === "recording" ? 27 : 0}
         isLocked={false}
         pending={false}
-        replyingTo={replyingTo}
-        editingTo={editingTo}
-        onCancelAction={() => setScenario("Обычный")}
+        replyingTo={null}
+        editingTo={null}
+        onCancelAction={() => {}}
       />
+
+      <AttachmentSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} onSelect={() => {}} />
     </div>
   );
 }

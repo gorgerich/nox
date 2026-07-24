@@ -1718,6 +1718,14 @@ body {
       0 1px 0 rgba(24, 37, 61, 0.04);
   }
 
+  /* Shared bottom-sheet surface (attachment picker and friends). Opaque so it
+     never needs a blur layer of its own inside a scrollable screen. */
+  .nox-sheet {
+    background: var(--background-elevated);
+    border: 1px solid var(--separator);
+    box-shadow: var(--glass-panel-shadow-strong);
+  }
+
   .nox-sheet-backdrop {
     position: fixed;
     inset: 0;

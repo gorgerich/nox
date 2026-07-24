@@ -3,6 +3,7 @@
 import { Check, Mic, Paperclip, Send, Smile, Video, X } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
+import { AttachmentSheet, type AttachmentAction } from "./AttachmentSheet";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 
 export function ChatComposer({
@@ -44,6 +45,9 @@ export function ChatComposer({
   const [showCaptureMenu, setShowCaptureMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   const emojiPanelRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const editingIdRef = useRef<string | null>(null);
@@ -228,13 +232,14 @@ export function ChatComposer({
           <button
             type="button"
             aria-label="Прикрепить файл"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setAttachSheetOpen(true)}
             className="premium-glass touch-target fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground hover:text-primary dark:text-white"
           >
             <Paperclip className="h-5.5 w-5.5" strokeWidth={2.25} />
           </button>
         )}
 
+        {/* One hidden input per source; each maps to a row in the sheet. */}
         <input
           type="file"
           ref={fileInputRef}
@@ -246,6 +251,46 @@ export function ChatComposer({
               onFilesSelected(Array.from(files));
             }
             if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+        />
+        <input
+          type="file"
+          ref={mediaInputRef}
+          multiple
+          accept="image/*,video/*"
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0 && onFilesSelected) {
+              onFilesSelected(Array.from(files));
+            }
+            if (mediaInputRef.current) mediaInputRef.current.value = "";
+          }}
+        />
+        <input
+          type="file"
+          ref={cameraInputRef}
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0 && onFilesSelected) {
+              onFilesSelected(Array.from(files));
+            }
+            if (cameraInputRef.current) cameraInputRef.current.value = "";
+          }}
+        />
+
+        <AttachmentSheet
+          isOpen={attachSheetOpen}
+          onClose={() => setAttachSheetOpen(false)}
+          available={onVideoMessageCaptured ? undefined : ["media", "file", "camera"]}
+          onSelect={(action: AttachmentAction) => {
+            if (action === "media") mediaInputRef.current?.click();
+            else if (action === "file") fileInputRef.current?.click();
+            else if (action === "camera") cameraInputRef.current?.click();
+            else if (action === "videoNote") setShowVideoRecorder(true);
           }}
         />
 

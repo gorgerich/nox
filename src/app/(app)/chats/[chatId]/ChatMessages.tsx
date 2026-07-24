@@ -20,6 +20,8 @@ import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getChatMessages, putChatMessages } from "@/lib/chat-cache";
 import { escapeRegExp } from "@/lib/text";
+import { startsGroup, endsGroup, formatDateLabel } from "@/lib/message-grouping";
+import { InlineConnectionNotice, type ConnectionStatus } from "./InlineConnectionNotice";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
 
@@ -193,7 +195,7 @@ export function ChatMessages({
     };
   };
 }) {
-  const { socket } = useSocket();
+  const { socket, connected } = useSocket();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const partnerPresence = usePresence({
@@ -244,6 +246,47 @@ export function ChatMessages({
   // send deleted the bubble outright and only surfaced a composer error, which
   // silently threw away what the user had typed.
   const [failedSends, setFailedSends] = useState<Record<string, { body: string; replyToId: string | null }>>({});
+
+  // Surface the transport state in the UI. The socket already tracked
+  // connect/disconnect; nothing rendered it, so a dropped connection was
+  // invisible until a send failed.
+  const [isBrowserOnline, setIsBrowserOnline] = useState(true);
+  const wasDisconnectedRef = useRef(false);
+  const [showRestored, setShowRestored] = useState(false);
+
+  useEffect(() => {
+    const online = () => setIsBrowserOnline(true);
+    const offline = () => setIsBrowserOnline(false);
+    setIsBrowserOnline(navigator.onLine);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!connected) {
+      wasDisconnectedRef.current = true;
+      setShowRestored(false);
+      return;
+    }
+    if (wasDisconnectedRef.current) {
+      wasDisconnectedRef.current = false;
+      setShowRestored(true);
+      const id = setTimeout(() => setShowRestored(false), 2200);
+      return () => clearTimeout(id);
+    }
+  }, [connected]);
+
+  const connectionStatus: ConnectionStatus = !isBrowserOnline
+    ? "offline"
+    : !connected
+      ? "reconnecting"
+      : showRestored
+        ? "restored"
+        : "online";
 
   const [disappearingSeconds, setDisappearingSeconds] = useState<number | null>(initialDisappearingSeconds);
   const changeDisappearing = useCallback(async (seconds: number | null) => {
@@ -1943,8 +1986,10 @@ export function ChatMessages({
       if (date !== prevDate) {
         result.push({ type: "date", date: new Date(msg.createdAt) });
       }
-      const isGroupStart = !prev || prev.senderUserId !== msg.senderUserId || (new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime() > 300000);
-      const isGroupEnd = !next || next.senderUserId !== msg.senderUserId || (new Date(next.createdAt).getTime() - new Date(msg.createdAt).getTime() > 300000);
+      // Grouping rules live in src/lib/message-grouping so they stay in step
+      // with the date separators above (a new day always opens a new group).
+      const isGroupStart = startsGroup(msg, prev);
+      const isGroupEnd = endsGroup(msg, next);
       result.push({ 
         type: "message", 
         message: msg, 
@@ -1956,15 +2001,6 @@ export function ChatMessages({
     });
     return result;
   }, [messagesWithDecrypted, currentUserId, chatInfo.type]);
-
-  const formatDateLabel = (date: Date) => {
-    const now = new Date();
-    if (date.toDateString() === now.toDateString()) return "Сегодня";
-    const yesterday = new Date();
-    yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) return "Вчера";
-    return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
-  };
 
   const currentUserInfo = useMemo(() => { return { displayName: "Я", avatarUrl: null }; }, []);
 
@@ -2003,6 +2039,8 @@ export function ChatMessages({
         onSearchClick={() => setIsSearchOpen(true)}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
       />
+
+      <InlineConnectionNotice status={connectionStatus} />
 
       {isSearchOpen && (
         <div className="sticky top-0 z-[150] glass-header px-4 py-3 animate-in slide-in-from-top-2 duration-200 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">

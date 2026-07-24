@@ -725,6 +725,19 @@ export const MessageBubble = memo(function MessageBubble({
     );
   }
 
+  // A deleted message previously fell through to the normal bubble and rendered
+  // as an empty shape with only a timestamp. Show the same centred service line
+  // used by the other non-content states instead.
+  if (message.deletedAt) {
+    return (
+      <div className="relative flex w-full justify-center px-4 py-1.5">
+        <div className="max-w-[82%] rounded-full bg-surface-muted px-3 py-1.5 text-center text-[12px] font-medium text-muted">
+          Сообщение удалено
+        </div>
+      </div>
+    );
+  }
+
   if (message.isEncrypted && !message.body && message.attachments.length === 0) {
     return (
       <div className="relative flex w-full justify-center px-4 py-2">
