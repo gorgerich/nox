@@ -11,7 +11,8 @@
     "cap:sync:ios": "npx cap sync ios",
     "cap:open:ios": "npx cap open ios",
     "cap:sync:ios:local": "CAPACITOR_SERVER_URL=http://localhost:3000 npx cap sync ios",
-    "validate:grouping": "tsx scripts/validate-message-grouping.ts"
+    "validate:grouping": "tsx scripts/validate-message-grouping.ts",
+    "validate:history-availability": "tsx scripts/validate-history-availability.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

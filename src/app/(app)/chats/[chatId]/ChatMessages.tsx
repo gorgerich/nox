@@ -22,6 +22,8 @@ import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getC
 import { escapeRegExp } from "@/lib/text";
 import { startsGroup, endsGroup, formatDateLabel } from "@/lib/message-grouping";
 import { InlineConnectionNotice, type ConnectionStatus } from "./InlineConnectionNotice";
+import { HistoryUnavailableNotice } from "./HistoryUnavailableNotice";
+import { classifyHistory } from "@/lib/history-availability";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
 
@@ -308,6 +310,7 @@ export function ChatMessages({
   // text instantly instead of re-decrypting (no "Загрузка…" reflash).
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>(() => getChatDecrypted(chatId));
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
+  const [historyNoticeDismissed, setHistoryNoticeDismissed] = useState(false);
 
   // Client-side history load — the chat page no longer fetches messages on the
   // server (no RSC block). We paint instantly from the persistent cache, then
@@ -1976,6 +1979,22 @@ export function ChatMessages({
     );
   };
 
+  // Why is history unreadable here? Distinguishes "sealed to a previous
+  // install" from an empty chat or a transient failure, so we can explain
+  // rather than render a wall of unavailable rows.
+  const historyAvailability = useMemo(() => classifyHistory({
+    messages: messages.map((message) => ({
+      id: message.id,
+      envelopeDeviceIds: (message.envelopes ?? []).map((envelope) => envelope.recipientDeviceId),
+      unavailable: Boolean(unavailableMessageIds[message.id]),
+    })),
+    localDeviceId,
+  }), [messages, unavailableMessageIds, localDeviceId]);
+
+  const showHistoryUnavailable =
+    !historyNoticeDismissed &&
+    (historyAvailability === "missing-device-key" || historyAvailability === "partially-unavailable");
+
   const groupedMessages = useMemo(() => {
     const result: GroupedItem[] = [];
     messagesWithDecrypted.forEach((msg, idx) => {
@@ -2134,6 +2153,13 @@ export function ChatMessages({
               {chatInfo.type === "DIRECT" ? <E2EEDisclaimer /> : null}
             </>
           ) : null}
+          {showHistoryUnavailable && (
+            <HistoryUnavailableNotice
+              scope={historyAvailability === "missing-device-key" ? "all" : "partial"}
+              onDismiss={() => setHistoryNoticeDismissed(true)}
+            />
+          )}
+
           {groupedMessages.map((item, idx) => (
             item.type === "date" ? (
               <div key={`date-${idx}`} className="flex justify-center py-3">

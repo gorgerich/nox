@@ -97,8 +97,77 @@ problem. Both the sealed content and its metadata are still on the server.
 There is no long-lived symmetric "account key" and no ratchet state to
 preserve: envelopes are sealed per message per device from ECDH. That is a
 meaningful simplification for backup design — there is **no ratchet state that a
-backup would have to capture**, and consequently no forward-secrecy loss from
-omitting one.
+backup would have to capture**.
+
+For what that does and does not imply about forward secrecy, see ADR-1 (§3.1),
+which supersedes an earlier, incorrect claim in this document that "forward
+secrecy is not affected".
+
+---
+
+## 3.1 ADR-1 — Forward secrecy of the current transport
+
+**Decision: record the true property of the transport before reasoning about
+what a backup costs. Do not change the transport in the backup work.**
+
+### Finding
+
+The current envelope scheme has **no forward secrecy and no post-compromise
+security.**
+
+Evidence:
+
+- `encryptEnvelope` (`src/lib/e2ee/utils.ts:61`) derives the message key from
+  `params.senderPrivateKey` — the device's **long-term, static** ECDH private
+  key — against the recipient device's **static** public key from
+  `DeviceKeyBundle`. No ephemeral key pair is generated per message or per
+  session.
+- `deriveAesKey` (`src/lib/e2ee/crypto.ts:124`) computes
+  `ECDH(static_sender, static_recipient)` and runs it through
+  `HKDF-SHA256(salt, info)` to get the AES-GCM key.
+- The per-message `salt` and `iv` are stored **in the clear**, next to the
+  ciphertext, in `MessageEnvelope.salt` / `MessageEnvelope.iv`.
+
+The random per-message salt gives key *separation* — each message has a
+distinct AES key — but it is not secret. The ECDH shared secret underneath is
+identical for a given device pair for the lifetime of those keys.
+
+### Consequences
+
+1. An adversary holding a device's static private key **and** the server's
+   envelope rows can recompute the shared secret, re-derive every per-message
+   key (salt and info are available to them), and decrypt **all past messages**
+   addressed to that device. This is the definition of lacking forward secrecy.
+2. There is no ratchet, so a compromised device key also decrypts **future**
+   messages to that device until the device is revoked and keys are rotated —
+   no post-compromise security.
+3. Practically the private key is non-extractable (§1.4), which raises the bar
+   for extracting it from a live browser, but non-extractability is a platform
+   containment property, not a cryptographic one, and it does not apply to an
+   attacker with a platform-level compromise.
+
+### Implication for the backup decision
+
+The honest framing is therefore **not** "the backup introduces a long-lived key
+into a forward-secret system". It is:
+
+- the transport E2EE is **unchanged** by this work;
+- the backup adds a **separate, long-lived archival key domain**;
+- compromise of the Backup Root Key exposes the archived history it covers;
+- this is a deliberate trade-off accepted in exchange for recoverability;
+- and it is a **smaller marginal regression than it first appears**, because
+  the transport already exposes all history to a static-key compromise.
+
+That is an argument for accepting the backup trade-off, **not** an argument that
+the transport is fine. Adding ephemeral/ratcheted key agreement to the transport
+is worth its own ADR and its own change; it is explicitly **out of scope** for
+the backup work and must not be bundled into it.
+
+### Follow-up
+
+Open a separate track to evaluate ephemeral-sender-key or double-ratchet key
+agreement for the transport, with its own threat model and migration plan for
+existing envelopes.
 
 ---
 
@@ -117,7 +186,7 @@ credentials; recovery key. (No session/ratchet state exists — see §3.)
 | Weak password guessing | Password never yields message access today | Backup key must not be derived from the account password alone |
 | Stolen unlocked phone | Full history (as designed) | Unchanged |
 | Malicious new device | Cannot read history (that is the bug's flip side) | Must still require the recovery key or an explicit trusted-device approval |
-| Backup rollback | n/a | Generation counter; client refuses older generation |
+| Backup rollback | n/a | Partially mitigated — see §6.4; not fully solved in MVP |
 | Resurrecting deleted / expired messages | n/a | Tombstones and `expiresAt` applied **before** commit |
 | Manifest substitution | n/a | Manifest authenticated under the same key |
 | Recovery key loss | n/a | Honest, irreversible failure |
@@ -199,11 +268,124 @@ BackupChunk (encrypted, ~N messages)
 - Primitive: **AES-GCM 256** via Web Crypto — already the project's primitive
   (`LOCAL_MESSAGE_CACHE_ALGORITHM = "AES-GCM"`, `indexed-db.ts:15`). No new
   dependency, no bespoke crypto.
-- Unique nonce per chunk, derived from `(generation, chunkId)`; never reused.
 - Per-chunk auth tag plus a manifest that authenticates the chunk list, so a
   dropped or swapped chunk is detected.
-- `generation` is monotonic; the client rejects a manifest older than the one it
-  last applied (rollback protection).
+
+### 6.1 Key hierarchy
+
+A single master key is **not** used to encrypt everything. Four levels:
+
+```
+Recovery Secret            (shown to the user once; never leaves the client)
+  └─ wraps → Backup Root Key      (random 256-bit; long-lived; never sent to the server)
+       └─ wraps → Generation Key  (random 256-bit; fresh for every generation)
+            └─ encrypts → manifest + chunks of that generation
+```
+
+- The Recovery Secret is stretched with a memory-hard KDF before it wraps the
+  Root Key, so a written-down secret is not directly a key.
+- The server stores only: wrapped Root Key material, wrapped Generation Keys,
+  and ciphertext. It never sees the Recovery Secret, the Root Key or a
+  Generation Key in the clear.
+- Rotating the Recovery Secret re-wraps the Root Key only — no re-upload of
+  history.
+- Device identity keys and transport secrets are **never** part of the backup;
+  the device private key could not be included even if we wanted it (§1.4).
+- No key material may appear in URLs, `localStorage`, analytics, logs or crash
+  reports.
+
+### 6.2 Nonce construction
+
+AES-GCM is catastrophically broken by a repeated (key, nonce) pair, so nonces
+are **deterministic and counter-based**, not random:
+
+```
+nonce(96 bit) = generationEpoch(32) ‖ recordKind(8) ‖ counter(56)
+```
+
+- A **fresh random Generation Key per generation** means counters restart safely
+  at every generation — the (key, nonce) pair can never repeat across
+  generations because the key differs.
+- `counter` is the chunk index within the generation (and a sub-counter for the
+  manifest), assigned monotonically by the writer.
+- `recordKind` separates manifest from chunk so the two can never collide.
+- This avoids relying on random 96-bit nonces, where birthday-bound collision
+  risk grows with the number of payloads under one key.
+- A generation is written by exactly one client at a time (server-side
+  in-progress lock), so counters cannot be issued twice for one key.
+
+**Rule:** a (Generation Key, nonce) pair is used exactly once. A writer that
+cannot prove which counters it already used must start a new generation with a
+new key rather than guess.
+
+### 6.3 AAD schema
+
+Every AES-GCM operation binds its full context, so a valid ciphertext cannot be
+replayed into a different position, generation or account:
+
+```
+AAD = {
+  backupId,
+  accountBinding,      // opaque, non-reversible account reference
+  generation,
+  chunkIndex,          // manifest uses a reserved sentinel
+  schemaVersion,
+  recordKind,          // "manifest" | "chunk"
+  prevManifestHash     // present from the second generation onwards
+}
+```
+
+Serialised canonically (fixed field order, length-prefixed) so the AAD bytes are
+unambiguous.
+
+### 6.4 Rollback protection — what is and is not guaranteed
+
+An earlier draft claimed the encrypted generation counter gives rollback
+protection. That is **not true for the case that matters**: a client that has
+just been reinstalled has no memory of the last generation it saw, so a
+malicious server can serve an older complete generation and the client has
+nothing to compare it against.
+
+Splitting the guarantee honestly:
+
+**Covered by the MVP**
+
+- corruption and truncation — AEAD tags on manifest and chunks;
+- accidental rollback and write races — server-side **monotonic generation
+  constraint**: a generation number may never decrease, and only one
+  in-progress generation may exist per account;
+- serving an unfinished generation — a generation is only selectable once its
+  `completed` marker is set, and activation is transactional;
+- chunk substitution across generations — `generation` and `chunkIndex` are in
+  the AAD;
+- reordering the history of generations — each manifest carries
+  `prevManifestHash`, so a chain break is detectable when the client has any
+  prior reference point;
+- replay of an already-applied generation — restore is idempotent by stable
+  message ID.
+
+**Not covered by the MVP**
+
+> An actively malicious or fully compromised server can serve the
+> *previous complete generation* to a client that has lost **all** local state
+> and has no other trusted device. That client cannot detect the rollback,
+> because it holds no prior reference point. The result is a stale but
+> internally consistent history — messages after that generation are missing.
+
+This is a real, accepted limitation. It cannot be closed without a trust anchor
+outside the server.
+
+**Follow-up options (not in MVP)**
+
+1. Latest-generation receipt retained on a second trusted device.
+2. Receipt handed over during trusted-device restore.
+3. Receipt mirrored into platform secure sync as an *additional* factor — never
+   the only one, since it is unavailable cross-platform and after uninstall.
+4. A transparency log with external witnesses, if the threat model ever
+   genuinely warrants that cost.
+
+Until one of these ships, the documentation and UI must not claim full rollback
+protection.
 
 **Explicitly not backed up:** access tokens, session cookies, push tokens,
 upload credentials, device private keys (impossible anyway), debug data,
