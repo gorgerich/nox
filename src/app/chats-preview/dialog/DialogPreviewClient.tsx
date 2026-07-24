@@ -4,8 +4,9 @@ import { useState } from "react";
 import { MessageBubble, type Message } from "../../(app)/chats/[chatId]/MessageBubble";
 import { ChatComposer } from "../../(app)/chats/[chatId]/ChatComposer";
 import { InlineConnectionNotice, type ConnectionStatus } from "../../(app)/chats/[chatId]/InlineConnectionNotice";
+import { DateSeparator, UnreadSeparator, TypingIndicator } from "../../(app)/chats/[chatId]/ConversationMarkers";
 import { DEFAULT_APPEARANCE, getChatAppearanceVars } from "../../(app)/chats/[chatId]/ChatAppearance";
-import { startsGroup, endsGroup, needsDateSeparator, formatDateLabel } from "@/lib/message-grouping";
+import { startsGroup, endsGroup, needsDateSeparator } from "@/lib/message-grouping";
 
 // Fixtures only — this harness never calls the API or the database.
 const ME = "me";
@@ -104,51 +105,8 @@ const SCENARIOS: { id: Scenario; label: string }[] = [
   { id: "empty", label: "Пустой чат" },
 ];
 
-function DateSeparator({ date }: { date: Date }) {
-  return (
-    <div className="my-3 flex justify-center">
-      <span
-        className="rounded-full px-3 py-1 text-[12px] font-semibold"
-        style={{ background: "var(--chat-date-bg)", color: "var(--chat-date-fg)" }}
-      >
-        {formatDateLabel(date)}
-      </span>
-    </div>
-  );
-}
 
-function UnreadSeparator({ count }: { count: number }) {
-  return (
-    <div className="my-3 flex items-center gap-3 px-1" role="separator" aria-label={`Непрочитанных сообщений: ${count}`}>
-      <span className="h-px flex-1" style={{ background: "var(--accent-muted)" }} />
-      <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
-        Новые сообщения
-      </span>
-      <span className="h-px flex-1" style={{ background: "var(--accent-muted)" }} />
-    </div>
-  );
-}
 
-function TypingIndicator({ names }: { names: string[] }) {
-  const label =
-    names.length === 1 ? `${names[0]} печатает…` : `${names.slice(0, 2).join(", ")} и ещё ${names.length - 2 > 0 ? names.length - 2 : ""} печатают…`;
-  return (
-    <div className="flex items-center gap-2 px-2 py-2" aria-live="polite">
-      <span className="flex gap-1" aria-hidden="true">
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="h-1.5 w-1.5 rounded-full motion-reduce:animate-none animate-pulse"
-            style={{ background: "var(--text-tertiary)", animationDelay: `${i * 150}ms` }}
-          />
-        ))}
-      </span>
-      <span className="truncate text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
-        {label}
-      </span>
-    </div>
-  );
-}
 
 export function DialogPreviewClient() {
   const [scenario, setScenario] = useState<Scenario>("grouped");

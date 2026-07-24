@@ -23,6 +23,7 @@ import { escapeRegExp } from "@/lib/text";
 import { startsGroup, endsGroup, formatDateLabel } from "@/lib/message-grouping";
 import { InlineConnectionNotice, type ConnectionStatus } from "./InlineConnectionNotice";
 import { HistoryUnavailableNotice } from "./HistoryUnavailableNotice";
+import { DateSeparator, TypingIndicator } from "./ConversationMarkers";
 import { classifyHistory } from "@/lib/history-availability";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
@@ -2162,18 +2163,7 @@ export function ChatMessages({
 
           {groupedMessages.map((item, idx) => (
             item.type === "date" ? (
-              <div key={`date-${idx}`} className="flex justify-center py-3">
-                <span
-                  className="rounded-full border px-3 py-1.5 text-[11px] font-semibold backdrop-blur-md"
-                  style={{
-                    backgroundColor: "var(--chat-date-bg)",
-                    color: "var(--chat-date-fg)",
-                    borderColor: "var(--chat-focus-ring)",
-                  }}
-                >
-                  {formatDateLabel(item.date)}
-                </span>
-              </div>
+              <DateSeparator key={`date-${idx}`} date={item.date} />
             ) : (
               <div
                 key={item.message.id}
@@ -2213,6 +2203,8 @@ export function ChatMessages({
               </div>
             )
           ))}
+          <TypingIndicator names={Object.values(typingUsers).map((user) => user.displayName)} />
+
           <div ref={messagesEndRef} className="h-4" style={{ overflowAnchor: "auto" }} />
         </div>
       </div>
