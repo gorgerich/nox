@@ -1718,6 +1718,36 @@ body {
       0 1px 0 rgba(24, 37, 61, 0.04);
   }
 
+  /* Capture-mode icons (mic / round video) share one square in the record
+     button. Both are absolutely positioned so the circle never resizes and the
+     composer can't shift while they cross-fade. */
+  .capture-icon {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    opacity: 0;
+    transform: scale(0.72) rotate(-10deg);
+    transition:
+      opacity 160ms var(--ease-out),
+      transform 160ms var(--ease-out);
+  }
+
+  .capture-icon-active {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .capture-icon {
+      transform: none;
+      transition: opacity 100ms linear;
+    }
+
+    .capture-icon-active {
+      transform: none;
+    }
+  }
+
   .nox-sheet-backdrop {
     position: fixed;
     inset: 0;

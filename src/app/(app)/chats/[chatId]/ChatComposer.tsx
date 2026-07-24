@@ -5,6 +5,13 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 
+export type CaptureMode = "voice" | "video";
+
+/** Hold longer than this and the press starts a recording instead of toggling. */
+const CAPTURE_HOLD_MS = 320;
+/** Movement beyond this cancels the gesture entirely. */
+const CAPTURE_MOVE_CANCEL_PX = 12;
+
 export function ChatComposer({
   chatId,
   onSend,
@@ -41,7 +48,13 @@ export function ChatComposer({
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
-  const [showCaptureMenu, setShowCaptureMenu] = useState(false);
+  // One source of truth for which capture the record button will start.
+  // Replaces the old popover that made the user pick "Голосовое"/"Кружок".
+  const [captureMode, setCaptureMode] = useState<CaptureMode>("voice");
+  const [modeAnnouncement, setModeAnnouncement] = useState("");
+  // Press state machine: a short tap switches mode, a hold starts recording.
+  // Tracked in refs so a hold that became a recording never also toggles.
+  const pressRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null; startedRecording: boolean; cancelled: boolean } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPanelRef = useRef<HTMLDivElement>(null);
@@ -149,7 +162,6 @@ export function ChatComposer({
     if (draft.trim()) {
       setText("");
       setShowEmoji(false);
-      setShowCaptureMenu(false);
       onTyping("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       editingIdRef.current = null;
@@ -172,6 +184,56 @@ export function ChatComposer({
       }
     }
   }, [editingTo, onSend, onTyping, resetInputHeight, text]);
+
+  const activateCapture = useCallback(() => {
+    if (captureMode === "voice") onVoiceStart();
+    else setShowVideoRecorder(true);
+  }, [captureMode, onVoiceStart]);
+
+  // The next mode is derived from a ref rather than inside the state updater:
+  // updaters must stay pure (React invokes them twice in development), and
+  // announcing from inside one made the mode flip twice and land back where it
+  // started.
+  const captureModeRef = useRef<CaptureMode>("voice");
+  const toggleCaptureMode = useCallback(() => {
+    const next: CaptureMode = captureModeRef.current === "voice" ? "video" : "voice";
+    captureModeRef.current = next;
+    setCaptureMode(next);
+    setModeAnnouncement(next === "voice" ? "Выбран режим голосового сообщения" : "Выбран режим видеосообщения");
+  }, []);
+
+  const clearPress = useCallback(() => {
+    if (pressRef.current?.timer) clearTimeout(pressRef.current.timer);
+    pressRef.current = null;
+  }, []);
+
+  const handleCapturePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!event.isPrimary || isRecording || text.trim()) return;
+    const timer = setTimeout(() => {
+      if (pressRef.current && !pressRef.current.cancelled) {
+        pressRef.current.startedRecording = true;
+        activateCapture();
+      }
+    }, CAPTURE_HOLD_MS);
+    pressRef.current = { x: event.clientX, y: event.clientY, timer, startedRecording: false, cancelled: false };
+  }, [activateCapture, isRecording, text]);
+
+  const handleCapturePointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const press = pressRef.current;
+    if (!press || press.startedRecording) return;
+    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > CAPTURE_MOVE_CANCEL_PX) {
+      press.cancelled = true;
+      if (press.timer) clearTimeout(press.timer);
+    }
+  }, []);
+
+  const handleCapturePointerUp = useCallback(() => {
+    const press = pressRef.current;
+    clearPress();
+    // A hold that already began recording must never also flip the mode.
+    if (!press || press.startedRecording || press.cancelled) return;
+    toggleCaptureMode();
+  }, [clearPress, toggleCaptureMode]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -343,7 +405,6 @@ export function ChatComposer({
                     if (!visible) inputRef.current?.blur();
                     return !visible;
                   });
-                  setShowCaptureMenu(false);
                 }}
                 className={`touch-target fluid-hit mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-smooth ${showEmoji ? "text-primary" : "text-muted hover:text-primary"}`}
                 title="Эмодзи"
@@ -355,63 +416,69 @@ export function ChatComposer({
         </div>
 
         <div className="relative">
-          {showCaptureMenu && !text.trim() && !isRecording ? (
-            <div className="premium-glass absolute bottom-[calc(100%+10px)] right-0 z-30 flex min-w-44 origin-bottom-right flex-col overflow-hidden rounded-2xl p-1 animate-in fade-in zoom-in-95 duration-200">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCaptureMenu(false);
-                  onVoiceStart();
-                }}
-                className="fluid-hit flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5"
-              >
-                <Mic className="h-5 w-5 text-primary" strokeWidth={2.2} />
-                Голосовое
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCaptureMenu(false);
-                  setShowVideoRecorder(true);
-                }}
-                className="fluid-hit flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/5"
-              >
-                <Video className="h-5 w-5 text-primary" strokeWidth={2.2} />
-                Кружок
-              </button>
-            </div>
-          ) : null}
-
           <button
             type="button"
-            aria-label={isRecording ? "Завершить запись" : text.trim() ? "Отправить сообщение" : "Выбрать запись"}
-            onClick={isRecording ? onVoiceStop : (text.trim()) ? handleSend : () => {
-              setShowCaptureMenu((value) => !value);
-              setShowEmoji(false);
+            aria-label={
+              isRecording
+                ? (captureMode === "video" ? "Идёт запись видеосообщения" : "Идёт запись голосового сообщения")
+                : text.trim()
+                  ? "Отправить сообщение"
+                  : captureMode === "voice"
+                    ? "Режим голосового сообщения. Нажмите, чтобы выбрать видеосообщение"
+                    : "Режим видеосообщения. Нажмите, чтобы выбрать голосовое сообщение"
+            }
+            onClick={isRecording ? onVoiceStop : text.trim() ? handleSend : undefined}
+            onPointerDown={handleCapturePointerDown}
+            onPointerMove={handleCapturePointerMove}
+            onPointerUp={handleCapturePointerUp}
+            onPointerCancel={clearPress}
+            onKeyDown={(event) => {
+              // Keyboard activation toggles the mode; it must never be mistaken
+              // for a hold, so it bypasses the pointer machine entirely.
+              if (isRecording || text.trim()) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                toggleCaptureMode();
+              }
             }}
             disabled={pending && !text.trim() && !isRecording}
-            className={`touch-target fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth ${
+            className={`touch-target fluid-hit relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-smooth ${
               isRecording || text.trim() ? "shadow-sm" : "premium-glass text-foreground dark:text-white"
             } disabled:opacity-45`}
             style={{
               backgroundColor: isRecording
                 ? "var(--danger)"
-                : (text.trim())
+                : text.trim()
                   ? "var(--bubble-outgoing-bg)"
                   : undefined,
-              color: (text.trim()) || isRecording ? "var(--bubble-outgoing-fg)" : undefined,
+              color: text.trim() || isRecording ? "var(--bubble-outgoing-fg)" : undefined,
             }}
           >
             {isRecording ? (
               <Check className="h-5 w-5" strokeWidth={2.4} />
-            ) : (text.trim()) ? (
+            ) : text.trim() ? (
               <Send className="ml-0.5 h-5 w-5" strokeWidth={2.3} />
             ) : (
-              <Mic className="h-5.5 w-5.5" strokeWidth={2.2} />
+              // Both icons share one absolutely-positioned stack so the circle
+              // never changes size and the composer can't shift while they swap.
+              <span className="pointer-events-none relative flex h-6 w-6 items-center justify-center">
+                <Mic
+                  className={`capture-icon h-5.5 w-5.5 ${captureMode === "voice" ? "capture-icon-active" : ""}`}
+                  strokeWidth={2.2}
+                  aria-hidden="true"
+                />
+                <Video
+                  className={`capture-icon h-5.5 w-5.5 ${captureMode === "video" ? "capture-icon-active" : ""}`}
+                  strokeWidth={2.2}
+                  aria-hidden="true"
+                />
+              </span>
             )}
           </button>
         </div>
       </div>
+
+      <span className="sr-only" role="status" aria-live="polite">{modeAnnouncement}</span>
 
       {showVideoRecorder && (
         <VideoMessageRecorder
