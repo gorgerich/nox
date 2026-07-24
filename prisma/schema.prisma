@@ -44,6 +44,7 @@ model User {
   receivedMessageEnvelopes   MessageEnvelope[]        @relation("MessageEnvelopeRecipientUser")
   passwordResetTokens        PasswordResetToken[]
   accountRecoveryRequests    AccountRecoveryRequest[]
+  backupAccount              BackupAccount?
 
   @@index([status])
   @@index([role])
@@ -232,22 +233,22 @@ model Device {
 }
 
 model Chat {
-  id              String        @id @default(uuid())
-  type            ChatType
-  title           String?
-  avatarUrl       String?
-  createdByUserId String
-  isLocked        Boolean       @default(false)
+  id                  String        @id @default(uuid())
+  type                ChatType
+  title               String?
+  avatarUrl           String?
+  createdByUserId     String
+  isLocked            Boolean       @default(false)
   disappearingSeconds Int?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  pinnedMessageId String?       @unique
-  calls           CallSession[]
-  callLogs        CallLog[]
-  createdBy       User          @relation("ChatCreator", fields: [createdByUserId], references: [id])
-  pinnedMessage   Message?      @relation("PinnedChatMessage", fields: [pinnedMessageId], references: [id])
-  members         ChatMember[]
-  messages        Message[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  pinnedMessageId     String?       @unique
+  calls               CallSession[]
+  callLogs            CallLog[]
+  createdBy           User          @relation("ChatCreator", fields: [createdByUserId], references: [id])
+  pinnedMessage       Message?      @relation("PinnedChatMessage", fields: [pinnedMessageId], references: [id])
+  members             ChatMember[]
+  messages            Message[]
 
   @@index([type])
   @@index([updatedAt])
@@ -567,4 +568,92 @@ enum ChatRequestStatus {
   ACCEPTED
   DECLINED
   CANCELED
+}
+
+// ---------------------------------------------------------------------------
+// E2EE backup domain (prototype, behind E2EE_BACKUP_* flags).
+//
+// Deliberately isolated from the messaging tables: nothing here references
+// Message, MessageEnvelope or Device, so a backup failure cannot affect
+// delivery. The server stores ciphertext and wrapped key material only — it
+// never receives the recovery secret, the backup root key, a generation key,
+// message plaintext, media keys or previews.
+// ---------------------------------------------------------------------------
+
+model BackupAccount {
+  id                         String              @id @default(cuid())
+  userId                     String              @unique
+  backupVersion              Int                 @default(1)
+  status                     BackupAccountStatus @default(DISABLED)
+  /// Wrapped under a key derived from the user's recovery secret.
+  wrappedRootKey             String?
+  wrappedRootKeyNonce        String?
+  wrappedRootKeySalt         String?
+  latestCompleteGeneration   Int?
+  previousCompleteGeneration Int?
+  /// Server-configured, not a constant baked into the schema or client.
+  quotaBytes                 BigInt?
+  usedBytes                  BigInt              @default(0)
+  reservedBytes              BigInt              @default(0)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  user                       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations                BackupGeneration[]
+
+  @@index([status])
+}
+
+model BackupGeneration {
+  id                        String                 @id @default(cuid())
+  backupAccountId           String
+  generationNumber          Int
+  status                    BackupGenerationStatus @default(IN_PROGRESS)
+  encryptedManifest         String?
+  manifestNonce             String?
+  wrappedGenerationKey      String?
+  wrappedGenerationKeyNonce String?
+  /// Chains generations so a broken or reordered history is detectable.
+  previousManifestHash      String?
+  totalChunks               Int                    @default(0)
+  uploadedChunks            Int                    @default(0)
+  totalBytes                BigInt                 @default(0)
+  createdAt                 DateTime               @default(now())
+  completedAt               DateTime?
+  /// Unfinished generations are reaped after this instant.
+  expiresAt                 DateTime?
+  backupAccount             BackupAccount          @relation(fields: [backupAccountId], references: [id], onDelete: Cascade)
+  chunks                    BackupChunk[]
+
+  @@unique([backupAccountId, generationNumber])
+  @@index([backupAccountId, status])
+  @@index([expiresAt])
+}
+
+model BackupChunk {
+  id           String           @id @default(cuid())
+  generationId String
+  chunkIndex   Int
+  /// AES-GCM ciphertext; the auth tag is part of this value.
+  ciphertext   String
+  nonce        String
+  byteLength   Int
+  createdAt    DateTime         @default(now())
+  generation   BackupGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  @@unique([generationId, chunkIndex])
+  @@index([generationId])
+}
+
+enum BackupAccountStatus {
+  DISABLED
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
+enum BackupGenerationStatus {
+  IN_PROGRESS
+  COMPLETE
+  FAILED
+  SUPERSEDED
 }
