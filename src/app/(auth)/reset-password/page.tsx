@@ -17,7 +17,7 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="text-center">
-        <p className="text-sm font-bold text-red-400 mb-6">Токен восстановления не найден.</p>
+        <p className="text-sm font-bold text-destructive mb-6">Токен восстановления не найден.</p>
         <Link className="btn-nox inline-flex w-full items-center justify-center rounded-full text-sm font-semibold text-foreground" href="/forgot-password">
           Запросить новый
         </Link>
@@ -83,8 +83,8 @@ function ResetPasswordForm() {
         />
       </div>
 
-      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 shadow-inner">
-         <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400/90 leading-relaxed text-center">
+      <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4 shadow-inner">
+         <p className="text-[11px] font-bold text-warning leading-relaxed text-center">
            Из-за сквозного шифрования Nox не хранит ключи от ваших сообщений.
            После сброса пароля старые сообщения могут быть недоступны на новом устройстве,
            если у вас нет recovery key или доверенного устройства.
@@ -92,7 +92,7 @@ function ResetPasswordForm() {
       </div>
 
       {error && (
-        <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95">
+        <p className="text-center text-xs font-bold text-destructive animate-in fade-in zoom-in-95">
           {error}
         </p>
       )}

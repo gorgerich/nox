@@ -18,7 +18,13 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#050608",
+  // Per-scheme status bar / browser chrome colour. A single dark value used to
+  // be emitted, which left the light theme with dark system chrome.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+  colorScheme: "light dark",
 };
 
 export const metadata: Metadata = {
@@ -76,6 +82,10 @@ export default function RootLayout({
                 document.documentElement.classList.toggle('dark', effectiveTheme === 'dark');
                 document.documentElement.classList.remove('light');
                 document.documentElement.style.colorScheme = effectiveTheme;
+                var meta = document.createElement('meta');
+                meta.name = 'theme-color';
+                meta.content = effectiveTheme === 'dark' ? '#000000' : '#f2f2f7';
+                document.head.appendChild(meta);
               } catch (e) {}
             `,
           }}

@@ -39,6 +39,13 @@ function isAccentPreference(value: string | null): value is AccentPreference {
   return value === "blue" || value === "graphite" || value === "gray" || value === "purple" || value === "cyan" || value === "green";
 }
 
+// Status bar / browser chrome colour per theme. Kept in sync with the
+// --background token of each theme in globals.css.
+const THEME_COLOR: Record<EffectiveTheme, string> = {
+  light: "#f2f2f7",
+  dark: "#000000",
+};
+
 function applyRootTheme(preference: ThemePreference, accent: AccentPreference) {
   const effectiveTheme = resolveEffectiveTheme(preference);
   const root = document.documentElement;
@@ -49,6 +56,19 @@ function applyRootTheme(preference: ThemePreference, accent: AccentPreference) {
   root.classList.toggle("dark", effectiveTheme === "dark");
   root.classList.remove("light");
   root.style.colorScheme = effectiveTheme;
+
+  // The static <meta> tags are media-query based, so they track the *system*
+  // scheme. When the user overrides the theme manually we have to drive the
+  // status bar ourselves, otherwise picking Light on a dark phone leaves the
+  // system chrome black.
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])')
+    ?? (() => {
+      const created = document.createElement("meta");
+      created.name = "theme-color";
+      document.head.appendChild(created);
+      return created;
+    })();
+  meta.content = THEME_COLOR[effectiveTheme];
 
   return effectiveTheme;
 }

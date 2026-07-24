@@ -298,7 +298,7 @@ export function AdminPanel({
         ))}
       </nav>
 
-      {error && <p className="bg-red-500/10 text-red-400 text-xs font-bold p-3 rounded-xl text-center border border-red-500/20">{error}</p>}
+      {error && <p className="bg-destructive/10 text-destructive text-xs font-bold p-3 rounded-xl text-center border border-destructive/20">{error}</p>}
       {loading && <p className="py-12 text-center text-sm font-semibold text-muted animate-pulse">Загрузка...</p>}
 
       {!loading && (
@@ -401,7 +401,7 @@ export function AdminPanel({
                       </p>
                     </div>
                     <button 
-                      className="text-xs font-semibold text-red-400 transition hover:text-red-300"
+                      className="text-xs font-semibold text-destructive transition hover:text-destructive"
                       onClick={() => runAction(`revoke-invite-${invite.id}`, `/api/admin/invites/${invite.id}/revoke`)}
                     >
                       Отозвать
@@ -414,8 +414,8 @@ export function AdminPanel({
 
           {activeSection === "recovery" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-                <p className="text-xs font-bold leading-relaxed text-amber-600 dark:text-amber-400">
+              <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4">
+                <p className="text-xs font-bold leading-relaxed text-warning">
                   Разрешайте сброс только если лично убедились, что запрос сделал владелец аккаунта.
                   После разрешения передайте ему код из карточки: он введет его на странице восстановления.
                 </p>
@@ -439,7 +439,7 @@ export function AdminPanel({
                             {request.user.profile?.displayName ?? request.user.username}
                           </h3>
                           <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                            actionable ? "bg-amber-500/10 text-amber-500" : "bg-surface-hover text-muted"
+                            actionable ? "bg-warning/10 text-warning" : "bg-surface-hover text-muted"
                           }`}>
                             {getRecoveryStatusLabel(request.status, request.expiresAt)}
                           </span>
@@ -470,7 +470,7 @@ export function AdminPanel({
                     {actionable && (
                       <div className="mt-5 flex gap-3">
                         <button
-                          className="flex-1 rounded-xl bg-red-500/10 py-3 text-sm font-semibold text-red-400 transition-smooth active:scale-[0.96] disabled:opacity-50"
+                          className="flex-1 rounded-xl bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-smooth active:scale-[0.96] disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`deny-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/deny`)}
                         >
@@ -493,7 +493,7 @@ export function AdminPanel({
 
           {activeSection === "security" && (
             <div className="space-y-6">
-              <article className={`card-clean p-8 text-center border-2 transition-colors ${system?.emergencyLocked ? "border-red-500/50 bg-red-500/5" : "border-primary/20 bg-primary/5"}`}>
+              <article className={`card-clean p-8 text-center border-2 transition-colors ${system?.emergencyLocked ? "border-destructive/50 bg-destructive/5" : "border-primary/20 bg-primary/5"}`}>
                   <div className={`mx-auto mb-6 h-16 w-16 rounded-full flex items-center justify-center text-2xl ${system?.emergencyLocked ? "bg-danger text-primary-foreground animate-pulse" : "bg-primary text-primary-foreground"}`}>
                   {system?.emergencyLocked ? "🔒" : "🛡️"}
                 </div>
@@ -546,7 +546,7 @@ function AdminActionButton({ label, onClick, pending, variant = "default" }: {
     <button
       className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-[transform,background-color,color,opacity] active:scale-[0.96] ${
         variant === "danger" 
-          ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" 
+          ? "bg-destructive/10 text-destructive hover:bg-destructive/20" 
           : "bg-surface-hover text-muted hover:text-foreground"
       }`}
       disabled={pending}

@@ -78,7 +78,7 @@ export function AccountRecoveryListener() {
     >
       <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-6">
         <div className="mb-4 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-warning/10 text-warning">
             <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -100,7 +100,7 @@ export function AccountRecoveryListener() {
           </p>
         )}
 
-        {error && <p className="text-center text-xs font-bold text-red-400 mb-4">{error}</p>}
+        {error && <p className="text-center text-xs font-bold text-destructive mb-4">{error}</p>}
         {message && <p className="text-center text-xs font-bold text-primary mb-4">{message}</p>}
 
         {!message && (

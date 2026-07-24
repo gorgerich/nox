@@ -103,17 +103,17 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 shadow-inner">
-               <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400/90 leading-relaxed text-center">
+            <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4 shadow-inner">
+               <p className="text-[11px] font-bold text-warning leading-relaxed text-center">
                  Если вы сбрасываете пароль на новом устройстве, старые зашифрованные сообщения могут быть недоступны без recovery key или доверенного устройства.
                </p>
-               <p className="mt-3 text-center text-xs font-semibold text-amber-600/70 dark:text-amber-400/60">
+               <p className="mt-3 text-center text-xs font-semibold text-warning/80">
                  Recovery keys в разработке
                </p>
             </div>
 
             {error && (
-              <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95">
+              <p className="text-center text-xs font-bold text-destructive animate-in fade-in zoom-in-95">
                 {error}
               </p>
             )}
@@ -159,7 +159,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             {error && (
-              <p className="text-center text-xs font-bold text-red-400 animate-in fade-in zoom-in-95">
+              <p className="text-center text-xs font-bold text-destructive animate-in fade-in zoom-in-95">
                 {error}
               </p>
             )}

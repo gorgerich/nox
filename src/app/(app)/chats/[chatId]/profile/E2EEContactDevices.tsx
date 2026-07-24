@@ -68,7 +68,7 @@ export function E2EEContactDevices({ userId, chatId }: { userId: string; chatId?
         <p className="mt-1 text-xs font-normal text-muted">Ключи устройств собеседника и safety code</p>
       </div>
       {loading ? <p className="py-3 text-sm font-medium text-muted">Загрузка ключей...</p> : null}
-      {error ? <p className="mb-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-500">{error}</p> : null}
+      {error ? <p className="mb-3 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">{error}</p> : null}
       <div className="space-y-2">
         {devices.map((device) => (
           <div key={device.deviceId} className="rounded-xl border border-border-subtle bg-background/50 p-3">
@@ -76,10 +76,10 @@ export function E2EEContactDevices({ userId, chatId }: { userId: string; chatId?
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-semibold text-foreground">{device.name || device.platform || "Nox device"}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${device.isVerified ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500"}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${device.isVerified ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>
                     {device.isVerified ? "Проверено" : "Не проверено"}
                   </span>
-                  {device.keyChanged ? <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-500">Ключ изменился</span> : null}
+                  {device.keyChanged ? <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">Ключ изменился</span> : null}
                 </div>
                 <p className="mt-1 text-[11px] font-semibold text-muted">{device.platform || "Web"} · {new Date(device.createdAt).toLocaleDateString("ru-RU")}</p>
                 <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted/45">{device.fingerprintShort}</p>

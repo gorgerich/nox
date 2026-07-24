@@ -2,25 +2,68 @@
 
 :root,
 [data-theme="light"] {
-  --app-bg: oklch(96.8% 0.012 252);
-  --app-fg: oklch(19% 0.014 252);
-  --app-muted: oklch(57% 0.018 252);
-  --app-border: rgba(24, 37, 61, 0.08);
+  color-scheme: light;
+
+  /* ---- Semantic design tokens (light) -------------------------------------
+     Light and dark are two separately designed systems, not one inverted.
+     The light system follows iOS: a neutral (not blue) system background with
+     white content surfaces sitting on top of it. Everything below — including
+     the legacy variable names kept for existing components — is derived from
+     these tokens, so there is a single source of truth per theme. */
+  --background: #f2f2f7;
+  --background-elevated: #ffffff;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f2f2f7;
+  --surface-tertiary: #e5e5ea;
+  --surface-selected: rgba(0, 122, 255, 0.1);
+  --surface-pressed: rgba(0, 0, 0, 0.06);
+
+  --text-primary: #111111;
+  --text-secondary: #6c6c70;
+  --text-tertiary: #8e8e93;
+  --text-disabled: #aeaeb2;
+
+  --separator: rgba(60, 60, 67, 0.18);
+  --separator-strong: rgba(60, 60, 67, 0.3);
+
+  --accent: #007aff;
+  /* Derived from --accent so a user-picked accent flows through every surface
+     that uses the muted tint (dock pill, selected rows, chips). */
+  --accent-muted: color-mix(in srgb, var(--accent) 12%, transparent);
+
+  --icon-primary: #111111;
+  --icon-secondary: #8e8e93;
+
+  --badge-background: #007aff;
+  --badge-text: #ffffff;
+
+  --destructive: #ff3b30;
+  --warning: #ff9500;
+  --success: #34c759;
+  --overlay: rgba(0, 0, 0, 0.32);
+  --navigation-background: rgba(248, 248, 248, 0.88);
+  --navigation-background-fallback: #f8f8f8;
+  --input-background: #e9e9eb;
+
+  --app-bg: var(--background);
+  --app-fg: var(--text-primary);
+  --app-muted: var(--text-secondary);
+  --app-border: var(--separator);
   --bottom-dock-clearance: max(112px, calc(env(safe-area-inset-bottom, 0px) + 96px));
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
-  --glass-bg: rgba(248, 251, 255, 0.5);
-  --glass-bg-strong: rgba(250, 252, 255, 0.68);
-  --glass-panel-fill: rgba(250, 253, 255, 0.48);
-  --glass-panel-fill-strong: rgba(252, 254, 255, 0.66);
-  --glass-panel-border: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(30, 45, 72, 0.07);
+  --glass-bg: rgba(248, 248, 248, 0.6);
+  --glass-bg-strong: rgba(250, 250, 250, 0.78);
+  --glass-panel-fill: rgba(250, 250, 250, 0.62);
+  --glass-panel-fill-strong: rgba(252, 252, 252, 0.8);
+  --glass-panel-border: var(--separator);
+  --glass-border: var(--separator);
   --glass-highlight: rgba(255, 255, 255, 0.82);
   --glass-edge: rgba(255, 255, 255, 0.92);
   --glass-sheen: rgba(255, 255, 255, 0.58);
-  --glass-caustic: rgba(37, 99, 235, 0.045);
+  --glass-caustic: color-mix(in srgb, var(--accent) 4%, transparent);
   --glass-shadow: rgba(25, 38, 62, 0.045);
   --glass-inner-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.82),
@@ -29,41 +72,38 @@
   --glass-filter-strong: blur(22px) saturate(162%) contrast(102%);
   --glass-material: var(--glass-panel-fill);
 
-  --dock-bg: rgba(248, 251, 255, 0.74);
-  --dock-border: rgba(255, 255, 255, 0.76);
-  --dock-inactive: rgba(15, 23, 42, 0.5);
-  --dock-active-bg: rgba(255, 255, 255, 0.86);
-  --dock-active-fg: oklch(19% 0.014 252);
+  --dock-bg: var(--navigation-background);
+  --dock-border: var(--separator);
+  --dock-inactive: var(--text-secondary);
+  --dock-active-bg: var(--accent-muted);
+  --dock-active-fg: var(--accent);
   --dock-shadow:
     0 10px 24px rgba(25, 38, 62, 0.06),
     0 1px 2px rgba(25, 38, 62, 0.035);
 
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.12);
-  --accent-ring: rgba(37, 99, 235, 0.24);
-  --accent-shadow: rgba(37, 99, 235, 0.28);
+  --accent-hover: #0069d9;
+  --accent-soft: var(--accent-muted);
+  --accent-ring: rgba(0, 122, 255, 0.35);
+  --accent-shadow: rgba(0, 122, 255, 0.24);
 
-  --background: var(--app-bg);
-  --foreground: var(--app-fg);
-  --surface: rgba(255, 255, 255, 0.58);
-  --surface-elevated: rgba(255, 255, 255, 0.76);
-  --surface-muted: rgba(255, 255, 255, 0.42);
-  --surface-hover: rgba(255, 255, 255, 0.66);
-  --border: rgba(148, 163, 184, 0.2);
-  --border-subtle: var(--glass-border);
-  --muted: var(--app-muted);
-  --muted-foreground: rgba(123, 132, 148, 0.72);
+  --foreground: var(--text-primary);
+  --surface: var(--surface-primary);
+  --surface-elevated: var(--background-elevated);
+  --surface-muted: var(--surface-secondary);
+  --surface-hover: var(--surface-pressed);
+  --border: var(--separator);
+  --border-subtle: var(--separator);
+  --muted: var(--text-secondary);
+  --muted-foreground: var(--text-tertiary);
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
-  --primary-foreground: oklch(99% 0.004 252);
-  --danger: #fa5252;
-  --success: #16a34a;
-  --input: rgba(255, 255, 255, 0.52);
-  --input-foreground: var(--app-fg);
-  --placeholder: rgba(123, 132, 148, 0.7);
-  --icon: rgba(15, 23, 42, 0.74);
-  --icon-muted: rgba(123, 132, 148, 0.72);
+  --primary-foreground: #ffffff;
+  --danger: var(--destructive);
+  --input: var(--input-background);
+  --input-foreground: var(--text-primary);
+  --placeholder: var(--text-tertiary);
+  --icon: var(--icon-primary);
+  --icon-muted: var(--icon-secondary);
   --ring: var(--accent-ring);
   --shadow-color: rgba(15, 23, 42, 0.12);
   --glass-soft-highlight: rgba(255, 255, 255, 0.38);
@@ -82,37 +122,37 @@
   --ambient-2: transparent;
   --ambient-3: transparent;
   --ambient-4: transparent;
-  --chat-background: oklch(96.8% 0.012 252);
-  --chat-header: rgba(248, 251, 255, 0.82);
-  --chat-composer: rgba(248, 251, 255, 0.82);
-  --chat-composer-border: var(--glass-border);
-  --chat-input-bg: rgba(255, 255, 255, 0.62);
-  --chat-input-fg: var(--app-fg);
-  --chat-input-placeholder: rgba(123, 132, 148, 0.68);
-  --bubble-incoming: #f1f3f5;
-  --bubble-incoming-text: var(--app-fg);
+  --chat-background: var(--background);
+  --chat-header: var(--navigation-background);
+  --chat-composer: var(--navigation-background);
+  --chat-composer-border: var(--separator);
+  --chat-input-bg: var(--input-background);
+  --chat-input-fg: var(--text-primary);
+  --chat-input-placeholder: var(--text-tertiary);
+  --bubble-incoming: var(--surface-primary);
+  --bubble-incoming-text: var(--text-primary);
   --bubble-outgoing: var(--accent);
-  --bubble-outgoing-text: oklch(99% 0.004 252);
-  --bubble-meta: rgba(15, 23, 42, 0.42);
+  --bubble-outgoing-text: #ffffff;
+  --bubble-meta: var(--text-tertiary);
   --bubble-read: var(--accent);
-  --bubble-delivered: #94a3b8;
-  --voice-surface: #e9ecef;
-  --voice-surface-text: var(--app-fg);
+  --bubble-delivered: var(--text-tertiary);
+  --voice-surface: var(--surface-tertiary);
+  --voice-surface-text: var(--text-primary);
   --voice-control: var(--accent);
-  --voice-wave: #adb5bd;
-  --nav-background: rgba(255, 255, 255, 0.52);
-  --nav-border: var(--glass-border);
-  --dock-background: var(--dock-bg);
-  --dock-background-fallback: rgba(255, 255, 255, 0.94);
+  --voice-wave: var(--text-tertiary);
+  --nav-background: var(--navigation-background);
+  --nav-border: var(--separator);
+  --dock-background: var(--navigation-background);
+  --dock-background-fallback: var(--navigation-background-fallback);
   --dock-highlight: rgba(255, 255, 255, 0.56);
   --dock-active-pill: var(--dock-active-bg);
   --dock-active: var(--dock-active-fg);
   --dock-accent: var(--accent);
-  --dock-pill-border: rgba(255, 255, 255, 0.72);
-  --dock-hover-bg: rgba(255, 255, 255, 0.34);
-  --dock-pill-highlight: rgba(255, 255, 255, 0.74);
-  --dock-badge-border: rgba(255, 255, 255, 0.68);
-  --dock-badge-active-border: rgba(15, 23, 42, 0.28);
+  --dock-pill-border: transparent;
+  --dock-hover-bg: var(--surface-pressed);
+  --dock-pill-highlight: rgba(255, 255, 255, 0.5);
+  --dock-badge-border: var(--surface-primary);
+  --dock-badge-active-border: var(--surface-primary);
   --dock-shell-highlight: rgba(255, 255, 255, 0.64);
   --dock-shell-top-glow: rgba(255, 255, 255, 0.62);
   --dock-shell-bottom-glow: rgba(148, 163, 184, 0.08);
@@ -131,20 +171,61 @@
 }
 
 [data-theme="dark"] {
-  --app-bg: oklch(13.5% 0.014 252);
-  --app-fg: oklch(96.5% 0.006 252);
-  --app-muted: rgba(248, 250, 252, 0.58);
-  --app-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(24, 29, 38, 0.5);
-  --glass-bg-strong: rgba(31, 37, 48, 0.68);
-  --glass-panel-fill: rgba(25, 30, 40, 0.5);
-  --glass-panel-fill-strong: rgba(31, 37, 48, 0.68);
-  --glass-panel-border: rgba(255, 255, 255, 0.16);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  color-scheme: dark;
+
+  /* ---- Semantic design tokens (dark) --------------------------------------
+     Designed independently of the light system. The page sits on near-black,
+     but content surfaces, elevated panels and pressed/selected states each
+     occupy their own level so the UI reads as layered rather than inverted.
+     Secondary text stays light enough for timestamps and message previews to
+     remain comfortably readable. */
+  --background: #000000;
+  --background-elevated: #1c1c1e;
+  --surface-primary: #0b0b0c;
+  --surface-secondary: #1c1c1e;
+  --surface-tertiary: #2c2c2e;
+  --surface-selected: #1c222b;
+  --surface-pressed: #252527;
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #98989d;
+  --text-tertiary: #8a8a8f;
+  --text-disabled: #48484a;
+
+  --separator: rgba(84, 84, 88, 0.45);
+  --separator-strong: rgba(99, 99, 102, 0.65);
+
+  --accent: #0a84ff;
+  --accent-muted: color-mix(in srgb, var(--accent) 18%, transparent);
+
+  --icon-primary: #f5f5f7;
+  --icon-secondary: #98989d;
+
+  --badge-background: #0a84ff;
+  --badge-text: #ffffff;
+
+  --destructive: #ff453a;
+  --warning: #ff9f0a;
+  --success: #30d158;
+  --overlay: rgba(0, 0, 0, 0.5);
+  --navigation-background: rgba(28, 28, 30, 0.88);
+  --navigation-background-fallback: #1c1c1e;
+  --input-background: #1c1c1e;
+
+  --app-bg: var(--background);
+  --app-fg: var(--text-primary);
+  --app-muted: var(--text-secondary);
+  --app-border: var(--separator);
+  --glass-bg: rgba(28, 28, 30, 0.62);
+  --glass-bg-strong: rgba(38, 38, 40, 0.82);
+  --glass-panel-fill: rgba(28, 28, 30, 0.68);
+  --glass-panel-fill-strong: rgba(38, 38, 40, 0.86);
+  --glass-panel-border: var(--separator);
+  --glass-border: var(--separator);
   --glass-highlight: rgba(255, 255, 255, 0.22);
   --glass-edge: rgba(255, 255, 255, 0.28);
   --glass-sheen: rgba(255, 255, 255, 0.16);
-  --glass-caustic: rgba(96, 165, 250, 0.08);
+  --glass-caustic: color-mix(in srgb, var(--accent) 8%, transparent);
   --glass-shadow: rgba(0, 0, 0, 0.2);
   --glass-inner-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
@@ -152,40 +233,39 @@
   --glass-filter: blur(16px) saturate(145%) contrast(103%);
   --glass-filter-strong: blur(22px) saturate(158%) contrast(104%);
   --glass-material: var(--glass-panel-fill);
-  --dock-bg: rgba(25, 30, 39, 0.78);
-  --dock-border: rgba(255, 255, 255, 0.14);
-  --dock-inactive: rgba(255, 255, 255, 0.52);
-  --dock-active-bg: rgba(255, 255, 255, 0.12);
-  --dock-active-fg: oklch(96.5% 0.006 252);
+  /* The dock must not melt into the black page background: it keeps its own
+     elevated fill plus a visible hairline. */
+  --dock-bg: var(--navigation-background);
+  --dock-border: var(--separator-strong);
+  --dock-inactive: var(--text-secondary);
+  --dock-active-bg: var(--accent-muted);
+  --dock-active-fg: var(--accent);
   --dock-shadow:
     0 14px 32px rgba(0, 0, 0, 0.26),
     0 2px 6px rgba(0, 0, 0, 0.16);
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-soft: rgba(59, 130, 246, 0.16);
-  --accent-ring: rgba(59, 130, 246, 0.3);
-  --accent-shadow: rgba(59, 130, 246, 0.32);
+  --accent-hover: #409cff;
+  --accent-soft: var(--accent-muted);
+  --accent-ring: rgba(10, 132, 255, 0.45);
+  --accent-shadow: rgba(10, 132, 255, 0.3);
 
-  --background: var(--app-bg);
-  --foreground: var(--app-fg);
-  --surface: rgba(18, 24, 36, 0.62);
-  --surface-elevated: rgba(28, 35, 50, 0.78);
-  --surface-muted: rgba(255, 255, 255, 0.08);
-  --surface-hover: rgba(255, 255, 255, 0.13);
-  --border: rgba(255, 255, 255, 0.1);
-  --border-subtle: var(--glass-border);
-  --muted: var(--app-muted);
-  --muted-foreground: rgba(248, 250, 252, 0.4);
+  --foreground: var(--text-primary);
+  --surface: var(--surface-primary);
+  --surface-elevated: var(--background-elevated);
+  --surface-muted: var(--surface-secondary);
+  --surface-hover: var(--surface-pressed);
+  --border: var(--separator);
+  --border-subtle: var(--separator);
+  --muted: var(--text-secondary);
+  --muted-foreground: var(--text-tertiary);
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
-  --primary-foreground: oklch(99% 0.004 252);
-  --danger: #ff6b6b;
-  --success: #22c55e;
-  --input: rgba(24, 31, 45, 0.62);
-  --input-foreground: var(--app-fg);
-  --placeholder: rgba(248, 250, 252, 0.32);
-  --icon: rgba(248, 250, 252, 0.88);
-  --icon-muted: rgba(248, 250, 252, 0.38);
+  --primary-foreground: #ffffff;
+  --danger: var(--destructive);
+  --input: var(--input-background);
+  --input-foreground: var(--text-primary);
+  --placeholder: var(--text-tertiary);
+  --icon: var(--icon-primary);
+  --icon-muted: var(--icon-secondary);
   --ring: var(--accent-ring);
   --shadow-color: rgba(0, 0, 0, 0.45);
   --glass-soft-highlight: rgba(255, 255, 255, 0.12);
@@ -204,37 +284,37 @@
   --ambient-2: transparent;
   --ambient-3: transparent;
   --ambient-4: transparent;
-  --chat-background: oklch(13.5% 0.014 252);
-  --chat-header: rgba(24, 29, 38, 0.84);
-  --chat-composer: rgba(24, 29, 38, 0.84);
-  --chat-composer-border: rgba(255, 255, 255, 0.15);
-  --chat-input-bg: rgba(24, 31, 45, 0.64);
-  --chat-input-fg: var(--app-fg);
-  --chat-input-placeholder: rgba(248, 250, 252, 0.38);
-  --bubble-incoming: #1a1b1e;
-  --bubble-incoming-text: var(--app-fg);
+  --chat-background: var(--background);
+  --chat-header: var(--navigation-background);
+  --chat-composer: var(--navigation-background);
+  --chat-composer-border: var(--separator);
+  --chat-input-bg: var(--input-background);
+  --chat-input-fg: var(--text-primary);
+  --chat-input-placeholder: var(--text-tertiary);
+  --bubble-incoming: var(--surface-secondary);
+  --bubble-incoming-text: var(--text-primary);
   --bubble-outgoing: var(--accent);
-  --bubble-outgoing-text: oklch(99% 0.004 252);
-  --bubble-meta: rgba(255, 255, 255, 0.5);
-  --bubble-read: var(--accent);
-  --bubble-delivered: #5c5f66;
-  --voice-surface: #25262b;
-  --voice-surface-text: var(--app-fg);
+  --bubble-outgoing-text: #ffffff;
+  --bubble-meta: var(--text-tertiary);
+  --bubble-read: #ffffff;
+  --bubble-delivered: var(--text-tertiary);
+  --voice-surface: var(--surface-tertiary);
+  --voice-surface-text: var(--text-primary);
   --voice-control: var(--accent);
-  --voice-wave: #5c5f66;
-  --nav-background: rgba(20, 25, 36, 0.62);
-  --nav-border: var(--glass-border);
-  --dock-background: var(--dock-bg);
-  --dock-background-fallback: rgba(15, 15, 18, 0.88);
-  --dock-highlight: rgba(255, 255, 255, 0.16);
+  --voice-wave: var(--text-tertiary);
+  --nav-background: var(--navigation-background);
+  --nav-border: var(--separator);
+  --dock-background: var(--navigation-background);
+  --dock-background-fallback: var(--navigation-background-fallback);
+  --dock-highlight: rgba(255, 255, 255, 0.1);
   --dock-active-pill: var(--dock-active-bg);
   --dock-active: var(--dock-active-fg);
   --dock-accent: var(--accent);
-  --dock-pill-border: rgba(255, 255, 255, 0.2);
-  --dock-hover-bg: rgba(255, 255, 255, 0.08);
-  --dock-pill-highlight: rgba(255, 255, 255, 0.2);
-  --dock-badge-border: rgba(255, 255, 255, 0.34);
-  --dock-badge-active-border: rgba(255, 255, 255, 0.32);
+  --dock-pill-border: transparent;
+  --dock-hover-bg: var(--surface-pressed);
+  --dock-pill-highlight: rgba(255, 255, 255, 0.12);
+  --dock-badge-border: var(--background-elevated);
+  --dock-badge-active-border: var(--background-elevated);
   --dock-shell-highlight: rgba(255, 255, 255, 0.14);
   --dock-shell-top-glow: rgba(255, 255, 255, 0.16);
   --dock-shell-bottom-glow: rgba(255, 255, 255, 0.03);
@@ -243,17 +323,17 @@
 }
 
 [data-accent="blue"] {
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.12);
-  --accent-ring: rgba(37, 99, 235, 0.24);
-  --accent-shadow: rgba(37, 99, 235, 0.28);
+  --accent: #007aff;
+  --accent-hover: #0069d9;
+  --accent-soft: var(--accent-muted);
+  --accent-ring: rgba(0, 122, 255, 0.35);
+  --accent-shadow: rgba(0, 122, 255, 0.24);
 }
 
 [data-accent="graphite"] {
   --accent: #334155;
   --accent-hover: #1f2937;
-  --accent-soft: rgba(51, 65, 85, 0.1);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(51, 65, 85, 0.2);
   --accent-shadow: rgba(51, 65, 85, 0.24);
 }
@@ -261,7 +341,7 @@
 [data-accent="gray"] {
   --accent: #6b7280;
   --accent-hover: #4b5563;
-  --accent-soft: rgba(107, 114, 128, 0.12);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(107, 114, 128, 0.24);
   --accent-shadow: rgba(107, 114, 128, 0.26);
 }
@@ -269,7 +349,7 @@
 [data-accent="purple"] {
   --accent: #7c3aed;
   --accent-hover: #6d28d9;
-  --accent-soft: rgba(124, 58, 237, 0.12);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(124, 58, 237, 0.24);
   --accent-shadow: rgba(124, 58, 237, 0.3);
 }
@@ -277,7 +357,7 @@
 [data-accent="cyan"] {
   --accent: #0891b2;
   --accent-hover: #0e7490;
-  --accent-soft: rgba(8, 145, 178, 0.12);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(8, 145, 178, 0.24);
   --accent-shadow: rgba(8, 145, 178, 0.28);
 }
@@ -285,50 +365,50 @@
 [data-accent="green"] {
   --accent: #059669;
   --accent-hover: #047857;
-  --accent-soft: rgba(5, 150, 105, 0.12);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(5, 150, 105, 0.24);
   --accent-shadow: rgba(5, 150, 105, 0.26);
 }
 
 [data-theme="dark"][data-accent="blue"] {
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-soft: rgba(59, 130, 246, 0.16);
-  --accent-ring: rgba(59, 130, 246, 0.3);
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-soft: var(--accent-muted);
+  --accent-ring: rgba(10, 132, 255, 0.45);
 }
 
 [data-theme="dark"][data-accent="graphite"] {
   --accent: #64748b;
   --accent-hover: #94a3b8;
-  --accent-soft: rgba(100, 116, 139, 0.16);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(100, 116, 139, 0.28);
 }
 
 [data-theme="dark"][data-accent="gray"] {
   --accent: #6b7280;
   --accent-hover: #9ca3af;
-  --accent-soft: rgba(107, 114, 128, 0.16);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(107, 114, 128, 0.28);
 }
 
 [data-theme="dark"][data-accent="purple"] {
   --accent: #8b5cf6;
   --accent-hover: #a78bfa;
-  --accent-soft: rgba(139, 92, 246, 0.16);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(139, 92, 246, 0.3);
 }
 
 [data-theme="dark"][data-accent="cyan"] {
   --accent: #06b6d4;
   --accent-hover: #22d3ee;
-  --accent-soft: rgba(6, 182, 212, 0.16);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(6, 182, 212, 0.3);
 }
 
 [data-theme="dark"][data-accent="green"] {
   --accent: #10b981;
   --accent-hover: #34d399;
-  --accent-soft: rgba(16, 185, 129, 0.16);
+  --accent-soft: var(--accent-muted);
   --accent-ring: rgba(16, 185, 129, 0.3);
 }
 
@@ -351,7 +431,35 @@
   --color-input: var(--input);
   --color-input-foreground: var(--input-foreground);
   --color-icon-muted: var(--icon-muted);
-  
+
+  /* Semantic tokens exposed as Tailwind colours, so components can say
+     text-text-secondary / bg-surface-secondary instead of picking a palette
+     colour that only works in one theme. */
+  --color-background-elevated: var(--background-elevated);
+  --color-surface-primary: var(--surface-primary);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-selected: var(--surface-selected);
+  --color-surface-pressed: var(--surface-pressed);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-disabled: var(--text-disabled);
+  --color-separator: var(--separator);
+  --color-separator-strong: var(--separator-strong);
+  --color-accent: var(--accent);
+  --color-accent-muted: var(--accent-muted);
+  --color-icon-primary: var(--icon-primary);
+  --color-icon-secondary: var(--icon-secondary);
+  --color-badge-background: var(--badge-background);
+  --color-badge-text: var(--badge-text);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-overlay: var(--overlay);
+  --color-navigation-background: var(--navigation-background);
+  --color-input-background: var(--input-background);
+
+
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);

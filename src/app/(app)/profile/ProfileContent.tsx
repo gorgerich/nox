@@ -385,7 +385,7 @@ export function ProfileContent({
                   type="button"
                   aria-label="Удалить фото профиля"
                   onClick={handleAvatarDelete}
-                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-red-400 transition-smooth active:scale-[0.96]"
+                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-destructive transition-smooth active:scale-[0.96]"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -675,7 +675,7 @@ export function ProfileContent({
                   </div>
                </div>
 
-               {passwordError && <p className="py-1 text-center text-sm font-semibold text-red-400">{passwordError}</p>}
+               {passwordError && <p className="py-1 text-center text-sm font-semibold text-destructive">{passwordError}</p>}
                {passwordMessage && <p className="py-1 text-center text-sm font-semibold text-primary">{passwordMessage}</p>}
 
                <button
@@ -695,11 +695,11 @@ export function ProfileContent({
                </button>
             </form>
 
-            <div className="mt-12 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
-               <p className="mb-4 text-center text-sm font-medium leading-relaxed text-amber-600 dark:text-amber-400/90">
+            <div className="mt-12 rounded-2xl border border-warning/20 bg-warning/10 p-5">
+               <p className="mb-4 text-center text-sm font-medium leading-relaxed text-warning">
                  Nox не хранит ключи от ваших сообщений. После сброса пароля на новом устройстве старые сообщения могут быть недоступны без доверенного устройства.
                </p>
-               <Link href="/forgot-password" className="flex h-12 w-full items-center justify-center rounded-full bg-amber-500 text-sm font-semibold text-neutral-950 transition-smooth active:scale-[0.96]">
+               <Link href="/forgot-password" className="flex h-12 w-full items-center justify-center rounded-full bg-warning text-sm font-semibold text-neutral-950 transition-smooth active:scale-[0.96]">
                  Сбросить пароль полностью
                </Link>
             </div>
@@ -937,7 +937,7 @@ export function ProfileContent({
                 minLength={8}
               />
 
-              {trustedError && <p className="text-center text-sm font-semibold text-red-400">{trustedError}</p>}
+              {trustedError && <p className="text-center text-sm font-semibold text-destructive">{trustedError}</p>}
               {trustedMessage && <p className="text-center text-sm font-semibold text-primary">{trustedMessage}</p>}
 
               <div className="flex gap-4 mt-2">
@@ -1168,7 +1168,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
   return (
     <div className="space-y-8 px-6 py-6">
       {loading ? <p className="py-4 text-sm font-bold text-muted text-center">Загрузка...</p> : null}
-      {error ? <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-xs font-bold text-red-500 text-center">{error}</p> : null}
+      {error ? <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-xs font-bold text-destructive text-center">{error}</p> : null}
 
       <section className="space-y-3">
         <div className="px-1">
