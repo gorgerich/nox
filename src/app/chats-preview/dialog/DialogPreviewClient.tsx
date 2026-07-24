@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { MessageBubble, type Message } from "../../(app)/chats/[chatId]/MessageBubble";
 import { ChatComposer } from "../../(app)/chats/[chatId]/ChatComposer";
-import { AttachmentSheet } from "../../(app)/chats/[chatId]/AttachmentSheet";
 import { InlineConnectionNotice, type ConnectionStatus } from "../../(app)/chats/[chatId]/InlineConnectionNotice";
 import { DEFAULT_APPEARANCE, getChatAppearanceVars } from "../../(app)/chats/[chatId]/ChatAppearance";
 import { startsGroup, endsGroup, needsDateSeparator, formatDateLabel } from "@/lib/message-grouping";
@@ -91,7 +90,6 @@ type Scenario =
   | "offline"
   | "reconnecting"
   | "pagination"
-  | "attachment"
   | "recording"
   | "empty";
 
@@ -102,7 +100,6 @@ const SCENARIOS: { id: Scenario; label: string }[] = [
   { id: "offline", label: "Оффлайн" },
   { id: "reconnecting", label: "Переподключение" },
   { id: "pagination", label: "Пагинация" },
-  { id: "attachment", label: "Вложения" },
   { id: "recording", label: "Запись" },
   { id: "empty", label: "Пустой чат" },
 ];
@@ -155,7 +152,6 @@ function TypingIndicator({ names }: { names: string[] }) {
 
 export function DialogPreviewClient() {
   const [scenario, setScenario] = useState<Scenario>("grouped");
-  const [sheetOpen, setSheetOpen] = useState(false);
   const vars = getChatAppearanceVars(DEFAULT_APPEARANCE) as React.CSSProperties;
 
   const messages = scenario === "empty" ? [] : BASE;
@@ -186,7 +182,7 @@ export function DialogPreviewClient() {
           <button
             key={s.id}
             type="button"
-            onClick={() => { setScenario(s.id); setSheetOpen(s.id === "attachment"); }}
+            onClick={() => setScenario(s.id)}
             className={`nox-filter-chip ${scenario === s.id ? "nox-filter-chip-active" : ""}`}
           >
             {s.label}
@@ -261,7 +257,6 @@ export function DialogPreviewClient() {
         onCancelAction={() => {}}
       />
 
-      <AttachmentSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} onSelect={() => {}} />
     </div>
   );
 }
