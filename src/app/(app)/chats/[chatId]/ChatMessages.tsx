@@ -239,6 +239,12 @@ export function ChatMessages({
   // "unread messages" divider above it (computed once, kept for the session).
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
 
+  // Sends that failed keep their optimistic bubble on screen, marked as failed,
+  // with the original text held here so the user can retry. Previously a failed
+  // send deleted the bubble outright and only surfaced a composer error, which
+  // silently threw away what the user had typed.
+  const [failedSends, setFailedSends] = useState<Record<string, { body: string; replyToId: string | null }>>({});
+
   const [disappearingSeconds, setDisappearingSeconds] = useState<number | null>(initialDisappearingSeconds);
   const changeDisappearing = useCallback(async (seconds: number | null) => {
     const prev = disappearingSeconds;
@@ -1511,7 +1517,11 @@ export function ChatMessages({
         }
       } catch (error) {
         plaintextByClientIdRef.current.delete(clientId);
-        setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
+        // Keep the bubble and mark it failed so the text isn't lost and can be retried.
+        setFailedSends((current) => ({
+          ...current,
+          [optimisticMessage.id]: { body: trimmedBody, replyToId: replyTarget?.id ?? null },
+        }));
         setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
         throw error;
       } finally {
@@ -1553,6 +1563,24 @@ export function ChatMessages({
       setPending(false);
     }
   }, [chatId, currentUserId, editingMessage, replyingToMessage, chatInfo.otherMember, chatInfo.type, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
+
+  // Retry a failed send: drop the failed bubble, then re-send the original text
+  // through the normal path so encryption and receipts behave identically.
+  const handleRetrySend = useCallback((messageId: string) => {
+    const failed = failedSends[messageId];
+    if (!failed) return;
+
+    setFailedSends((current) => {
+      const next = { ...current };
+      delete next[messageId];
+      return next;
+    });
+    setMessages((current) => current.filter((message) => message.id !== messageId));
+    setComposerError(null);
+    void handleSend(failed.body).catch(() => {
+      // handleSend already records the new failure and surfaces the error.
+    });
+  }, [failedSends, handleSend]);
 
   const handleSendFromPreview = useCallback(async (items: MediaPreviewItem[], caption: string) => {
     setPreviewFiles([]); // hide composer
@@ -2115,6 +2143,8 @@ export function ChatMessages({
                   chatId={chatId}
                   currentUserId={currentUserId}
                   localDeviceId={localDeviceId}
+                  isFailed={Boolean(failedSends[item.message.id])}
+                  onRetry={handleRetrySend}
                 />
               </div>
             )

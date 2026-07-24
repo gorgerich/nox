@@ -415,7 +415,9 @@ function AttachmentPreview({
           style={{
             ...ratioStyle,
             maxHeight: "24rem",
-            backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+            backgroundColor: mine
+              ? "color-mix(in srgb, var(--bubble-outgoing-fg) 14%, transparent)"
+              : "color-mix(in srgb, var(--bubble-incoming-fg) 8%, transparent)",
             border: "1px solid var(--bubble-incoming-border)",
           }}
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
@@ -431,9 +433,13 @@ function AttachmentPreview({
         <button
           type="button"
           aria-label={`Скачать файл ${attachment.fileName}`}
-          className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-smooth active:opacity-85"
+          // w-full/min-w-0 keeps a long file name inside the bubble instead of
+          // widening the chip until the text spills past the bubble edge.
+          className="flex w-full min-w-0 max-w-full cursor-pointer items-center gap-3 rounded-xl p-3 text-left transition-smooth active:opacity-85"
           style={{
-            backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)",
+            backgroundColor: mine
+              ? "color-mix(in srgb, var(--bubble-outgoing-fg) 14%, transparent)"
+              : "color-mix(in srgb, var(--bubble-incoming-fg) 8%, transparent)",
             border: "1px solid var(--bubble-incoming-border)",
           }}
           onClick={(e) => {
@@ -480,6 +486,8 @@ export const MessageBubble = memo(function MessageBubble({
   chatId,
   currentUserId,
   localDeviceId,
+  isFailed = false,
+  onRetry,
 }: {
   message: Message;
   mine: boolean;
@@ -500,6 +508,8 @@ export const MessageBubble = memo(function MessageBubble({
   chatId?: string;
   currentUserId?: string;
   localDeviceId?: string | null;
+  isFailed?: boolean;
+  onRetry?: (messageId: string) => void;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -756,7 +766,11 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        <div className={`flex flex-col flex-1 ${mine ? "items-end" : "items-start"}`}>
+        {/* min-w-0 stops this column from being sized by its widest child. Without
+            it, a long unbroken word blew the column past the viewport on narrow
+            screens (320px), and the bubble's max-w-[78%] was then computed from
+            that inflated width — producing horizontal page scroll. */}
+        <div className={`flex min-w-0 flex-1 flex-col ${mine ? "items-end" : "items-start"}`}>
           {showDisplayName && !mine && (
             <span className="mb-1 ml-3 text-xs font-semibold" style={{ color: "var(--bubble-incoming-muted)" }}>
               {message.sender.profile?.displayName ?? message.sender.username}
@@ -792,7 +806,10 @@ export const MessageBubble = memo(function MessageBubble({
           {message.replyToMessage && (
             <button
               type="button"
-              className={`mb-1.5 border-l-2 py-0.5 pl-2.5 text-xs leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
+              // block + w-full + min-w-0 so the quoted lines actually have a
+              // bound to truncate against; without it the preview grew to the
+              // full quoted text and stretched the bubble past its max width.
+              className={`mb-1.5 block w-full min-w-0 max-w-full border-l-2 py-0.5 pl-2.5 text-left text-xs leading-tight opacity-90 ${message.replyToMessage.deletedAt ? "" : "cursor-pointer active:opacity-80"}`}
               disabled={Boolean(message.replyToMessage.deletedAt)}
               aria-label="Перейти к сообщению, на которое ответили"
               style={{
@@ -856,34 +873,40 @@ export const MessageBubble = memo(function MessageBubble({
             </span>
             {mine && !message.deletedAt && (
               <div className="flex items-center ml-0.5">
-                {/* Monochrome light ticks — they sit on the blue outgoing bubble,
-                    so a soft white reads cleaner than the old green. Read = brighter. */}
-                {isPendingLocal ? (
+                {/* Tick colours come from the chat-appearance tokens, which are
+                    matched to whatever outgoing bubble colour the user picked.
+                    They used to be hardcoded white, which vanished on light
+                    custom bubbles. */}
+                {isFailed ? (
+                  <svg className="h-3 w-3" style={{ color: "var(--destructive)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-label="Не отправлено" role="img">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : isPendingLocal ? (
                   <span
                     className="h-2.5 w-2.5 rounded-full border-2 border-current border-t-transparent animate-spin"
-                    style={{ color: "rgba(255,255,255,0.6)" }}
+                    style={{ color: "var(--message-tick)" }}
                     aria-label="Отправляется"
                   />
                 ) : isRead ? (
-                  <div className="flex -space-x-1">
-                    <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "rgba(255,255,255,0.95)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex -space-x-1" aria-label="Прочитано" role="img">
+                    <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "rgba(255,255,255,0.95)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : isDelivered ? (
-                  <div className="flex -space-x-1">
-                    <svg className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex -space-x-1" aria-label="Доставлено" role="img">
+                    <svg className="h-2.5 w-2.5" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                    <svg className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-2.5 w-2.5" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 ) : (
-                  <svg className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.6)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-2.5 w-2.5" style={{ color: "var(--message-tick)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-label="Отправлено" role="img">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
@@ -892,6 +915,20 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
           </div>
         </div>
+
+        {isFailed && (
+          <div className="mt-1 flex items-center justify-end gap-2 pr-1">
+            <span className="text-[11px] font-semibold text-destructive">Не отправлено</span>
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onRetry?.(message.id); }}
+              aria-label="Повторить отправку сообщения"
+              className="touch-target -my-2 flex min-h-11 items-center rounded-full px-2 text-[11px] font-semibold text-primary transition-smooth active:scale-[0.96]"
+            >
+              Повторить
+            </button>
+          </div>
+        )}
 
         {Object.keys(groupedReactions).length > 0 && !selectionMode && (
           <div className={`mt-1 flex flex-wrap gap-1 ${mine ? "mr-1" : "ml-1"} animate-in fade-in zoom-in-95 duration-200`}>

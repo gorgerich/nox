@@ -661,14 +661,42 @@ body {
       0 -1px 0 rgba(24, 37, 61, 0.04);
   }
 
+  /* The composer owns its own surface level so history scrolling underneath it
+     stays legible; it used to be fully transparent, letting message text run
+     into the input area. On wide viewports its inner width is bound to the same
+     column as the message list instead of stretching across the window. */
   .chat-composer-shell {
     position: sticky;
     bottom: 0;
     z-index: 50;
     padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
-    background: transparent;
+    background: var(--navigation-background-fallback);
     border: 0;
+    border-top: 1px solid var(--separator);
     box-shadow: none;
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .chat-composer-shell {
+      background: var(--navigation-background);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+    }
+  }
+
+  /* Reduce Transparency / no blur support: fall back to the opaque surface. */
+  @media (prefers-reduced-transparency: reduce) {
+    .chat-composer-shell {
+      background: var(--navigation-background-fallback);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  .chat-composer-shell > * {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 48rem;
   }
 
   .chat-emoji-panel {
