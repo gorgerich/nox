@@ -617,6 +617,9 @@ model BackupGeneration {
   totalChunks               Int                    @default(0)
   uploadedChunks            Int                    @default(0)
   totalBytes                BigInt                 @default(0)
+  /// Quota reserved for this generation at create time, released verbatim on
+  /// activation/failure so a reservation can never leak.
+  reservedBytes             BigInt                 @default(0)
   createdAt                 DateTime               @default(now())
   completedAt               DateTime?
   /// Unfinished generations are reaped after this instant.

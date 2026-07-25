@@ -1,9 +1,15 @@
 -- E2EE backup prototype tables (Phase C).
 --
--- NOT APPLIED TO PRODUCTION. Reviewed and applied deliberately once the
--- Phase D security validation gate passes. The tables are inert while the
--- E2EE_BACKUP_* flags are off, and nothing here references the messaging
--- tables, so creating them cannot affect message delivery.
+-- NOT APPLIED TO PRODUCTION. Applied only to the disposable local test
+-- database by the backup validation scripts. The tables are inert while the
+-- E2EE_BACKUP_* flags are off.
+--
+-- Isolation caveat: these tables have no required relation to the messaging
+-- tables and the delivery path never calls the backup module, so a backup
+-- failure cannot change a message's send status. They do share the database,
+-- connection pool, process and bandwidth with delivery, so isolation under
+-- load must be demonstrated by tests rather than inferred from the absence of
+-- foreign keys.
 
 -- CreateEnum
 CREATE TYPE "BackupAccountStatus" AS ENUM ('DISABLED', 'ACTIVE', 'PAUSED', 'ERROR');
@@ -45,6 +51,7 @@ CREATE TABLE "BackupGeneration" (
     "totalChunks" INTEGER NOT NULL DEFAULT 0,
     "uploadedChunks" INTEGER NOT NULL DEFAULT 0,
     "totalBytes" BIGINT NOT NULL DEFAULT 0,
+    "reservedBytes" BIGINT NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3),

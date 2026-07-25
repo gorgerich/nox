@@ -15,7 +15,9 @@
     "validate:history-availability": "tsx scripts/validate-history-availability.ts",
     "validate:chat-scroll-anchor": "node scripts/validate-chat-scroll-anchor.mjs",
     "validate:backup-crypto": "tsx scripts/validate-backup-crypto.ts",
-    "validate:backup-flags": "tsx scripts/validate-backup-flags.ts"
+    "validate:backup-flags": "tsx scripts/validate-backup-flags.ts",
+    "validate:backup-db-isolation": "tsx scripts/validate-backup-db-isolation.ts",
+    "validate:backup-roundtrip": "tsx scripts/validate-backup-roundtrip.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
