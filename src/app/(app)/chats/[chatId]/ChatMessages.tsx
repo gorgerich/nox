@@ -8,7 +8,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
-import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars } from "./ChatAppearance";
+import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars, resolveChatScheme } from "./ChatAppearance";
 import { MediaPreviewComposer, MediaPreviewItem } from "./MediaPreviewComposer";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -25,6 +25,7 @@ import { InlineConnectionNotice, type ConnectionStatus } from "./InlineConnectio
 import { HistoryUnavailableNotice } from "./HistoryUnavailableNotice";
 import { DateSeparator, TypingIndicator } from "./ConversationMarkers";
 import { classifyHistory } from "@/lib/history-availability";
+import { useTheme } from "@/components/ThemeProvider";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
 
@@ -1709,7 +1710,11 @@ export function ChatMessages({
     return `${memberCount} ${memberCount === 1 ? 'участник' : (memberCount > 1 && memberCount < 5) ? 'участника' : 'участников'}`;
   }, [chatInfo.type, chatInfo.memberCount, partnerPresence.label, typingUsers]);
 
-  const themeVars = getChatAppearanceVars(settings);
+  // The chat inherits the app's resolved scheme; getChatAppearanceVars turns
+  // that into one effective chat scheme and re-points the app tokens for this
+  // subtree, so header, history, composer and notices can't disagree.
+  const { effectiveTheme } = useTheme();
+  const themeVars = getChatAppearanceVars(settings, effectiveTheme);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
   const focusedMessageCopyText = useMemo(() => {
     if (!menuState) return null;

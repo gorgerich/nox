@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageBubble, type Message } from "../../(app)/chats/[chatId]/MessageBubble";
 import { ChatComposer } from "../../(app)/chats/[chatId]/ChatComposer";
 import { InlineConnectionNotice, type ConnectionStatus } from "../../(app)/chats/[chatId]/InlineConnectionNotice";
 import { DateSeparator, UnreadSeparator, TypingIndicator } from "../../(app)/chats/[chatId]/ConversationMarkers";
 import { DEFAULT_APPEARANCE, getChatAppearanceVars } from "../../(app)/chats/[chatId]/ChatAppearance";
+import { useTheme } from "@/components/ThemeProvider";
 import { startsGroup, endsGroup, needsDateSeparator } from "@/lib/message-grouping";
 
 // Fixtures only — this harness never calls the API or the database.
@@ -110,7 +111,17 @@ const SCENARIOS: { id: Scenario; label: string }[] = [
 
 export function DialogPreviewClient() {
   const [scenario, setScenario] = useState<Scenario>("grouped");
-  const vars = getChatAppearanceVars(DEFAULT_APPEARANCE) as React.CSSProperties;
+  // Mirror production: the appearance resolver receives the app's resolved
+  // scheme. ?wallpaper= exercises the dark-artwork-under-light-app case.
+  const { effectiveTheme } = useTheme();
+  // Read the query after mount: doing it during render would be a hydration
+  // hazard and the server markup would win.
+  const [wallpaper, setWallpaper] = useState<string | null>(null);
+  useEffect(() => {
+    setWallpaper(new URLSearchParams(window.location.search).get("wallpaper"));
+  }, []);
+  const settings = wallpaper ? { ...DEFAULT_APPEARANCE, wallpaper: wallpaper as typeof DEFAULT_APPEARANCE.wallpaper } : DEFAULT_APPEARANCE;
+  const vars = getChatAppearanceVars(settings, effectiveTheme) as React.CSSProperties;
 
   const messages = scenario === "empty" ? [] : BASE;
   const unreadFromId = scenario === "unread" ? "r1" : null;

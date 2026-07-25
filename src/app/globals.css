@@ -670,7 +670,10 @@ body {
     bottom: 0;
     z-index: 50;
     padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
-    background: var(--navigation-background-fallback);
+    /* The chat's own composer surface — using the app navigation background
+       here made the composer ignore the chat appearance and left a light bar
+       under a dark history. */
+    background: var(--chat-composer-bg, var(--navigation-background-fallback));
     border: 0;
     border-top: 1px solid var(--separator);
     box-shadow: none;
@@ -678,7 +681,7 @@ body {
 
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .chat-composer-shell {
-      background: var(--navigation-background);
+      background: var(--chat-composer-bg, var(--navigation-background));
       -webkit-backdrop-filter: var(--glass-filter);
       backdrop-filter: var(--glass-filter);
     }
@@ -687,7 +690,7 @@ body {
   /* Reduce Transparency / no blur support: fall back to the opaque surface. */
   @media (prefers-reduced-transparency: reduce) {
     .chat-composer-shell {
-      background: var(--navigation-background-fallback);
+      background: var(--chat-composer-bg, var(--navigation-background-fallback));
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }

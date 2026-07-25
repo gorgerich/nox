@@ -292,11 +292,15 @@ export const CHAT_WALLPAPERS: {
   label: string;
   src: string | null;
   preferredPreset?: AppearanceSettings["preset"];
+  scheme?: "light" | "dark";
 }[] = [
   { id: "none", label: "Без фона", src: null },
-  { id: "orbit-night", label: "Орбиты", src: "/wallpapers/nox-orbit-night.jpg", preferredPreset: "midnight" },
-  { id: "botanical-light", label: "Ботаника", src: "/wallpapers/nox-botanical-light.jpg", preferredPreset: "ice" },
-  { id: "contour-color", label: "Контуры", src: "/wallpapers/nox-contour-color.jpg", preferredPreset: "graphite" },
+  // `scheme` is the lightness the artwork is drawn for. A dark wallpaper under a
+  // light app would otherwise darken only the history and leave the rest of the
+  // chrome light.
+  { id: "orbit-night", label: "Орбиты", src: "/wallpapers/nox-orbit-night.jpg", preferredPreset: "midnight", scheme: "dark" },
+  { id: "botanical-light", label: "Ботаника", src: "/wallpapers/nox-botanical-light.jpg", preferredPreset: "ice", scheme: "light" },
+  { id: "contour-color", label: "Контуры", src: "/wallpapers/nox-contour-color.jpg", preferredPreset: "graphite", scheme: "dark" },
 ];
 
 const WALLPAPER_TINTS = [
@@ -341,56 +345,128 @@ function resolveOutgoingToken(color: string) {
   return OUTGOING_BUBBLE_TOKENS[key] ?? OUTGOING_BUBBLE_TOKENS.graphite;
 }
 
-export function getChatAppearanceVars(settings: AppearanceSettings): Record<string, string> {
+export type ColorScheme = "light" | "dark";
+
+/**
+ * The single source of truth for how dark the chat screen is.
+ *
+ * The "system" preset delegates to the app's resolved theme; every other preset
+ * declares its own darkness. Everything inside the chat — including the
+ * composer, notices and service pills, which are styled from the *app* tokens —
+ * must derive from this one value, otherwise the screen splits into a dark
+ * history with a light composer.
+ */
+export function resolveChatScheme(settings: AppearanceSettings, appScheme: ColorScheme): ColorScheme {
+  if (settings.preset === "system") {
+    // A wallpaper is a scheme decision too: picking dark artwork must darken the
+    // whole chat, not just the area the image covers.
+    const wallpaper = CHAT_WALLPAPERS.find((item) => item.id === settings.wallpaper);
+    return wallpaper?.scheme ?? appScheme;
+  }
+  const preset = CHAT_PRESET_TOKENS[settings.preset] ?? CHAT_PRESET_TOKENS.midnight;
+  return preset.isDark ? "dark" : "light";
+}
+
+/**
+ * App-level semantic tokens re-pointed at the chat's own surfaces. Applied on
+ * the chat root so components that legitimately use the app palette follow the
+ * chat scheme inside this subtree, instead of each one being repainted by hand.
+ */
+function appTokenOverridesForChat(preset: ChatPresetTokens, scheme: ColorScheme): Record<string, string> {
+  // The "system" preset already points at the app tokens, so overriding them
+  // with themselves would be circular — leave the app palette alone.
+  if (preset === CHAT_PRESET_TOKENS.system) return {};
+
+  const isDark = scheme === "dark";
+  return {
+    "--background": preset.bg,
+    "--surface": preset.surface,
+    "--surface-primary": preset.surface,
+    "--surface-secondary": preset.dateBg,
+    "--surface-elevated": preset.menuBg,
+    "--background-elevated": preset.menuBg,
+    "--surface-muted": preset.dateBg,
+    "--foreground": preset.headerFg,
+    "--text-primary": preset.headerFg,
+    "--muted": preset.incomingMuted,
+    "--text-secondary": preset.incomingMuted,
+    "--text-tertiary": preset.incomingMuted,
+    "--border": preset.incomingBorder,
+    "--border-subtle": preset.incomingBorder,
+    "--separator": preset.incomingBorder,
+    "--navigation-background": preset.composerBg,
+    "--navigation-background-fallback": preset.composerBg,
+    "--input-background": preset.inputBg,
+    "--input": preset.inputBg,
+    "--placeholder": preset.inputPlaceholder,
+    "--surface-pressed": isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+    "--surface-hover": isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+  };
+}
+
+export function getChatAppearanceVars(settings: AppearanceSettings, appScheme: ColorScheme = "light"): Record<string, string> {
   const preset = CHAT_PRESET_TOKENS[settings.preset] ?? CHAT_PRESET_TOKENS.midnight;
   const outgoing = resolveOutgoingToken(settings.outgoingColor);
   const wallpaper = CHAT_WALLPAPERS.find((item) => item.id === settings.wallpaper) ?? CHAT_WALLPAPERS[0];
 
-  let incomingBg = preset.incomingBg;
+
+  const scheme = resolveChatScheme(settings, appScheme);
+  // With the system preset the app palette is already correct unless a
+  // wallpaper pushed the chat to the other scheme. In that case adopt the
+  // wallpaper's preferred preset wholesale — swapping only the surrounding
+  // chrome left white incoming bubbles and a light header on dark artwork.
+  const effectivePreset =
+    settings.preset === "system" && scheme !== appScheme && wallpaper.preferredPreset
+      ? CHAT_PRESET_TOKENS[wallpaper.preferredPreset] ?? preset
+      : preset;
+
+  let incomingBg = effectivePreset.incomingBg;
   if (settings.incomingStyle === "glass") {
-    incomingBg = preset.isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.03)";
+    incomingBg = effectivePreset.isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.03)";
   }
   if (settings.incomingStyle === "minimal") {
     incomingBg = "transparent";
   }
 
   return {
-    "--chat-bg": preset.bg,
-    "--chat-surface": preset.surface,
-    "--chat-header-bg": preset.headerBg,
-    "--chat-header-fg": preset.headerFg,
-    "--chat-composer-bg": preset.composerBg,
-    "--chat-composer-border": preset.incomingBorder,
-    "--chat-input-bg": preset.inputBg,
-    "--chat-input-fg": preset.inputFg,
-    "--chat-input-placeholder": preset.inputPlaceholder,
+    ...appTokenOverridesForChat(effectivePreset, scheme),
+    "color-scheme": scheme,
+    "--chat-bg": effectivePreset.bg,
+    "--chat-surface": effectivePreset.surface,
+    "--chat-header-bg": effectivePreset.headerBg,
+    "--chat-header-fg": effectivePreset.headerFg,
+    "--chat-composer-bg": effectivePreset.composerBg,
+    "--chat-composer-border": effectivePreset.incomingBorder,
+    "--chat-input-bg": effectivePreset.inputBg,
+    "--chat-input-fg": effectivePreset.inputFg,
+    "--chat-input-placeholder": effectivePreset.inputPlaceholder,
     "--bubble-incoming-bg": incomingBg,
-    "--bubble-incoming-fg": preset.incomingFg,
-    "--bubble-incoming-muted": preset.incomingMuted,
-    "--bubble-incoming-border": preset.incomingBorder,
+    "--bubble-incoming-fg": effectivePreset.incomingFg,
+    "--bubble-incoming-muted": effectivePreset.incomingMuted,
+    "--bubble-incoming-border": effectivePreset.incomingBorder,
     "--bubble-outgoing-bg": outgoing.bg,
     "--bubble-outgoing-fg": outgoing.fg,
     "--bubble-outgoing-muted": outgoing.muted,
     "--message-tick": outgoing.tick,
     "--message-read": outgoing.read,
-    "--chat-date-bg": preset.dateBg,
-    "--chat-date-fg": preset.dateFg,
-    "--message-menu-bg": preset.menuBg,
-    "--message-menu-fg": preset.menuFg,
-    "--message-menu-muted": preset.menuMuted,
-    "--chat-menu-border": preset.incomingBorder,
-    "--chat-focus-ring": preset.isDark ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.18)",
+    "--chat-date-bg": effectivePreset.dateBg,
+    "--chat-date-fg": effectivePreset.dateFg,
+    "--message-menu-bg": effectivePreset.menuBg,
+    "--message-menu-fg": effectivePreset.menuFg,
+    "--message-menu-muted": effectivePreset.menuMuted,
+    "--chat-menu-border": effectivePreset.incomingBorder,
+    "--chat-focus-ring": effectivePreset.isDark ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.18)",
     "--chat-wallpaper-image": wallpaper.src ? `url("${wallpaper.src}")` : "none",
     "--chat-wallpaper-opacity": wallpaper.src ? String(settings.wallpaperIntensity / 100) : "0",
     "--chat-wallpaper-blur": `${settings.wallpaperBlur}px`,
     "--chat-wallpaper-size": `${Math.round(settings.wallpaperScale * 4.4)}px`,
     "--chat-wallpaper-tint": settings.wallpaperTint,
     // Backward-compatible aliases used by some existing utility classes.
-    "--chat-muted": preset.incomingMuted,
-    "--chat-fg": preset.headerFg,
-    "--chat-header": preset.headerBg,
-    "--chat-composer": preset.composerBg,
-    "--chat-background": preset.bg,
+    "--chat-muted": effectivePreset.incomingMuted,
+    "--chat-fg": effectivePreset.headerFg,
+    "--chat-header": effectivePreset.headerBg,
+    "--chat-composer": effectivePreset.composerBg,
+    "--chat-background": effectivePreset.bg,
   };
 }
 
