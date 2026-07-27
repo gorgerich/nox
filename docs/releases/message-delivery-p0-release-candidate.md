@@ -11,7 +11,7 @@ triggered.
 | | |
 | --- | --- |
 | Branch | `p0-message-delivery` |
-| RC SHA | `be2898a` |
+| RC SHA | `7fffbf1` |
 | Base | `059803a` — the SHA production is currently running |
 | `main` | unchanged, still `059803a` |
 | Production runtime | unchanged, still `059803a` |
