@@ -18,7 +18,8 @@
     "validate:backup-flags": "tsx scripts/validate-backup-flags.ts",
     "validate:backup-db-isolation": "tsx scripts/validate-backup-db-isolation.ts",
     "validate:backup-roundtrip": "tsx scripts/validate-backup-roundtrip.ts",
-    "validate:chat-theme-consistency": "tsx scripts/validate-chat-theme-consistency.ts"
+    "validate:chat-theme-consistency": "tsx scripts/validate-chat-theme-consistency.ts",
+    "validate:backup-record": "tsx scripts/validate-backup-record.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
