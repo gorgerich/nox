@@ -19,8 +19,10 @@ import {
   createIndexedDbPendingRepository,
   createMemoryPendingRepository,
   createResilientPendingRepository,
+  type OutboxBlobStore,
 } from "@/lib/messages/pending-repository";
 import type { ServerMessage } from "@/lib/messages/reconcile";
+import { attachmentMetaOf } from "./attachment-transport";
 
 /** How often stalled sends are checked. Cheap: a pure scan of a short list. */
 const TICK_MS = 5_000;
@@ -32,6 +34,11 @@ export type UseMessageDelivery = {
   storageDegraded: boolean;
   /** Resolves once the message is durable. The composer clears on that promise. */
   send: (body: string, replyToMessageId?: string | null) => Promise<OutgoingMessage>;
+  /** Resolves once the file's bytes and metadata are durable, not once uploaded. */
+  sendAttachment: (
+    file: File,
+    options?: { caption?: string; replyToMessageId?: string | null },
+  ) => Promise<OutgoingMessage>;
   retry: (clientMessageId: string) => void;
   discard: (clientMessageId: string) => Promise<void>;
   ingestServerMessage: (server: ServerMessage) => void;
@@ -43,9 +50,10 @@ export function useMessageDelivery(params: {
   chatId: string;
   userId: string;
   transport: DeliveryTransport;
+  blobs: OutboxBlobStore;
   onCommitted: (server: ServerMessage, clientMessageId: string) => void;
 }): UseMessageDelivery {
-  const { chatId, userId } = params;
+  const { chatId, userId, blobs } = params;
 
   // The transport closes over encryption keys and component callbacks, so it is
   // read through a ref: the controller always calls the latest one without the
@@ -61,7 +69,7 @@ export function useMessageDelivery(params: {
       (error) => console.error("[delivery] pending store unavailable, using memory", error),
     );
 
-    return getDeliveryController({ chatId, userId, repository, transport, onCommitted });
+    return getDeliveryController({ chatId, userId, repository, transport, onCommitted, blobs });
     // The transport and the commit callback close over component state, so they
     // change on most renders. They are rebound below instead of being deps: a
     // new controller per render would fork the queue and send twice.
@@ -122,6 +130,17 @@ export function useMessageDelivery(params: {
     [controller],
   );
 
+  const sendAttachment = useCallback(
+    (file: File, options?: { caption?: string; replyToMessageId?: string | null }) =>
+      controller.enqueueAttachment({
+        blob: file,
+        attachment: attachmentMetaOf(file),
+        caption: options?.caption,
+        replyToMessageId: options?.replyToMessageId ?? null,
+      }),
+    [controller],
+  );
+
   const retry = useCallback((clientMessageId: string) => controller.retry(clientMessageId), [controller]);
   const discard = useCallback((clientMessageId: string) => controller.discard(clientMessageId), [controller]);
   const ingestServerMessage = useCallback((server: ServerMessage) => controller.ingestServerMessage(server), [controller]);
@@ -138,6 +157,7 @@ export function useMessageDelivery(params: {
     pending,
     storageDegraded: state.storageDegraded,
     send,
+    sendAttachment,
     retry,
     discard,
     ingestServerMessage,

@@ -44,6 +44,81 @@ function filterAttachmentEnvelopesForUser<T extends { attachments: { mediaKeyEnv
   };
 }
 
+/**
+ * The message shape returned for an attachment send. Declared once because the
+ * idempotent replay path has to return exactly what the original send did.
+ */
+const attachmentMessageInclude = {
+  sender: {
+    select: {
+      id: true,
+      username: true,
+      profile: {
+        select: {
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  },
+  attachments: {
+    select: {
+      id: true,
+      fileName: true,
+      mimeType: true,
+      sizeBytes: true,
+      encryptedSizeBytes: true,
+      isEncrypted: true,
+      mediaEncryptionVersion: true,
+      fileIv: true,
+      fileAlgorithm: true,
+      mediaKeyEnvelopes: {
+        select: {
+          id: true,
+          recipientUserId: true,
+          recipientDeviceId: true,
+          senderDeviceId: true,
+          encryptedMediaKey: true,
+          iv: true,
+          salt: true,
+          algorithm: true,
+          encryptionVersion: true,
+          deliveredAt: true,
+          revokedAt: true,
+        },
+      },
+    },
+  },
+  replyToMessage: {
+    include: {
+      sender: {
+        select: {
+          id: true,
+          username: true,
+          profile: { select: { displayName: true } },
+        },
+      },
+    },
+  },
+  reactions: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          profile: { select: { displayName: true } },
+        },
+      },
+    },
+  },
+  receipts: {
+    select: {
+      userId: true,
+      deliveredAt: true,
+      readAt: true,
+    },
+  },
+} as const;
 export async function POST(
   request: Request,
   context: { params: Promise<{ chatId: string }> },
@@ -82,12 +157,29 @@ export async function POST(
   const clientMimeType = (formData?.get("clientMimeType") as string | null) || (file instanceof File ? file.type : "");
   const originalSizeBytes = Number(formData?.get("originalSizeBytes") ?? 0);
   const isVideoNote = (formData?.get("videoNote") as string | null) === "true";
+  const clientIdRaw = formData?.get("clientId");
+  const clientMessageId =
+    typeof clientIdRaw === "string" && clientIdRaw.length > 0 && clientIdRaw.length <= 100 ? clientIdRaw : null;
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Выберите файл." }, { status: 400 });
   }
 
   const prisma = getPrisma();
+
+  // Uploads are retried far more often than text sends — they are slow, so a
+  // dropped connection after the server has committed is common. Without this
+  // the retry uploaded the file a second time and created a second message.
+  // The lookup happens before the object is written, so a replay costs nothing.
+  if (clientMessageId) {
+    const alreadyCommitted = await prisma.message.findUnique({
+      where: { senderUserId_clientMessageId: { senderUserId: user.id, clientMessageId } },
+      include: attachmentMessageInclude,
+    });
+    if (alreadyCommitted) {
+      return NextResponse.json({ message: alreadyCommitted, clientId: clientMessageId }, { status: 200 });
+    }
+  }
   const activeMembers = await prisma.chatMember.findMany({
     where: {
       chatId,
@@ -197,6 +289,8 @@ export async function POST(
       data: {
         chatId,
         senderUserId: user.id,
+        // Paired with the sender, this is the idempotency key a retry reuses.
+        clientMessageId,
         type: isVideoNote && rule.kind === "VIDEO" ? "VIDEO_NOTE" : rule.kind,
         body: encrypted ? null : body || null,
         isEncrypted: encrypted,
@@ -239,77 +333,7 @@ export async function POST(
           },
         },
       },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            profile: {
-              select: {
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-        attachments: {
-          select: {
-            id: true,
-            fileName: true,
-            mimeType: true,
-            sizeBytes: true,
-            encryptedSizeBytes: true,
-            isEncrypted: true,
-            mediaEncryptionVersion: true,
-            fileIv: true,
-            fileAlgorithm: true,
-            mediaKeyEnvelopes: {
-              select: {
-                id: true,
-                recipientUserId: true,
-                recipientDeviceId: true,
-                senderDeviceId: true,
-                encryptedMediaKey: true,
-                iv: true,
-                salt: true,
-                algorithm: true,
-                encryptionVersion: true,
-                deliveredAt: true,
-                revokedAt: true,
-              },
-            },
-          },
-        },
-        replyToMessage: {
-          include: {
-            sender: {
-              select: {
-                id: true,
-                username: true,
-                profile: { select: { displayName: true } },
-              },
-            },
-          },
-        },
-        reactions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                profile: { select: { displayName: true } },
-              },
-            },
-          },
-        },
-        receipts: {
-          select: {
-            userId: true,
-            deliveredAt: true,
-            readAt: true,
-          },
-        },
-      },
+      include: attachmentMessageInclude,
     });
 
     await tx.chat.update({

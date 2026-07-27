@@ -304,14 +304,11 @@ async function main() {
     const total = await prisma.message.count({ where: { chatId } });
     check("the conversation holds exactly the two messages that were sent", total === 2, `rows=${total}`);
     check("every send carried a client id", posts.length > 0 && posts.every((post) => Boolean(post.clientMessageId)));
-    // One known pre-existing mismatch is excluded: InlineConnectionNotice
-    // renders from the socket's connected flag, which differs between the
-    // server render and hydration. Verified present with this branch's changes
-    // stashed, so it is not part of the delivery work — see the report's
-    // remaining constraints. Everything else must be clean.
-    const unexpected = errors.filter((error) => !error.startsWith("Hydration failed"));
-    if (errors.length > 0) console.log(`  page errors (${errors.length}, ${unexpected.length} unexpected):\n${errors.map((e) => e.split("\n")[0]).join("\n")}`);
-    check("no unexpected errors in the page", unexpected.length === 0, unexpected.map((error) => error.split("\n")[0]).join(" | "));
+    // Nothing is excluded any more: the InlineConnectionNotice mismatch that
+    // used to be waived here is fixed, and validate:connection-notice-hydration
+    // holds that line separately.
+    if (errors.length > 0) console.log(`  page errors:\n${errors.map((e) => e.split("\n")[0]).join("\n")}`);
+    check("no errors in the page", errors.length === 0, errors.map((error) => error.split("\n")[0]).join(" | "));
 
     const pendingLeft = await page.evaluate(async () => {
       const open = indexedDB.open("nox-e2ee");

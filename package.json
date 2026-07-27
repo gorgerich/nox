@@ -25,7 +25,12 @@
     "validate:message-local-persistence": "tsx scripts/validate-message-local-persistence.ts",
     "validate:message-client-id-schema": "tsx scripts/validate-message-client-id-schema.ts",
     "validate:message-send-browser": "tsx scripts/validate-message-send-browser.ts",
-    "guard:message-delivery-p0": "node scripts/release-guard.mjs"
+    "guard:message-delivery-p0": "node scripts/release-guard.mjs",
+    "validate:connection-notice-hydration": "tsx scripts/validate-connection-notice-hydration.ts",
+    "validate:message-send-browser-e2ee": "tsx scripts/validate-message-send-browser-e2ee.ts",
+    "validate:message-attachment-delivery": "tsx scripts/validate-message-attachment-delivery.ts",
+    "guard:production-release": "node scripts/release-guard.mjs --release",
+    "verify:production-schema": "tsx scripts/verify-production-schema.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

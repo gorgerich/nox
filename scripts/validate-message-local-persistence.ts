@@ -12,7 +12,11 @@ import {
   getDeliveryController,
   type TransportResult,
 } from "../src/lib/messages/delivery-controller";
-import { createMemoryPendingRepository, createResilientPendingRepository } from "../src/lib/messages/pending-repository";
+import {
+  createMemoryOutboxBlobStore,
+  createMemoryPendingRepository,
+  createResilientPendingRepository,
+} from "../src/lib/messages/pending-repository";
 import type { ServerMessage } from "../src/lib/messages/reconcile";
 
 let failures = 0;
@@ -28,7 +32,7 @@ function check(name: string, ok: boolean, detail = "") {
 const CHAT = "chat-1";
 const USER = "user-1";
 
-const committed = (id: string, clientId: string, body = "текст"): ServerMessage => ({
+const committed = (id: string, clientId: string, body: string | null = "текст"): ServerMessage => ({
   id,
   clientId,
   body,
@@ -346,6 +350,174 @@ const okTransport = async (a: { clientMessageId: string }): Promise<TransportRes
   const { controller } = build(okTransport);
   controller.ingestServerMessage(committed("someone-else", "not-ours"));
   check("an unrelated message is left to the conversation list", controller.getState().messages.length === 0);
+}
+
+// 17 — attachments travel the same lifecycle as text
+{
+  const repository = createMemoryPendingRepository();
+  const blobs = createMemoryOutboxBlobStore();
+  const seen: { clientMessageId: string; hasAttachment: boolean }[] = [];
+  const controller = new MessageDeliveryController({
+    chatId: CHAT,
+    userId: USER,
+    repository,
+    blobs,
+    transport: async (attempt) => {
+      seen.push({ clientMessageId: attempt.clientMessageId, hasAttachment: Boolean(attempt.attachment) });
+      // The bytes must be readable from the outbox at upload time, not from a
+      // File the caller happens to still hold.
+      const staged = await blobs.get(attempt.clientMessageId);
+      if (!staged) return { ok: false, errorCode: "ATTACHMENT_BYTES_MISSING", retryable: false };
+      return { ok: true, message: committed(`s-${attempt.clientMessageId}`, attempt.clientMessageId, null) };
+    },
+  });
+
+  const file = new Blob(["картинка"], { type: "image/png" });
+  const meta = { fileName: "photo.png", mimeType: "image/png", sizeBytes: 8, kind: "IMAGE" as const, staged: false };
+  const local = await controller.enqueueAttachment({ blob: file, attachment: meta });
+
+  check("the bytes are staged before the preview may close", blobs.size() === 1);
+  check("the metadata record is written too", repository.snapshot().length === 1);
+  check("the pending record carries the attachment metadata", repository.snapshot()[0].attachment?.fileName === "photo.png");
+  check("the staged flag is set", repository.snapshot()[0].attachment?.staged === true);
+
+  await controller.flush();
+  check("the attachment is delivered", controller.getState().messages[0].status === "sent");
+  check("the transport was told it is an attachment", seen[0]?.hasAttachment === true);
+  check("the staged bytes are dropped once the server has them", blobs.size() === 0);
+  check("the pending record is cleared", repository.snapshot().length === 0);
+  check("the attachment kept its client id", controller.getState().messages[0].clientMessageId === local.clientMessageId);
+}
+
+// 18 — an attachment retry reuses the client id and the staged bytes
+{
+  const repository = createMemoryPendingRepository();
+  const blobs = createMemoryOutboxBlobStore();
+  const seen: string[] = [];
+  let firstCall = true;
+  const controller = new MessageDeliveryController({
+    chatId: CHAT,
+    userId: USER,
+    repository,
+    blobs,
+    maxAttempts: 1,
+    transport: async (attempt) => {
+      seen.push(attempt.clientMessageId);
+      if (firstCall) {
+        firstCall = false;
+        return { ok: false, errorCode: "NETWORK", retryable: true };
+      }
+      const staged = await blobs.get(attempt.clientMessageId);
+      if (!staged) return { ok: false, errorCode: "ATTACHMENT_BYTES_MISSING", retryable: false };
+      return { ok: true, message: committed("s-att-retry", attempt.clientMessageId, null) };
+    },
+  });
+
+  const local = await controller.enqueueAttachment({
+    blob: new Blob(["видео"], { type: "video/mp4" }),
+    attachment: { fileName: "clip.mp4", mimeType: "video/mp4", sizeBytes: 6, kind: "VIDEO", staged: false },
+  });
+  await controller.flush();
+  check("a failed upload keeps its bubble", controller.getState().messages.length === 1);
+  check("a failed upload keeps the bytes for a retry", blobs.size() === 1);
+
+  controller.retry(local.clientMessageId);
+  await controller.flush();
+  check("the upload retry reuses the client id", seen.length === 2 && seen[0] === seen[1]);
+  check("the upload retry does not create a second bubble", controller.getState().messages.length === 1);
+  check("the upload retry succeeds from the staged bytes", controller.getState().messages[0].status === "sent");
+  check("the bytes are released after the retry succeeds", blobs.size() === 0);
+}
+
+// 19 — an upload interrupted by a reload comes back retryable, with its bytes
+{
+  const repository = createMemoryPendingRepository();
+  const blobs = createMemoryOutboxBlobStore();
+  const first = new MessageDeliveryController({
+    chatId: CHAT,
+    userId: USER,
+    repository,
+    blobs,
+    // A transport that never resolves stands in for the tab dying mid-upload.
+    transport: () => new Promise<TransportResult>(() => {}),
+  });
+  await first.enqueueAttachment({
+    blob: new Blob(["голос"], { type: "audio/webm" }),
+    attachment: { fileName: "voice.webm", mimeType: "audio/webm", sizeBytes: 5, kind: "VOICE", staged: false },
+  });
+  void first.flush();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("the interrupted upload is recorded as uploading", first.getState().messages[0].status === "uploading");
+
+  const second = new MessageDeliveryController({
+    chatId: CHAT,
+    userId: USER,
+    repository,
+    blobs,
+    transport: async (attempt) => ({ ok: true, message: committed("s-recovered", attempt.clientMessageId, null) }),
+  });
+  await second.hydrate();
+  check("a reload restores the attachment", second.getState().messages.length === 1);
+  check("a restored attachment is retryable, not stuck uploading", second.getState().messages[0].status === "failed");
+  check("a restored attachment still knows its file", second.getState().messages[0].attachment?.fileName === "voice.webm");
+  check("a restored attachment still has its bytes", blobs.size() === 1);
+
+  await second.flush();
+  check("a restored attachment is delivered on retry", second.getState().messages[0].status === "sent");
+  check("the recovered upload releases its bytes", blobs.size() === 0);
+}
+
+// 20 — bytes that are genuinely gone fail permanently instead of looping
+{
+  const repository = createMemoryPendingRepository();
+  const blobs = createMemoryOutboxBlobStore();
+  let calls = 0;
+  const controller = new MessageDeliveryController({
+    chatId: CHAT,
+    userId: USER,
+    repository,
+    blobs,
+    transport: async (attempt) => {
+      calls += 1;
+      const staged = await blobs.get(attempt.clientMessageId);
+      if (!staged) return { ok: false, errorCode: "ATTACHMENT_BYTES_MISSING", retryable: false };
+      return { ok: true, message: committed("s-x", attempt.clientMessageId, null) };
+    },
+  });
+  // Offline first, so the bytes can be removed before any attempt runs —
+  // this is the "the browser evicted the outbox" case, not a race in the test.
+  controller.setOnline(false);
+  const local = await controller.enqueueAttachment({
+    blob: new Blob(["x"], { type: "application/pdf" }),
+    attachment: { fileName: "doc.pdf", mimeType: "application/pdf", sizeBytes: 1, kind: "FILE", staged: false },
+  });
+  await blobs.remove(local.clientMessageId);
+  controller.setOnline(true);
+  await controller.flush();
+  await controller.flush();
+  check("missing bytes fail once rather than retrying forever", calls === 1, `calls=${calls}`);
+  check("missing bytes are reported, not hidden", controller.getState().messages[0].lastErrorCode === "ATTACHMENT_BYTES_MISSING");
+}
+
+// 21 — discarding an attachment releases both the record and the bytes
+{
+  const repository = createMemoryPendingRepository();
+  const blobs = createMemoryOutboxBlobStore();
+  const controller = new MessageDeliveryController({
+    chatId: CHAT,
+    userId: USER,
+    repository,
+    blobs,
+    transport: async () => ({ ok: false, errorCode: "NETWORK", retryable: true }),
+  });
+  const local = await controller.enqueueAttachment({
+    blob: new Blob(["y"], { type: "image/png" }),
+    attachment: { fileName: "p.png", mimeType: "image/png", sizeBytes: 1, kind: "IMAGE", staged: false },
+  });
+  await controller.discard(local.clientMessageId);
+  check("discarding removes the bubble", controller.getState().messages.length === 0);
+  check("discarding removes the record", repository.snapshot().length === 0);
+  check("discarding removes the bytes", blobs.size() === 0);
 }
 
 }

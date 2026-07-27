@@ -13,7 +13,12 @@ const CHATMSGS_STORE = "chatmsgs";
 // v4 adds PENDING_STORE. The upgrade is purely additive — existing stores are
 // only created when absent — so verified message history survives it.
 const PENDING_STORE = "pending";
-const DB_VERSION = 4;
+// v5 adds OUTBOX_BLOB_STORE: the bytes of an attachment that has been accepted
+// locally but not yet uploaded. Without it a reload during an upload loses the
+// file, and the message could only ever be cancelled, never retried. Also
+// additive, so verified history and pending text messages survive it.
+const OUTBOX_BLOB_STORE = "outbox-blobs";
+const DB_VERSION = 5;
 const LOCAL_MESSAGE_CACHE_VERSION = 1;
 const LOCAL_MESSAGE_CACHE_ALGORITHM = "AES-GCM";
 
@@ -105,6 +110,9 @@ export function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(PENDING_STORE)) {
         db.createObjectStore(PENDING_STORE);
+      }
+      if (!db.objectStoreNames.contains(OUTBOX_BLOB_STORE)) {
+        db.createObjectStore(OUTBOX_BLOB_STORE);
       }
     };
 
@@ -423,6 +431,21 @@ export async function clearPersistedChatMessagesForChat(chatId: string): Promise
 //
 // No auth token, transport private key or other secret belongs in here.
 
+/**
+ * What a pending attachment needs in order to be re-rendered and re-sent after
+ * a reload. Only metadata — the bytes live in the outbox blob store, keyed by
+ * the same client id.
+ */
+export type PendingAttachmentMeta = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** The message type the server will assign, so the bubble looks right offline. */
+  kind: "IMAGE" | "VIDEO" | "VIDEO_NOTE" | "VOICE" | "FILE";
+  /** True once the bytes are in the outbox store and a retry can re-upload. */
+  staged: boolean;
+};
+
 export type PendingMessageRecord = {
   renderKey: string;
   clientMessageId: string;
@@ -430,16 +453,59 @@ export type PendingMessageRecord = {
   chatId: string;
   senderUserId: string;
   body: string | null;
-  status: "queued" | "encrypting" | "sending" | "sent" | "delivered" | "read" | "failed";
+  status: "queued" | "encrypting" | "uploading" | "sending" | "sent" | "delivered" | "read" | "failed";
   createdAt: string;
   serverCreatedAt: string | null;
   attemptCount: number;
   lastErrorCode: string | null;
   updatedAt: string;
+  attachment?: PendingAttachmentMeta | null;
 };
 
 function pendingKey(userId: string, clientMessageId: string) {
   return `${userId}:${clientMessageId}`;
+}
+
+export const NOX_OUTBOX_BLOB_STORE = OUTBOX_BLOB_STORE;
+
+/**
+ * Stages the bytes of an outgoing attachment.
+ *
+ * This is what lets an attachment behave like a text message: the file is
+ * durable before the composer clears, so a reload, a crash or a failed upload
+ * leaves something that can actually be retried rather than a bubble with no
+ * data behind it. A raw File must never go anywhere else — localStorage cannot
+ * hold one, and holding it only in memory is the bug being fixed.
+ */
+export async function putOutgoingBlob(userId: string, clientMessageId: string, blob: Blob): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_BLOB_STORE, "readwrite");
+    tx.objectStore(OUTBOX_BLOB_STORE).put(blob, pendingKey(userId, clientMessageId));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getOutgoingBlob(userId: string, clientMessageId: string): Promise<Blob | null> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_BLOB_STORE, "readonly");
+    const request = tx.objectStore(OUTBOX_BLOB_STORE).get(pendingKey(userId, clientMessageId));
+    request.onsuccess = () => resolve((request.result as Blob | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/** Called once the server holds the attachment; the local copy is then dead weight. */
+export async function deleteOutgoingBlob(userId: string, clientMessageId: string): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_BLOB_STORE, "readwrite");
+    tx.objectStore(OUTBOX_BLOB_STORE).delete(pendingKey(userId, clientMessageId));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export const NOX_PENDING_STORE = PENDING_STORE;

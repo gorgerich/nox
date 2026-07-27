@@ -11,13 +11,55 @@
  */
 import {
   deletePendingMessage,
+  deleteOutgoingBlob,
+  getOutgoingBlob,
   getPendingMessages,
+  putOutgoingBlob,
   putPendingMessage,
   recoverInterruptedSends,
+  type PendingAttachmentMeta,
   type PendingMessageRecord,
 } from "@/lib/e2ee/indexed-db";
 
-export type { PendingMessageRecord };
+export type { PendingAttachmentMeta, PendingMessageRecord };
+
+/**
+ * Durable storage for the bytes of an attachment that has been accepted but not
+ * yet uploaded. Separate from the metadata repository because blobs are large
+ * and are deleted on a different schedule — as soon as the server has them.
+ */
+export interface OutboxBlobStore {
+  put(clientMessageId: string, blob: Blob): Promise<void>;
+  get(clientMessageId: string): Promise<Blob | null>;
+  remove(clientMessageId: string): Promise<void>;
+}
+
+export function createIndexedDbOutboxBlobStore(userId: string): OutboxBlobStore {
+  return {
+    put: (clientMessageId, blob) => putOutgoingBlob(userId, clientMessageId, blob),
+    get: (clientMessageId) => getOutgoingBlob(userId, clientMessageId),
+    remove: (clientMessageId) => deleteOutgoingBlob(userId, clientMessageId),
+  };
+}
+
+/** Memory-backed equivalent, for the validations and as a last-resort fallback. */
+export function createMemoryOutboxBlobStore(): OutboxBlobStore & { size(): number } {
+  const blobs = new Map<string, Blob>();
+  return {
+    async put(clientMessageId, blob) {
+      blobs.set(clientMessageId, blob);
+    },
+    async get(clientMessageId) {
+      return blobs.get(clientMessageId) ?? null;
+    },
+    async remove(clientMessageId) {
+      blobs.delete(clientMessageId);
+    },
+    size() {
+      return blobs.size;
+    },
+  };
+}
 
 export interface PendingRepository {
   /** Everything still owed for this chat, oldest first. */

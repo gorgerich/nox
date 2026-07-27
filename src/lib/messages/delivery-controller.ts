@@ -32,13 +32,20 @@ import {
   type ReconcilableMessage,
   type ServerMessage,
 } from "./reconcile";
-import type { PendingMessageRecord, PendingRepository } from "./pending-repository";
+import type { OutboxBlobStore, PendingAttachmentMeta, PendingMessageRecord, PendingRepository } from "./pending-repository";
 
 export type SendAttempt = {
   clientMessageId: string;
   body: string;
   replyToMessageId: string | null;
   attempt: number;
+  /**
+   * Present when this message carries a file. The bytes are not here — the
+   * transport loads them from the outbox by client id, so a retry after a
+   * reload works from what is on disk rather than from a File the tab no
+   * longer holds.
+   */
+  attachment: PendingAttachmentMeta | null;
 };
 
 export type TransportResult =
@@ -51,6 +58,8 @@ export type OutgoingMessage = ReconcilableMessage & {
   replyToMessageId: string | null;
   attemptCount: number;
   lastErrorCode: string | null;
+  /** Null for a plain text message. */
+  attachment: PendingAttachmentMeta | null;
 };
 
 export type DeliveryState = {
@@ -66,6 +75,8 @@ export type DeliveryControllerOptions = {
   userId: string;
   repository: PendingRepository;
   transport: DeliveryTransport;
+  /** Where attachment bytes are staged. Required only if attachments are sent. */
+  blobs?: OutboxBlobStore;
   /** Retry budget for a single message before it is left failed for the user. */
   maxAttempts?: number;
   now?: () => number;
@@ -159,6 +170,10 @@ export class MessageDeliveryController {
     if (records.length > 0) {
       this.messages = records.map(recordToMessage);
       this.emit();
+      // Restoring is only half the job: what the previous session still owed
+      // has to be sent, or a reload leaves the message sitting there forever
+      // waiting for a retry nobody asks for.
+      setTimeout(() => void this.flush(), 0);
     }
   }
 
@@ -191,23 +206,66 @@ export class MessageDeliveryController {
    * what the composer waits for before clearing its draft. Network work
    * continues afterwards and is not tied to this promise or to any component.
    */
-  async enqueue(input: { body: string; replyToMessageId?: string | null; clientMessageId?: string }): Promise<OutgoingMessage> {
+  async enqueue(input: {
+    body: string;
+    replyToMessageId?: string | null;
+    clientMessageId?: string;
+  }): Promise<OutgoingMessage> {
     const body = input.body.trim();
     if (!body) throw new Error("empty message");
+    return this.accept({ body, replyToMessageId: input.replyToMessageId ?? null, clientMessageId: input.clientMessageId, attachment: null });
+  }
 
+  /**
+   * Accepts an attachment. The bytes are staged first and the metadata record
+   * second, both before this resolves — so by the time the preview closes there
+   * is enough on disk to finish or retry the send without the original File.
+   *
+   * If staging fails the message is not accepted at all: the caller keeps its
+   * preview rather than showing a bubble backed by nothing.
+   */
+  async enqueueAttachment(input: {
+    blob: Blob;
+    attachment: PendingAttachmentMeta;
+    caption?: string;
+    replyToMessageId?: string | null;
+    clientMessageId?: string;
+  }): Promise<OutgoingMessage> {
+    const clientMessageId = input.clientMessageId ?? newClientMessageId();
+    if (!this.options.blobs) throw new Error("no outbox store configured for attachments");
+    await this.options.blobs.put(clientMessageId, input.blob);
+
+    return this.accept({
+      body: input.caption?.trim() ?? "",
+      replyToMessageId: input.replyToMessageId ?? null,
+      clientMessageId,
+      attachment: { ...input.attachment, staged: true },
+    });
+  }
+
+  private async accept(input: {
+    body: string;
+    replyToMessageId: string | null;
+    clientMessageId?: string;
+    attachment: PendingAttachmentMeta | null;
+  }): Promise<OutgoingMessage> {
     const clientMessageId = input.clientMessageId ?? newClientMessageId();
     const message: OutgoingMessage = {
-      ...createLocalMessage({ clientMessageId, body }),
-      replyToMessageId: input.replyToMessageId ?? null,
+      ...createLocalMessage({ clientMessageId, body: input.body || null }),
+      replyToMessageId: input.replyToMessageId,
       attemptCount: 0,
       lastErrorCode: null,
+      attachment: input.attachment,
     };
 
     this.messages = [...this.messages, message];
     await this.persist(message);
     this.emit();
 
-    void this.flush();
+    // The flush starts on the next tick so accepting a message never runs any
+    // part of the network path before the caller resumes. The composer's clear
+    // is therefore never sequenced behind a request.
+    setTimeout(() => void this.flush(), 0);
     return message;
   }
 
@@ -225,6 +283,7 @@ export class MessageDeliveryController {
   async discard(clientMessageId: string): Promise<void> {
     this.messages = this.messages.filter((message) => message.clientMessageId !== clientMessageId);
     await this.options.repository.remove(clientMessageId).catch(() => {});
+    await this.options.blobs?.remove(clientMessageId).catch(() => {});
     this.emit();
   }
 
@@ -282,7 +341,12 @@ export class MessageDeliveryController {
     const attempt = current.attemptCount + 1;
     this.sessionAttempts.set(clientMessageId, (this.sessionAttempts.get(clientMessageId) ?? 0) + 1);
     this.messages = markSending(this.messages, clientMessageId, new Date(this.options.now()).toISOString()) as OutgoingMessage[];
-    this.update(clientMessageId, { attemptCount: attempt });
+    // An attachment spends most of the attempt uploading, so say so; the
+    // reconciliation and idempotency underneath are the same as for text.
+    this.update(clientMessageId, {
+      attemptCount: attempt,
+      ...(current.attachment ? { status: "uploading" as const } : {}),
+    });
 
     const target = this.messages.find((message) => message.clientMessageId === clientMessageId);
     if (target) await this.persist(target);
@@ -294,6 +358,7 @@ export class MessageDeliveryController {
         body: current.body ?? "",
         replyToMessageId: current.replyToMessageId,
         attempt,
+        attachment: current.attachment,
       });
     } catch (error) {
       result = { ok: false, errorCode: errorCodeOf(error), retryable: true };
@@ -305,6 +370,8 @@ export class MessageDeliveryController {
       this.messages = reconcileServerMessage(this.messages, result.message, "sent") as OutgoingMessage[];
       this.options.onCommitted?.(result.message, clientMessageId);
       await this.options.repository.remove(clientMessageId).catch(() => {});
+      // The server holds the file now, so the staged copy is dead weight.
+      if (current.attachment) await this.options.blobs?.remove(clientMessageId).catch(() => {});
       this.emit();
       return;
     }
@@ -407,6 +474,7 @@ export function messageToRecord(message: OutgoingMessage, chatId: string, userId
     attemptCount: message.attemptCount,
     lastErrorCode: message.lastErrorCode,
     updatedAt: new Date().toISOString(),
+    attachment: message.attachment,
   };
 }
 
@@ -417,13 +485,17 @@ export function recordToMessage(record: PendingMessageRecord): OutgoingMessage {
     renderKey: record.renderKey || `local:${record.clientMessageId}`,
     // A record restored from storage is never mid-flight: the tab that owned
     // that attempt is gone, so it starts retryable.
-    status: record.status === "sending" || record.status === "encrypting" ? "failed" : record.status,
+    status:
+      record.status === "sending" || record.status === "encrypting" || record.status === "uploading"
+        ? "failed"
+        : record.status,
     body: record.body,
     createdAt: record.createdAt,
     attemptStartedAt: null,
     replyToMessageId: null,
     attemptCount: record.attemptCount ?? 0,
     lastErrorCode: record.lastErrorCode,
+    attachment: record.attachment ?? null,
   };
 }
 

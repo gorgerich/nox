@@ -16,7 +16,6 @@ import { usePresence } from "@/hooks/usePresence";
 import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersistedChatMessages, getPersistedChatMessages } from "@/lib/e2ee/indexed-db";
-import { encryptMediaForDevices } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getChatMessages, putChatMessages } from "@/lib/chat-cache";
 import { escapeRegExp } from "@/lib/text";
@@ -30,6 +29,8 @@ import { useTheme } from "@/components/ThemeProvider";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
 import { useMessageDelivery } from "./useMessageDelivery";
+import { sendStagedAttachment } from "./attachment-transport";
+import { createIndexedDbOutboxBlobStore } from "@/lib/messages/pending-repository";
 import type { DeliveryTransport } from "@/lib/messages/delivery-controller";
 import type { ServerMessage } from "@/lib/messages/reconcile";
 
@@ -130,10 +131,6 @@ const NON_COPYABLE_MESSAGE_TEXTS = new Set([
   "Сообщение доставлено",
   "Сообщение доставлено и удалено с сервера",
 ]);
-
-function generateClientId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 function getCopyableMessageText(message: Message | MessageWithDecrypted | null) {
   if (!message || message.type !== "TEXT" || message.deletedAt || message.messageUnavailableOnThisDevice) {
@@ -594,7 +591,24 @@ export function ChatMessages({
   /** Canonical messages the transport has fetched, awaiting the commit callback. */
   const committedByClientIdRef = useRef<Map<string, Message>>(new Map());
 
-  const sendTransport = useCallback<DeliveryTransport>(async ({ clientMessageId, body, replyToMessageId }) => {
+  /** Where accepted-but-not-yet-uploaded attachment bytes live. */
+  const outboxBlobs = useMemo(() => createIndexedDbOutboxBlobStore(currentUserId), [currentUserId]);
+
+  const sendTransport = useCallback<DeliveryTransport>(async ({ clientMessageId, body, replyToMessageId, attachment }) => {
+    if (attachment) {
+      return sendStagedAttachment({
+        clientMessageId,
+        attachment,
+        caption: body,
+        blobs: outboxBlobs,
+        chatId,
+        currentUserId,
+        chatType: chatInfo.type,
+        otherMemberId: chatInfo.otherMember?.id ?? null,
+        onNormalized: (message) => committedByClientIdRef.current.set(clientMessageId, message),
+      });
+    }
+
     let payload: Record<string, unknown>;
     try {
       // `replyToMessageId` is optional on the wire, not nullable — sending an
@@ -647,7 +661,7 @@ export function ChatMessages({
       ok: true,
       message: { id: normalized.id, clientId: clientMessageId, body, createdAt: normalized.createdAt },
     };
-  }, [chatId, chatInfo.otherMember, chatInfo.type, currentUserId]);
+  }, [chatId, chatInfo.otherMember, chatInfo.type, currentUserId, outboxBlobs]);
 
   const handleCommitted = useCallback((server: ServerMessage, clientMessageId: string) => {
     const normalized = committedByClientIdRef.current.get(clientMessageId);
@@ -681,8 +695,47 @@ export function ChatMessages({
     chatId,
     userId: currentUserId,
     transport: sendTransport,
+    blobs: outboxBlobs,
     onCommitted: handleCommitted,
   });
+
+  // Object URLs for attachments that are still only on this device. They are
+  // rebuilt from the outbox rather than kept from the original File, so a
+  // reload during an upload still shows the picture instead of a blank bubble.
+  const [pendingAttachmentUrls, setPendingAttachmentUrls] = useState<Record<string, string>>({});
+  const pendingUrlsRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const wanted = new Set(delivery.pending.filter((message) => message.attachment).map((message) => message.clientMessageId));
+
+    for (const [clientMessageId, url] of Object.entries(pendingUrlsRef.current)) {
+      if (wanted.has(clientMessageId)) continue;
+      URL.revokeObjectURL(url);
+      delete pendingUrlsRef.current[clientMessageId];
+      setPendingAttachmentUrls((current) => {
+        const next = { ...current };
+        delete next[clientMessageId];
+        return next;
+      });
+    }
+
+    for (const clientMessageId of wanted) {
+      if (pendingUrlsRef.current[clientMessageId]) continue;
+      void outboxBlobs
+        .get(clientMessageId)
+        .then((blob) => {
+          if (cancelled || !blob || pendingUrlsRef.current[clientMessageId]) return;
+          const url = URL.createObjectURL(blob);
+          pendingUrlsRef.current[clientMessageId] = url;
+          setPendingAttachmentUrls((current) => ({ ...current, [clientMessageId]: url }));
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [delivery.pending, outboxBlobs]);
 
   // The socket effect must not re-subscribe every time delivery state changes,
   // so it reaches the controller through a ref kept current in an effect.
@@ -707,13 +760,28 @@ export function ChatMessages({
         const replyTarget = outgoing.replyToMessageId
           ? messages.find((message) => message.id === outgoing.replyToMessageId) ?? null
           : null;
+        const base = createOptimisticMessage({
+          clientId: outgoing.clientMessageId,
+          body: outgoing.body,
+          currentUserId,
+          replyToMessage: replyTarget,
+        });
+        // A pending attachment renders from its staged metadata, so the bubble
+        // looks the same before and after the upload — and still looks right
+        // after a reload, when the original File no longer exists.
+        const attachment = outgoing.attachment
+          ? [{
+              id: `temp-${outgoing.clientMessageId}`,
+              fileName: outgoing.attachment.fileName,
+              mimeType: outgoing.attachment.mimeType,
+              sizeBytes: outgoing.attachment.sizeBytes,
+              url: pendingAttachmentUrls[outgoing.clientMessageId] ?? "",
+            }]
+          : [];
         return {
-          ...createOptimisticMessage({
-            clientId: outgoing.clientMessageId,
-            body: outgoing.body,
-            currentUserId,
-            replyToMessage: replyTarget,
-          }),
+          ...base,
+          type: outgoing.attachment ? outgoing.attachment.kind : base.type,
+          attachments: attachment,
           createdAt: outgoing.createdAt,
           messageUnavailableOnThisDevice: false,
         } as MessageWithDecrypted;
@@ -785,7 +853,8 @@ export function ChatMessages({
   }, [chatId, messagesWithDecrypted, currentUserId]);
 
   const [pending, setPending] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  // Uploads no longer block the composer: the controller owns the upload and
+  // the bubble shows its own progress, so the user can keep typing.
   const [composerError, setComposerError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, { displayName: string; timeoutId: ReturnType<typeof setTimeout> }>>({});
@@ -1537,92 +1606,20 @@ export function ChatMessages({
     }
   }, [chatId, isTypingLocal, socket]);
 
+  /**
+   * Hands a file to the delivery controller and returns as soon as the bytes
+   * and the metadata are on disk. Uploading, encryption, retries and
+   * reconciliation are the controller's job from that point — the same job it
+   * already does for text — so an attachment no longer disappears when the
+   * screen unmounts and a retry no longer sends the file twice.
+   */
   const handleAttach = useCallback(async (file: File) => {
-    setUploading(true);
     setComposerError(null);
     debugMedia("file selected", { name: file.name, type: file.type, size: file.size });
-    const shouldEncryptMedia = chatInfo.type === "DIRECT";
-    const mediaRecipientUserId = chatInfo.otherMember?.id ?? currentUserId;
-
-    // Optimistic message for media
-    const clientId = generateClientId();
-    const tempUrl = URL.createObjectURL(file);
-    const isAudio = file.type.startsWith("audio/");
-    const isVideoNote = file.name.startsWith("video-message-") && file.type.startsWith("video/");
-    const optimisticMessage: Message = {
-      ...createOptimisticMessage({
-        clientId,
-        body: null,
-        currentUserId,
-        replyToMessage: replyingToMessage,
-      }),
-      type: file.type.startsWith("image/") ? "IMAGE" : isVideoNote ? "VIDEO_NOTE" : file.type.startsWith("video/") ? "VIDEO" : (isAudio ? "VOICE" : "FILE"),
-      attachments: [{
-        id: `temp-${clientId}`,
-        fileName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        url: tempUrl,
-      }]
-    };
-
-    setMessages((current) => [...current, optimisticMessage]);
+    const replyTarget = replyingToMessage;
     setReplyingToMessage(null);
-
-    try {
-      const formData = new FormData();
-      if (isVideoNote) formData.append("videoNote", "true");
-      if (shouldEncryptMedia) {
-        const encryptedMedia = await encryptMediaForDevices({
-          file,
-          recipientUserId: mediaRecipientUserId,
-          chatId,
-          senderUserId: currentUserId,
-        });
-        const encryptedFile = new File([encryptedMedia.encryptedBlob], "encrypted-media.bin", {
-          type: "application/octet-stream",
-        });
-        formData.append("file", encryptedFile);
-        formData.append("encrypted", "true");
-        formData.append("mediaEncryptionVersion", String(encryptedMedia.mediaEncryptionVersion));
-        formData.append("fileIv", encryptedMedia.fileIv);
-        formData.append("fileAlgorithm", encryptedMedia.fileAlgorithm);
-        formData.append("senderDeviceId", encryptedMedia.senderDeviceId);
-        formData.append("mediaKeyEnvelopes", JSON.stringify(encryptedMedia.mediaKeyEnvelopes));
-        formData.append("clientMimeType", file.type);
-        formData.append("originalSizeBytes", String(file.size));
-      } else {
-        formData.append("file", file);
-      }
-
-      debugMedia("upload started", { chatId, name: file.name });
-      const response = await fetch(`/api/chats/${chatId}/attachments`, { method: "POST", body: formData });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || "Не удалось отправить файл");
-      }
-      const data = await response.json();
-      const normalized = normalizeMessage(data.message);
-      
-      if (normalized) {
-        setMessages((current) => {
-          const withoutOptimistic = current.filter((message) => message.id !== optimisticMessage.id);
-          const exists = withoutOptimistic.some((message) => message.id === normalized.id);
-          return exists ? withoutOptimistic : [...withoutOptimistic, normalized];
-        });
-      }
-      URL.revokeObjectURL(tempUrl);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось отправить файл";
-      debugMedia("upload error", { reason });
-      setMessages((current) => current.filter((message) => message.id !== optimisticMessage.id));
-      setComposerError(reason);
-      URL.revokeObjectURL(tempUrl);
-      throw error; // Re-throw to inform composer
-    } finally {
-      setUploading(false);
-    }
-  }, [chatId, chatInfo.otherMember?.id, chatInfo.type, currentUserId, debugMedia, replyingToMessage]);
+    await delivery.sendAttachment(file, { replyToMessageId: replyTarget?.id ?? null });
+  }, [debugMedia, delivery, replyingToMessage]);
 
   const handleSend = useCallback(async (body: string) => {
     if (!body.trim()) return;
@@ -1702,17 +1699,20 @@ export function ChatMessages({
   }, [delivery, failedSends, handleSend]);
 
   const handleSendFromPreview = useCallback(async (items: MediaPreviewItem[], caption: string) => {
-    setPreviewFiles([]); // hide composer
-    
-    // Send items one by one
+    // The preview closes only after every file is durable. Closing first, as
+    // this did, meant a failure between the two left the user with nothing —
+    // no preview, no bubble, no file.
     for (const item of items) {
       await handleAttach(item.file);
     }
-    
-    // Send caption as a separate message to maintain E2EE text guarantees
+
+    // The caption travels as its own message: the server rejects a caption on
+    // encrypted media, so this is the only form that works in both chat kinds.
     if (caption.trim()) {
       await handleSend(caption);
     }
+
+    setPreviewFiles([]);
   }, [handleAttach, handleSend]);
 
   const startRecording = useCallback(async () => {
@@ -2338,7 +2338,7 @@ export function ChatMessages({
             isRecording={isRecording}
             recordingDuration={recordingDuration}
             isLocked={isLocked && currentRole === "MEMBER"}
-            pending={pending || uploading}
+            pending={pending}
             replyingTo={replyingToMessage}
             editingTo={editingMessage}
             onCancelAction={() => { setEditingMessage(null); setReplyingToMessage(null); }}

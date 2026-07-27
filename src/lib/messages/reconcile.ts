@@ -15,6 +15,7 @@
 export type LocalMessageStatus =
   | "queued"      // created locally, not yet on the wire (offline or waiting)
   | "encrypting"  // sealing for the recipient devices
+  | "uploading"   // attachment bytes going up; a presentation state, nothing more
   | "sending"     // request in flight
   | "sent"        // server committed
   | "delivered"   // recipient device acknowledged
@@ -46,7 +47,7 @@ export type ServerMessage = {
 };
 
 /** Terminal and in-flight statuses, used to decide what a reconnect may resend. */
-const IN_FLIGHT: LocalMessageStatus[] = ["queued", "encrypting", "sending"];
+const IN_FLIGHT: LocalMessageStatus[] = ["queued", "encrypting", "uploading", "sending"];
 export function isInFlight(status: LocalMessageStatus): boolean {
   return IN_FLIGHT.includes(status);
 }
@@ -122,7 +123,7 @@ export function reconcileServerMessage(
   return next;
 }
 
-const ORDER: LocalMessageStatus[] = ["failed", "queued", "encrypting", "sending", "sent", "delivered", "read"];
+const ORDER: LocalMessageStatus[] = ["failed", "queued", "encrypting", "uploading", "sending", "sent", "delivered", "read"];
 function rank(status: LocalMessageStatus): number {
   return ORDER.indexOf(status);
 }
