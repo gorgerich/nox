@@ -696,7 +696,11 @@ body {
     }
   }
 
-  .chat-composer-shell > * {
+  /* Bind the composer's own flow rows to the message column width. Anything
+     positioned out of flow is excluded: the fixed emoji panel positions itself
+     with left/right, and the absolutely-positioned sr-only live region would
+     otherwise be stretched to 100% and stick 12px past the viewport edge. */
+  .chat-composer-shell > *:not(.chat-emoji-panel):not(input):not(.sr-only) {
     margin-inline: auto;
     width: 100%;
     max-width: 48rem;

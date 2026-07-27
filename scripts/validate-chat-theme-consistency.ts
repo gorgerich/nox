@@ -115,10 +115,25 @@ check(
   typeof getChatAppearanceVars(lightWallpaper, "dark")["--navigation-background"] === "string",
 );
 
-const noWallpaper: AppearanceSettings = { ...DEFAULT_APPEARANCE, preset: "system", wallpaper: "none" };
-for (const appScheme of ["light", "dark"] as ColorScheme[]) {
-  check(`no wallpaper still follows the app (${appScheme})`, resolveChatScheme(noWallpaper, appScheme) === appScheme);
-}
+// The default must never silently flip the scheme: only a wallpaper the user
+// explicitly chose may do that. DEFAULT_APPEARANCE.wallpaper is "none".
+check('the default wallpaper is not a themed asset', DEFAULT_APPEARANCE.wallpaper === "none");
+check(
+  "System + default wallpaper + App Light -> Light",
+  resolveChatScheme({ ...DEFAULT_APPEARANCE, preset: "system" }, "light") === "light",
+);
+check(
+  "System + default wallpaper + App Dark -> Dark",
+  resolveChatScheme({ ...DEFAULT_APPEARANCE, preset: "system" }, "dark") === "dark",
+);
+check(
+  "explicit orbit-night + App Light -> Dark",
+  resolveChatScheme({ ...DEFAULT_APPEARANCE, preset: "system", wallpaper: "orbit-night" }, "light") === "dark",
+);
+check(
+  "explicit light wallpaper + App Dark -> Light",
+  resolveChatScheme({ ...DEFAULT_APPEARANCE, preset: "system", wallpaper: "botanical-light" }, "dark") === "light",
+);
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed.`);

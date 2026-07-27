@@ -146,7 +146,7 @@ export function DialogPreviewClient() {
         </div>
       </header>
 
-      <div className="flex shrink-0 gap-1.5 overflow-x-auto px-3 py-2" style={{ borderBottom: "1px solid var(--separator)" }}>
+      <div className="flex w-full min-w-0 shrink-0 gap-1.5 overflow-x-auto px-3 py-2" style={{ borderBottom: "1px solid var(--separator)" }}>
         {SCENARIOS.map((s) => (
           <button
             key={s.id}

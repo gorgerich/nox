@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { createPortal } from "react-dom";
+import { ChatThemePortal } from "./ChatThemePortal";
 import { ArrowLeft, Check, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
@@ -20,6 +20,8 @@ export function ChatHeader({
   onSetDisappearing,
   onSearchClick,
   onAppearanceClick,
+  themeVars,
+  chatScheme = "light",
 }: {
   chatId: string;
   chatType: string;
@@ -33,6 +35,9 @@ export function ChatHeader({
   onSearchClick?: () => void;
   disappearingSeconds?: number | null;
   onSetDisappearing?: (seconds: number | null) => void;
+  /** The chat's variables, so the portalled menu keeps the chat's palette. */
+  themeVars?: React.CSSProperties;
+  chatScheme?: "light" | "dark";
 }) {
   const router = useRouter();
   const { startCall, status } = useAudioCall();
@@ -193,8 +198,8 @@ export function ChatHeader({
             >
               <MoreVertical className="h-5 w-5" strokeWidth={2.2} />
             </button>
-            {timerMenuOpen && createPortal(
-              <>
+            {timerMenuOpen && (
+              <ChatThemePortal themeVars={themeVars ?? {}} scheme={chatScheme}>
                 <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
                 <div
                   className="nox-chat-menu fixed z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl origin-top-right animate-in fade-in zoom-in-95 duration-150"
@@ -250,8 +255,7 @@ export function ChatHeader({
                   </>
                   )}
                 </div>
-              </>,
-              document.body
+              </ChatThemePortal>
             )}
           </div>
         )}

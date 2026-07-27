@@ -24,6 +24,7 @@ import { startsGroup, endsGroup, formatDateLabel } from "@/lib/message-grouping"
 import { InlineConnectionNotice, type ConnectionStatus } from "./InlineConnectionNotice";
 import { HistoryUnavailableNotice } from "./HistoryUnavailableNotice";
 import { DateSeparator, TypingIndicator } from "./ConversationMarkers";
+import { ChatThemePortal } from "./ChatThemePortal";
 import { classifyHistory } from "@/lib/history-availability";
 import { useTheme } from "@/components/ThemeProvider";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
@@ -1715,6 +1716,7 @@ export function ChatMessages({
   // subtree, so header, history, composer and notices can't disagree.
   const { effectiveTheme } = useTheme();
   const themeVars = getChatAppearanceVars(settings, effectiveTheme);
+  const chatScheme = resolveChatScheme(settings, effectiveTheme);
   const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
   const focusedMessageCopyText = useMemo(() => {
     if (!menuState) return null;
@@ -1788,7 +1790,9 @@ export function ChatMessages({
   const renderOverlay = () => {
     if (!menuState || !focusedMessage || !mounted) return null;
 
-    return createPortal(
+    // Mounted on document.body, so it must carry the chat's variables with it.
+    return (
+      <ChatThemePortal themeVars={themeVars as React.CSSProperties} scheme={chatScheme}>
       <div
         className="fixed inset-0 z-[900] flex flex-col no-select"
         role="dialog"
@@ -1980,8 +1984,8 @@ export function ChatMessages({
           </div>
         </div>
         )}
-      </div>,
-      document.body
+      </div>
+      </ChatThemePortal>
     );
   };
 
@@ -2063,6 +2067,8 @@ export function ChatMessages({
         onSetDisappearing={changeDisappearing}
         onSearchClick={() => setIsSearchOpen(true)}
         onAppearanceClick={() => setIsAppearanceOpen(true)}
+        themeVars={themeVars as React.CSSProperties}
+        chatScheme={chatScheme}
       />
 
       <InlineConnectionNotice status={connectionStatus} />
