@@ -10,7 +10,10 @@ const MESSAGES_STORE = "messages";
 // CIPHERTEXT serialized server messages (envelopes, ids, sender, type) — never
 // plaintext. Decrypted bodies come from MESSAGES_STORE (encrypted at rest).
 const CHATMSGS_STORE = "chatmsgs";
-const DB_VERSION = 3;
+// v4 adds PENDING_STORE. The upgrade is purely additive — existing stores are
+// only created when absent — so verified message history survives it.
+const PENDING_STORE = "pending";
+const DB_VERSION = 4;
 const LOCAL_MESSAGE_CACHE_VERSION = 1;
 const LOCAL_MESSAGE_CACHE_ALGORITHM = "AES-GCM";
 
@@ -99,6 +102,9 @@ export function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(CHATMSGS_STORE)) {
         db.createObjectStore(CHATMSGS_STORE);
+      }
+      if (!db.objectStoreNames.contains(PENDING_STORE)) {
+        db.createObjectStore(PENDING_STORE);
       }
     };
 
@@ -405,4 +411,94 @@ export async function clearPersistedChatMessagesForChat(chatId: string): Promise
       reject(error);
     }
   });
+}
+
+
+// --- outgoing messages that are not yet committed --------------------------
+//
+// A pending or failed message must not live only in React state: leaving the
+// chat used to destroy it, so the user's text disappeared. These records are
+// written *before* the network request and updated in place as the status
+// advances, so a remount or reload can restore them.
+//
+// No auth token, transport private key or other secret belongs in here.
+
+export type PendingMessageRecord = {
+  renderKey: string;
+  clientMessageId: string;
+  serverId: string | null;
+  chatId: string;
+  senderUserId: string;
+  body: string | null;
+  status: "queued" | "encrypting" | "sending" | "sent" | "delivered" | "read" | "failed";
+  createdAt: string;
+  serverCreatedAt: string | null;
+  attemptCount: number;
+  lastErrorCode: string | null;
+  updatedAt: string;
+};
+
+function pendingKey(userId: string, clientMessageId: string) {
+  return `${userId}:${clientMessageId}`;
+}
+
+export const NOX_PENDING_STORE = PENDING_STORE;
+
+/** Writes or updates a pending record. Keyed by client id, so it never doubles. */
+export async function putPendingMessage(userId: string, record: PendingMessageRecord): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readwrite");
+    tx.objectStore(PENDING_STORE).put({ ...record, updatedAt: new Date().toISOString() }, pendingKey(userId, record.clientMessageId));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getPendingMessages(userId: string, chatId: string): Promise<PendingMessageRecord[]> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readonly");
+    const request = tx.objectStore(PENDING_STORE).getAll();
+    request.onsuccess = () => {
+      const all = (request.result ?? []) as PendingMessageRecord[];
+      resolve(all.filter((record) => record && record.senderUserId === userId && record.chatId === chatId));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/** Called once a message is canonical and cached elsewhere. */
+export async function deletePendingMessage(userId: string, clientMessageId: string): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readwrite");
+    tx.objectStore(PENDING_STORE).delete(pendingKey(userId, clientMessageId));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * A send that was in flight when the tab died cannot be known to have
+ * committed, so it is moved to a retryable state rather than left spinning.
+ */
+export async function recoverInterruptedSends(userId: string): Promise<number> {
+  const db = await openDb();
+  const records = await new Promise<PendingMessageRecord[]>((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, "readonly");
+    const request = tx.objectStore(PENDING_STORE).getAll();
+    request.onsuccess = () => resolve((request.result ?? []) as PendingMessageRecord[]);
+    request.onerror = () => reject(request.error);
+  });
+
+  let recovered = 0;
+  for (const record of records) {
+    if (!record || record.senderUserId !== userId) continue;
+    if (record.serverId) continue;
+    if (record.status !== "sending" && record.status !== "encrypting") continue;
+    await putPendingMessage(userId, { ...record, status: "failed", lastErrorCode: "INTERRUPTED" });
+    recovered += 1;
+  }
+  return recovered;
 }
