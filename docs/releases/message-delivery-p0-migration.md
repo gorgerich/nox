@@ -105,7 +105,8 @@ Only after P0 is accepted and merge is approved:
 | Server idempotency (disposable DB) | `npm run validate:message-send-idempotency` |
 | Browser integration, plaintext (disposable DB) | `npm run validate:message-send-browser` |
 | Browser integration, E2EE (disposable DB) | `npm run validate:message-send-browser-e2ee` |
-| Attachment delivery (disposable DB) | `npm run validate:message-attachment-delivery` |
+| Attachment delivery, group/plaintext (disposable DB) | `npm run validate:message-attachment-delivery` |
+| Attachment delivery, one-to-one/encrypted (disposable DB) | `npm run validate:message-attachment-delivery-e2ee` |
 | Hydration cleanliness (disposable DB) | `npm run validate:connection-notice-hydration` |
 | Schema contract | `npm run validate:message-client-id-schema` |
 | **Merge CI gate** — all of the above plus typecheck, lint budget, build | `npm run guard:message-delivery-p0` |

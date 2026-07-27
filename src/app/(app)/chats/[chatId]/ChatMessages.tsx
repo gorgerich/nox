@@ -2391,6 +2391,7 @@ export function ChatMessages({
           initialFiles={previewFiles}
           onSend={handleSendFromPreview}
           onCancel={() => setPreviewFiles([])}
+          captionIsSeparateMessage={chatInfo.type === "DIRECT"}
         />
       )}
     </div>

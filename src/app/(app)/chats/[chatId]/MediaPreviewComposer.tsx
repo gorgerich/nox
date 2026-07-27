@@ -14,10 +14,18 @@ export function MediaPreviewComposer({
   initialFiles,
   onSend,
   onCancel,
+  captionIsSeparateMessage = false,
 }: {
   initialFiles: File[];
   onSend: (items: MediaPreviewItem[], caption: string) => void;
   onCancel: () => void;
+  /**
+   * True in an encrypted one-to-one conversation, where a caption is delivered
+   * as its own message rather than attached to the media — see
+   * docs/product/attachment-caption-semantics.md. The user is told, because
+   * two bubbles appearing where one was expected otherwise reads as a bug.
+   */
+  captionIsSeparateMessage?: boolean;
 }) {
   const [items, setItems] = useState<MediaPreviewItem[]>(() => 
     initialFiles.map((file) => ({
@@ -227,7 +235,7 @@ export function MediaPreviewComposer({
           <div className="flex-1 bg-white/10 border border-white/10 rounded-2xl flex items-center overflow-hidden focus-within:ring-2 focus-within:ring-primary/50 transition-smooth">
             <textarea
               className="w-full max-h-32 min-h-[48px] resize-none bg-transparent py-3.5 px-4 text-[15px] outline-none text-white placeholder:text-white/40"
-              placeholder="Добавить подпись..."
+              placeholder={captionIsSeparateMessage ? "Подпись — отдельным сообщением" : "Добавить подпись..."}
               aria-label="Подпись к вложениям"
               rows={1}
               value={caption}

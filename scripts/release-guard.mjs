@@ -88,6 +88,7 @@ const MERGE_GATES = [
   { name: "validate:message-send-browser", cmd: "npm", args: ["run", "validate:message-send-browser"], needsDb: true, browser: true },
   { name: "validate:message-send-browser-e2ee", cmd: "npm", args: ["run", "validate:message-send-browser-e2ee"], needsDb: true, browser: true },
   { name: "validate:message-attachment-delivery", cmd: "npm", args: ["run", "validate:message-attachment-delivery"], needsDb: true, browser: true },
+  { name: "validate:message-attachment-delivery-e2ee", cmd: "npm", args: ["run", "validate:message-attachment-delivery-e2ee"], needsDb: true, browser: true },
   { name: "validate:connection-notice-hydration", cmd: "npm", args: ["run", "validate:connection-notice-hydration"], needsDb: true, browser: true },
   { name: "production build", cmd: "npm", args: ["run", "build"] },
 ];
@@ -123,7 +124,7 @@ for (const gate of gates) {
 // The browser suites are what prove the integration exists rather than the
 // layers merely compiling. Any of them missing or failing blocks the merge.
 const browserGates = results.filter((result) => result.gate.browser);
-const browserProven = browserGates.length >= 4 && browserGates.every((result) => result.ok);
+const browserProven = browserGates.length >= 5 && browserGates.every((result) => result.ok);
 if (!browserProven) blocked = true;
 
 console.log("\n══════════════════════════════════════════════");

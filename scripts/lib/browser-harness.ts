@@ -11,7 +11,7 @@
  * is terminal.
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, readdirSync, existsSync } from "node:fs";
+import { mkdirSync, readdirSync, existsSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import bcrypt from "bcryptjs";
@@ -38,8 +38,67 @@ export function createChecker() {
   return { check, failures: () => failures };
 }
 
+/**
+ * Only one browser suite may use the disposable database at a time.
+ *
+ * Two suites sharing it interleave their rows and their ports, and the result
+ * is a wall of failures that look exactly like a product regression — which is
+ * how an afternoon gets spent chasing a bug that does not exist. The lock is
+ * advisory and self-healing: a stale lock from a killed run is taken over after
+ * the holder is gone.
+ */
+const LOCK_PATH = join(process.cwd(), "node_modules", ".cache", "nox-browser-suite.lock");
+
+function acquireSuiteLock(): () => void {
+  mkdirSync(join(process.cwd(), "node_modules", ".cache"), { recursive: true });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      writeFileSync(LOCK_PATH, String(process.pid), { flag: "wx" });
+      return () => {
+        try {
+          rmSync(LOCK_PATH, { force: true });
+        } catch {
+          // nothing useful to do while tearing down
+        }
+      };
+    } catch {
+      const holder = Number(readFileSync(LOCK_PATH, "utf8").trim());
+      let alive = false;
+      try {
+        process.kill(holder, 0);
+        alive = true;
+      } catch {
+        alive = false;
+      }
+      if (alive) {
+        console.error(
+          `\nAnother browser suite is already running against the disposable database (pid ${holder}).`,
+        );
+        console.error("Running two at once corrupts both. Wait for it to finish, or stop it first.");
+        process.exit(1);
+      }
+      rmSync(LOCK_PATH, { force: true });
+    }
+  }
+  throw new Error("could not acquire the browser-suite lock");
+}
+
 /** Refuses to continue unless the target database is marked disposable. */
 export async function requireIsolatedDatabase(): Promise<string> {
+  const release = acquireSuiteLock();
+  process.on("exit", release);
+  process.on("SIGINT", () => {
+    release();
+    process.exit(130);
+  });
+  process.on("SIGTERM", () => {
+    release();
+    process.exit(143);
+  });
+  return requireIsolatedDatabaseInner();
+}
+
+async function requireIsolatedDatabaseInner(): Promise<string> {
   const isolation = await assertIsolation();
   if (!isolation.ok) {
     console.error("MESSAGE_TEST_DB_ISOLATION=FAIL");
