@@ -153,35 +153,46 @@ export function ChatComposer({
     }
   }, [editingTo, replyingTo]);
 
+  // Guards a double tap on send from handing the same draft over twice.
+  const sendingRef = useRef(false);
+
   const resetInputHeight = useCallback(() => {
     if (inputRef.current) inputRef.current.style.height = "auto";
   }, []);
 
+  /**
+   * The draft is cleared only after `onSend` resolves, and `onSend` resolves
+   * once the message is durably stored — not once it is delivered. Clearing
+   * first, as this did before, meant a failure between the two lost whatever
+   * the user had typed.
+   */
   const handleSend = useCallback(async () => {
     const draft = text;
-    if (draft.trim()) {
+    if (!draft.trim() || sendingRef.current) return;
+    sendingRef.current = true;
+
+    try {
+      await onSend(draft);
       setText("");
       setShowEmoji(false);
       onTyping("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       editingIdRef.current = null;
       resetInputHeight();
-
-      try {
-        await onSend(draft);
-      } catch (error) {
-        console.error("Failed to send message:", error);
-        if (!editingTo) {
-          setText(draft);
-          requestAnimationFrame(() => {
-            if (inputRef.current) {
-              inputRef.current.focus();
-              inputRef.current.style.height = "auto";
-              inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-            }
-          });
-        }
+    } catch (error) {
+      // The message was not stored, so the text stays exactly where it was.
+      console.error("Failed to accept message:", error);
+      if (!editingTo) {
+        requestAnimationFrame(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.style.height = "auto";
+            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+          }
+        });
       }
+    } finally {
+      sendingRef.current = false;
     }
   }, [editingTo, onSend, onTyping, resetInputHeight, text]);
 

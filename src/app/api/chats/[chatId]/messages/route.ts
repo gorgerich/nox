@@ -160,9 +160,13 @@ export async function GET(
   const url = new URL(request.url);
   const beforeParam = url.searchParams.get("before");
   const cursorId = beforeParam && !beforeParam.startsWith("temp-") ? beforeParam : null;
-  const limitParam = Number(url.searchParams.get("limit"));
-  const limit = Number.isFinite(limitParam)
-    ? Math.min(Math.max(Math.trunc(limitParam), 1), 50)
+  // `Number(null)` is 0, not NaN, so an absent `limit` used to clamp to 1 and
+  // the history refresh returned a single message — which is what made the
+  // conversation look emptied after leaving and coming back.
+  const limitParam = url.searchParams.get("limit");
+  const parsedLimit = limitParam === null ? Number.NaN : Number(limitParam);
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+    ? Math.min(Math.max(Math.trunc(parsedLimit), 1), 50)
     : 50;
 
   const prisma = getPrisma();

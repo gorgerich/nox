@@ -2,6 +2,7 @@
 
 import { CloudOff, RefreshCw, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useClientValue } from "@/lib/use-client-value";
 
 export type ConnectionStatus = "online" | "offline" | "reconnecting" | "restored" | "error";
 
@@ -20,7 +21,14 @@ const COPY: Record<Exclude<ConnectionStatus, "online">, { label: string; tone: "
  *
  * The state is conveyed by an icon and text as well as colour.
  */
+/**
+ * Connection state is client-only: the socket may already be connected by the
+ * time React hydrates, while the server render always sees "not connected".
+ * Rendering the banner from that state made the two markups disagree, so the
+ * banner is absent on both sides until hydration finishes.
+ */
 export function InlineConnectionNotice({ status }: { status: ConnectionStatus }) {
+  const hydrated = useClientValue(() => true, false);
   const [visible, setVisible] = useState(status !== "online");
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,7 +53,8 @@ export function InlineConnectionNotice({ status }: { status: ConnectionStatus })
     };
   }, [status]);
 
-  if (!visible || status === "online") return null;
+  // Before hydration the banner is simply absent, on both sides.
+  if (!hydrated || !visible || status === "online") return null;
 
   const { label, tone } = COPY[status];
   const Icon = status === "restored" ? Wifi : status === "reconnecting" ? RefreshCw : CloudOff;

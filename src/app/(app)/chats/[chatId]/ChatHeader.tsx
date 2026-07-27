@@ -5,6 +5,7 @@ import { ChatThemePortal } from "./ChatThemePortal";
 import { ArrowLeft, Check, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { useClientValue } from "@/lib/use-client-value";
 import { useAudioCall } from "../../calls/CallProvider";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
@@ -74,7 +75,12 @@ export function ChatHeader({
     { label: "1 день", seconds: 86400 },
     { label: "1 неделя", seconds: 604800 },
   ];
-  const canCall = chatType === "DIRECT" && typeof navigator !== "undefined" && !!navigator.mediaDevices;
+  // Capability detection is client-only: the server has no `navigator`, so it
+  // rendered no call buttons while the client rendered them, and the markups
+  // disagreed. The hydration render uses the server's answer on both sides and
+  // the real capability is applied in the re-render right after.
+  const canUseMedia = useClientValue(() => typeof navigator !== "undefined" && !!navigator.mediaDevices, false);
+  const canCall = chatType === "DIRECT" && canUseMedia;
   const handleBackToChats = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
