@@ -11,7 +11,7 @@ triggered.
 | | |
 | --- | --- |
 | Branch | `p0-message-delivery` |
-| RC SHA | `7fffbf1` |
+| RC SHA | the commit tagged `rc/message-delivery-p0` — a file cannot name the SHA of the commit that contains it, so the tag is the authority |
 | Base | `059803a` — the SHA production is currently running |
 | `main` | unchanged, still `059803a` |
 | Production runtime | unchanged, still `059803a` |
