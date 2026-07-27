@@ -42,6 +42,24 @@ const messageSchema = z.object({
   senderKeyId: z.string().trim().min(1).max(160).optional(),
 });
 
+/**
+ * Returns the message this sender already committed for `clientMessageId`, if
+ * any. Sending is idempotent on (senderUserId, clientMessageId): a retry after
+ * a lost response must return the original message rather than create a second
+ * one. Without this the client cannot safely retry at all.
+ */
+async function findExistingByClientId(
+  prisma: ReturnType<typeof getPrisma>,
+  senderUserId: string,
+  clientMessageId: string | null | undefined,
+) {
+  if (!clientMessageId) return null;
+  return prisma.message.findUnique({
+    where: { senderUserId_clientMessageId: { senderUserId, clientMessageId } },
+    include: messageInclude,
+  });
+}
+
 const DIRECT_E2EE_ALGORITHM = "ECDH-P256-HKDF-SHA256-AES-GCM";
 const PLAINTEXT_FIELDS = ["body", "content", "text", "message"] as const;
 
@@ -306,10 +324,18 @@ export async function POST(
       return NextResponse.json({ error: "Missing recipient envelope" }, { status: 400 });
     }
 
+    const alreadyCommitted = await findExistingByClientId(prisma, user.id, parsed.data.clientId);
+    if (alreadyCommitted) {
+      // Idempotent replay: no second Message, no second envelopes, no second
+      // socket event — just the canonical result the client missed.
+      return NextResponse.json({ message: alreadyCommitted, clientId: parsed.data.clientId ?? null }, { status: 200 });
+    }
+
     const message = await prisma.message.create({
       data: {
         chatId,
         senderUserId: user.id,
+        clientMessageId: parsed.data.clientId ?? null,
         type: "TEXT",
         body: null,
         isEncrypted: true,
@@ -393,10 +419,16 @@ export async function POST(
     select: { userId: true, mutedUntil: true },
   });
 
+  const existing = await findExistingByClientId(prisma, user.id, parsed.data.clientId);
+  if (existing) {
+    return NextResponse.json({ message: existing, clientId: parsed.data.clientId ?? null }, { status: 200 });
+  }
+
   const message = await prisma.message.create({
     data: {
       chatId,
       senderUserId: user.id,
+      clientMessageId: parsed.data.clientId ?? null,
       type: "TEXT",
       body: isEncrypted ? null : parsed.data.body,
       isEncrypted,

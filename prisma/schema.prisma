@@ -285,6 +285,11 @@ model Message {
   id                String            @id @default(uuid())
   chatId            String
   senderUserId      String
+  /// Stable id minted by the sending client before the first request. Paired
+  /// with senderUserId it makes sending idempotent: a retry after a lost
+  /// response returns the message already committed instead of creating a
+  /// second one.
+  clientMessageId   String?
   body              String?
   ciphertext        String?
   iv                String?
@@ -310,6 +315,7 @@ model Message {
   reactions         Reaction[]
   envelopes         MessageEnvelope[]
 
+  @@unique([senderUserId, clientMessageId])
   @@index([chatId, createdAt])
   @@index([senderUserId])
 }
