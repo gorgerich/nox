@@ -104,3 +104,6 @@ node_modules/
 .env
 .env.*
 tsconfig.tsbuildinfo
+
+# Production database dumps never belong in the repository.
+*.dump

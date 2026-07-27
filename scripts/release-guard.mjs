@@ -19,7 +19,9 @@
  * docs/incidents/20260727-message-client-id-production-migration.md.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { join } from "node:path";
 
 const RELEASE_MODE = process.argv.includes("--release");
 
@@ -50,23 +52,104 @@ function lintGate() {
 }
 
 /**
- * Reads the flag out of the backup evidence document. A document that still
- * says NO is a failed gate — "we could not check" is not a pass.
+ * A production backup must be verified by one of two mechanisms:
+ *
+ *   A. a managed Railway backup or snapshot, confirmed by the workspace owner;
+ *   B. a logical dump that has actually been restored into a disposable
+ *      database and checked against the source.
+ *
+ * The flag in the document is not sufficient on its own. For B the gate goes
+ * back to the artefact: the file must still exist, still match its recorded
+ * checksum and size, still be owner-only, and the recorded restore must have
+ * succeeded against the schema production has right now. A backup that was
+ * verified last week and has since been deleted or altered is not a backup.
  */
 function backupGate() {
-  const path = "docs/releases/message-delivery-p0-production-backup.md";
+  const docPath = "docs/releases/message-delivery-p0-production-backup.md";
   let text;
   try {
-    text = readFileSync(path, "utf8");
+    text = readFileSync(docPath, "utf8");
   } catch {
-    return { ok: false, note: `${path} is missing` };
+    return { ok: false, note: `${docPath} is missing` };
   }
-  const match = /PRODUCTION_BACKUP_VERIFIED\s*=\s*(YES|NO)/.exec(text);
-  if (!match) return { ok: false, note: "no PRODUCTION_BACKUP_VERIFIED flag found" };
-  const verified = match[1] === "YES";
-  console.log(`PRODUCTION_BACKUP_VERIFIED=${match[1]} (${path})`);
-  if (!verified) console.error("A confirmed production backup is a prerequisite for deploying.");
-  return { ok: verified, note: `flag is ${match[1]}` };
+  const flag = /PRODUCTION_BACKUP_VERIFIED\s*=\s*(YES|NO)/.exec(text)?.[1];
+  if (!flag) return { ok: false, note: "no PRODUCTION_BACKUP_VERIFIED flag found" };
+  console.log(`PRODUCTION_BACKUP_VERIFIED=${flag} (${docPath})`);
+  if (flag !== "YES") {
+    console.error("A confirmed production backup is a prerequisite for deploying.");
+    return { ok: false, note: "flag is NO" };
+  }
+
+  // Mechanism A: a managed backup, confirmed by a person. Nothing here can
+  // re-check it, so it is accepted on the recorded confirmation alone — and
+  // only when the document says that is what happened.
+  if (/Backup type \| (Railway )?managed/i.test(text)) {
+    console.log("mechanism A: managed Railway backup, confirmed in the evidence document");
+    return { ok: true, note: "managed backup" };
+  }
+
+  // Mechanism B: verify the artefact, not the claim.
+  let evidence;
+  try {
+    evidence = JSON.parse(readFileSync("docs/releases/backup-restore-evidence.json", "utf8"));
+  } catch {
+    return { ok: false, note: "backup-restore-evidence.json is missing or unreadable" };
+  }
+
+  const problems = [];
+  if (evidence.failures !== 0) problems.push(`the recorded verification had ${evidence.failures} failure(s)`);
+  if (evidence.restoreExitCode !== 0) problems.push(`pg_restore exited ${evidence.restoreExitCode}`);
+  if (evidence.restoreIsolation !== "PASS") problems.push("the restore target was not proven disposable");
+  if (!(evidence.dumpSizeBytes > 0)) problems.push("the recorded dump size is not positive");
+  if (!/^[0-9a-f]{64}$/.test(evidence.dumpSha256 ?? "")) problems.push("no usable SHA-256 was recorded");
+  if (evidence.sourceFingerprint !== evidence.restoredFingerprint) {
+    problems.push("the restored schema does not match the source schema");
+  }
+
+  // The evidence file is committed, so it names the dump but not where it
+  // lives. The directory comes from the environment, defaulting to where the
+  // backup script writes.
+  const backupDir = process.env.NOX_BACKUP_DIR ?? join(process.env.HOME ?? "", ".local/share/nox-backups");
+  const dumpPath = evidence.dumpFileName ? join(backupDir, evidence.dumpFileName) : null;
+  if (!dumpPath || !existsSync(dumpPath)) {
+    problems.push("the dump file named in the evidence no longer exists");
+  } else {
+    const stats = statSync(dumpPath);
+    if (stats.size !== evidence.dumpSizeBytes) problems.push("the dump size no longer matches the evidence");
+    const mode = (stats.mode & 0o777).toString(8);
+    if (mode !== "600") problems.push(`the dump is not owner-only (mode ${mode})`);
+    const sha = createHash("sha256").update(readFileSync(dumpPath)).digest("hex");
+    if (sha !== evidence.dumpSha256) problems.push("the dump checksum no longer matches the evidence");
+  }
+
+  // The backup has to describe the database being released, not an older shape.
+  if (process.env.DATABASE_URL) {
+    const probe = spawnSync(
+      "npx",
+      ["tsx", "-e", `
+        import { PrismaClient } from "@prisma/client";
+        import { PrismaPg } from "@prisma/adapter-pg";
+        const p = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+        const r = await p.$queryRawUnsafe(\`select md5(string_agg(table_name || '.' || column_name || ':' || data_type || ':' || is_nullable, ',' order by table_name, column_name)) as md5 from information_schema.columns where table_schema='public'\`);
+        console.log(r[0].md5);
+        await p.$disconnect();
+      `],
+      { encoding: "utf8" },
+    );
+    const current = (probe.stdout ?? "").trim().split("\n").pop();
+    if (current && current !== evidence.sourceFingerprint) {
+      problems.push(`production schema has changed since the backup (${current} vs ${evidence.sourceFingerprint})`);
+    }
+  }
+
+  if (problems.length > 0) {
+    for (const problem of problems) console.error(`  ${problem}`);
+    return { ok: false, note: `${problems.length} problem(s) with the logical backup` };
+  }
+
+  const counted = Object.keys(evidence.sourceCounts ?? {}).length;
+  console.log(`mechanism B: logical dump verified by restore — ${counted} tables, checksum matches, artefact retained`);
+  return { ok: true, note: `logical dump + restore, ${counted} tables` };
 }
 
 /** Read-only production checks. Release mode only; never part of PR CI. */

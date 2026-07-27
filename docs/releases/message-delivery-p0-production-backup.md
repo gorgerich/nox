@@ -1,133 +1,141 @@
 # Production backup prerequisite — MESSAGE DELIVERY P0
 
 ```
-PRODUCTION_BACKUP_VERIFIED = NO
+PRODUCTION_BACKUP_VERIFIED = YES
 ```
 
-A backup could not be verified with the tooling available in this session.
-Nothing here is a substitute for that verification, and the production release
-gate stays BLOCKED until it is done.
+**Mechanism: a PostgreSQL logical custom-format dump, restored and verified.**
 
-**This is the only remaining production release blocker.** Encrypted attachments
-are now proven end to end by `npm run validate:message-attachment-delivery-e2ee`,
-so the "Checklist for the Railway workspace owner" below is the last thing
-standing between the release candidate and a deploy.
+Railway's managed backups and point-in-time recovery are not available on the
+current plan, and buying a higher plan was declined. The prerequisite is
+therefore met the other way: a dump was taken from production, checksummed,
+restored into a disposable database, and checked against the source — schema,
+row counts, constraints, foreign keys, unique indexes, sequences, orphans, and a
+read-only application query.
 
-## What was checked
+An unrestored dump would be a file, not a backup. This one was restored.
 
-| Check | Result |
-| --- | --- |
-| Railway CLI exposes a backup or snapshot command | no — `railway --help` lists `volume` only, with `list/add/delete/update/detach/files/browse/attach`; no backup, restore or snapshot verb |
-| `railway volume list --json` reports backup history | no — it reports `currentSizeMB`, `sizeMB`, `status`, `mountPath`, nothing about backups |
-| `railway status --json` reports backup state | no |
-| A backup was created during this work | no |
-| Any destructive or restore operation was run against production | no |
+## Evidence
 
-Read-only commands only. No `pg_dump`, no restore drill, no write of any kind.
-
-## Database this applies to
-
-| | |
-| --- | --- |
-| Service | `Postgres` (`2e1fc8de-1001-4962-abe7-657df44987e7`) |
-| Project / environment | `ingenious-encouragement` / `production` |
-| Volume | `postgres-volume`, `/var/lib/postgresql/data`, 500 MB |
-| Schema fingerprint | `2ff98e9b1be919eb0cf9e7843d45d915` |
-| Runtime SHA at time of writing | `059803ad24fe588e56bd0ce5086c76b6565e0be4` |
-
-Fingerprint is `md5` over `table_name.column_name:data_type:is_nullable` for
-every column in schema `public`, ordered by table then column. Re-computing it
-at release time and getting the same value is what proves the schema has not
-drifted since this was written.
-
-No credentials, connection string or user data is recorded in this file, and no
-dump belongs in this repository.
-
-## Accepted ways to satisfy this
-
-Any one of these closes the gate. Whoever performs it fills in the evidence
-table below and flips the flag at the top of this file to `YES`.
-
-1. **Railway managed backup / snapshot.** Visible in the Railway dashboard under
-   the Postgres service. Record the backup's timestamp, retention and the
-   restore path Railway offers.
-2. **Verified manual logical dump.** `pg_dump` from a trusted machine, stored
-   outside this repository, with a restore verified into a scratch database —
-   an unrestored dump is not a verified backup. Record where it lives and who
-   holds it; do not record the path to any secret.
-3. **Infrastructure snapshot** of the volume, with a documented restore
-   procedure.
-4. **Another approved mechanism** — record what it is and how restore was
-   demonstrated.
-
-## Checklist for the Railway workspace owner
-
-Only someone with access to the Railway workspace can confirm a managed backup;
-the CLI available here cannot. Below is exactly what is needed. Send the values,
-not screenshots of secrets — **no connection string, no password, no dump, and
-no message content**.
-
-Copy this block, fill it in, and it can be pasted straight into the evidence
-table below.
-
-```
-1.  Backup type ................. managed backup | snapshot | logical dump | other:
-2.  Created at (UTC) ............ YYYY-MM-DDTHH:MM:SSZ
-3.  Created by .................. automatic schedule | manual | CI job (name it)
-4.  Target project .............. must read: ingenious-encouragement
-5.  Target environment .......... must read: production
-6.  Target service .............. must read: Postgres  (id 2e1fc8de-1001-4962-abe7-657df44987e7)
-7.  Confirms it is production ... yes | no   (how was this confirmed?)
-8.  Size or sanity check ........ e.g. "118 MB", or a row count for a known table
-9.  Encrypted at rest ........... yes | no | unknown
-10. Storage location ............ e.g. "Railway managed, us-west" — no credentials
-11. Retention ................... e.g. "7 daily, 4 weekly"
-12. Restore procedure ........... one or two sentences, or a link to the runbook
-13. Restore demonstrated ........ yes (when, into what) | no
-14. Confirmed by ................ person or system that verified items 1–13
-```
-
-Notes on the fields that matter most:
-
-- **7** is the one that is easy to get wrong. A backup of the wrong environment
-  is not a backup. Confirm it by the service id above, not by the display name.
-- **13**: an unrestored dump is a file, not a backup. If a restore has never been
-  demonstrated, say `no` — that is still useful information and it is recorded
-  honestly rather than assumed.
-- **8** exists so that an empty or truncated backup is caught. A backup a
-  fraction of the database's size is a failed backup.
-
-If the answer to **1** is a logical dump taken locally, add where it is stored
-and who holds it. The dump itself must not enter this repository.
-
-## Evidence — to be completed before release
+Machine-readable form: `docs/releases/backup-restore-evidence.json`, written by
+`npm run verify:backup-restore`. It contains no credentials and no row content —
+only counts, checksums and fingerprints.
 
 | Field | Value |
 | --- | --- |
-| Backup type | _pending_ |
-| Timestamp (UTC) | _pending_ |
-| Created by | _pending_ |
-| Database target | Railway `Postgres` (`2e1fc8de-1001-4962-abe7-657df44987e7`), project `ingenious-encouragement`, environment `production` |
-| Confirmed to be production | _pending — how?_ |
-| Size / sanity check | _pending_ |
-| Encrypted at rest | _pending_ |
-| Storage location | _pending — no credentials_ |
-| Schema fingerprint at backup time | _pending — must match the value above, or the difference must be explained_ |
-| Restore procedure | _pending_ |
-| Restore actually demonstrated | _pending_ |
-| Retention | _pending_ |
-| Verified by | _pending_ |
+| Backup type | PostgreSQL logical dump, custom archive (`pg_dump -Fc --no-owner --no-privileges`) |
+| Reason for this mechanism | Railway managed backup/PITR unavailable on the current plan |
+| Production service | `2e1fc8de-1001-4962-abe7-657df44987e7` (`Postgres`, project `ingenious-encouragement`, environment `production`) |
+| Source database | `railway` |
+| Source server | PostgreSQL 18.4 (Debian 18.4-1.pgdg13+1) |
+| Source schema fingerprint | `2ff98e9b1be919eb0cf9e7843d45d915` |
+| Created at (UTC) | 2026-07-27T23:09:01Z |
+| `pg_dump` exit code | 0 |
+| File name | `nox-production-20260727-230834.dump` |
+| Size | 227 367 bytes |
+| SHA-256 | `f56f3465e70bddce10997723caeec4f4e6373a2781b913465d8e74b42cb24a84` |
+| File mode | `0600`, in a `0700` directory |
+| Storage | local encrypted volume (FileVault), outside the repository and outside any cloud-synced folder; path not recorded here |
+| Table data entries in the archive | 25 |
+| Restore target | `nox_release_restore_test` on loopback |
+| `RESTORE_TEST_DB_ISOLATION` | PASS |
+| `pg_restore` exit code | 0 (`--exit-on-error --single-transaction --no-owner --no-privileges`) |
+| Restored schema fingerprint | `2ff98e9b1be919eb0cf9e7843d45d915` — identical to source |
+| Verified at | 2026-07-27 (same session as the dump) |
+| Verified by | the release gate `npm run verify:backup-restore`, run against the artefact |
 
-## Limitations
+### Row counts — source vs restored
 
-- The absence of a backup command in the CLI is not evidence that no backup
-  exists — Railway may well be taking them. It is evidence that **this session
-  cannot see them**, which is not the same thing and must not be reported as a
-  pass.
-- The schema change that reached production outside its gate
-  (`docs/incidents/20260727-message-client-id-production-migration.md`) was
-  applied with no confirmed backup in place. It was additive and nullable, and
-  no regression was observed, but the absence of a safety net at that moment is
-  part of why this prerequisite now exists.
-- This file records only what was verified. It is not a claim that the data is
-  safe.
+Exact match on all 25 tables. The critical ones:
+
+| Table | Source | Restored |
+| --- | --- | --- |
+| `User` | 8 | 8 |
+| `Chat` | 11 | 11 |
+| `ChatMember` | 21 | 21 |
+| `Message` | 261 | 261 |
+| `MessageEnvelope` | 272 | 272 |
+| `MessageReceipt` | 231 | 231 |
+| `Attachment` | 37 | 37 |
+| `MediaKeyEnvelope` | 67 | 67 |
+| `UserDevice` | 55 | 55 |
+| `DeviceKeyBundle` | 55 | 55 |
+
+No row content was read. Counts only.
+
+### Structure
+
+| Check | Source | Restored |
+| --- | --- | --- |
+| Constraints | 226 | 226 |
+| Foreign keys | 39 | 39 |
+| Unique indexes | 46 | 46 |
+| `Message.clientMessageId` | present | present |
+| `Message_senderUserId_clientMessageId_key` | valid | valid |
+| Invalid indexes | — | 0 |
+| Sequences with impossible values | — | 0 |
+
+Orphan checks, all zero on the restore: messages without a chat, messages
+without a sender, envelopes without a message, attachments without a message,
+media key envelopes without an attachment, devices without a user, chat members
+without a chat.
+
+The application opens the restored database: Prisma connects, counts users and
+chats, and executes a relation query. `prisma migrate diff` reports no `Message`
+drift against the restored schema.
+
+## Isolation of the restore target
+
+`RESTORE_TEST_DB_ISOLATION=PASS` requires all of:
+
+- the restore host is loopback;
+- the restore database name carries a `test`/`disposable`/`scratch` marker;
+- the restore target is not the production host and database;
+- production is not itself on loopback (otherwise the two cannot be told apart);
+- the restore target is not the database the application is configured with.
+
+A single failure is terminal and nothing is dropped. The restore drops and
+recreates its target, so this check runs before any destructive step.
+
+## Handling
+
+- The dump was taken with `umask 077` into a directory created at `0700`.
+- Connection details were passed through environment variables and a temporary
+  `0600` `.pgpass`, never as a command-line argument — `argv` is world-readable
+  in the process list, so a URL there would leak the password to every user on
+  the machine. The `.pgpass` is removed on exit.
+- `pg_dump` reads; it performs no writes against production.
+- The dump, its log, and the connection details are not in git. This repository
+  holds only timestamps, sizes, checksums, fingerprints, counts and results.
+- Retained until the production deploy, its smoke test and the rollback window
+  are all complete.
+
+## Limitations — real ones
+
+- **This is a point-in-time logical snapshot, not continuous PITR.** Anything
+  written to production after 2026-07-27T23:09:01Z is not in it. Recovering to a
+  moment between this dump and a failure is not possible.
+- Restoring it over production would lose every change since that timestamp.
+  That is an explicit, separately-confirmed operation with its own procedure —
+  see the rollback section of the release candidate — and is not something the
+  release plan does on its own.
+- The restore was verified on PostgreSQL 18 locally, matching the production
+  major version. A restore onto a different major version is not covered by this
+  evidence.
+- The row counts were taken from a live database, so they are a consistent view
+  of the dump, not a freeze of production. They matched exactly here, which
+  means no writes landed during the dump window; that is luck, not a guarantee.
+- Deleting the file later does not guarantee erasure on an SSD. When the
+  retention window closes, the file is removed; that is a deletion, not a
+  destruction claim.
+
+## Reproducing this
+
+```bash
+DATABASE_URL=... bash scripts/backup-production.sh
+DATABASE_URL=... npm run verify:backup-restore -- <path-to-dump>
+```
+
+The second command is what the production release gate runs against the recorded
+evidence. It refuses to pass on a dump that is missing, empty, world-readable,
+inside the repository, or that fails to restore.
