@@ -24,6 +24,34 @@ separate; only the first is done.
 - Do not send test messages to production before P0 PASS. Read-only checks only:
   schema, index, deployment metadata, health, logs without message content.
 
+## Controlled production smoke plan
+
+**Not run yet, and not to be run before merge approval and a deploy of the RC.**
+It uses a dedicated test account only — never a real user's conversation.
+
+1. Confirm the backup (step 1 below) — this is the gate everything else waits on.
+2. Read-only schema check: `npm run verify:production-schema`.
+3. Deploy the exact RC SHA from
+   `docs/releases/message-delivery-p0-release-candidate.md`. Not "latest main".
+4. Sign in as the test account, in a conversation with a second test account.
+5. Send an ordinary E2EE text message. Expect one bubble, one row, one envelope
+   per device.
+6. If it can be done safely, block the socket transport and send again: an HTTP
+   2xx alone must show `sent`.
+7. Replay the same request with the same `clientMessageId`. Expect 200 and no
+   second row.
+8. Leave the conversation and return. Nothing lost, nothing doubled.
+9. Reload. Same.
+10. Send an attachment. Expect one message, one attachment row.
+11. Send a voice message. Same.
+12. Check both accounts for duplicates.
+13. Check that nothing is left `pending` or `failed` on either device.
+14. Check server error rates and logs — without reading message content.
+15. Check envelope counts: one per recipient device, no duplicates.
+16. Stop the smoke. Remove nothing; leave the test conversation in place.
+17. On a regression: roll the runtime back to `059803a` and **leave the column
+    and index in place**.
+
 ## Release order
 
 Only after P0 is accepted and merge is approved:
@@ -75,9 +103,17 @@ Only after P0 is accepted and merge is approved:
 | Reconciliation | `npm run validate:message-send-reconciliation` |
 | Local persistence and delivery | `npm run validate:message-local-persistence` |
 | Server idempotency (disposable DB) | `npm run validate:message-send-idempotency` |
-| Browser integration (disposable DB) | `npm run validate:message-send-browser` |
+| Browser integration, plaintext (disposable DB) | `npm run validate:message-send-browser` |
+| Browser integration, E2EE (disposable DB) | `npm run validate:message-send-browser-e2ee` |
+| Attachment delivery (disposable DB) | `npm run validate:message-attachment-delivery` |
+| Hydration cleanliness (disposable DB) | `npm run validate:connection-notice-hydration` |
 | Schema contract | `npm run validate:message-client-id-schema` |
-| All of the above plus build | `npm run guard:message-delivery-p0` |
+| **Merge CI gate** — all of the above plus typecheck, lint budget, build | `npm run guard:message-delivery-p0` |
+| **Production release gate** — the merge gate plus backup and production schema | `npm run guard:production-release` |
+| Production schema alone (read-only) | `npm run verify:production-schema` |
+
+The merge gate never touches production. Only the release gate does, and only
+read-only.
 
 The two database gates refuse to run unless the target database carries the
 disposable marker in schema `nox_test_guard`. That refusal is a failed gate, not
