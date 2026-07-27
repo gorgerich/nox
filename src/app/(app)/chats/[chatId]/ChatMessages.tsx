@@ -29,6 +29,9 @@ import { classifyHistory } from "@/lib/history-availability";
 import { useTheme } from "@/components/ThemeProvider";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
+import { useMessageDelivery } from "./useMessageDelivery";
+import type { DeliveryTransport } from "@/lib/messages/delivery-controller";
+import type { ServerMessage } from "@/lib/messages/reconcile";
 
 type ChatRole = "OWNER" | "ADMIN" | "MEMBER";
 
@@ -581,13 +584,143 @@ export function ChatMessages({
     // deps) to avoid a re-run storm — see the refs declared above.
   }, [messages, otherMemberPublicKey, myPublicKey, chatId, currentUserId, chatInfo.otherMember?.id, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
 
+  // --- outgoing message delivery -------------------------------------------
+  //
+  // Sending used to live in a callback on this component, which meant leaving
+  // the screen destroyed the in-flight state. It now belongs to a controller
+  // that outlives the screen; this component only supplies the transport and
+  // renders whatever the controller holds.
+
+  /** Canonical messages the transport has fetched, awaiting the commit callback. */
+  const committedByClientIdRef = useRef<Map<string, Message>>(new Map());
+
+  const sendTransport = useCallback<DeliveryTransport>(async ({ clientMessageId, body, replyToMessageId }) => {
+    let payload: Record<string, unknown>;
+    try {
+      // `replyToMessageId` is optional on the wire, not nullable — sending an
+      // explicit null is rejected with a 400, which the controller then treats
+      // as permanent and the message never leaves the device.
+      const reply = replyToMessageId ? { replyToMessageId } : {};
+      if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
+        const encrypted = await encryptMessageForDevices(body, chatInfo.otherMember.id, chatId, currentUserId);
+        payload = { ...encrypted, type: "TEXT", ...reply, clientId: clientMessageId };
+        plaintextByClientIdRef.current.set(clientMessageId, body);
+      } else {
+        payload = { body, ...reply, clientId: clientMessageId };
+      }
+    } catch (error) {
+      // A device that cannot seal this message will not seal it on a retry
+      // either — repeating the identical request only burns the budget.
+      console.error("[e2ee] Encryption failed before message POST", error);
+      return { ok: false, errorCode: "ENCRYPT_FAILED", retryable: false };
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      plaintextByClientIdRef.current.delete(clientMessageId);
+      return { ok: false, errorCode: "NETWORK", retryable: true };
+    }
+
+    if (!response.ok) {
+      plaintextByClientIdRef.current.delete(clientMessageId);
+      // 4xx is the server saying no; only 408/429 and 5xx are worth repeating.
+      const retryable = response.status >= 500 || response.status === 408 || response.status === 429;
+      return { ok: false, errorCode: `HTTP_${response.status}`, retryable };
+    }
+
+    const data = await response.json().catch(() => null);
+    const normalized = data ? normalizeMessage(data.message) : null;
+    if (!normalized) {
+      plaintextByClientIdRef.current.delete(clientMessageId);
+      return { ok: false, errorCode: "BAD_RESPONSE", retryable: false };
+    }
+
+    committedByClientIdRef.current.set(clientMessageId, normalized);
+    // A 2xx is the commit. The socket echo, if it comes, only reconciles.
+    return {
+      ok: true,
+      message: { id: normalized.id, clientId: clientMessageId, body, createdAt: normalized.createdAt },
+    };
+  }, [chatId, chatInfo.otherMember, chatInfo.type, currentUserId]);
+
+  const handleCommitted = useCallback((server: ServerMessage, clientMessageId: string) => {
+    const normalized = committedByClientIdRef.current.get(clientMessageId);
+    committedByClientIdRef.current.delete(clientMessageId);
+    plaintextByClientIdRef.current.delete(clientMessageId);
+    if (!normalized) return;
+
+    setMessages((current) => {
+      const exists = current.some((message) => message.id === normalized.id);
+      return exists
+        ? current.map((message) => (message.id === normalized.id ? normalized : message))
+        : [...current, normalized];
+    });
+
+    const plaintext = server.body;
+    if (normalized.isEncrypted && plaintext) {
+      setDecryptedBodies((current) => ({ ...current, [normalized.id]: plaintext }));
+      if ((normalized.encryptionVersion ?? 0) >= 2 && localDeviceId) {
+        void saveVerifiedLocalMessage(normalized, plaintext, localDeviceId)
+          .then(() => sendDeliveryAck(normalized.id, localDeviceId))
+          .catch((error) => {
+            // The message is committed on the server either way; only the local
+            // cache is missing, which the next open re-fetches.
+            console.error("[e2ee] Failed to save local encrypted cache", error);
+          });
+      }
+    }
+  }, [localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
+
+  const delivery = useMessageDelivery({
+    chatId,
+    userId: currentUserId,
+    transport: sendTransport,
+    onCommitted: handleCommitted,
+  });
+
+  // The socket effect must not re-subscribe every time delivery state changes,
+  // so it reaches the controller through a ref kept current in an effect.
+  const deliveryRef = useRef<typeof delivery | null>(null);
+  useEffect(() => {
+    deliveryRef.current = delivery;
+  }, [delivery]);
+
   const messagesWithDecrypted = useMemo(() => {
-    return messages.map(msg => ({
+    const canonical = messages.map(msg => ({
       ...msg,
       body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? ((msg.encryptionVersion ?? 0) >= 2 ? "" : msg.ciphertext ? "Зашифрованное сообщение" : "") : msg.body || ""),
       messageUnavailableOnThisDevice: msg.attachments.length === 0 && Boolean(unavailableMessageIds[msg.id]),
     })) as MessageWithDecrypted[];
-  }, [messages, decryptedBodies, unavailableMessageIds]);
+
+    // Messages the server has not confirmed are rendered from the controller,
+    // not from component state, so they survive leaving and re-entering the
+    // chat. One already present in `messages` is not drawn twice.
+    const overlay = delivery.pending
+      .filter((outgoing) => !canonical.some((message) => message.id === outgoing.serverId))
+      .map((outgoing) => {
+        const replyTarget = outgoing.replyToMessageId
+          ? messages.find((message) => message.id === outgoing.replyToMessageId) ?? null
+          : null;
+        return {
+          ...createOptimisticMessage({
+            clientId: outgoing.clientMessageId,
+            body: outgoing.body,
+            currentUserId,
+            replyToMessage: replyTarget,
+          }),
+          createdAt: outgoing.createdAt,
+          messageUnavailableOnThisDevice: false,
+        } as MessageWithDecrypted;
+      });
+
+    return overlay.length > 0 ? [...canonical, ...overlay] : canonical;
+  }, [messages, decryptedBodies, unavailableMessageIds, delivery.pending, currentUserId]);
 
   // Persist decrypted bodies to the in-memory cache so a later re-open seeds
   // instantly (RAM only — see chat-cache.ts).
@@ -1212,12 +1345,20 @@ export function ChatMessages({
             });
         }
       }
+      // If this echo belongs to a message we sent, the controller folds it onto
+      // the entry that is already there — it never adds a bubble. The optimistic
+      // overlay disappears on its own once the controller holds a server id.
+      deliveryRef.current?.ingestServerMessage({
+        id: normalized.id,
+        clientId: payload.clientId ?? null,
+        body: localPlaintext ?? normalized.body,
+        createdAt: normalized.createdAt,
+      });
+
       setMessages((current) => {
-        const optimisticId = payload.clientId ? `temp-${payload.clientId}` : null;
-        const withoutOptimistic = optimisticId ? current.filter((message) => message.id !== optimisticId) : current;
-        const exists = withoutOptimistic.some((message) => message.id === normalized.id);
+        const exists = current.some((message) => message.id === normalized.id);
         debugRealtime(exists ? "message deduped" : "message appended", { messageId: normalized.id, chatId: payload.chatId });
-        return exists ? withoutOptimistic : [...withoutOptimistic, normalized];
+        return exists ? current.map((message) => (message.id === normalized.id ? normalized : message)) : [...current, normalized];
       });
 
       if (normalized.senderUserId !== currentUserId) {
@@ -1490,93 +1631,13 @@ export function ChatMessages({
     const replyTarget = replyingToMessage;
 
     if (!editingMessage) {
-      const clientId = generateClientId();
-      const optimisticMessage = createOptimisticMessage({
-        clientId,
-        body: trimmedBody,
-        currentUserId,
-        replyToMessage: replyTarget,
-      });
-
-      setMessages((current) => [...current, optimisticMessage]);
+      // Hand the message to the controller and return as soon as it is durable.
+      // Everything after that — encryption, the request, retries — happens
+      // outside this component, so the composer is free immediately and the
+      // send is not tied to this screen staying mounted.
       setReplyingToMessage(null);
-      setPending(true);
       setComposerError(null);
-
-    try {
-      let payload: Record<string, unknown>;
-      if (chatInfo.type === "DIRECT" && chatInfo.otherMember?.id) {
-        let encrypted: Awaited<ReturnType<typeof encryptMessageForDevices>>;
-        try {
-          encrypted = await encryptMessageForDevices(trimmedBody, chatInfo.otherMember.id, chatId, currentUserId);
-        } catch (encryptError) {
-          console.error("[e2ee] Encryption failed before message POST", encryptError);
-          const message = encryptError instanceof Error
-            ? encryptError.message
-            : "Не удалось зашифровать сообщение на этом устройстве";
-          throw new Error(message);
-        }
-
-        payload = {
-          ...encrypted,
-          type: "TEXT",
-          replyToMessageId: replyTarget?.id,
-          clientId,
-        };
-        plaintextByClientIdRef.current.set(clientId, trimmedBody);
-      } else {
-        payload = {
-          body: trimmedBody,
-          replyToMessageId: replyTarget?.id,
-          clientId,
-        };
-      }
-
-      const response = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          throw new Error(data?.error || "Не удалось отправить сообщение");
-        }
-
-        const data = await response.json();
-        const normalized = normalizeMessage(data.message);
-        if (normalized) {
-          if (payload.encrypted === true) {
-            plaintextByClientIdRef.current.delete(clientId);
-            setDecryptedBodies((current) => ({ ...current, [normalized.id]: trimmedBody }));
-            if ((normalized.encryptionVersion ?? 0) >= 2 && localDeviceId) {
-              try {
-                await saveVerifiedLocalMessage(normalized, trimmedBody, localDeviceId);
-                void sendDeliveryAck(normalized.id, localDeviceId);
-              } catch (error) {
-                console.error("[e2ee] Failed to save local encrypted cache", error);
-                setComposerError("Не удалось сохранить сообщение на устройстве.");
-              }
-            }
-          }
-          setMessages((current) => {
-            const withoutOptimistic = current.filter((message) => message.id !== optimisticMessage.id);
-            const exists = withoutOptimistic.some((message) => message.id === normalized.id);
-            return exists ? withoutOptimistic : [...withoutOptimistic, normalized];
-          });
-        }
-      } catch (error) {
-        plaintextByClientIdRef.current.delete(clientId);
-        // Keep the bubble and mark it failed so the text isn't lost and can be retried.
-        setFailedSends((current) => ({
-          ...current,
-          [optimisticMessage.id]: { body: trimmedBody, replyToId: replyTarget?.id ?? null },
-        }));
-        setComposerError(error instanceof Error ? error.message : "Не удалось отправить сообщение");
-        throw error;
-      } finally {
-        setPending(false);
-      }
-
+      await delivery.send(trimmedBody, replyTarget?.id ?? null);
       return;
     }
 
@@ -1611,14 +1672,23 @@ export function ChatMessages({
     } finally {
       setPending(false);
     }
-  }, [chatId, currentUserId, editingMessage, replyingToMessage, chatInfo.otherMember, chatInfo.type, localDeviceId, saveVerifiedLocalMessage, sendDeliveryAck]);
+  }, [chatId, editingMessage, replyingToMessage, delivery]);
 
-  // Retry a failed send: drop the failed bubble, then re-send the original text
-  // through the normal path so encryption and receipts behave identically.
+  // Retry a failed send. The controller reuses the original clientMessageId, so
+  // if the first attempt did reach the server the retry returns that same
+  // message instead of creating a second one. Re-sending the text as a fresh
+  // message — what this used to do — is exactly what produced duplicates.
   const handleRetrySend = useCallback((messageId: string) => {
+    const clientMessageId = messageId.startsWith("temp-") ? messageId.slice("temp-".length) : null;
+    if (clientMessageId) {
+      setComposerError(null);
+      delivery.retry(clientMessageId);
+      return;
+    }
+
+    // Attachments still use the older optimistic path.
     const failed = failedSends[messageId];
     if (!failed) return;
-
     setFailedSends((current) => {
       const next = { ...current };
       delete next[messageId];
@@ -1629,7 +1699,7 @@ export function ChatMessages({
     void handleSend(failed.body).catch(() => {
       // handleSend already records the new failure and surfaces the error.
     });
-  }, [failedSends, handleSend]);
+  }, [delivery, failedSends, handleSend]);
 
   const handleSendFromPreview = useCallback(async (items: MediaPreviewItem[], caption: string) => {
     setPreviewFiles([]); // hide composer
@@ -2208,7 +2278,11 @@ export function ChatMessages({
                   chatId={chatId}
                   currentUserId={currentUserId}
                   localDeviceId={localDeviceId}
-                  isFailed={Boolean(failedSends[item.message.id])}
+                  isFailed={
+                    item.message.id.startsWith("temp-")
+                      ? delivery.failedClientIds.has(item.message.id.slice("temp-".length))
+                      : Boolean(failedSends[item.message.id])
+                  }
                   onRetry={handleRetrySend}
                 />
               </div>
