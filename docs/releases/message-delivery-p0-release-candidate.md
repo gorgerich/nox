@@ -2,7 +2,7 @@
 
 ```
 CODE RELEASE CANDIDATE = PASS
-PRODUCTION RELEASE     = BLOCKED (no verified backup)
+PRODUCTION RELEASE     = gated on `npm run guard:production-release`
 ```
 
 Not merged. Not deployed. Nothing was pushed to `main` and no deploy was
@@ -11,8 +11,8 @@ triggered.
 | | |
 | --- | --- |
 | Branch | `p0-message-delivery` |
-| RC SHA | the commit tagged `rc/message-delivery-p0-2` — a file cannot name the SHA of the commit that contains it, so the tag is the authority |
-| Superseded | `rc/message-delivery-p0` (`a4233cd`) — left in place, not moved; it predates the encrypted-attachment proof |
+| RC SHA | the commit tagged `rc/message-delivery-p0-3` — a file cannot name the SHA of the commit that contains it, so the tag is the authority |
+| Superseded | `rc/message-delivery-p0` (`a4233cd`) and `rc/message-delivery-p0-2` (`1068b8f`) — left in place, never moved |
 | Base | `059803a` — the SHA production is currently running |
 | `main` | unchanged, still `059803a` |
 | Production runtime | unchanged, still `059803a` |
@@ -35,6 +35,7 @@ triggered.
 | History page size | `src/app/api/chats/[chatId]/messages/route.ts` |
 | Upload idempotency | `src/app/api/chats/[chatId]/attachments/route.ts` |
 | Gates | `scripts/release-guard.mjs`, `scripts/verify-production-schema.ts`, `scripts/validate-*.ts`, `scripts/lib/browser-harness.ts` |
+| Backup tooling | `scripts/backup-production.sh`, `scripts/verify-backup-restore.ts` |
 
 ## Excluded
 
@@ -79,8 +80,10 @@ run now stops with a clear message instead.
 
 ## Known limitations
 
-1. **No verified production backup.** The blocker. See
-   `docs/releases/message-delivery-p0-production-backup.md`.
+1. **The backup is a point-in-time logical dump, not continuous PITR.** Railway
+   managed backups are not on the current plan. The dump is verified by an
+   actual restore — see `docs/releases/message-delivery-p0-production-backup.md`
+   — but anything written after it is not recoverable from it.
 2. **Attachment captions on encrypted media** are delivered as a separate
    adjacent message — a decision, recorded in
    `docs/product/attachment-caption-semantics.md`, not an accident. The preview

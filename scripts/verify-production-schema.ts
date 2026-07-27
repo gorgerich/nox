@@ -25,12 +25,22 @@ function check(name: string, ok: boolean, detail = "") {
   }
 }
 
+/**
+ * The fingerprint the backup was taken against. Read from the machine-readable
+ * evidence first — prose gets reworded, and a gate that silently stops finding
+ * its input is worse than no gate.
+ */
 const RECORDED_FINGERPRINT = (() => {
   try {
-    const text = readFileSync("docs/releases/message-delivery-p0-production-backup.md", "utf8");
-    return /Schema fingerprint \| `([0-9a-f]{32})`/.exec(text)?.[1] ?? null;
+    return JSON.parse(readFileSync("docs/releases/backup-restore-evidence.json", "utf8")).sourceFingerprint ?? null;
   } catch {
-    return null;
+    // Fall back to the document, for a managed backup with no evidence file.
+    try {
+      const text = readFileSync("docs/releases/message-delivery-p0-production-backup.md", "utf8");
+      return /fingerprint \| `([0-9a-f]{32})`/i.exec(text)?.[1] ?? null;
+    } catch {
+      return null;
+    }
   }
 })();
 

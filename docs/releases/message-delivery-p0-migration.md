@@ -56,10 +56,11 @@ It uses a dedicated test account only — never a real user's conversation.
 
 Only after P0 is accepted and merge is approved:
 
-1. Confirm a current production backup or snapshot exists. **Currently
-   unconfirmed** — the read-only tooling available in this session cannot see
-   Railway's backup history, so this must be checked in the dashboard before
-   anything else.
+1. Confirm the retained backup. Railway managed backups are not on the current
+   plan, so this is a logical dump verified by an actual restore:
+   `docs/releases/message-delivery-p0-production-backup.md`. The release gate
+   re-checks the artefact's checksum, size and permissions, and that production's
+   schema fingerprint still matches what was backed up.
 2. Re-verify `Message.clientMessageId`: type `text`, nullable, no default.
 3. Re-verify `Message_senderUserId_clientMessageId_key`: unique, valid, ready,
    on `(senderUserId, clientMessageId)`.
