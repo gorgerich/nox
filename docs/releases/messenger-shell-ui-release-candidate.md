@@ -2,12 +2,19 @@
 
 ```
 MESSENGER UI COMPLETION:        PASS
-REAL MOBILE BROWSER DOCK SMOKE: PENDING
-PRODUCTION:                     unchanged, not deployed
+REAL MOBILE BROWSER DOCK SMOKE: NOT TESTED — needs a physical device
+PRODUCTION:                     deployed, 59c62b2
 ```
 
-Not merged. Not deployed. The device smoke is tracked separately and does not
-gate the code — see the limitations at the bottom for what that means.
+Merged and deployed. The device smoke runs as post-deploy verification and does
+not gate the code — see the limitations at the bottom for what that means.
+
+| Release | |
+| --- | --- |
+| RC | `rc/messenger-shell-ui-2` → `62f1ad8` |
+| Merge | `59c62b2` |
+| Deployed | `59c62b2`, Railway deployment `81c43e51`, SUCCESS |
+| Rollback | runtime only, back to `c12cc5e`; no schema change to undo |
 
 | | |
 | --- | --- |
