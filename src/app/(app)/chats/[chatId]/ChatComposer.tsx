@@ -4,6 +4,7 @@ import { Check, Mic, Paperclip, Send, Smile, Video, X } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
+import { useClientValue } from "@/lib/use-client-value";
 
 export type CaptureMode = "voice" | "video";
 
@@ -46,6 +47,12 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
+  // False in the server-rendered markup, true from the first client render on.
+  // Until React is live the textarea is inert: text put into it is discarded by
+  // hydration and Enter has no handler, so automation that types too early
+  // loses the message and still sees an empty composer — a green check over a
+  // send that never happened. This flag says when Enter works.
+  const interactive = useClientValue(() => true, false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   // One source of truth for which capture the record button will start.
@@ -389,6 +396,7 @@ export function ChatComposer({
             >
               <textarea
                 ref={inputRef}
+                data-composer-ready={interactive ? "1" : undefined}
                 className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."
                 rows={1}

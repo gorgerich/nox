@@ -88,7 +88,9 @@ async function main() {
     };
 
     const first = await context.newPage();
-    check("harness signs in", (await signIn(first, app.base, `hydme${stamp}`)).ok());
+    // signIn throws on a rejected login, so reaching the next line is the proof.
+    await signIn(first, app.base, `hydme${stamp}`);
+    check("harness signs in", true);
     await first.close();
 
     // 1 — the ordinary case: online, socket connects during or before hydration

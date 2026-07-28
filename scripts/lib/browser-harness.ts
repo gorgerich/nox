@@ -288,6 +288,21 @@ export type PageLike = {
   };
 };
 
+/**
+ * The composer only carries this flag once React is live in the page. Waiting
+ * for the element alone is not enough: the server-rendered textarea accepts
+ * text that hydration then throws away, and Enter has no handler yet, so a
+ * suite that types too early loses the message and still observes an empty
+ * composer — a green check over a send that never happened.
+ */
+export const COMPOSER_SELECTOR = 'textarea[data-composer-ready="1"]';
+
+export async function composerOf(page: PageLike, timeout = 60_000): Promise<Locator> {
+  const composer = page.locator(COMPOSER_SELECTOR).first();
+  await composer.waitFor({ state: "visible", timeout });
+  return composer;
+}
+
 export type ContextLike = {
   newPage(): Promise<PageLike>;
   setOffline(offline: boolean): Promise<void>;
@@ -336,7 +351,12 @@ export async function seedChat(
 
 /** Signs a browser context in through the real login route. */
 export async function signIn(page: PageLike, base: string, username: string): Promise<ApiResponse> {
-  return page.request.post(`${base}/api/auth/login`, {
+  const response = await page.request.post(`${base}/api/auth/login`, {
     data: { login: username, password: HARNESS_PASSWORD },
   });
+  // Callers used to drop this response. A rejected login then left the context
+  // unauthenticated and the failure resurfaced much later as something else
+  // entirely — "device registration failed" for what was really a 429 here.
+  if (!response.ok()) throw new Error(`sign-in for ${username} failed: status ${response.status()}`);
+  return response;
 }

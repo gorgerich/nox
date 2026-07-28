@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
+  composerOf,
   createChecker,
   createPrisma,
   loadPlaywright,
@@ -102,7 +103,7 @@ async function main() {
 
     check("harness signs in", (await signIn(page, app.base, meName)).ok());
     await page.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
-    await page.locator("textarea, input[type=text]").first().waitFor({ state: "visible", timeout: 60_000 });
+    await composerOf(page);
 
     // --- 1 — a photo --------------------------------------------------------
     await attach(page, files.photo);
@@ -143,7 +144,7 @@ async function main() {
     // --- 5 — a caption travels as its own message ---------------------------
     {
       const caption = `подпись-${stamp}`;
-      const composer = page.locator("textarea, input[type=text]").first();
+      const composer = await composerOf(page);
       await composer.fill(caption);
       await composer.press("Enter");
       await page.waitForTimeout(4_000);
