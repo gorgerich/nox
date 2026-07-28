@@ -127,7 +127,7 @@ export type RunningApp = { base: string; stop: () => Promise<void> };
  * Boots the real server — custom `server.js`, so the socket layer is the real
  * one too — against the disposable database.
  */
-export async function startApp(url: string, port: number): Promise<RunningApp> {
+export async function startApp(url: string, port: number, extraEnv: Record<string, string> = {}): Promise<RunningApp> {
   const base = `http://127.0.0.1:${port}`;
   const server: ChildProcess = spawn(process.execPath, ["server.js"], {
     cwd: process.cwd(),
@@ -139,12 +139,17 @@ export async function startApp(url: string, port: number): Promise<RunningApp> {
       PORT: String(port),
       HOST: "127.0.0.1",
       NEXT_TELEMETRY_DISABLED: "1",
+      ...extraEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
   server.stderr?.on("data", (chunk) => {
     const line = String(chunk);
-    if (/error/i.test(line) && !/Unsupported style property/.test(line)) process.stdout.write(`  [server] ${line}`);
+    // `[message-send]` lines are surfaced too: the route reports a refused send
+    // without the word "error" in it, and filtering on that word alone hid the
+    // one line that said why a request failed.
+    const interesting = /error/i.test(line) || line.includes("[message-send]");
+    if (interesting && !/Unsupported style property/.test(line)) process.stdout.write(`  [server] ${line}`);
   });
 
   const started = Date.now();
@@ -155,10 +160,22 @@ export async function startApp(url: string, port: number): Promise<RunningApp> {
         console.log(`app is up on ${base}\n`);
         return {
           base,
+          // Waits for the process to actually exit. Suites share one `.next`,
+          // and a server still tearing down while the next one boots leaves it
+          // half cleaned — the next server then dies on a missing
+          // `.next/dev/required-server-files.json`.
           stop: async () => {
-            server.kill("SIGTERM");
-            await new Promise((resolve) => setTimeout(resolve, 800));
-            if (!server.killed) server.kill("SIGKILL");
+            if (server.exitCode !== null || server.signalCode !== null) return;
+            await new Promise<void>((resolve) => {
+              const done = () => resolve();
+              server.once("exit", done);
+              server.kill("SIGTERM");
+              setTimeout(() => {
+                if (server.exitCode === null && server.signalCode === null) server.kill("SIGKILL");
+                setTimeout(done, 500);
+              }, 5_000);
+            });
+            await new Promise((resolve) => setTimeout(resolve, 700));
           },
         };
       }
