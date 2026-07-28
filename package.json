@@ -34,7 +34,8 @@
     "validate:message-attachment-delivery-e2ee": "tsx scripts/validate-message-attachment-delivery-e2ee.ts",
     "verify:backup-restore": "tsx scripts/verify-backup-restore.ts",
     "validate:dock-first-paint": "tsx scripts/validate-dock-first-paint.ts",
-    "validate:timestamp-hydration": "tsx scripts/validate-timestamp-hydration.ts"
+    "validate:timestamp-hydration": "tsx scripts/validate-timestamp-hydration.ts",
+    "validate:messenger-light-canvas": "tsx scripts/validate-messenger-light-canvas.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

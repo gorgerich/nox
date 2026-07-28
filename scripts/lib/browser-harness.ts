@@ -280,8 +280,11 @@ export type PageLike = {
   };
 };
 
+export type StorageState = Record<string, unknown>;
+
 export type ContextLike = {
   newPage(): Promise<PageLike>;
+  storageState(): Promise<StorageState>;
   addInitScript(script: string): Promise<void>;
   setOffline(offline: boolean): Promise<void>;
   route(pattern: string, handler: (route: { abort(): Promise<void>; continue(): Promise<void> }) => unknown): Promise<void>;

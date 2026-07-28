@@ -21,7 +21,10 @@ export const viewport: Viewport = {
   // Per-scheme status bar / browser chrome colour. A single dark value used to
   // be emitted, which left the light theme with dark system chrome.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    // Matches --messenger-canvas-background, so the browser chrome and the
+    // overscroll area are the same colour as the shell rather than the old
+    // grouped grey showing through above and below it.
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
   colorScheme: "light dark",
@@ -84,7 +87,7 @@ export default function RootLayout({
                 document.documentElement.style.colorScheme = effectiveTheme;
                 var meta = document.createElement('meta');
                 meta.name = 'theme-color';
-                meta.content = effectiveTheme === 'dark' ? '#000000' : '#f2f2f7';
+                meta.content = effectiveTheme === 'dark' ? '#000000' : '#ffffff';
                 document.head.appendChild(meta);
               } catch (e) {}
             `,

@@ -61,7 +61,10 @@ export function AppBottomDock({
   // (the label expands over 220ms), so the pill follows in lockstep.
   const tabsBoxRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const pillAnimatedRef = useRef(false);
+  // State rather than a ref: this value is read while rendering (it decides
+  // whether the pill transitions), and a ref read during render is exactly the
+  // pattern that makes a component miss updates.
+  const [pillAnimated, setPillAnimated] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
   const isDockRoute = Boolean(activeTab);
   const isSearchActive = pathname === "/chats/search";
@@ -195,11 +198,11 @@ export function AppBottomDock({
   // Enable the glide only after the first placement so the pill doesn't slide
   // in from the corner on mount.
   useEffect(() => {
-    if (pill) {
-      const id = window.requestAnimationFrame(() => { pillAnimatedRef.current = true; });
+    if (pill && !pillAnimated) {
+      const id = window.requestAnimationFrame(() => setPillAnimated(true));
       return () => window.cancelAnimationFrame(id);
     }
-  }, [pill]);
+  }, [pill, pillAnimated]);
 
   // Subtle haptic tick when the active tab actually changes (native/coarse only).
   const prevTabIndexRef = useRef(activeTabIndex);
@@ -277,7 +280,7 @@ export function AppBottomDock({
               style={{
                 transform: `translateX(${pill.left}px)`,
                 width: `${pill.width}px`,
-                transition: pillAnimatedRef.current
+                transition: pillAnimated
                   ? "transform 340ms var(--ease-out), width 340ms var(--ease-out)"
                   : "none",
               }}

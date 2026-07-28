@@ -45,7 +45,20 @@
   --navigation-background-fallback: #f8f8f8;
   --input-background: #e9e9eb;
 
-  --app-bg: var(--background);
+  /* The messenger's canvas.
+
+     The light theme was built on the iOS grouped model: a neutral grey system
+     background with white cards on top. On a screen that is almost entirely
+     list, that reads as horizontal bands — grey behind the header, white rows,
+     grey again below the last row and around the dock. The shell now paints one
+     colour from the top of the safe area to the bottom of it, and separation
+     comes from type, spacing and separators instead of full-width colour.
+
+     `--background` keeps its grouped value: small surfaces that deliberately
+     want a tinted panel still use it. Only the shell canvas changed. */
+  --messenger-canvas-background: #ffffff;
+
+  --app-bg: var(--messenger-canvas-background);
   --app-fg: var(--text-primary);
   --app-muted: var(--text-secondary);
   --app-border: var(--separator);
@@ -227,7 +240,11 @@
   --navigation-background-fallback: #1c1c1e;
   --input-background: #1c1c1e;
 
-  --app-bg: var(--background);
+  /* Dark already had a single canvas; it is named here so both schemes go
+     through the same token rather than one of them being implicit. */
+  --messenger-canvas-background: #000000;
+
+  --app-bg: var(--messenger-canvas-background);
   --app-fg: var(--text-primary);
   --app-muted: var(--text-secondary);
   --app-border: var(--separator);
