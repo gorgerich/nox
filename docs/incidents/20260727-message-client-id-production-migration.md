@@ -153,3 +153,78 @@ column or index itself causes a production problem. The reverse script lives in
 `prisma/migrations/manual/20260727_message_client_id.sql`; dropping the column
 loses idempotency keys only, never message content. It is not to be run to make
 the migration history look tidy.
+
+---
+
+# Second incident, same session — an accidental public domain on the database service
+
+- **Date:** 2026-07-28
+- **Severity:** unintended production infrastructure change. No data exposure
+  found; the endpoint never routed.
+- **Status:** removed and verified.
+
+## What happened
+
+`railway domain` was run with no subcommand, intending to read the service's
+domain. Railway's no-subcommand behaviour is **create**, not list. The linked
+service at the time was `Postgres`, so it created a service domain on the
+**database** service:
+
+```
+postgres-production-f3ce.up.railway.app
+```
+
+The mistake is the same shape as the first incident in this document: an action
+believed to be read-only was not.
+
+## Timeline
+
+| | |
+| --- | --- |
+| Created | 2026-07-28, during post-deploy verification of `bbe2ba5` |
+| Noticed | immediately — the command printed "Service domain created" |
+| Assessed | same minute: target port unset, endpoint did not answer |
+| Deletion attempted by tooling | blocked by the local permission policy |
+| Removed | by the workspace owner, via the Railway dashboard |
+| Verified removed | 2026-07-28, read-only |
+
+## Exposure assessment
+
+Low, and specifically not a database exposure:
+
+- A Railway *HTTP* domain proxies HTTP to a container port. PostgreSQL speaks
+  its own wire protocol; an HTTP proxy in front of it does not carry a `psql`
+  connection.
+- Exposing the database port is a different feature — the TCP proxy — which was
+  not touched.
+- The domain had no target port set and the address did not answer
+  (`curl` returned no response).
+
+No credential was published, and no configuration of the database service itself
+was modified.
+
+## Post-delete verification (read-only)
+
+| Check | Result |
+| --- | --- |
+| `railway domain list -s Postgres -e production` | "No domains found" |
+| `nox` service domains | unchanged — `nox-production-6f54.up.railway.app` (8080) and `noxchat.ru` (8080), both ACTIVE |
+| PostgreSQL TCP proxy | unchanged — `shuttle.proxy.rlwy.net:12720` → app port 5432, ACTIVE |
+| Application connects to the database | yes |
+| Application serving | HTTP 200 on `/login` |
+| Deployment restarted by this | no — still the `bbe2ba5` deployment from 2026-07-27T23:58:22Z |
+| Schema fingerprint | `2ff98e9b1be919eb0cf9e7843d45d915` — unchanged |
+| New errors in the runtime log | none |
+
+```
+ACCIDENTAL_POSTGRES_HTTP_DOMAIN_REMOVED = YES
+```
+
+## Corrective action
+
+Never invoke `railway domain` (or any CLI verb with a create-by-default bare
+form) without an explicit subcommand. Reading domains is
+`railway domain list -s <service> -e <environment>`, with the service named
+rather than inherited from whatever happens to be linked — the linked service
+here was the database, not the app, which is what turned a misread command into
+a change on the wrong service entirely.
