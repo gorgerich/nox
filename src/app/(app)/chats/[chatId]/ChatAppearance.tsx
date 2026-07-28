@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 export type ChatWallpaperKey = "none" | "orbit-night" | "botanical-light" | "contour-color";
 
@@ -470,54 +470,94 @@ export function getChatAppearanceVars(settings: AppearanceSettings, appScheme: C
   };
 }
 
+/** Reads the stored appearance for a conversation, falling back to defaults. */
+function readStoredAppearance(chatId: string): AppearanceSettings {
+  if (typeof window === "undefined") return DEFAULT_APPEARANCE;
+  let saved: string | null = null;
+  try {
+    saved =
+      localStorage.getItem(`nox:chat-appearance:${chatId}:v2`) ??
+      localStorage.getItem("nox:chat-appearance:global:v2");
+  } catch {
+    return DEFAULT_APPEARANCE;
+  }
+  if (!saved) return DEFAULT_APPEARANCE;
+  try {
+    const parsed = JSON.parse(saved);
+    const isOldGreenDefault =
+      parsed.preset === "midnight" &&
+      parsed.outgoingColor === "#10b981" &&
+      (parsed.background === "midnight" || !parsed.background) &&
+      (parsed.incomingStyle === "filled" || parsed.incomingStyle === "solid" || !parsed.incomingStyle);
+    if (isOldGreenDefault) return DEFAULT_APPEARANCE;
+    return normalizeAppearance(parsed);
+  } catch {
+    return DEFAULT_APPEARANCE;
+  }
+}
+
+/**
+ * A conversation's appearance.
+ *
+ * The stored value is read through `useSyncExternalStore` rather than seeded
+ * into state. Seeding meant the server rendered the defaults, the client's
+ * post-mount update raced hydration, and a saved theme did not appear until
+ * some unrelated re-render happened to come along. Here the server snapshot is
+ * the defaults, the client snapshot is what is in storage, and React applies
+ * the difference itself — the same mechanism the connection banner and the
+ * timestamps use.
+ *
+ * Local edits are kept in an override that wins until the conversation changes.
+ */
+const storedAppearanceCache = new Map<string, AppearanceSettings>();
+
+/** Stable per chat, so `useSyncExternalStore` sees the same object each render. */
+function readStoredAppearanceCached(chatId: string): AppearanceSettings {
+  const cached = storedAppearanceCache.get(chatId);
+  if (cached) return cached;
+  const value = readStoredAppearance(chatId);
+  storedAppearanceCache.set(chatId, value);
+  return value;
+}
+
+function invalidateStoredAppearance(chatId: string) {
+  storedAppearanceCache.delete(chatId);
+}
+
 export function useChatAppearance(chatId: string) {
-  const [settings, setSettings] = useState<AppearanceSettings>(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_APPEARANCE;
-    }
+  const [override, setOverride] = useState<{ chatId: string; settings: AppearanceSettings } | null>(null);
 
-    let saved: string | null = null;
-    try {
-      saved =
-        localStorage.getItem(`nox:chat-appearance:${chatId}:v2`) ??
-        localStorage.getItem("nox:chat-appearance:global:v2");
-    } catch {
-      return DEFAULT_APPEARANCE;
-    }
+  const subscribe = useCallback((notify: () => void) => {
+    // Another tab, or another instance of this hook, writing the same key.
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key.startsWith("nox:chat-appearance")) notify();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
-    if (!saved) {
-      return DEFAULT_APPEARANCE;
-    }
+  const stored = useSyncExternalStore(
+    subscribe,
+    // Cached per chat so the snapshot is referentially stable between renders;
+    // returning a fresh object every time would loop.
+    useCallback(() => readStoredAppearanceCached(chatId), [chatId]),
+    useCallback(() => DEFAULT_APPEARANCE, []),
+  );
 
-    try {
-      const parsed = JSON.parse(saved);
-      const isOldGreenDefault =
-        parsed.preset === "midnight" &&
-        parsed.outgoingColor === "#10b981" &&
-        (parsed.background === "midnight" || !parsed.background) &&
-        (parsed.incomingStyle === "filled" || parsed.incomingStyle === "solid" || !parsed.incomingStyle);
-      if (isOldGreenDefault) {
-        return DEFAULT_APPEARANCE;
-      }
-      return normalizeAppearance(parsed);
-    } catch {
-      return DEFAULT_APPEARANCE;
-    }
-  });
+  const settings = override && override.chatId === chatId ? override.settings : stored;
 
   const updateSettings = (newSettings: Partial<AppearanceSettings>, isGlobal = false) => {
-    setSettings((prev) => {
-      const updated = { ...prev, ...newSettings };
-      try {
-        localStorage.setItem(`nox:chat-appearance:${chatId}:v2`, JSON.stringify(updated));
-        if (isGlobal) {
-          localStorage.setItem("nox:chat-appearance:global:v2", JSON.stringify(updated));
-        }
-      } catch {
-        // Appearance still applies for current session when storage is unavailable.
+    const updated = { ...settings, ...newSettings };
+    try {
+      localStorage.setItem(`nox:chat-appearance:${chatId}:v2`, JSON.stringify(updated));
+      if (isGlobal) {
+        localStorage.setItem("nox:chat-appearance:global:v2", JSON.stringify(updated));
       }
-      return updated;
-    });
+    } catch {
+      // Appearance still applies for this session when storage is unavailable.
+    }
+    invalidateStoredAppearance(chatId);
+    setOverride({ chatId, settings: updated });
   };
 
   const resetSettings = () => {
@@ -526,18 +566,19 @@ export function useChatAppearance(chatId: string) {
       localStorage.removeItem(`nox:chat-appearance:${chatId}:v2`);
       global = localStorage.getItem("nox:chat-appearance:global:v2");
     } catch {
-      setSettings(DEFAULT_APPEARANCE);
+      invalidateStoredAppearance(chatId);
+      setOverride({ chatId, settings: DEFAULT_APPEARANCE });
       return;
     }
+    invalidateStoredAppearance(chatId);
     if (!global) {
-      setSettings(DEFAULT_APPEARANCE);
+      setOverride({ chatId, settings: DEFAULT_APPEARANCE });
       return;
     }
-
     try {
-      setSettings(normalizeAppearance(JSON.parse(global)));
+      setOverride({ chatId, settings: normalizeAppearance(JSON.parse(global)) });
     } catch {
-      setSettings(DEFAULT_APPEARANCE);
+      setOverride({ chatId, settings: DEFAULT_APPEARANCE });
     }
   };
 

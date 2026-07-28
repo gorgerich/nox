@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { AppBottomDock } from "./AppBottomDock";
+import { DockDiagnostics } from "./DockDiagnostics";
 
 interface AppShellChromeProps {
   user: {
@@ -274,6 +275,8 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
       </div>
 
       <AppBottomDock incomingRequestCount={incomingRequestCount} avatarUrl={user.avatarUrl} />
+      {/* Renders nothing and attaches nothing unless ?dockDiagnostics=1. */}
+      <DockDiagnostics />
     </>
   );
 }

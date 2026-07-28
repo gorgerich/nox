@@ -9,7 +9,8 @@
 import Image from "next/image";
 import { Bookmark, Check, CheckCheck } from "lucide-react";
 import { getChatList } from "@/lib/chat-cache";
-import { formatChatTime, getMessagePreview } from "@/lib/chat-list-format";
+import { getMessagePreview, getSenderPrefix } from "@/lib/chat-list-format";
+import { LocalTime } from "@/lib/time-format";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 const SKELETON_ROWS = Array.from({ length: 9 });
@@ -40,6 +41,9 @@ export default function ChatsLoading() {
                 : chat.type === "DIRECT"
                   ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
                   : chat.title ?? "Группа";
+              // Same shape as the live row, so the cached frame and the real
+              // list do not visibly differ for the instant both exist.
+              const senderPrefix = chat.isSelfChat ? null : getSenderPrefix(chat);
               const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
               const showTicks = Boolean(chat.lastMessage?.isMine && !chat.lastMessage.deletedAt);
               const deliveryStatus = chat.lastMessage?.deliveryStatus
@@ -62,9 +66,11 @@ export default function ChatsLoading() {
                   <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-1.5">
                     <div className="mb-0.5 flex items-center gap-2">
                       <p className="min-w-0 flex-1 truncate text-[16px] font-semibold text-foreground">{title}</p>
-                      <span className="shrink-0 text-[13px] tabular-nums text-muted/60">
-                        {formatChatTime(chat.lastMessage?.createdAt ?? chat.createdAt)}
-                      </span>
+                      <LocalTime
+                        value={chat.lastMessage?.createdAt ?? chat.createdAt}
+                        kind="chatListStamp"
+                        className="shrink-0 text-[13px] tabular-nums text-muted/60"
+                      />
                     </div>
                     <div className="flex items-center gap-2">
                       {showTicks ? (
@@ -77,6 +83,7 @@ export default function ChatsLoading() {
                         )
                       ) : null}
                       <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
+                        {senderPrefix ? <span className="chat-preview-sender">{senderPrefix}: </span> : null}
                         {preview}
                       </p>
                       {chat.unreadCount > 0 ? (

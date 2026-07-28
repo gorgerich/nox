@@ -114,9 +114,11 @@ export function createPrisma(url: string) {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 }
 
-export function screenshotDir(): string {
-  mkdirSync(SHOT_DIR, { recursive: true });
-  return SHOT_DIR;
+/** Screenshot directory, optionally a named sibling of the default one. */
+export function screenshotDir(name?: string): string {
+  const dir = name ? join(process.cwd(), "docs/screenshots", name) : SHOT_DIR;
+  mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 // --- the app under test ------------------------------------------------------
@@ -128,6 +130,20 @@ export type RunningApp = { base: string; stop: () => Promise<void> };
  * one too — against the disposable database.
  */
 export async function startApp(url: string, port: number, extraEnv: Record<string, string> = {}): Promise<RunningApp> {
+  // A server that dies during startup gets one more go. On a cold `.next` the
+  // first boot writes the dev manifests, and a boot that reads them while they
+  // are still being written dies on a missing `required-server-files.json`.
+  // Retrying costs seconds; not retrying fails whichever suite went first and
+  // reports it as a product regression.
+  try {
+    return await bootApp(url, port, extraEnv);
+  } catch (error) {
+    console.log(`  the app did not come up (${error instanceof Error ? error.message : "unknown"}); retrying once`);
+    return bootApp(url, port, extraEnv);
+  }
+}
+
+async function bootApp(url: string, port: number, extraEnv: Record<string, string>): Promise<RunningApp> {
   const base = `http://127.0.0.1:${port}`;
   const server: ChildProcess = spawn(process.execPath, ["server.js"], {
     cwd: process.cwd(),
@@ -152,29 +168,45 @@ export async function startApp(url: string, port: number, extraEnv: Record<strin
     if (interesting && !/Unsupported style property/.test(line)) process.stdout.write(`  [server] ${line}`);
   });
 
+  let died = false;
+  server.once("exit", () => {
+    died = true;
+  });
+
   const started = Date.now();
   while (Date.now() - started < 180_000) {
+    // Waiting the full three minutes for a process that is already gone only
+    // delays the diagnosis.
+    if (died) throw new Error("the server process exited during startup");
     try {
       const response = await fetch(`${base}/login`, { redirect: "manual" });
       if (response.status < 500) {
         console.log(`app is up on ${base}\n`);
         return {
           base,
-          // Waits for the process to actually exit. Suites share one `.next`,
-          // and a server still tearing down while the next one boots leaves it
-          // half cleaned — the next server then dies on a missing
-          // `.next/dev/required-server-files.json`.
+          /**
+           * Waits for the process to actually exit, rather than for a fixed
+           * delay. Every suite shares one `.next` directory, and a server that
+           * is still tearing down while the next one boots leaves it half
+           * cleaned — the next server then dies on a missing
+           * `.next/dev/required-server-files.json`. That failure looks exactly
+           * like a product regression in whichever suite happens to be next,
+           * and it has now cost two full gate runs.
+           */
           stop: async () => {
             if (server.exitCode !== null || server.signalCode !== null) return;
             await new Promise<void>((resolve) => {
               const done = () => resolve();
               server.once("exit", done);
               server.kill("SIGTERM");
+              // A server wedged in shutdown must not hold the whole run.
               setTimeout(() => {
                 if (server.exitCode === null && server.signalCode === null) server.kill("SIGKILL");
                 setTimeout(done, 500);
               }, 5_000);
             });
+            // Next writes its dev manifests on the way out; give the filesystem
+            // a moment to settle before the next server reads them.
             await new Promise((resolve) => setTimeout(resolve, 700));
           },
         };
@@ -249,6 +281,7 @@ export type ApiResponse = {
 
 export type Locator = {
   first(): Locator;
+  boundingBox(): Promise<{ x: number; y: number; width: number; height: number } | null>;
   nth(index: number): Locator;
   count(): Promise<number>;
   fill(value: string): Promise<void>;
@@ -258,6 +291,7 @@ export type Locator = {
   setInputFiles(files: unknown): Promise<void>;
   waitFor(options: { state: string; timeout?: number }): Promise<void>;
   isVisible(): Promise<boolean>;
+  isEnabled(): Promise<boolean>;
   textContent(): Promise<string | null>;
 };
 
@@ -270,6 +304,13 @@ export type ResponseLike = {
 export type ConsoleMessageLike = { type(): string; text(): string };
 
 export type PageLike = {
+  waitForFunction(fn: () => unknown, options?: { timeout?: number }): Promise<unknown>;
+  touchscreen: { tap(x: number, y: number): Promise<void> };
+  setViewportSize(size: { width: number; height: number }): Promise<void>;
+  goBack(options?: { waitUntil?: string }): Promise<unknown>;
+  locator(selector: string): Locator;
+  keyboard: { press(key: string): Promise<void> };
+  mouse: { move(x: number, y: number): Promise<void>; wheel(x: number, y: number): Promise<void> };
   on(event: "pageerror", handler: (error: Error) => void): void;
   on(event: "response", handler: (response: ResponseLike) => void): void;
   on(event: "console", handler: (message: ConsoleMessageLike) => void): void;
@@ -303,8 +344,12 @@ export async function composerOf(page: PageLike, timeout = 60_000): Promise<Loca
   return composer;
 }
 
+export type StorageState = Record<string, unknown>;
+
 export type ContextLike = {
   newPage(): Promise<PageLike>;
+  storageState(): Promise<StorageState>;
+  addInitScript(script: string): Promise<void>;
   setOffline(offline: boolean): Promise<void>;
   route(pattern: string, handler: (route: { abort(): Promise<void>; continue(): Promise<void> }) => unknown): Promise<void>;
   unroute(pattern: string): Promise<void>;
@@ -350,6 +395,13 @@ export async function seedChat(
 }
 
 /** Signs a browser context in through the real login route. */
+/**
+ * Signs in, and refuses to continue if it did not work. Most callers used to
+ * drop the response on the floor; a rejected login then left the context
+ * unauthenticated and the failure resurfaced much later as something else
+ * entirely — "device registration failed" for what was really a 429 on the
+ * login route. Naming the status here keeps the diagnosis one line long.
+ */
 export async function signIn(page: PageLike, base: string, username: string): Promise<ApiResponse> {
   const response = await page.request.post(`${base}/api/auth/login`, {
     data: { login: username, password: HARNESS_PASSWORD },

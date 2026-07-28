@@ -8,7 +8,8 @@ import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
-import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars, resolveChatScheme } from "./ChatAppearance";
+import { useChatAppearance, getChatAppearanceVars, resolveChatScheme } from "./ChatAppearance";
+import { AppearanceSheet } from "./AppearanceSheet";
 import { MediaPreviewComposer, MediaPreviewItem } from "./MediaPreviewComposer";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -19,7 +20,8 @@ import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersi
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getChatDecrypted, putChatDecrypted, putChatPreview, putChatHeader, getChatMessages, putChatMessages } from "@/lib/chat-cache";
 import { escapeRegExp } from "@/lib/text";
-import { startsGroup, endsGroup, formatDateLabel } from "@/lib/message-grouping";
+import { startsGroup, endsGroup } from "@/lib/message-grouping";
+import { LocalTime } from "@/lib/time-format";
 import { InlineConnectionNotice, type ConnectionStatus } from "./InlineConnectionNotice";
 import { HistoryUnavailableNotice } from "./HistoryUnavailableNotice";
 import { DateSeparator, TypingIndicator } from "./ConversationMarkers";
@@ -2165,7 +2167,7 @@ export function ChatMessages({
                   <button key={m.id} onClick={() => jumpToMessage(m.id)} className="w-full text-left p-3 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.98]">
                      <div className="flex justify-between mb-1">
                         <span className="text-xs font-semibold text-primary">{m.senderName}</span>
-                        <span className="text-[9px] font-bold text-muted">{new Date(m.createdAt).toLocaleDateString()}</span>
+                        <LocalTime value={m.createdAt} kind="date" className="text-[9px] font-bold text-muted" />
                      </div>
                      <p className="text-xs truncate text-foreground/80">
                         {searchQuery ? (
@@ -2229,7 +2231,7 @@ export function ChatMessages({
                     borderColor: "var(--chat-focus-ring)",
                   }}
                 >
-                  {formatDateLabel(new Date())}
+                  Сегодня
                 </span>
               </div>
               {chatInfo.type === "DIRECT" ? <E2EEDisclaimer /> : null}
@@ -2383,7 +2385,15 @@ export function ChatMessages({
         </div>
       )}
 
-      <ChatAppearanceSheet isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} settings={settings} onUpdate={updateSettings} onReset={resetSettings} />
+      <AppearanceSheet
+        isOpen={isAppearanceOpen}
+        onClose={() => setIsAppearanceOpen(false)}
+        settings={settings}
+        onUpdate={updateSettings}
+        onReset={resetSettings}
+        // The sheet's chrome follows the app, its preview follows the chat.
+        appScheme={effectiveTheme}
+      />
       <MediaViewer item={selectedMedia} onClose={() => setSelectedMedia(null)} />
 
       {previewFiles.length > 0 && (

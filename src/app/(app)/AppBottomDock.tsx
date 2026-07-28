@@ -61,7 +61,10 @@ export function AppBottomDock({
   // (the label expands over 220ms), so the pill follows in lockstep.
   const tabsBoxRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
-  const pillAnimatedRef = useRef(false);
+  // State rather than a ref: this value is read while rendering (it decides
+  // whether the pill transitions), and a ref read during render is exactly the
+  // pattern that makes a component miss updates.
+  const [pillAnimated, setPillAnimated] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
   const isDockRoute = Boolean(activeTab);
   const isSearchActive = pathname === "/chats/search";
@@ -195,11 +198,11 @@ export function AppBottomDock({
   // Enable the glide only after the first placement so the pill doesn't slide
   // in from the corner on mount.
   useEffect(() => {
-    if (pill) {
-      const id = window.requestAnimationFrame(() => { pillAnimatedRef.current = true; });
+    if (pill && !pillAnimated) {
+      const id = window.requestAnimationFrame(() => setPillAnimated(true));
       return () => window.cancelAnimationFrame(id);
     }
-  }, [pill]);
+  }, [pill, pillAnimated]);
 
   // Subtle haptic tick when the active tab actually changes (native/coarse only).
   const prevTabIndexRef = useRef(activeTabIndex);
@@ -253,11 +256,12 @@ export function AppBottomDock({
 
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.75rem)] max-w-[22.5rem] lg:hidden"
-      style={{
-        bottom: "max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))",
-        transform: "translateX(-50%)",
-      }}
+      // The bottom offset is a plain CSS token, identical on the server and in
+      // the first client frame, so the dock is already in its final place in the
+      // first painted frame. No measurement, no effect and no viewport listener
+      // participates in the closed-keyboard position — the real keyboard is a
+      // separate concern and does not move this element.
+      className="messenger-dock pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.75rem)] max-w-[22.5rem] lg:hidden"
       aria-label="Нижняя навигация"
     >
       <div
@@ -276,7 +280,7 @@ export function AppBottomDock({
               style={{
                 transform: `translateX(${pill.left}px)`,
                 width: `${pill.width}px`,
-                transition: pillAnimatedRef.current
+                transition: pillAnimated
                   ? "transform 340ms var(--ease-out), width 340ms var(--ease-out)"
                   : "none",
               }}

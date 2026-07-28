@@ -47,11 +47,11 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
-  // False in the server-rendered markup, true from the first client render on.
-  // Until React is live the textarea is inert: text put into it is discarded by
-  // hydration and Enter has no handler, so automation that types too early
-  // loses the message and still sees an empty composer — a green check over a
-  // send that never happened. This flag says when Enter works.
+  // False in the server-rendered markup, true from the first client render on —
+  // the same hydration-safe reader the connection banner uses. Until React is
+  // live the textarea is inert: text put into it is discarded by hydration and
+  // Enter has no handler, so automation that types too early loses the message
+  // and still sees an empty composer, which reads as a successful send.
   const interactive = useClientValue(() => true, false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);

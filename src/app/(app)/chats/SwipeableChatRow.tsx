@@ -7,7 +7,8 @@ import { Archive, BellOff, Bookmark, Check, CheckCheck, Pin, Trash2 } from "luci
 
 import type { ChatListItem } from "@/lib/chat-list";
 import { normalizeAvatarUrl } from "@/lib/media-url";
-import { formatChatTime, getMessagePreview } from "@/lib/chat-list-format";
+import { getMessagePreview, getPreviewLabel, getSenderPrefix } from "@/lib/chat-list-format";
+import { LocalTime } from "@/lib/time-format";
 
 const SWIPE_OPEN_THRESHOLD = 72;
 
@@ -211,10 +212,31 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     );
   } else if (draft) {
     previewNode = (<><span className="text-danger/80">Черновик: </span>{draft}</>);
+  } else if (chat.isSelfChat) {
+    previewNode = "Сообщения самому себе";
   } else {
-    previewNode = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
+    // In a group the sender is part of the answer. The prefix carries slightly
+    // more weight than the text so the eye separates "who" from "what" without
+    // it reading as a link, and both live in one line that ellipses as a whole.
+    const senderPrefix = getSenderPrefix(chat);
+    previewNode = senderPrefix ? (
+      <>
+        <span className="chat-preview-sender">{senderPrefix}: </span>
+        {getMessagePreview(chat)}
+      </>
+    ) : (
+      getMessagePreview(chat)
+    );
   }
   const showTicks = lastIsMine && !typingName && !draft;
+
+  const accessibleName = [
+    title,
+    chat.isSelfChat ? "Сообщения самому себе" : getPreviewLabel(chat),
+    chat.unreadCount > 0 ? `непрочитанных: ${chat.unreadCount}` : null,
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
   const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
@@ -299,6 +321,10 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
           href={`/chats/${chat.id}`}
           prefetch={true}
           onClick={handleOpenChat}
+          // One phrase rather than five fragments: a screen reader announces the
+          // conversation, who spoke, what they said, how many are unread and
+          // when — in that order, once.
+          aria-label={accessibleName}
           className={`group nox-chat-row fluid-hit relative flex w-full items-center gap-3 px-4 text-left ${
             pinned || chat.isSelfChat ? "nox-chat-row-pinned" : ""
           }`}
@@ -325,9 +351,11 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                   <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/50" />
                 ) : null}
               </div>
-              <span className={`shrink-0 text-[12px] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}>
-                {formatChatTime(chat.lastMessage?.createdAt ?? chat.createdAt)}
-              </span>
+              <LocalTime
+                value={chat.lastMessage?.createdAt ?? chat.createdAt}
+                kind="chatListStamp"
+                className={`shrink-0 text-[12px] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}
+              />
             </div>
             <div className="flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1">

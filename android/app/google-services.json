@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "518472583240",
+    "project_id": "android-nox",
+    "storage_bucket": "android-nox.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:518472583240:android:d860aa5517e402bd44707d",
+        "android_client_info": {
+          "package_name": "ru.nox.messenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAravYCY0cAtdMHrlnioVSY3sQiDv6mMzw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
