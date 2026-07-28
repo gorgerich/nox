@@ -4,6 +4,7 @@ import { Check, Mic, Paperclip, Send, Smile, Video, X } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
+import { useClientValue } from "@/lib/use-client-value";
 
 export type CaptureMode = "voice" | "video";
 
@@ -46,10 +47,9 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
-  // Set in an effect, so it is false in the server-rendered markup and turns
-  // true exactly once this component is live in the browser.
-  const [interactive, setInteractive] = useState(false);
-  useEffect(() => setInteractive(true), []);
+  // False in the server-rendered markup, true from the first client render on:
+  // the same hydration-safe reader the connection banner uses.
+  const interactive = useClientValue(() => true, false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   // One source of truth for which capture the record button will start.
