@@ -91,15 +91,48 @@ network. Procedure: `docs/testing/real-device-dock-smoke.md`.
 | `validate:appearance-sheet` | 50 | PASS |
 | `validate:appearance-persistence` | 15 | PASS |
 | `validate:messenger-light-canvas` | 206 | PASS |
-| `validate:dock-first-paint` | 76 | PASS |
-| `validate:timestamp-hydration` | 27 | PASS |
-| `validate:chat-theme-consistency` | — | PASS |
+| `validate:dock-first-paint` | 75 | PASS |
+| `validate:timestamp-hydration` | 29 | PASS |
+| `validate:chat-theme-consistency` | 62 | PASS |
 | `validate:chat-scroll-anchor` | 3 | PASS |
 | `validate:message-send-reconciliation` | 25 | PASS |
 | `validate:message-local-persistence` | 71 | PASS |
-| `validate:message-send-browser` | 19 | PASS |
+| `validate:message-send-browser` | 21 | PASS |
 | `validate:message-send-browser-e2ee` | 47 | PASS |
 | typecheck / lint budget / build / `git diff --check` | — | PASS |
+
+Counts are from the run of record: one `npm run validate:messenger-ui-completion`
+end to end, **652 checks, 0 failures**. Two further full runs before it were also
+clean; the numbers above are the last one, not a best-of.
+
+### What the gate needed before it could be believed
+
+The first four full runs failed on suites that passed when run alone, each time
+telling a different story. None of them was a product regression, and all of
+them were the gate lying about the product:
+
+- **Typing before hydration.** The composer is inert markup until React is live:
+  text put into it is discarded by hydration and Enter has no handler. A suite
+  that typed too early lost the message and then saw an empty composer, which it
+  read as a successful send — a green check over a send that never happened.
+  `ChatComposer` now exposes `data-composer-ready`, and every delivery suite
+  waits for it.
+- **Fixed sleeps in front of database assertions.** Reading the row before the
+  commit landed left `committed[0]` undefined, so the replay posted no client id
+  and `count({ clientMessageId: undefined })` dropped the filter and counted the
+  whole conversation — reporting a broken idempotency guarantee that was never
+  broken. Waits are now on the condition.
+- **A server teardown that was assumed, not awaited.** `stop()` waited 800 ms
+  instead of the process exit, so the next suite booted into a half-cleaned
+  `.next` and died on a missing `required-server-files.json`. That surfaced as a
+  FAIL with no failing check.
+- **Sign-in responses dropped on the floor.** A rejected login left the context
+  unauthenticated and resurfaced later as "device registration failed".
+  `signIn()` now fails the run and names the status.
+
+The failures were real; what they pointed at was not. Fixing the gate rather
+than re-running it until it agreed is the whole reason the counts above mean
+anything.
 
 All browser suites run against the disposable database and refuse to start
 otherwise.
