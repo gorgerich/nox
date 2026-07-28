@@ -130,6 +130,20 @@ export type RunningApp = { base: string; stop: () => Promise<void> };
  * one too — against the disposable database.
  */
 export async function startApp(url: string, port: number, extraEnv: Record<string, string> = {}): Promise<RunningApp> {
+  // A server that dies during startup gets one more go. On a cold `.next` the
+  // first boot writes the dev manifests, and a boot that reads them while they
+  // are still being written dies on a missing `required-server-files.json`.
+  // Retrying costs seconds; not retrying fails whichever suite went first and
+  // reports it as a product regression.
+  try {
+    return await bootApp(url, port, extraEnv);
+  } catch (error) {
+    console.log(`  the app did not come up (${error instanceof Error ? error.message : "unknown"}); retrying once`);
+    return bootApp(url, port, extraEnv);
+  }
+}
+
+async function bootApp(url: string, port: number, extraEnv: Record<string, string>): Promise<RunningApp> {
   const base = `http://127.0.0.1:${port}`;
   const server: ChildProcess = spawn(process.execPath, ["server.js"], {
     cwd: process.cwd(),
@@ -154,8 +168,16 @@ export async function startApp(url: string, port: number, extraEnv: Record<strin
     if (interesting && !/Unsupported style property/.test(line)) process.stdout.write(`  [server] ${line}`);
   });
 
+  let died = false;
+  server.once("exit", () => {
+    died = true;
+  });
+
   const started = Date.now();
   while (Date.now() - started < 180_000) {
+    // Waiting the full three minutes for a process that is already gone only
+    // delays the diagnosis.
+    if (died) throw new Error("the server process exited during startup");
     try {
       const response = await fetch(`${base}/login`, { redirect: "manual" });
       if (response.status < 500) {
