@@ -19,7 +19,7 @@
  * docs/incidents/20260727-message-client-id-production-migration.md.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
@@ -158,8 +158,20 @@ function productionSchemaGate() {
   return { ok: run.status === 0 };
 }
 
+/**
+ * Next writes route and validator types into `.next/dev`, and tsconfig picks
+ * them up. A dev server killed mid-write leaves them truncated, and the gate
+ * then reports a syntax error in a generated file as if the branch did not
+ * compile. Removing them costs nothing — Next regenerates them — and keeps the
+ * gate measuring the source it is supposed to measure.
+ */
+function typecheckGate() {
+  rmSync(join(process.cwd(), ".next/dev/types"), { recursive: true, force: true });
+  return { ok: spawnSync("npx", ["tsc", "--noEmit"], { stdio: "inherit" }).status === 0 };
+}
+
 const MERGE_GATES = [
-  { name: "typecheck", cmd: "npx", args: ["tsc", "--noEmit"] },
+  { name: "typecheck", run: typecheckGate },
   { name: "lint (no new errors)", run: lintGate },
   { name: "git diff --check", cmd: "git", args: ["diff", "--check"] },
   { name: "validate:message-send-reconciliation", cmd: "npm", args: ["run", "validate:message-send-reconciliation"] },
