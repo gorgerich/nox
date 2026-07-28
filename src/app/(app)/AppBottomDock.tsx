@@ -253,11 +253,12 @@ export function AppBottomDock({
 
   return (
     <nav
-      className="pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.75rem)] max-w-[22.5rem] lg:hidden"
-      style={{
-        bottom: "max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px))",
-        transform: "translateX(-50%)",
-      }}
+      // The bottom offset is a plain CSS token, identical on the server and in
+      // the first client frame, so the dock is already in its final place in the
+      // first painted frame. No measurement, no effect and no viewport listener
+      // participates in the closed-keyboard position — the real keyboard is a
+      // separate concern and does not move this element.
+      className="messenger-dock pointer-events-none fixed left-1/2 z-[1000] w-[calc(100vw-1.75rem)] max-w-[22.5rem] lg:hidden"
       aria-label="Нижняя навигация"
     >
       <div

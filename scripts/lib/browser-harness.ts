@@ -114,9 +114,11 @@ export function createPrisma(url: string) {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 }
 
-export function screenshotDir(): string {
-  mkdirSync(SHOT_DIR, { recursive: true });
-  return SHOT_DIR;
+/** Screenshot directory, optionally a named sibling of the default one. */
+export function screenshotDir(name?: string): string {
+  const dir = name ? join(process.cwd(), "docs/screenshots", name) : SHOT_DIR;
+  mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 // --- the app under test ------------------------------------------------------
@@ -127,7 +129,7 @@ export type RunningApp = { base: string; stop: () => Promise<void> };
  * Boots the real server — custom `server.js`, so the socket layer is the real
  * one too — against the disposable database.
  */
-export async function startApp(url: string, port: number): Promise<RunningApp> {
+export async function startApp(url: string, port: number, extraEnv: Record<string, string> = {}): Promise<RunningApp> {
   const base = `http://127.0.0.1:${port}`;
   const server: ChildProcess = spawn(process.execPath, ["server.js"], {
     cwd: process.cwd(),
@@ -139,6 +141,7 @@ export async function startApp(url: string, port: number): Promise<RunningApp> {
       PORT: String(port),
       HOST: "127.0.0.1",
       NEXT_TELEMETRY_DISABLED: "1",
+      ...extraEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -232,6 +235,7 @@ export type ApiResponse = {
 
 export type Locator = {
   first(): Locator;
+  boundingBox(): Promise<{ x: number; y: number; width: number; height: number } | null>;
   nth(index: number): Locator;
   count(): Promise<number>;
   fill(value: string): Promise<void>;
@@ -253,6 +257,11 @@ export type ResponseLike = {
 export type ConsoleMessageLike = { type(): string; text(): string };
 
 export type PageLike = {
+  waitForFunction(fn: () => unknown, options?: { timeout?: number }): Promise<unknown>;
+  touchscreen: { tap(x: number, y: number): Promise<void> };
+  setViewportSize(size: { width: number; height: number }): Promise<void>;
+  goBack(options?: { waitUntil?: string }): Promise<unknown>;
+  locator(selector: string): Locator;
   on(event: "pageerror", handler: (error: Error) => void): void;
   on(event: "response", handler: (response: ResponseLike) => void): void;
   on(event: "console", handler: (message: ConsoleMessageLike) => void): void;
@@ -273,6 +282,7 @@ export type PageLike = {
 
 export type ContextLike = {
   newPage(): Promise<PageLike>;
+  addInitScript(script: string): Promise<void>;
   setOffline(offline: boolean): Promise<void>;
   route(pattern: string, handler: (route: { abort(): Promise<void>; continue(): Promise<void> }) => unknown): Promise<void>;
   unroute(pattern: string): Promise<void>;

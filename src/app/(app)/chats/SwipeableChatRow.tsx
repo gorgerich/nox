@@ -7,7 +7,8 @@ import { Archive, BellOff, Bookmark, Check, CheckCheck, Pin, Trash2 } from "luci
 
 import type { ChatListItem } from "@/lib/chat-list";
 import { normalizeAvatarUrl } from "@/lib/media-url";
-import { formatChatTime, getMessagePreview } from "@/lib/chat-list-format";
+import { getMessagePreview } from "@/lib/chat-list-format";
+import { LocalTime } from "@/lib/time-format";
 
 const SWIPE_OPEN_THRESHOLD = 72;
 
@@ -325,9 +326,11 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                   <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/50" />
                 ) : null}
               </div>
-              <span className={`shrink-0 text-[12px] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}>
-                {formatChatTime(chat.lastMessage?.createdAt ?? chat.createdAt)}
-              </span>
+              <LocalTime
+                value={chat.lastMessage?.createdAt ?? chat.createdAt}
+                kind="chatListStamp"
+                className={`shrink-0 text-[12px] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}
+              />
             </div>
             <div className="flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1">

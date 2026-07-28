@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDateLabel } from "@/lib/message-grouping";
+import { useFormattedTimestamp } from "@/lib/time-format";
 
 // Presentation-only markers shared by the real conversation and the dev
 // harness. They previously existed twice — inline in ChatMessages and again as
@@ -8,6 +8,9 @@ import { formatDateLabel } from "@/lib/message-grouping";
 // No API or store access: everything arrives as props.
 
 export function DateSeparator({ date }: { date: Date }) {
+  // Server and first client render agree on the reference zone; the viewer's
+  // own day boundary is applied right after hydration.
+  const label = useFormattedTimestamp(date, "daySeparator");
   return (
     <div className="my-3 flex justify-center">
       <time
@@ -15,7 +18,7 @@ export function DateSeparator({ date }: { date: Date }) {
         className="rounded-full px-3 py-1 text-[12px] font-semibold"
         style={{ background: "var(--chat-date-bg)", color: "var(--chat-date-fg)" }}
       >
-        {formatDateLabel(date)}
+        {label}
       </time>
     </div>
   );

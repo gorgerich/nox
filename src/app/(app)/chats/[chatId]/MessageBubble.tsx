@@ -6,6 +6,7 @@ import { FileText, Play } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
+import { useFormattedTimestamp } from "@/lib/time-format";
 import { getMediaUrl, putMediaUrl } from "@/lib/media-cache";
 import { escapeRegExp } from "@/lib/text";
 
@@ -656,7 +657,11 @@ export const MessageBubble = memo(function MessageBubble({
     }
   };
 
-  const time = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt));
+  // Hydration-safe: the server and the first client render both use the
+  // reference zone, and the viewer's own time appears in the re-render right
+  // after hydration. Formatting here with the browser's zone is what produced
+  // the production hydration mismatch on every message.
+  const time = useFormattedTimestamp(message.createdAt, "time");
 
   const isRound = settings.bubbleRadius === "round";
   const rBase = isRound ? "16px" : "12px";
@@ -882,7 +887,8 @@ export const MessageBubble = memo(function MessageBubble({
               className="text-[11px] font-medium tabular-nums"
               style={{ color: visualOnlyMessage ? "white" : mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
             >
-              {message.editedAt && "изм. "}{time}
+              {message.editedAt && "изм. "}
+              <time dateTime={new Date(message.createdAt).toISOString()}>{time}</time>
             </span>
             {mine && !message.deletedAt && (
               <div className="flex items-center ml-0.5">

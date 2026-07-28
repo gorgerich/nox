@@ -9,7 +9,8 @@
 import Image from "next/image";
 import { Bookmark, Check, CheckCheck } from "lucide-react";
 import { getChatList } from "@/lib/chat-cache";
-import { formatChatTime, getMessagePreview } from "@/lib/chat-list-format";
+import { getMessagePreview } from "@/lib/chat-list-format";
+import { LocalTime } from "@/lib/time-format";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 const SKELETON_ROWS = Array.from({ length: 9 });
@@ -62,9 +63,11 @@ export default function ChatsLoading() {
                   <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-1.5">
                     <div className="mb-0.5 flex items-center gap-2">
                       <p className="min-w-0 flex-1 truncate text-[16px] font-semibold text-foreground">{title}</p>
-                      <span className="shrink-0 text-[13px] tabular-nums text-muted/60">
-                        {formatChatTime(chat.lastMessage?.createdAt ?? chat.createdAt)}
-                      </span>
+                      <LocalTime
+                        value={chat.lastMessage?.createdAt ?? chat.createdAt}
+                        kind="chatListStamp"
+                        className="shrink-0 text-[13px] tabular-nums text-muted/60"
+                      />
                     </div>
                     <div className="flex items-center gap-2">
                       {showTicks ? (

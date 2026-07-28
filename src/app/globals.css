@@ -49,7 +49,22 @@
   --app-fg: var(--text-primary);
   --app-muted: var(--text-secondary);
   --app-border: var(--separator);
-  --bottom-dock-clearance: max(112px, calc(env(safe-area-inset-bottom, 0px) + 96px));
+  /* The bottom dock's geometry, in one place.
+
+     The dock is a fixed, viewport-anchored bar. Its distance from the bottom
+     and the room the scrolling content must leave for it are derived from the
+     same two numbers, so a change to the dock cannot leave the last row of a
+     list hidden behind it. Previously the clearance was a hand-tuned 112px
+     that had no relationship to the dock's actual height.
+
+     No JavaScript participates in the closed-keyboard position: the first
+     painted frame is already correct because it is pure CSS. */
+  --messenger-dock-height: 3.25rem;   /* the pill height; the search button matches it */
+  --messenger-dock-bottom-gap: 12px;  /* space between the dock and the safe area */
+  --messenger-dock-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--messenger-dock-bottom-gap));
+  --bottom-dock-clearance: calc(
+    var(--messenger-dock-bottom) + var(--messenger-dock-height) + var(--messenger-dock-bottom-gap)
+  );
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -901,6 +916,14 @@ body {
     .surface-rise:hover {
       transform: translate3d(0, -1px, 0);
     }
+  }
+
+  /* Position and horizontal centring live here rather than in inline styles so
+     the server-rendered markup and the first client render are byte-identical
+     and nothing has to be recomputed after mount. */
+  .messenger-dock {
+    bottom: var(--messenger-dock-bottom);
+    transform: translateX(-50%);
   }
 
   .dock-liquid {
