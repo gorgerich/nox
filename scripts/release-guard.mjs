@@ -168,6 +168,9 @@ const MERGE_GATES = [
   // The rest need the disposable database. They refuse to run against anything
   // not marked disposable, and that refusal is itself a failed gate.
   { name: "validate:message-send-idempotency", cmd: "npm", args: ["run", "validate:message-send-idempotency"], needsDb: true },
+  // A committed message must never come back as a 500. Production shipped that
+  // failure once; the gate now runs the suite that would have caught it.
+  { name: "validate:message-send-postcommit", cmd: "npm", args: ["run", "validate:message-send-postcommit"], needsDb: true },
   { name: "validate:message-send-browser", cmd: "npm", args: ["run", "validate:message-send-browser"], needsDb: true, browser: true },
   { name: "validate:message-send-browser-e2ee", cmd: "npm", args: ["run", "validate:message-send-browser-e2ee"], needsDb: true, browser: true },
   { name: "validate:message-attachment-delivery", cmd: "npm", args: ["run", "validate:message-attachment-delivery"], needsDb: true, browser: true },
