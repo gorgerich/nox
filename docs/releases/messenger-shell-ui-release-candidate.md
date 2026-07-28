@@ -12,8 +12,9 @@ gate the code — see the limitations at the bottom for what that means.
 | | |
 | --- | --- |
 | Branch | `fix/messenger-shell-ui` |
-| RC | the commit tagged `rc/messenger-shell-ui-1` — a file cannot name the SHA of the commit containing it |
-| Base | `bbe2ba5`, the SHA production is running |
+| RC | the commit tagged `rc/messenger-shell-ui-2` — a file cannot name the SHA of the commit containing it |
+| Superseded RC | `rc/messenger-shell-ui-1` → `4fd8f60`, left where it is; it was based on the pre-hotfix `main` |
+| Base | `c12cc5e` — production with the post-commit hotfix in it |
 | Earlier checkpoint | `checkpoint/shell-first-paint` → `7eccdde` (dock geometry + timestamps), left in place |
 | Migration | none |
 
@@ -102,7 +103,8 @@ network. Procedure: `docs/testing/real-device-dock-smoke.md`.
 | typecheck / lint budget / build / `git diff --check` | — | PASS |
 
 Counts are from the run of record: one `npm run validate:messenger-ui-completion`
-end to end, **652 checks, 0 failures**. Two further full runs before it were also
+end to end, **652 checks, 0 failures**, re-run after merging production `main`
+(`c12cc5e`) into this branch — same 652, still zero. Two further full runs before it were also
 clean; the numbers above are the last one, not a best-of.
 
 ### What the gate needed before it could be believed
