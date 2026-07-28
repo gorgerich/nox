@@ -13,8 +13,16 @@ export function getPrisma() {
       throw new Error("DATABASE_URL is required.");
     }
 
+    // An explicit pool ceiling, used by the pool-pressure validation to run the
+    // send route against the smallest pool the driver allows. Unset in
+    // production, where the driver default applies exactly as before.
+    const poolMax = Number(process.env.DATABASE_POOL_MAX);
+
     globalForPrisma.prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString }),
+      adapter: new PrismaPg({
+        connectionString,
+        ...(Number.isFinite(poolMax) && poolMax > 0 ? { max: poolMax } : {}),
+      }),
     });
   }
 

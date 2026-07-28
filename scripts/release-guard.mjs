@@ -19,7 +19,7 @@
  * docs/incidents/20260727-message-client-id-production-migration.md.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
@@ -158,8 +158,20 @@ function productionSchemaGate() {
   return { ok: run.status === 0 };
 }
 
+/**
+ * Next writes route and validator types into `.next/dev`, and tsconfig picks
+ * them up. A dev server killed mid-write leaves them truncated, and the gate
+ * then reports a syntax error in a generated file as if the branch did not
+ * compile. Removing them costs nothing — Next regenerates them — and keeps the
+ * gate measuring the source it is supposed to measure.
+ */
+function typecheckGate() {
+  rmSync(join(process.cwd(), ".next/dev/types"), { recursive: true, force: true });
+  return { ok: spawnSync("npx", ["tsc", "--noEmit"], { stdio: "inherit" }).status === 0 };
+}
+
 const MERGE_GATES = [
-  { name: "typecheck", cmd: "npx", args: ["tsc", "--noEmit"] },
+  { name: "typecheck", run: typecheckGate },
   { name: "lint (no new errors)", run: lintGate },
   { name: "git diff --check", cmd: "git", args: ["diff", "--check"] },
   { name: "validate:message-send-reconciliation", cmd: "npm", args: ["run", "validate:message-send-reconciliation"] },
@@ -168,6 +180,9 @@ const MERGE_GATES = [
   // The rest need the disposable database. They refuse to run against anything
   // not marked disposable, and that refusal is itself a failed gate.
   { name: "validate:message-send-idempotency", cmd: "npm", args: ["run", "validate:message-send-idempotency"], needsDb: true },
+  // A committed message must never come back as a 500. Production shipped that
+  // failure once; the gate now runs the suite that would have caught it.
+  { name: "validate:message-send-postcommit", cmd: "npm", args: ["run", "validate:message-send-postcommit"], needsDb: true },
   { name: "validate:message-send-browser", cmd: "npm", args: ["run", "validate:message-send-browser"], needsDb: true, browser: true },
   { name: "validate:message-send-browser-e2ee", cmd: "npm", args: ["run", "validate:message-send-browser-e2ee"], needsDb: true, browser: true },
   { name: "validate:message-attachment-delivery", cmd: "npm", args: ["run", "validate:message-attachment-delivery"], needsDb: true, browser: true },

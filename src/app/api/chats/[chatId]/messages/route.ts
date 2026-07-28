@@ -6,6 +6,7 @@ import { getPrisma } from "@/lib/prisma";
 import { emitToChat, emitToUser, emitToUsers, isUserActiveInChat, isUserOnline } from "@/lib/realtime";
 import { checkBlockStatus } from "@/lib/contacts";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { afterCommit } from "@/lib/messages/after-commit";
 
 const DEBUG_REALTIME = process.env.DEBUG_REALTIME === "true";
 
@@ -58,6 +59,21 @@ async function findExistingByClientId(
     where: { senderUserId_clientMessageId: { senderUserId, clientMessageId } },
     include: messageInclude,
   });
+}
+
+/**
+ * A concurrent duplicate of the same `(sender, clientMessageId)` loses the race
+ * on the unique index instead of writing a second message. That is the index
+ * doing its job, not a failure: the winner's row is the canonical answer, and
+ * the loser must return it rather than a 500.
+ *
+ * The check is on the code alone. Which field the violated index names is not
+ * reliably reported through the driver adapter — `meta.target` came back empty
+ * — so the caller confirms by looking the client id up: found means this was
+ * that race, and anything else stays a genuine failure.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: unknown })?.code === "P2002";
 }
 
 const DIRECT_E2EE_ALGORITHM = "ECDH-P256-HKDF-SHA256-AES-GCM";
@@ -335,7 +351,13 @@ export async function POST(
       return NextResponse.json({ message: alreadyCommitted, clientId: parsed.data.clientId ?? null }, { status: 200 });
     }
 
-    const message = await prisma.message.create({
+    // The message, its receipts and its envelopes are one atomic write — that
+    // nested create is the commit, and it is the only thing whose failure may
+    // fail the request. Everything after it is a side effect.
+    // Narrowed once here: the closure below cannot carry the earlier
+    // `!envelopes?.length` guard's narrowing across a function boundary.
+    const envelopeRows = parsed.data.envelopes ?? [];
+    const createEncryptedMessage = () => prisma.message.create({
       data: {
         chatId,
         senderUserId: user.id,
@@ -351,7 +373,7 @@ export async function POST(
           create: activeMembers.filter((member) => member.userId !== user.id).map((member) => ({ userId: member.userId })),
         },
         envelopes: {
-          create: parsed.data.envelopes.map((envelope) => ({
+          create: envelopeRows.map((envelope) => ({
             recipientUserId: envelope.recipientUserId,
             recipientDeviceId: envelope.recipientDeviceId,
             senderDeviceId: envelope.senderDeviceId,
@@ -366,29 +388,58 @@ export async function POST(
       include: messageInclude,
     });
 
-    await prisma.$transaction([
-      prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } }),
-      prisma.chatMember.updateMany({ where: { chatId, status: "ACTIVE" }, data: { deletedAt: null } }),
-    ]);
-
-    logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
-    for (const member of activeMembers) {
-      emitToUser(member.userId, "message:new", {
+    let message: Awaited<ReturnType<typeof createEncryptedMessage>>;
+    try {
+      message = await createEncryptedMessage();
+    } catch (error) {
+      // Losing the unique-index race means someone else already committed this
+      // exact client message. Return theirs.
+      if (isUniqueViolation(error)) {
+        const winner = await findExistingByClientId(prisma, user.id, parsed.data.clientId);
+        if (winner) return NextResponse.json({ message: winner, clientId: parsed.data.clientId ?? null }, { status: 200 });
+      }
+      console.error("[message-send] encrypted message was not committed", {
         chatId,
-        message: filterMessageEnvelopesForUser(message, member.userId),
-        clientId: parsed.data.clientId ?? null,
+        code: (error as { code?: string })?.code,
+        detail: error instanceof Error ? error.message.split("\n")[0].slice(0, 200) : "unknown",
       });
+      // Nothing was written, so this is an honest failure — and the body carries
+      // no driver error, only what the client can act on.
+      return NextResponse.json({ error: "Не удалось отправить сообщение." }, { status: 500 });
     }
-    logRealtime("emitting message:new", { chatId, messageId: message.id });
-    emitToUsers(activeMembers.map((member) => member.userId), "chat:updated", { chatId });
 
-    const now = new Date();
-    const pushRecipients = activeMembers
-      .filter((member) => member.userId !== user.id && (!member.mutedUntil || member.mutedUntil < now))
-      .map((member) => member.userId)
-      .filter((recipientId) => !isUserOnline(recipientId) || !isUserActiveInChat(recipientId, chatId));
+    const sent = { chatId, messageId: message.id };
 
-    if (pushRecipients.length > 0) {
+    // Chat-list bookkeeping: ordering and un-hiding, neither of which the
+    // message depends on. This used to be its own transaction, and when that
+    // transaction expired under pool pressure the committed message above was
+    // reported to the sender as a 500. It is now allowed to fail on its own.
+    await afterCommit("chat-bookkeeping", sent, async () => {
+      await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });
+      await prisma.chatMember.updateMany({ where: { chatId, status: "ACTIVE" }, data: { deletedAt: null } });
+    });
+
+    await afterCommit("socket-publish", sent, () => {
+      logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
+      for (const member of activeMembers) {
+        emitToUser(member.userId, "message:new", {
+          chatId,
+          message: filterMessageEnvelopesForUser(message, member.userId),
+          clientId: parsed.data.clientId ?? null,
+        });
+      }
+      logRealtime("emitting message:new", { chatId, messageId: message.id });
+      emitToUsers(activeMembers.map((member) => member.userId), "chat:updated", { chatId });
+    });
+
+    await afterCommit("push-notification", sent, async () => {
+      const now = new Date();
+      const pushRecipients = activeMembers
+        .filter((member) => member.userId !== user.id && (!member.mutedUntil || member.mutedUntil < now))
+        .map((member) => member.userId)
+        .filter((recipientId) => !isUserOnline(recipientId) || !isUserActiveInChat(recipientId, chatId));
+
+      if (pushRecipients.length === 0) return;
       const { sendPushToUsers } = await import("@/lib/push");
       const senderName = message.sender.profile?.displayName || message.sender.username;
       sendPushToUsers(pushRecipients, {
@@ -399,7 +450,7 @@ export async function POST(
         chatId,
         tag: `chat:${chatId}`,
       }).catch(() => undefined);
-    }
+    });
 
     return NextResponse.json({
       message: filterMessageEnvelopesForUser(message, user.id),
@@ -428,7 +479,7 @@ export async function POST(
     return NextResponse.json({ message: existing, clientId: parsed.data.clientId ?? null }, { status: 200 });
   }
 
-  const message = await prisma.message.create({
+  const createMessage = () => prisma.message.create({
     data: {
       chatId,
       senderUserId: user.id,
@@ -451,14 +502,34 @@ export async function POST(
     include: messageInclude,
   });
 
-  await prisma.$transaction([
-    prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } }),
-    prisma.chatMember.updateMany({ where: { chatId, status: "ACTIVE" }, data: { deletedAt: null } }),
-  ]);
+  let message: Awaited<ReturnType<typeof createMessage>>;
+  try {
+    message = await createMessage();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      const winner = await findExistingByClientId(prisma, user.id, parsed.data.clientId);
+      if (winner) return NextResponse.json({ message: winner, clientId: parsed.data.clientId ?? null }, { status: 200 });
+    }
+    console.error("[message-send] message was not committed", {
+      chatId,
+      code: (error as { code?: string })?.code,
+      detail: error instanceof Error ? error.message.split("\n")[0].slice(0, 200) : "unknown",
+    });
+    return NextResponse.json({ error: "Не удалось отправить сообщение." }, { status: 500 });
+  }
 
-  logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
-  emitToChat(chatId, "message:new", { chatId, message, clientId: parsed.data.clientId ?? null });
-  emitToUsers(activeMembers.map((member) => member.userId), "chat:updated", { chatId });
+  const sent = { chatId, messageId: message.id };
+
+  await afterCommit("chat-bookkeeping", sent, async () => {
+    await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });
+    await prisma.chatMember.updateMany({ where: { chatId, status: "ACTIVE" }, data: { deletedAt: null } });
+  });
+
+  await afterCommit("socket-publish", sent, () => {
+    logRealtime("message created", { messageId: message.id, chatId, senderId: user.id });
+    emitToChat(chatId, "message:new", { chatId, message, clientId: parsed.data.clientId ?? null });
+    emitToUsers(activeMembers.map((member) => member.userId), "chat:updated", { chatId });
+  });
 
   return NextResponse.json({ message, clientId: parsed.data.clientId ?? null }, { status: 201 });
 }
