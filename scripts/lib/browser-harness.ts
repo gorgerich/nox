@@ -369,8 +369,17 @@ export async function seedChat(
 }
 
 /** Signs a browser context in through the real login route. */
+/**
+ * Signs in, and refuses to continue if it did not work. Most callers used to
+ * drop the response on the floor; a rejected login then left the context
+ * unauthenticated and the failure resurfaced much later as something else
+ * entirely — "device registration failed" for what was really a 429 on the
+ * login route. Naming the status here keeps the diagnosis one line long.
+ */
 export async function signIn(page: PageLike, base: string, username: string): Promise<ApiResponse> {
-  return page.request.post(`${base}/api/auth/login`, {
+  const response = await page.request.post(`${base}/api/auth/login`, {
     data: { login: username, password: HARNESS_PASSWORD },
   });
+  if (!response.ok()) throw new Error(`sign-in for ${username} failed: status ${response.status()}`);
+  return response;
 }
