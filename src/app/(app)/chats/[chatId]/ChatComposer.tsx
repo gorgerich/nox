@@ -47,8 +47,11 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
-  // False in the server-rendered markup, true from the first client render on:
-  // the same hydration-safe reader the connection banner uses.
+  // False in the server-rendered markup, true from the first client render on —
+  // the same hydration-safe reader the connection banner uses. Until React is
+  // live the textarea is inert: text put into it is discarded by hydration and
+  // Enter has no handler, so automation that types too early loses the message
+  // and still sees an empty composer, which reads as a successful send.
   const interactive = useClientValue(() => true, false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
@@ -393,13 +396,6 @@ export function ChatComposer({
             >
               <textarea
                 ref={inputRef}
-                /**
-                 * Until React has hydrated, this textarea is inert markup:
-                 * typing into it leaves a value that hydration then discards,
-                 * and Enter has no handler to run. Automation that types too
-                 * early therefore loses the message silently and still sees an
-                 * empty composer afterwards. The flag says when Enter works.
-                 */
                 data-composer-ready={interactive ? "1" : undefined}
                 className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."

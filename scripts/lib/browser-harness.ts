@@ -147,7 +147,11 @@ export async function startApp(url: string, port: number, extraEnv: Record<strin
   });
   server.stderr?.on("data", (chunk) => {
     const line = String(chunk);
-    if (/error/i.test(line) && !/Unsupported style property/.test(line)) process.stdout.write(`  [server] ${line}`);
+    // `[message-send]` lines are surfaced too: the route reports a refused send
+    // without the word "error" in it, and filtering on that word alone hid the
+    // one line that said why a request failed.
+    const interesting = /error/i.test(line) || line.includes("[message-send]");
+    if (interesting && !/Unsupported style property/.test(line)) process.stdout.write(`  [server] ${line}`);
   });
 
   const started = Date.now();
@@ -380,6 +384,9 @@ export async function signIn(page: PageLike, base: string, username: string): Pr
   const response = await page.request.post(`${base}/api/auth/login`, {
     data: { login: username, password: HARNESS_PASSWORD },
   });
+  // Callers used to drop this response. A rejected login then left the context
+  // unauthenticated and the failure resurfaced much later as something else
+  // entirely — "device registration failed" for what was really a 429 here.
   if (!response.ok()) throw new Error(`sign-in for ${username} failed: status ${response.status()}`);
   return response;
 }
