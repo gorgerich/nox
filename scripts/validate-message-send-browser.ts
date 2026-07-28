@@ -18,6 +18,35 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { assertIsolation, testDatabaseUrl } from "./backup-test-db";
 
+/**
+ * Polls until the condition holds. A fixed sleep encodes a guess about how
+ * fast the machine is; when the guess is wrong the suite reports a delivery
+ * bug that is really its own impatience, and the retry then commits a second
+ * copy. Waiting on the condition removes the guess.
+ */
+async function until<T>(read: () => Promise<T>, ok: (value: T) => boolean, timeoutMs = 30_000): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let value = await read();
+  while (!ok(value) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    value = await read();
+  }
+  return value;
+}
+
+/**
+ * The composer only carries this flag once React is live in the page. The
+ * server-rendered textarea happily accepts text that hydration then discards,
+ * and Enter has no handler yet — so typing too early loses the message while
+ * still leaving an empty composer behind, which reads as a successful send.
+ * This suite predates the shared harness, so it keeps its own copy.
+ */
+async function composerOf(page: PageLike, timeout = 60_000) {
+  const composer = page.locator('textarea[data-composer-ready="1"]').first();
+  await composer.waitFor({ state: "visible", timeout });
+  return composer;
+}
+
 const PORT = Number(process.env.MESSAGE_BROWSER_PORT ?? 3987);
 const BASE = `http://127.0.0.1:${PORT}`;
 const SHOT_DIR = join(process.cwd(), "docs/screenshots/messenger-fix");
@@ -222,8 +251,7 @@ async function main() {
 
     await page.goto(`${BASE}/chats/${chatId}`, { waitUntil: "networkidle" });
 
-    const composer = page.locator("textarea, input[type=text]").first();
-    await composer.waitFor({ state: "visible", timeout: 60_000 });
+    const composer = await composerOf(page);
 
     const bubbles = (text: string) => page.getByText(text, { exact: true });
 
@@ -233,29 +261,36 @@ async function main() {
     await page.screenshot({ path: join(SHOT_DIR, "01-composer-typed.png") });
 
     await composer.press("Enter");
-    await page.waitForTimeout(2_500);
+    await until(() => composer.inputValue(), (value) => value === "", 15_000);
     check("the composer is cleared after the message is accepted", (await composer.inputValue()) === "");
+    await until(() => bubbles(first).count(), (count) => count === 1, 30_000);
     check("the message is on screen exactly once", (await bubbles(first).count()) === 1, `count=${await bubbles(first).count()}`);
     await page.screenshot({ path: join(SHOT_DIR, "02-sent-single-bubble.png") });
 
-    const committed = await prisma.message.findMany({ where: { chatId, body: first } });
+    const committed = await until(
+      () => prisma.message.findMany({ where: { chatId, body: first } }),
+      (rows) => rows.length >= 1,
+    );
     check("the message reached Postgres exactly once", committed.length === 1, `rows=${committed.length}`);
     check("the row carries the client id", Boolean(committed[0]?.clientMessageId));
 
     // --- 2. reload ----------------------------------------------------------
     await page.reload({ waitUntil: "networkidle" });
-    await page.waitForTimeout(2_000);
+    await until(() => bubbles(first).count(), (count) => count >= 1, 20_000);
     check("the message survives a reload", (await bubbles(first).count()) === 1, `count=${await bubbles(first).count()}`);
     await page.screenshot({ path: join(SHOT_DIR, "03-after-reload.png") });
 
     // --- 3. offline ---------------------------------------------------------
     const offline = `harness-офлайн-${stamp}`;
     await context.setOffline(true);
-    await page.locator("textarea, input[type=text]").first().fill(offline);
-    await page.locator("textarea, input[type=text]").first().press("Enter");
-    await page.waitForTimeout(2_000);
-    check("an offline message stays on screen", (await bubbles(offline).count()) === 1);
-    check("the composer is still cleared offline", (await page.locator("textarea, input[type=text]").first().inputValue()) === "");
+    await (await composerOf(page)).fill(offline);
+    await (await composerOf(page)).press("Enter");
+    // Wait for the settled count, not merely for the first bubble: an optimistic
+    // render that is still a frame away reads as zero, and 15s was not enough
+    // headroom for it under the load of a full gate run.
+    await until(() => bubbles(offline).count(), (count) => count === 1, 30_000);
+    check("an offline message stays on screen", (await bubbles(offline).count()) === 1, `count=${await bubbles(offline).count()}`);
+    check("the composer is still cleared offline", (await (await composerOf(page)).inputValue()) === "");
     const offlineRows = await prisma.message.count({ where: { chatId, body: offline } });
     check("an offline message is not in the database yet", offlineRows === 0, `rows=${offlineRows}`);
     await page.screenshot({ path: join(SHOT_DIR, "04-offline-queued.png") });
@@ -263,8 +298,10 @@ async function main() {
     // --- 4. reconnect -------------------------------------------------------
     await context.setOffline(false);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await page.waitForTimeout(6_000);
-    const afterReconnect = await prisma.message.findMany({ where: { chatId, body: offline } });
+    const afterReconnect = await until(
+      () => prisma.message.findMany({ where: { chatId, body: offline } }),
+      (rows) => rows.length >= 1,
+    );
     check("reconnect delivers the queued message", afterReconnect.length === 1, `rows=${afterReconnect.length}`);
     check("reconnect does not duplicate it on screen", (await bubbles(offline).count()) === 1, `count=${await bubbles(offline).count()}`);
     await page.screenshot({ path: join(SHOT_DIR, "05-reconnect-delivered.png") });
@@ -273,7 +310,7 @@ async function main() {
     await page.goto(`${BASE}/chats`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1_000);
     await page.goto(`${BASE}/chats/${chatId}`, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2_500);
+    await until(() => bubbles(first).count(), (count) => count >= 1, 20_000);
     const apiAfterRemount = await page.evaluate(async (id) => {
       const response = await fetch(`/api/chats/${id}/messages`, { cache: "no-store" });
       const data = await response.json();
@@ -288,6 +325,11 @@ async function main() {
 
     // --- 6. a repeated request with the same client id ----------------------
     const replayed = committed[0]?.clientMessageId as string;
+    // Without this guard a missing id silently becomes `undefined`, the replay
+    // posts no client id at all, and `count({ clientMessageId: undefined })`
+    // drops the filter and counts the whole conversation — three checks then
+    // report nonsense instead of the one thing that actually went wrong.
+    check("the replay has a client id to replay", Boolean(replayed));
     const replay = await page.request.post(`${BASE}/api/chats/${chatId}/messages`, {
       data: { body: first, clientId: replayed, clientMessageId: replayed },
     });
@@ -296,7 +338,7 @@ async function main() {
     check("a replayed request does not create a second row", afterReplay === 1, `rows=${afterReplay}`);
 
     await page.reload({ waitUntil: "networkidle" });
-    await page.waitForTimeout(2_500);
+    await until(() => bubbles(first).count(), (count) => count >= 1, 20_000);
     check("a replayed request does not create a second bubble", (await bubbles(first).count()) === 1, `count=${await bubbles(first).count()}`);
     await page.screenshot({ path: join(SHOT_DIR, "07-idempotent-replay.png") });
 

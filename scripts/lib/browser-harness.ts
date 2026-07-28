@@ -158,10 +158,30 @@ export async function startApp(url: string, port: number, extraEnv: Record<strin
         console.log(`app is up on ${base}\n`);
         return {
           base,
+          /**
+           * Waits for the process to actually exit, rather than for a fixed
+           * delay. Every suite shares one `.next` directory, and a server that
+           * is still tearing down while the next one boots leaves it half
+           * cleaned — the next server then dies on a missing
+           * `.next/dev/required-server-files.json`. That failure looks exactly
+           * like a product regression in whichever suite happens to be next,
+           * and it has now cost two full gate runs.
+           */
           stop: async () => {
-            server.kill("SIGTERM");
-            await new Promise((resolve) => setTimeout(resolve, 800));
-            if (!server.killed) server.kill("SIGKILL");
+            if (server.exitCode !== null || server.signalCode !== null) return;
+            await new Promise<void>((resolve) => {
+              const done = () => resolve();
+              server.once("exit", done);
+              server.kill("SIGTERM");
+              // A server wedged in shutdown must not hold the whole run.
+              setTimeout(() => {
+                if (server.exitCode === null && server.signalCode === null) server.kill("SIGKILL");
+                setTimeout(done, 500);
+              }, 5_000);
+            });
+            // Next writes its dev manifests on the way out; give the filesystem
+            // a moment to settle before the next server reads them.
+            await new Promise((resolve) => setTimeout(resolve, 700));
           },
         };
       }
@@ -282,6 +302,21 @@ export type PageLike = {
     get(url: string): Promise<ApiResponse>;
   };
 };
+
+/**
+ * The composer only carries this flag once React is live in the page. Waiting
+ * for the element alone is not enough: the server-rendered textarea accepts
+ * text that hydration then throws away, and Enter has no handler yet, so a
+ * suite that types too early loses the message and still observes an empty
+ * composer — a green check over a send that never happened.
+ */
+export const COMPOSER_SELECTOR = 'textarea[data-composer-ready="1"]';
+
+export async function composerOf(page: PageLike, timeout = 60_000): Promise<Locator> {
+  const composer = page.locator(COMPOSER_SELECTOR).first();
+  await composer.waitFor({ state: "visible", timeout });
+  return composer;
+}
 
 export type StorageState = Record<string, unknown>;
 

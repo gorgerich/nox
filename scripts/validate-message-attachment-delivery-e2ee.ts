@@ -19,6 +19,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
+  composerOf,
   createChecker,
   createPrisma,
   loadPlaywright,
@@ -160,7 +161,7 @@ async function main() {
     });
 
     await pageA.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
-    await pageA.locator("textarea, input[type=text]").first().waitFor({ state: "visible", timeout: 60_000 });
+    await composerOf(pageA);
 
     // --- 1 — a photo in a one-to-one conversation ---------------------------
     await attach(pageA, file.photo);

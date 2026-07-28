@@ -13,6 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
+  composerOf,
   createChecker,
   createPrisma,
   loadPlaywright,
@@ -96,12 +97,14 @@ async function main() {
     // Keep the exact bytes the app sent, so a replay is byte-for-byte what a
     // real retry would repeat rather than something this script invented.
     const sentPayloads: string[] = [];
+    const sentStatuses: number[] = [];
     pageA.on("response", (response) => {
       const request = response.request();
       if (request.method() !== "POST") return;
       if (!request.url().includes(`/api/chats/${chatId}/messages`)) return;
       const body = request.postData();
       if (body) sentPayloads.push(body);
+      sentStatuses.push(response.status());
     });
     pageA.on("console", (message) => {
       if (message.type() === "error" && process.env.E2EE_VERBOSE) console.log(`  [A console] ${message.text().split("\n")[0]}`);
@@ -138,7 +141,11 @@ async function main() {
       where: { chatId },
       include: { envelopes: true },
     });
-    check("the server holds exactly one message", stored.length === 1, `rows=${stored.length}`);
+    check(
+      "the server holds exactly one message",
+      stored.length === 1,
+      `rows=${stored.length} postStatuses=${JSON.stringify(sentStatuses)}`,
+    );
     const message = stored[0];
     check("the message is marked encrypted", message?.isEncrypted === true);
     check("the message carries a client id", Boolean(message?.clientMessageId));

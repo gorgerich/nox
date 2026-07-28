@@ -26,8 +26,15 @@ const SUITES = [
   { name: "message send, E2EE", script: "validate:message-send-browser-e2ee" },
 ];
 
+// `--only=<substring>,<substring>` narrows the run while diagnosing one suite.
+// The gate itself always runs everything: an empty filter selects all of it.
+const onlyArg = process.argv.slice(2).find((arg) => arg.startsWith("--only="));
+const only = onlyArg ? onlyArg.slice("--only=".length).split(",").filter(Boolean) : [];
+const selected = only.length ? SUITES.filter((suite) => only.some((term) => suite.name.includes(term))) : SUITES;
+if (only.length) console.log(`--only=${only.join(",")} → ${selected.length} suite(s); this is a diagnostic run, not the gate.`);
+
 const results = [];
-for (const suite of SUITES) {
+for (const suite of selected) {
   process.stdout.write(`\n── ${suite.name} ────────────────────────────────\n`);
   const started = Date.now();
   const run = spawnSync("npm", ["run", "--silent", suite.script], { stdio: "inherit" });

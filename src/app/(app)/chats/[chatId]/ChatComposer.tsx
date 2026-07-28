@@ -46,6 +46,10 @@ export function ChatComposer({
   onCancelAction: () => void;
 }) {
   const [text, setText] = useState("");
+  // Set in an effect, so it is false in the server-rendered markup and turns
+  // true exactly once this component is live in the browser.
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => setInteractive(true), []);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   // One source of truth for which capture the record button will start.
@@ -389,6 +393,14 @@ export function ChatComposer({
             >
               <textarea
                 ref={inputRef}
+                /**
+                 * Until React has hydrated, this textarea is inert markup:
+                 * typing into it leaves a value that hydration then discards,
+                 * and Enter has no handler to run. Automation that types too
+                 * early therefore loses the message silently and still sees an
+                 * empty composer afterwards. The flag says when Enter works.
+                 */
+                data-composer-ready={interactive ? "1" : undefined}
                 className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."
                 rows={1}
