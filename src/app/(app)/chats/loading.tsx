@@ -9,7 +9,7 @@
 import Image from "next/image";
 import { Bookmark, Check, CheckCheck } from "lucide-react";
 import { getChatList } from "@/lib/chat-cache";
-import { getMessagePreview } from "@/lib/chat-list-format";
+import { getMessagePreview, getSenderPrefix } from "@/lib/chat-list-format";
 import { LocalTime } from "@/lib/time-format";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
@@ -41,6 +41,9 @@ export default function ChatsLoading() {
                 : chat.type === "DIRECT"
                   ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
                   : chat.title ?? "Группа";
+              // Same shape as the live row, so the cached frame and the real
+              // list do not visibly differ for the instant both exist.
+              const senderPrefix = chat.isSelfChat ? null : getSenderPrefix(chat);
               const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
               const showTicks = Boolean(chat.lastMessage?.isMine && !chat.lastMessage.deletedAt);
               const deliveryStatus = chat.lastMessage?.deliveryStatus
@@ -80,6 +83,7 @@ export default function ChatsLoading() {
                         )
                       ) : null}
                       <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
+                        {senderPrefix ? <span className="chat-preview-sender">{senderPrefix}: </span> : null}
                         {preview}
                       </p>
                       {chat.unreadCount > 0 ? (

@@ -1,0 +1,155 @@
+# Release candidate — messenger shell and UI
+
+```
+MESSENGER UI COMPLETION:        PASS
+REAL MOBILE BROWSER DOCK SMOKE: PENDING
+PRODUCTION:                     unchanged, not deployed
+```
+
+Not merged. Not deployed. The device smoke is tracked separately and does not
+gate the code — see the limitations at the bottom for what that means.
+
+| | |
+| --- | --- |
+| Branch | `fix/messenger-shell-ui` |
+| RC | the commit tagged `rc/messenger-shell-ui-1` — a file cannot name the SHA of the commit containing it |
+| Base | `bbe2ba5`, the SHA production is running |
+| Earlier checkpoint | `checkpoint/shell-first-paint` → `7eccdde` (dock geometry + timestamps), left in place |
+| Migration | none |
+
+## What is in it
+
+### Group sender prefix
+
+A group row now says who spoke. The name comes from `lastMessage.sender`, which
+the chat-list projection already selects, so no query was added and the row
+cannot become an N+1. `Вы` for your own message, `displayName` → `username` →
+`Участник` otherwise — never an id, never `undefined`. One-to-one rows and
+system events get no prefix. Every message kind has a preview: photo, video,
+video circle, voice, file, deleted, unreadable-encrypted, unsupported. The
+sender carries slightly more weight than the text and deliberately is not an
+accent colour, which would read as a link in every row.
+
+Rows also gained a single accessible name — conversation, sender, text, unread
+count — instead of a screen reader stitching fragments together.
+
+### Appearance, rebuilt
+
+The old sheet was a short drawer of controls. This is a screen:
+
+- a sticky header with a grabber, a title, close, and a reset that is disabled
+  until something is customised;
+- a **live preview** built from the real appearance variables and the real
+  `resolveChatScheme` — incoming and outgoing bubbles, a reply, ticks, a media
+  bubble, the group sender name;
+- sections that mean something on their own: Тема, Обои, Цвет исходящих,
+  Входящие сообщения, Форма сообщений, and the wallpaper dimming when a
+  wallpaper is set;
+- theme and wallpaper cards on one horizontally scrolling row rather than a grid
+  that wraps into ragged rows;
+- «Минимал» renamed to «Без заливки», which says what it does;
+- a sticky footer whose «Готово» is disabled until something changed.
+
+Editing works on a **draft**. Nothing is written while a control is being
+dragged, the conversation behind the sheet is not repainted, and closing with
+unsaved changes asks whether to save or discard.
+
+The two schemes stay separate: the sheet's chrome follows the app, the preview
+follows the draft chat theme. A dark chat theme in a light app darkens the
+preview and leaves the sheet light — and the reverse.
+
+### Modal layering
+
+The dock is asked to hide while the sheet is open and released when it closes,
+the backdrop covers the viewport, background scroll is locked while the sheet
+scrolls internally, focus is trapped, Escape closes, dragging the header down
+closes, and focus returns to what opened it.
+
+### A real bug found on the way
+
+Saved appearance settings **were not applied after a reload**. The hook seeded
+React state from storage in an initialiser; the server rendered the defaults and
+the client's post-mount correction raced hydration, so a saved theme only
+appeared once some unrelated re-render happened along. It now reads through
+`useSyncExternalStore` — server snapshot: defaults; client snapshot: storage —
+the same mechanism the connection banner and the timestamps use. Covered by
+`validate:appearance-persistence`, which fails without the fix.
+
+### Dock diagnostics
+
+`?dockDiagnostics=1` records the dock's geometry against `innerHeight`,
+`visualViewport`, a measured safe-area sentinel, scroll, orientation and display
+mode, tagged by event. Off by default; with the flag absent it attaches no
+listeners and renders nothing. Geometry only — no content, no identifiers, no
+network. Procedure: `docs/testing/real-device-dock-smoke.md`.
+
+## Validation matrix
+
+| Suite | Checks | Result |
+| --- | --- | --- |
+| `validate:group-chat-sender-preview` | 48 | PASS |
+| `validate:appearance-sheet` | 50 | PASS |
+| `validate:appearance-persistence` | 15 | PASS |
+| `validate:messenger-light-canvas` | 206 | PASS |
+| `validate:dock-first-paint` | 76 | PASS |
+| `validate:timestamp-hydration` | 27 | PASS |
+| `validate:chat-theme-consistency` | — | PASS |
+| `validate:chat-scroll-anchor` | 3 | PASS |
+| `validate:message-send-reconciliation` | 25 | PASS |
+| `validate:message-local-persistence` | 71 | PASS |
+| `validate:message-send-browser` | 19 | PASS |
+| `validate:message-send-browser-e2ee` | 47 | PASS |
+| typecheck / lint budget / build / `git diff --check` | — | PASS |
+
+All browser suites run against the disposable database and refuse to start
+otherwise.
+
+## Screenshots
+
+`docs/screenshots/messenger-ui/` — group previews (incoming, own, media,
+unread, a long name at 320px, a one-to-one row with no prefix) and the
+appearance sheet (light, dark, both cross-scheme cases, wallpapers, outgoing
+colours, incoming styles, radius, the unsaved-changes prompt, reset, 320px,
+desktop, dock hidden).
+
+`docs/screenshots/messenger-shell/` — the canvas and dock/timestamp evidence
+from the previous stage.
+
+## Known limitations
+
+1. **The device dock jump is unexplained, not fixed.** The harness measures 0px
+   across everything it can drive. The browser-chrome explanation is a
+   hypothesis and is labelled as one.
+2. **No on-screen keyboard in the harness.** Focus and blur are covered; what
+   iOS does when the keyboard opens is not, and the screenshots named
+   `dock-keyboard-*` are focus states, not a real keyboard.
+3. **Appearance is local to the device.** Settings live in `localStorage` per
+   conversation. Another device does not inherit them, and clearing site data
+   loses them. No server-backed model was introduced here.
+4. **Custom wallpapers and custom colours are not offered**, because only the
+   built-in sets map to real tokens. Offering a swatch that changes nothing
+   would be worse than not offering it.
+5. **Wallpaper dimming is the only extra control**, for the same reason: the
+   other candidates are not wired to anything today.
+6. **Lint baseline is 8**, unchanged. Three of those are in `deploy-db.js` and
+   the rest predate this work.
+
+## Rollout
+
+1. Re-run `npm run validate:messenger-ui-completion` on the RC commit.
+2. Run the device smoke and attach the JSON, or accept the RC with the dock
+   status still PENDING — the choice is explicit, not implied.
+3. Merge `fix/messenger-shell-ui` into `main`.
+4. Deploy; Railway builds `main`.
+5. Confirm the deployed SHA equals the merge commit.
+6. Confirm the schema fingerprint is unchanged — this candidate touches no
+   schema, so any change would be someone else's.
+7. Spot-check on the smoke account: a group row shows a sender, the appearance
+   sheet opens and saves, a reload keeps the theme.
+
+## Runtime rollback
+
+Redeploy the previous SHA. Nothing here is persisted server-side and no
+migration ships, so a rollback is a redeploy and nothing else. A user who saved
+an appearance keeps it in local storage; the older runtime reads the same key
+and the same shape.

@@ -8,7 +8,8 @@ import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble, Message } from "./MessageBubble";
-import { useChatAppearance, ChatAppearanceSheet, getChatAppearanceVars, resolveChatScheme } from "./ChatAppearance";
+import { useChatAppearance, getChatAppearanceVars, resolveChatScheme } from "./ChatAppearance";
+import { AppearanceSheet } from "./AppearanceSheet";
 import { MediaPreviewComposer, MediaPreviewItem } from "./MediaPreviewComposer";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -2384,7 +2385,15 @@ export function ChatMessages({
         </div>
       )}
 
-      <ChatAppearanceSheet isOpen={isAppearanceOpen} onClose={() => setIsAppearanceOpen(false)} settings={settings} onUpdate={updateSettings} onReset={resetSettings} />
+      <AppearanceSheet
+        isOpen={isAppearanceOpen}
+        onClose={() => setIsAppearanceOpen(false)}
+        settings={settings}
+        onUpdate={updateSettings}
+        onReset={resetSettings}
+        // The sheet's chrome follows the app, its preview follows the chat.
+        appScheme={effectiveTheme}
+      />
       <MediaViewer item={selectedMedia} onClose={() => setSelectedMedia(null)} />
 
       {previewFiles.length > 0 && (

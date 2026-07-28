@@ -245,6 +245,7 @@ export type Locator = {
   setInputFiles(files: unknown): Promise<void>;
   waitFor(options: { state: string; timeout?: number }): Promise<void>;
   isVisible(): Promise<boolean>;
+  isEnabled(): Promise<boolean>;
   textContent(): Promise<string | null>;
 };
 
@@ -262,6 +263,8 @@ export type PageLike = {
   setViewportSize(size: { width: number; height: number }): Promise<void>;
   goBack(options?: { waitUntil?: string }): Promise<unknown>;
   locator(selector: string): Locator;
+  keyboard: { press(key: string): Promise<void> };
+  mouse: { move(x: number, y: number): Promise<void>; wheel(x: number, y: number): Promise<void> };
   on(event: "pageerror", handler: (error: Error) => void): void;
   on(event: "response", handler: (response: ResponseLike) => void): void;
   on(event: "console", handler: (message: ConsoleMessageLike) => void): void;
