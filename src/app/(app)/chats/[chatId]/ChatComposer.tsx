@@ -392,7 +392,7 @@ export function ChatComposer({
             </div>
           ) : (
             <div 
-              className="premium-glass relative flex items-end rounded-full pl-4 pr-1 transition-smooth focus-within:border-primary/35"
+              className="composer-field premium-glass relative flex items-end rounded-full pl-4 pr-1 transition-smooth focus-within:border-primary/35"
             >
               <textarea
                 ref={inputRef}

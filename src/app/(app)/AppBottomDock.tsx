@@ -299,7 +299,10 @@ export function AppBottomDock({
                 aria-current={isActive ? "page" : undefined}
                 className={clsx(
                   "dock-tab fast-tap fluid-hit relative z-10 flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1",
-                  isActive ? "dock-tab-active flex-[1.45]" : "flex-1",
+                  // 1.45 of 4.45 left the active tab ~52px of label room, which
+                  // is less than "Контакты" needs at 11px — the widest label
+                  // decides this number, not the average one.
+                  isActive ? "dock-tab-active flex-[2]" : "flex-1",
                   // Inactive items used to sit at 62-64% opacity, which made them
                   // nearly invisible on the light dock. They now use the
                   // secondary-text token, which is contrast-checked in both themes.
@@ -339,7 +342,11 @@ export function AppBottomDock({
                 <span
                   className={clsx(
                     "dock-tab-label overflow-hidden whitespace-nowrap text-[11px] font-semibold leading-none tracking-normal",
-                    isActive ? "max-w-16 opacity-100" : "max-w-0 opacity-0",
+                    // 4rem cut the two longest labels mid-word ("Контакт",
+                    // "Профил"). The cap only exists so the label can animate
+                    // open from zero; it should never be the thing that decides
+                    // how much of a word the user gets to read.
+                    isActive ? "max-w-24 opacity-100" : "max-w-0 opacity-0",
                   )}
                 >
                   {tab.label}

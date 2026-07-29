@@ -259,8 +259,15 @@ export class MessageDeliveryController {
     };
 
     this.messages = [...this.messages, message];
-    await this.persist(message);
+    // Paint before persisting. `persist` is an IndexedDB write, and on a phone
+    // that can take anything from a few milliseconds to a few hundred — first
+    // write after the tab wakes, storage pressure, a slow device. Emitting
+    // afterwards meant the bubble waited on the disk, so a send that had not
+    // touched the network yet already felt slow.
     this.emit();
+    // Still awaited, so the caller resumes only once the message is durable and
+    // a crash between the two cannot lose it silently.
+    await this.persist(message);
 
     // The flush starts on the next tick so accepting a message never runs any
     // part of the network path before the caller resumes. The composer's clear

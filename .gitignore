@@ -107,3 +107,10 @@ tsconfig.tsbuildinfo
 
 # Production database dumps never belong in the repository.
 *.dump
+
+# Android signing material. The keystore lives outside the repository
+# (~/.local/share/nox-android); these rules exist so a stray copy inside the
+# working tree can never be committed by accident.
+*.jks
+*.keystore
+android/keystore.properties

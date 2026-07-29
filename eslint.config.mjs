@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Agent worktrees are full checkouts of this repository. Linting them
+    // reports every pre-existing error a second time, which reads as a
+    // regression in the lint budget when nothing in the branch changed.
+    ".claude/worktrees/**",
   ]),
 ]);
 

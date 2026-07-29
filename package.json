@@ -21,6 +21,7 @@
     "validate:chat-theme-consistency": "tsx scripts/validate-chat-theme-consistency.ts",
     "validate:backup-record": "tsx scripts/validate-backup-record.ts",
     "validate:message-send-reconciliation": "tsx scripts/validate-message-send-reconciliation.ts",
+    "audit:screens": "tsx scripts/audit-screens.ts",
     "validate:message-send-postcommit": "tsx scripts/validate-message-send-postcommit.ts",
     "validate:message-send-idempotency": "tsx scripts/validate-message-send-idempotency.ts",
     "validate:message-local-persistence": "tsx scripts/validate-message-local-persistence.ts",
