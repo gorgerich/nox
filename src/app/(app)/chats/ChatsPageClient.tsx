@@ -923,7 +923,7 @@ export function ChatsPageClient({
           </p>
         </div>
       ) : (
-        <div className="-mx-4 animate-in fade-in duration-200">
+        <div className="nox-chat-list -mx-4 animate-in fade-in duration-200">
           {filteredChats.map((chat) => (
             <SwipeableChatRow
               key={chat.id}

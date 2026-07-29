@@ -78,6 +78,7 @@
   --bottom-dock-clearance: calc(
     var(--messenger-dock-bottom) + var(--messenger-dock-height) + var(--messenger-dock-bottom-gap)
   );
+  --chat-menu-surface: rgb(252, 253, 255);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -199,6 +200,7 @@
 }
 
 [data-theme="dark"] {
+  --chat-menu-surface: rgb(34, 42, 58);
   color-scheme: dark;
 
   /* ---- Semantic design tokens (dark) --------------------------------------
@@ -667,6 +669,20 @@ body {
   outline-offset: 3px;
 }
 
+/* A field wrapped in its own focus treatment must not also draw the global
+   ring. The composer is the case that showed it: a rectangular 2px outline
+   around a textarea sitting inside a rounded pill, so the vertical segments
+   ran down both sides of the pill as blue bars while the pill's own
+   focus-within border did the real work. Keyboard focus stays visible — it
+   moves to the pill, which is the thing the user sees. */
+.composer-field:focus-within {
+  outline: none;
+}
+
+.composer-field :where(textarea, input):focus-visible {
+  outline: none;
+}
+
 /* --- Base Layout Classes --- */
 @layer utilities {
   .glass-header {
@@ -968,6 +984,16 @@ body {
      background with hairline separators inset past the avatar — rather than a
      stack of individual cards. Height is fixed so the rhythm stays even
      whether a preview wraps to one line or two. */
+  /* Rows keep their own, narrower column on wide screens: at 1024px the
+     timestamp ends up hundreds of pixels from the preview it belongs to, and
+     the eye has to travel the full width of the window to pair them. */
+  @media (min-width: 900px) {
+    .nox-chat-list {
+      max-width: 44rem;
+      margin-inline: auto;
+    }
+  }
+
   .nox-chat-row {
     min-height: 76px;
     background: var(--surface-primary);
@@ -1369,12 +1395,16 @@ body {
        utility (same @layer utilities); a position value here could fight it. */
     isolation: isolate;
     border: 1px solid var(--glass-panel-border);
-    background: rgb(252, 253, 255);
-    box-shadow: var(--glass-panel-shadow-strong);
-  }
+    /* The fill follows whichever scheme is nearest, which for a chat portal is
+       the chat's, not the app's.
 
-  [data-theme="dark"] .nox-chat-menu {
-    background: rgb(34, 42, 58);
+       It used to be `[data-theme="dark"] .nox-chat-menu`, and that selector
+       matches through <html>: with a dark app and a light chat, the panel took
+       the app's dark fill while its text took the chat's dark foreground, and
+       the menu became dark-on-dark. A variable resolves at the element, so the
+       nearest scope wins and the two can no longer disagree. */
+    background: var(--chat-menu-surface);
+    box-shadow: var(--glass-panel-shadow-strong);
   }
 
   .nox-chat-action-button {
@@ -1653,6 +1683,34 @@ body {
     background: var(--border-subtle);
   }
 
+  /* Fallback avatar tints. Derived from the name (see src/lib/avatar-tint.ts),
+     so a conversation keeps its colour everywhere with nothing stored.
+
+     The values are deliberately quiet: a saturated disc in every row would
+     compete with the unread dot and the accent, and a list of twelve loud
+     circles is harder to scan than a list of one. Enough separation to
+     recognise, not enough to shout. */
+  .nox-avatar-tint {
+    background: color-mix(in oklab, var(--avatar-tint) 16%, var(--surface-muted));
+    color: color-mix(in oklab, var(--avatar-tint) 82%, var(--foreground));
+  }
+
+  [data-avatar-tint="0"] { --avatar-tint: oklch(0.62 0.16 250); } /* blue */
+  [data-avatar-tint="1"] { --avatar-tint: oklch(0.66 0.15 155); } /* green */
+  [data-avatar-tint="2"] { --avatar-tint: oklch(0.68 0.15 60); }  /* amber */
+  [data-avatar-tint="3"] { --avatar-tint: oklch(0.63 0.17 20); }  /* red */
+  [data-avatar-tint="4"] { --avatar-tint: oklch(0.62 0.16 305); } /* violet */
+  [data-avatar-tint="5"] { --avatar-tint: oklch(0.66 0.13 200); } /* teal */
+
+  /* Dark mode needs more lightness, not more saturation: the same hues on a
+     black canvas read as muddy unless they are lifted. */
+  :root[data-theme="dark"] [data-avatar-tint="0"] { --avatar-tint: oklch(0.72 0.14 250); }
+  :root[data-theme="dark"] [data-avatar-tint="1"] { --avatar-tint: oklch(0.75 0.13 155); }
+  :root[data-theme="dark"] [data-avatar-tint="2"] { --avatar-tint: oklch(0.78 0.13 60); }
+  :root[data-theme="dark"] [data-avatar-tint="3"] { --avatar-tint: oklch(0.72 0.15 20); }
+  :root[data-theme="dark"] [data-avatar-tint="4"] { --avatar-tint: oklch(0.72 0.14 305); }
+  :root[data-theme="dark"] [data-avatar-tint="5"] { --avatar-tint: oklch(0.76 0.11 200); }
+
   .nox-avatar {
     position: relative;
     display: flex;
@@ -1705,8 +1763,12 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: min(44dvh, 360px);
-    padding: 36px 22px;
+    /* Tall enough that the message lands near the optical centre of the
+       content area rather than a third of the way down it. The dock clearance
+       keeps that centring honest — without it the block centres into the
+       floating dock and reads low. */
+    min-height: min(62dvh, 520px);
+    padding: 36px 22px calc(36px + var(--bottom-dock-clearance));
     text-align: center;
   }
 
@@ -2064,9 +2126,11 @@ body {
     transition: background-color 140ms ease, color 140ms ease;
   }
 
-  .appearance-header-action:hover:not(:disabled) {
-    background: var(--surface-pressed);
-    color: var(--text-primary);
+  @media (hover: hover) and (pointer: fine) {
+    .appearance-header-action:hover:not(:disabled) {
+      background: var(--surface-pressed);
+      color: var(--text-primary);
+    }
   }
 
   .appearance-header-text {

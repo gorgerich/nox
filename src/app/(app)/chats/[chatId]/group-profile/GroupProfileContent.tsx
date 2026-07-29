@@ -1,5 +1,7 @@
 "use client";
 
+import { avatarTint } from "@/lib/avatar-tint";
+import { formatCalendarDate, roleLabel } from "@/lib/format-ru";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -205,7 +207,9 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   const quickActionColumnClass = permissions.canEditGroup ? "grid-cols-3" : "grid-cols-2";
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom transition-smooth">
+    // pb keeps the last card clear of the floating dock. `safe-bottom` alone
+    // only accounts for the home indicator, so the final row scrolled under it.
+    <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom pb-[var(--bottom-dock-clearance)] transition-smooth">
       <header
         className="liquid-top-chrome sticky top-0 z-50 flex items-center justify-between px-3 py-2"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
@@ -223,12 +227,13 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
             aria-label={permissions.canEditGroup ? "Изменить фото группы" : `Фото группы ${chat.title}`}
             onClick={() => permissions.canEditGroup && fileInputRef.current?.click()}
             disabled={pending || !permissions.canEditGroup}
-            className={`absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth ${permissions.canEditGroup ? 'hover:opacity-90 active:scale-[0.96]' : ''}`}
+            className={`nox-avatar-tint absolute inset-0 flex items-center justify-center overflow-hidden rounded-full transition-smooth ${permissions.canEditGroup ? 'hover:opacity-90 active:scale-[0.96]' : ''}`}
+            data-avatar-tint={avatarTint(chat.title)}
           >
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
-              <span className="text-5xl font-semibold text-primary">{chat.title[0]?.toUpperCase()}</span>
+              <span className="text-5xl font-semibold">{chat.title[0]?.toUpperCase()}</span>
             )}
             
             {permissions.canEditGroup && (
@@ -267,7 +272,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         
         <h2 className="text-center text-3xl font-semibold tracking-tight">{chat.title}</h2>
         <p className="mt-1 text-sm font-normal text-muted">{members.length} участников</p>
-        <p className="mt-3 text-xs font-normal text-muted">Группа создана {new Date(chat.createdAt).toLocaleDateString()}</p>
+        <p className="mt-3 text-xs font-normal text-muted">Группа создана {formatCalendarDate(chat.createdAt)}</p>
         {statusMessage ? (
           <p className="mt-3 rounded-full bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger">
             {statusMessage}
@@ -312,7 +317,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-foreground/5 px-2 py-1 text-[11px] font-medium text-muted">{m.role}</span>
+                  <span className="rounded-full bg-foreground/5 px-2 py-1 text-[11px] font-medium text-muted">{roleLabel(m.role)}</span>
                 {permissions.canRemoveMembers && !m.isSelf && (
                   <button onClick={() => handleRemoveMember(m.userId)} className="rounded-full p-2 text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover:opacity-100" aria-label="Удалить участника">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -464,7 +469,7 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
              </div>
              <div className="min-w-0 flex-1">
                <p className="truncate text-sm font-semibold">{fileName}</p>
-               <p className="text-xs font-normal text-muted">{new Date(item.createdAt).toLocaleDateString()}</p>
+               <p className="text-xs font-normal text-muted">{formatCalendarDate(item.createdAt)}</p>
              </div>
           </a>
         );

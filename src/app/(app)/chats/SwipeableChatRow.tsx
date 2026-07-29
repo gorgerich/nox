@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useRef, useState, type MouseEvent, type R
 import { Archive, BellOff, Bookmark, Check, CheckCheck, Pin, Trash2 } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
+import { avatarTint } from "@/lib/avatar-tint";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { getMessagePreview, getPreviewLabel, getSenderPrefix } from "@/lib/chat-list-format";
 import { LocalTime } from "@/lib/time-format";
@@ -331,7 +332,12 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
         >
           {/* Fallback avatars carry a tinted disc so the initial never floats on
               a bare row — a plain surface tint is invisible on white in light. */}
-          <div className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-muted">
+          <div
+            className={`relative flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full ${
+              chat.isSelfChat ? "bg-accent-muted" : "nox-avatar-tint"
+            }`}
+            data-avatar-tint={chat.isSelfChat ? undefined : avatarTint(title)}
+          >
             {chat.isSelfChat ? (
               <div className="flex h-full w-full items-center justify-center bg-accent-muted text-primary">
                 <Bookmark className="h-5.5 w-5.5" />
@@ -339,7 +345,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
             ) : fullAvatarUrl && !avatarFailed ? (
               <Image src={fullAvatarUrl} alt={title} fill sizes="52px" className="object-cover" onError={() => setAvatarFailed(true)} />
             ) : (
-              <span className="text-lg font-semibold uppercase text-primary">{title[0]}</span>
+              <span className="text-lg font-semibold uppercase">{title[0]}</span>
             )}
           </div>
           <div className="nox-chat-row-body min-w-0 flex-1 self-stretch group-last:border-none">

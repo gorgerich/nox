@@ -154,7 +154,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const fullAvatarUrl = normalizeAvatarUrl(partnerUser.avatarUrl);
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto scrollbar-hide safe-bottom transition-smooth">
+    <div className="flex h-full flex-col overflow-y-auto scrollbar-hide safe-bottom pb-[var(--bottom-dock-clearance)] transition-smooth">
       <header
         className="liquid-top-chrome sticky top-0 z-50 flex items-center justify-between px-3 py-2"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}

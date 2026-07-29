@@ -1822,42 +1822,91 @@ export function ChatMessages({
   // below the same bubble was what produced the overlapping mess when the
   // picker grew tall — removing one side of that conflict fixes it outright
   // instead of trying to out-guess every combination of sizes.
-  const reactionBarLayout = useMemo(() => {
-    if (!menuState) return null;
-    const envTop = getSafeAreaTop();
-    const centerX = menuState.rect.left + menuState.rect.width / 2;
-    const halfWidth = (reactionPickerExpanded ? 336 : 260) / 2;
-    const left = Math.min(window.innerWidth - 16 - halfWidth, Math.max(16 + halfWidth, centerX));
+  /**
+   * The long-press overlay is one composition, not three independent layers:
+   * reaction bar above the bubble, the bubble, the action menu below it. Each
+   * piece used to position itself and clamp itself into the viewport on its
+   * own, so for a message near the bottom of the screen the menu's clamp and
+   * the bar's clamp landed on the same pixels and the two drew on top of each
+   * other.
+   *
+   * Laying the stack out once fixes that: measure what the three parts need,
+   * and if they do not fit where the bubble sits, move the whole stack — the
+   * clone included — until they do.
+   */
+  const overlayLayout = useMemo(() => {
+    if (!menuState || !focusedMessage) return null;
 
+    const envTop = getSafeAreaTop();
+    const viewport = window.innerHeight;
+    const topBound = envTop + 16;
+    const bottomBound = viewport - 16;
+
+    const mine = focusedMessage.senderUserId === currentUserId;
+    // Item count decides the menu height. Every row is the same 48px, so this
+    // is exact rather than the previous flat 320px guess, which was wrong for
+    // both a two-item menu and a seven-item one.
+    const itemCount =
+      3 + // reply, pin, forward
+      1 + // select
+      1 + // delete
+      (focusedMessageCopyText ? 1 : 0) +
+      (mine && focusedMessage.type === "TEXT" ? 1 : 0);
+    const menuHeight = itemCount * 48 + 8;
+
+    const barHeight = reactionPickerExpanded ? 0 : 64; // expanded picker is sized below
+    const expandedChrome = 34;
+
+    let offset = 0;
     if (!reactionPickerExpanded) {
-      const barHeight = 64;
-      const maxBottom = Math.max(20, window.innerHeight - barHeight - envTop - 16);
-      const bottom = Math.min(window.innerHeight - menuState.rect.top + GAP, maxBottom);
-      return { style: { left, bottom, transform: "translateX(-50%)" } as React.CSSProperties, pickerMaxHeight: 0 };
+      const stackTop = menuState.rect.top - GAP - barHeight;
+      const stackBottom = menuState.rect.bottom + GAP + menuHeight;
+      // Pull up first, then push down: with the bubble taller than the space
+      // between the bars, the top edge is the one that must win, because a
+      // menu can scroll and a bubble cannot.
+      if (stackBottom > bottomBound) offset -= stackBottom - bottomBound;
+      if (stackTop + offset < topBound) offset += topBound - (stackTop + offset);
     }
 
-    const chrome = 34; // bar padding + border + tail clearance
-    const availableAbove = menuState.rect.top - envTop - GAP - 16 - chrome;
-    const pickerMaxHeight = Math.max(160, Math.min(420, availableAbove));
-    const barHeight = pickerMaxHeight + chrome;
-    const maxBottom = Math.max(20, window.innerHeight - barHeight - envTop - 16);
-    const bottom = Math.min(window.innerHeight - menuState.rect.top + GAP, maxBottom);
-    return { style: { left, bottom, transform: "translateX(-50%)" } as React.CSSProperties, pickerMaxHeight };
-  }, [menuState, reactionPickerExpanded]);
+    const bubbleTop = menuState.rect.top + offset;
+    const bubbleBottom = menuState.rect.bottom + offset;
+
+    const centerX = menuState.rect.left + menuState.rect.width / 2;
+    const halfWidth = (reactionPickerExpanded ? 336 : 260) / 2;
+    const barLeft = Math.min(window.innerWidth - 16 - halfWidth, Math.max(16 + halfWidth, centerX));
+
+    let pickerMaxHeight = 0;
+    let barBottom = viewport - bubbleTop + GAP;
+    if (reactionPickerExpanded) {
+      const availableAbove = bubbleTop - envTop - GAP - 16 - expandedChrome;
+      pickerMaxHeight = Math.max(160, Math.min(420, availableAbove));
+      const expandedHeight = pickerMaxHeight + expandedChrome;
+      barBottom = Math.min(barBottom, Math.max(20, viewport - expandedHeight - envTop - 16));
+    }
+
+    return {
+      cloneOffset: offset,
+      bar: {
+        style: { left: barLeft, bottom: barBottom, transform: "translateX(-50%)" } as React.CSSProperties,
+        pickerMaxHeight,
+      },
+      menu: {
+        top: bubbleBottom + GAP,
+        // The menu is the part that gives way when the screen is too short.
+        maxHeight: Math.max(160, bottomBound - (bubbleBottom + GAP)),
+        left: mine ? "auto" : Math.min(window.innerWidth - 260, Math.max(16, menuState.rect.left)),
+        right: mine ? Math.min(window.innerWidth - 260, Math.max(16, window.innerWidth - menuState.rect.right)) : "auto",
+      },
+    };
+  }, [menuState, focusedMessage, currentUserId, focusedMessageCopyText, reactionPickerExpanded]);
+
+  const reactionBarLayout = overlayLayout?.bar ?? null;
 
   const actionMenuStyle = useMemo(() => {
-    if (!menuState || !focusedMessage) return null;
-    const envTop = getSafeAreaTop();
-    const estimatedHeight = 320;
-    const candidateTop = menuState.rect.bottom + GAP;
-    const top = Math.min(candidateTop, Math.max(envTop + 16, window.innerHeight - estimatedHeight - 16));
-    const mine = focusedMessage.senderUserId === currentUserId;
-    return {
-      top,
-      left: mine ? 'auto' : Math.min(window.innerWidth - 260, Math.max(16, menuState.rect.left)),
-      right: mine ? Math.min(window.innerWidth - 260, Math.max(16, window.innerWidth - menuState.rect.right)) : 'auto',
-    } as React.CSSProperties;
-  }, [menuState, focusedMessage]);
+    if (!overlayLayout) return null;
+    const { top, maxHeight, left, right } = overlayLayout.menu;
+    return { top, maxHeight, left, right, overflowY: "auto" } as React.CSSProperties;
+  }, [overlayLayout]);
 
   const renderOverlay = () => {
     if (!menuState || !focusedMessage || !mounted) return null;
@@ -1881,7 +1930,7 @@ export function ChatMessages({
         <div 
           className="focused-message-clone"
           style={{
-            top: menuState.rect.top,
+            top: menuState.rect.top + (overlayLayout?.cloneOffset ?? 0),
             left: menuState.rect.left,
             width: menuState.rect.width,
             height: menuState.rect.height,

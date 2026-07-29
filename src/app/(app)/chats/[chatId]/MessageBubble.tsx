@@ -795,7 +795,21 @@ export const MessageBubble = memo(function MessageBubble({
             </span>
           )}
 
-          <div className={isVideoNoteMessage ? "relative max-w-[calc(100vw-1rem)] sm:max-w-[28rem]" : "relative max-w-[78%] sm:max-w-[70%]"}>
+          {/* max-w is a percentage of the parent. In the conversation the parent
+              is the full-width message row, so 78% is the intended bubble width.
+              In the long-press overlay the parent is a clone box already sized
+              to the measured bubble, and taking 78% of *that* squeezed the text
+              into a two-or-three-character column. When focused the clone box
+              is the constraint, so the bubble takes all of it. */}
+          <div
+            className={
+              isVideoNoteMessage
+                ? "relative max-w-[calc(100vw-1rem)] sm:max-w-[28rem]"
+                : isFocused
+                  ? "relative w-full max-w-full"
+                  : "relative max-w-[78%] sm:max-w-[70%]"
+            }
+          >
             {canSwipeReply ? (
               <div 
                 ref={replyIconRef}

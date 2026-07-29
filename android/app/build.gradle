@@ -16,10 +16,28 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Signing is driven by properties so the keystore and its password stay out
+    // of the repository. Pass them on the command line, or put them in
+    // ~/.gradle/gradle.properties. With no properties set the release build
+    // still runs and simply produces an unsigned APK, so a checkout without the
+    // key is not a broken build.
+    signingConfigs {
+        release {
+            if (project.hasProperty('noxKeystore')) {
+                storeFile file(project.property('noxKeystore'))
+                storePassword project.property('noxKeystorePassword')
+                keyAlias project.hasProperty('noxKeyAlias') ? project.property('noxKeyAlias') : 'nox'
+                keyPassword project.hasProperty('noxKeyPassword') ? project.property('noxKeyPassword') : project.property('noxKeystorePassword')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (project.hasProperty('noxKeystore')) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
