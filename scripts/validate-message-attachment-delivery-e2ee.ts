@@ -139,12 +139,12 @@ async function main() {
     const pageA = await contextA.newPage();
     pageA.on("pageerror", (error: Error) => errorsA.push(error.message.split("\n")[0]));
     await signIn(pageA, app.base, aName);
-    await pageA.goto(`${app.base}/chats`, { waitUntil: "networkidle" });
+    await pageA.goto(`${app.base}/chats`, { waitUntil: "domcontentloaded" });
 
     const pageB = await contextB.newPage();
     pageB.on("pageerror", (error: Error) => errorsB.push(error.message.split("\n")[0]));
     await signIn(pageB, app.base, bName);
-    await pageB.goto(`${app.base}/chats`, { waitUntil: "networkidle" });
+    await pageB.goto(`${app.base}/chats`, { waitUntil: "domcontentloaded" });
 
     const deviceA = await waitForDevice(prisma, aId);
     const deviceB = await waitForDevice(prisma, bId);
@@ -160,7 +160,7 @@ async function main() {
       }
     });
 
-    await pageA.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
+    await pageA.goto(`${app.base}/chats/${chatId}`, { waitUntil: "domcontentloaded" });
     await composerOf(pageA);
 
     // --- 1 — a photo in a one-to-one conversation ---------------------------
@@ -243,7 +243,7 @@ async function main() {
     }
 
     // --- 12 — the recipient really decrypts ---------------------------------
-    await pageB.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
+    await pageB.goto(`${app.base}/chats/${chatId}`, { waitUntil: "domcontentloaded" });
     await pageB.waitForTimeout(12_000);
     await pageB.screenshot({ path: join(shots, "e2ee-attachment-received.png") });
 
@@ -306,15 +306,15 @@ async function main() {
       await pageA.screenshot({ path: join(shots, "e2ee-attachment-failed-retry.png") });
 
       // 8 — leaving the screen
-      await pageA.goto(`${app.base}/chats`, { waitUntil: "networkidle" });
+      await pageA.goto(`${app.base}/chats`, { waitUntil: "domcontentloaded" });
       await pageA.waitForTimeout(1_500);
-      await pageA.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
+      await pageA.goto(`${app.base}/chats/${chatId}`, { waitUntil: "domcontentloaded" });
       await pageA.waitForTimeout(3_000);
       const afterLeave = await localStores(pageA);
       check("the pending encrypted attachment survives leaving the screen", afterLeave.blobs >= 1 && afterLeave.pending >= 1);
 
       // 9 — a reload while it is still owed
-      await pageA.reload({ waitUntil: "networkidle" });
+      await pageA.reload({ waitUntil: "domcontentloaded" });
       await pageA.waitForTimeout(4_000);
       const afterReload = await localStores(pageA);
       check("the pending encrypted attachment survives a reload", afterReload.blobs >= 1);
@@ -322,7 +322,7 @@ async function main() {
 
       // 7 — the retry, which must reuse the client id
       await contextA.unroute("**/api/chats/*/attachments");
-      await pageA.reload({ waitUntil: "networkidle" });
+      await pageA.reload({ waitUntil: "domcontentloaded" });
       await pageA.waitForTimeout(12_000);
       const after = await prisma.message.count({ where: { chatId } });
       check("the retried encrypted upload is delivered exactly once", after === 7, `rows=${after}`);
@@ -362,18 +362,18 @@ async function main() {
       check("a replayed encrypted upload creates no second envelope set", envelopes === 2, `envelopes=${envelopes}`);
 
       // 11 — a duplicated socket event for the same message
-      await pageA.reload({ waitUntil: "networkidle" });
+      await pageA.reload({ waitUntil: "domcontentloaded" });
       await pageA.waitForTimeout(4_000);
       check("a replay leaves the conversation length unchanged", (await prisma.message.count({ where: { chatId } })) === before);
     }
 
     // --- 13/14 — both sides reload ------------------------------------------
-    await pageA.reload({ waitUntil: "networkidle" });
+    await pageA.reload({ waitUntil: "domcontentloaded" });
     await pageA.waitForTimeout(5_000);
     const senderStores = await localStores(pageA);
     check("nothing is owed on the sender after a reload", senderStores.pending === 0 && senderStores.blobs === 0);
 
-    await pageB.reload({ waitUntil: "networkidle" });
+    await pageB.reload({ waitUntil: "domcontentloaded" });
     await pageB.waitForTimeout(12_000);
     const stillDecrypted = await pageB.evaluate(async () => {
       const nodes = Array.from(document.querySelectorAll("img, audio, video, a[href^='blob:']"));

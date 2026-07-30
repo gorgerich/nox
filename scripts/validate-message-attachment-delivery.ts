@@ -102,7 +102,7 @@ async function main() {
     });
 
     check("harness signs in", (await signIn(page, app.base, meName)).ok());
-    await page.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
+    await page.goto(`${app.base}/chats/${chatId}`, { waitUntil: "domcontentloaded" });
     await composerOf(page);
 
     // --- 1 — a photo --------------------------------------------------------
@@ -178,9 +178,9 @@ async function main() {
       await page.screenshot({ path: join(shots, "attachment-failed-retry.png") });
 
       // --- 8 — the failure survives leaving the screen and a reload ----------
-      await page.goto(`${app.base}/chats`, { waitUntil: "networkidle" });
+      await page.goto(`${app.base}/chats`, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(1_000);
-      await page.goto(`${app.base}/chats/${chatId}`, { waitUntil: "networkidle" });
+      await page.goto(`${app.base}/chats/${chatId}`, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(3_000);
       const afterLeave = await page.evaluate(async () => {
         const open = indexedDB.open("nox-e2ee");
@@ -198,14 +198,14 @@ async function main() {
       });
       check("the pending attachment survives leaving the screen", afterLeave >= 1, `pending=${afterLeave}`);
 
-      await page.reload({ waitUntil: "networkidle" });
+      await page.reload({ waitUntil: "domcontentloaded" });
       await page.waitForTimeout(3_000);
       check("the pending attachment survives a reload", (await page.getByText("retry-photo.png", { exact: false }).count()) >= 0);
       await page.screenshot({ path: join(shots, "attachment-after-reload.png") });
 
       // --- 9 — retry once the route works again -----------------------------
       await context.unroute("**/api/chats/*/attachments");
-      await page.reload({ waitUntil: "networkidle" });
+      await page.reload({ waitUntil: "domcontentloaded" });
       await page.waitForTimeout(9_000);
       const afterRetry = await countMessages(prisma, chatId);
       check("the retried upload is delivered exactly once", afterRetry === 6, `rows=${afterRetry}`);
@@ -237,7 +237,7 @@ async function main() {
       const attachments = await prisma.attachment.count({ where: { messageId: target!.id } });
       check("a replayed upload creates no second attachment", attachments === 1, `attachments=${attachments}`);
 
-      await page.reload({ waitUntil: "networkidle" });
+      await page.reload({ waitUntil: "domcontentloaded" });
       await page.waitForTimeout(4_000);
       const bubbles = await page.locator("img[alt], a[download], audio, video").count();
       check("a replayed upload creates no second bubble", bubbles > 0 && (await countMessages(prisma, chatId)) === before);
