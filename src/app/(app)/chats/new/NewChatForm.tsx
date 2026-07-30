@@ -261,7 +261,7 @@ export function NewChatForm() {
         )}
       </div>
 
-      <div className="grid gap-5 animate-in fade-in slide-in-from-bottom-4 duration-300 sm:grid-cols-2">
+      <div className="grid gap-5 animate-in fade-in slide-in-from-bottom-4 duration-180 sm:grid-cols-2">
         <section className="space-y-3">
           <h2 className="px-1 text-[13px] font-semibold text-muted">Входящие запросы</h2>
           <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">

@@ -72,32 +72,19 @@
 
      No JavaScript participates in the closed-keyboard position: the first
      painted frame is already correct because it is pure CSS. */
+  /* A round video note is 14rem (h-56) at rest and min(76vw, 24rem) expanded.
+     Expressing that as a scale factor keeps the transition on the compositor:
+     the ratio is the expanded size over the resting one. */
+  --round-video-expanded-scale: calc(min(76vw, 24rem) / 14rem);
   --messenger-dock-height: 3.25rem;   /* the pill height; the search button matches it */
   --messenger-dock-bottom-gap: 12px;  /* space between the dock and the safe area */
-  /* Why this is not simply `inset + gap`.
-   *
-   * On iOS Safari a fixed element is laid out against the layout viewport,
-   * whose bottom edge already sits *above* the browser toolbar while that
-   * toolbar is showing — which it always is on first paint. But
-   * `env(safe-area-inset-bottom)` keeps reporting the window's inset (the
-   * home-indicator strip, ~34px) regardless. Adding it in that state counts the
-   * same space twice, so the dock floats a toolbar's height too high, and only
-   * "drops" once the user taps or scrolls and the toolbar collapses.
-   *
-   * `100lvh - 100dvh` is exactly the height the browser chrome currently
-   * occupies: zero when it is hidden, the toolbar height while it is showing.
-   * Subtracting it cancels the double count in the showing state and vanishes in
-   * the hidden state, where the inset genuinely is needed. `max()` keeps the
-   * gap from ever going negative.
-   *
-   * Still pure CSS: no timer, no synthetic touch, no transform, nothing
-   * recalculated in JavaScript after mount. The first painted frame is correct
-   * in both states, and the value tracks the toolbar on its own. */
-  --messenger-browser-chrome: calc(100lvh - 100dvh);
-  --messenger-dock-bottom: max(
-    var(--messenger-dock-bottom-gap),
-    calc(env(safe-area-inset-bottom, 0px) + var(--messenger-dock-bottom-gap) - var(--messenger-browser-chrome))
-  );
+  /* Reverted to the plain form. An attempt to cancel a suspected double count
+   * with `calc(100lvh - 100dvh)` made things worse in the shipped app — a
+   * viewport unit the runtime does not resolve makes the whole declaration
+   * invalid at computed-value time, which drops `bottom` to `auto` and leaves
+   * the dock wherever static position puts it. Until the real geometry is
+   * measured on the device, this stays the simple value it has always been. */
+  --messenger-dock-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--messenger-dock-bottom-gap));
   --bottom-dock-clearance: calc(
     var(--messenger-dock-bottom) + var(--messenger-dock-height) + var(--messenger-dock-bottom-gap)
   );

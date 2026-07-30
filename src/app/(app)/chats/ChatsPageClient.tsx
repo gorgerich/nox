@@ -923,7 +923,12 @@ export function ChatsPageClient({
           </p>
         </div>
       ) : (
-        <div className="nox-chat-list -mx-4 animate-in fade-in duration-200">
+        <div
+          // No entry animation: this list is opened many times a day and the
+          // rows are already rendered when the frame paints, so fading them in
+          // only delays the content the user came for.
+          className="nox-chat-list -mx-4"
+        >
           {filteredChats.map((chat) => (
             <SwipeableChatRow
               key={chat.id}
