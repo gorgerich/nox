@@ -168,39 +168,50 @@ export function ChatComposer({
   }, []);
 
   /**
-   * The draft is cleared only after `onSend` resolves, and `onSend` resolves
-   * once the message is durably stored — not once it is delivered. Clearing
-   * first, as this did before, meant a failure between the two lost whatever
-   * the user had typed.
+   * The composer empties in the same frame as the tap.
+   *
+   * It used to await `onSend` first, and `onSend` only resolves once the message
+   * is durably stored — an IndexedDB write. On a phone that is anything from a
+   * few milliseconds to a few hundred, and for all of it the typed text sat in
+   * the field while the bubble was already on screen. The send looked slow
+   * before it had touched the network.
+   *
+   * Clearing first is safe because the draft is held here and put straight back
+   * if the message was never accepted, which is the case the old ordering was
+   * protecting against.
    */
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(() => {
     const draft = text;
     if (!draft.trim() || sendingRef.current) return;
     sendingRef.current = true;
 
-    try {
-      await onSend(draft);
-      setText("");
-      setShowEmoji(false);
-      onTyping("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      editingIdRef.current = null;
-      resetInputHeight();
-    } catch (error) {
-      // The message was not stored, so the text stays exactly where it was.
-      console.error("Failed to accept message:", error);
-      if (!editingTo) {
-        requestAnimationFrame(() => {
-          if (inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.style.height = "auto";
-            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-          }
-        });
+    setText("");
+    setShowEmoji(false);
+    onTyping("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    editingIdRef.current = null;
+    resetInputHeight();
+
+    void (async () => {
+      try {
+        await onSend(draft);
+      } catch (error) {
+        // Never accepted, so the text goes back exactly as it was typed.
+        console.error("Failed to accept message:", error);
+        setText(draft);
+        if (!editingTo) {
+          requestAnimationFrame(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+              inputRef.current.style.height = "auto";
+              inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+            }
+          });
+        }
+      } finally {
+        sendingRef.current = false;
       }
-    } finally {
-      sendingRef.current = false;
-    }
+    })();
   }, [editingTo, onSend, onTyping, resetInputHeight, text]);
 
   const activateCapture = useCallback(() => {
