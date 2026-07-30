@@ -629,6 +629,10 @@
 
 html,
 body {
+  /* An explicit height as well as a minimum, so `100%` resolves for the app
+     shells below. Without it their `max(100dvh, 100%)` has nothing to measure
+     the percentage against. */
+  height: 100%;
   min-height: 100%;
 }
 
@@ -655,7 +659,13 @@ body {
     border-color 220ms ease,
     box-shadow 220ms ease;
   position: relative;
-  min-height: 100dvh;
+  /* `dvh` is not always the full painted height. In an embedded web view it can
+     resolve shorter than what is actually on screen, and then the page ends
+     early and its own background shows as a band under the dock and under the
+     composer — white, because that is what the light canvas is. Taking the
+     larger of the two can only make the shell taller, never shorter, so the
+     band cannot appear either way. */
+  min-height: max(100dvh, 100%);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1215,7 +1225,9 @@ body {
   }
 
   .chat-screen {
-    height: 100dvh;
+    /* See the note on body: the larger of the two, so the conversation always
+       reaches the bottom of what is painted. */
+    height: max(100dvh, 100%);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1460,7 +1472,7 @@ body {
 
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
-    min-height: 100dvh;
+    min-height: max(100dvh, 100%);
     background: var(--app-bg);
     color: var(--app-fg);
     overflow-x: hidden;
