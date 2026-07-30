@@ -695,11 +695,17 @@ body {
    ran down both sides of the pill as blue bars while the pill's own
    focus-within border did the real work. Keyboard focus stays visible — it
    moves to the pill, which is the thing the user sees. */
-.composer-field:focus-within {
+/* Fields that draw their own focus treatment must not also draw the global ring.
+   The global rule is a rectangle offset from the element; inside a rounded pill
+   that reads as a second, thicker ring in a different shape. Keyboard focus
+   stays visible — it moves to the pill, which is what the user sees. */
+.composer-field:focus-within,
+.nox-search-pill:focus-within {
   outline: none;
 }
 
-.composer-field :where(textarea, input):focus-visible {
+.composer-field :where(textarea, input):focus-visible,
+.nox-search-pill :where(textarea, input):focus-visible {
   outline: none;
 }
 

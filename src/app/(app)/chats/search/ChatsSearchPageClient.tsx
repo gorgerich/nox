@@ -1,5 +1,6 @@
 "use client";
 
+import { avatarTint } from "@/lib/avatar-tint";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Search, X } from "lucide-react";
@@ -136,7 +137,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Поиск"
-              className="h-11 w-full rounded-full bg-transparent px-11 text-[17px] font-medium outline-none transition-smooth placeholder:text-muted/60 focus:ring-2 focus:ring-primary/15"
+              className="h-11 w-full rounded-full bg-transparent px-11 text-[17px] font-medium outline-none transition-smooth placeholder:text-muted/60"
               type="search"
               autoFocus
               enterKeyHint="search"
@@ -165,7 +166,13 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                 const avatarUrl = chatAvatar(chat);
                 return (
                   <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex w-20 shrink-0 flex-col items-center gap-2 text-center">
-                    <div className="premium-glass relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold text-primary">
+                    {/* The same name-derived tint the chat list uses, seeded
+                        from the displayed title so one conversation keeps one
+                        colour on both screens. */}
+                    <div
+                      className="nox-avatar-tint relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold"
+                      data-avatar-tint={avatarTint(title)}
+                    >
                       {avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={avatarUrl.startsWith("http") ? avatarUrl : `/api/avatars/${avatarUrl}`} alt="" className="h-full w-full object-cover" />
