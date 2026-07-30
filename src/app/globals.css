@@ -74,7 +74,30 @@
      painted frame is already correct because it is pure CSS. */
   --messenger-dock-height: 3.25rem;   /* the pill height; the search button matches it */
   --messenger-dock-bottom-gap: 12px;  /* space between the dock and the safe area */
-  --messenger-dock-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--messenger-dock-bottom-gap));
+  /* Why this is not simply `inset + gap`.
+   *
+   * On iOS Safari a fixed element is laid out against the layout viewport,
+   * whose bottom edge already sits *above* the browser toolbar while that
+   * toolbar is showing — which it always is on first paint. But
+   * `env(safe-area-inset-bottom)` keeps reporting the window's inset (the
+   * home-indicator strip, ~34px) regardless. Adding it in that state counts the
+   * same space twice, so the dock floats a toolbar's height too high, and only
+   * "drops" once the user taps or scrolls and the toolbar collapses.
+   *
+   * `100lvh - 100dvh` is exactly the height the browser chrome currently
+   * occupies: zero when it is hidden, the toolbar height while it is showing.
+   * Subtracting it cancels the double count in the showing state and vanishes in
+   * the hidden state, where the inset genuinely is needed. `max()` keeps the
+   * gap from ever going negative.
+   *
+   * Still pure CSS: no timer, no synthetic touch, no transform, nothing
+   * recalculated in JavaScript after mount. The first painted frame is correct
+   * in both states, and the value tracks the toolbar on its own. */
+  --messenger-browser-chrome: calc(100lvh - 100dvh);
+  --messenger-dock-bottom: max(
+    var(--messenger-dock-bottom-gap),
+    calc(env(safe-area-inset-bottom, 0px) + var(--messenger-dock-bottom-gap) - var(--messenger-browser-chrome))
+  );
   --bottom-dock-clearance: calc(
     var(--messenger-dock-bottom) + var(--messenger-dock-height) + var(--messenger-dock-bottom-gap)
   );
