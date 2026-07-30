@@ -359,9 +359,15 @@ function AttachmentPreview({
         <button
           type="button"
           aria-label={roundExpanded ? "Свернуть видеосообщение" : "Воспроизвести видеосообщение"}
-          className={`relative mx-auto my-1 cursor-pointer overflow-hidden rounded-full shadow-sm transition-[width,height,opacity,transform,box-shadow] duration-300 active:opacity-90 ${
-            roundExpanded ? "h-[min(76vw,24rem)] w-[min(76vw,24rem)]" : "h-56 w-56"
-          }`}
+          /* Sized once and scaled, rather than animating width and height.
+             Those two are layout properties: every frame of the old transition
+             ran layout and paint for the whole message list, on the main thread.
+             transform is composited, so the same expansion costs nothing beyond
+             the GPU — and scale carries the video and the rounding with it. */
+          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full shadow-sm transition-[transform,opacity,box-shadow] duration-300 will-change-transform active:opacity-90"
+          style={{
+            transform: roundExpanded ? "scale(var(--round-video-expanded-scale))" : "scale(1)",
+          }}
           onClick={toggleRoundVideo}
         >
           <video

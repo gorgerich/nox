@@ -169,7 +169,7 @@ export default async function ArchivePage() {
     });
 
   return (
-    <div className="app-section animate-in fade-in duration-300">
+    <div className="app-section animate-in fade-in duration-180">
       <header className="app-section-header">
         <h1 className="app-section-title text-3xl">Архив</h1>
       </header>

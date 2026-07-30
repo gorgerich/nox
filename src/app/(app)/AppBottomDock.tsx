@@ -280,8 +280,12 @@ export function AppBottomDock({
               style={{
                 transform: `translateX(${pill.left}px)`,
                 width: `${pill.width}px`,
+                // 340ms on a tab bar that gets tapped dozens of times a day is
+                // felt as lag, not as polish: the frequency of an interaction
+                // decides its budget, and this one belongs with dropdowns
+                // (150-250ms), not with sheets.
                 transition: pillAnimated
-                  ? "transform 340ms var(--ease-out), width 340ms var(--ease-out)"
+                  ? "transform 200ms var(--ease-out), width 200ms var(--ease-out)"
                   : "none",
               }}
             />

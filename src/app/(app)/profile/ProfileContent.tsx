@@ -332,7 +332,7 @@ export function ProfileContent({
   return (
     <>
       {activeScreen === "main" && (
-        <div className="pb-[var(--bottom-dock-clearance)] animate-in fade-in slide-in-from-bottom-4 duration-300 safe-top">
+        <div className="pb-[var(--bottom-dock-clearance)] animate-in fade-in slide-in-from-bottom-4 duration-180 safe-top">
           <section className="mt-4 flex flex-col items-center text-center">
             <div className="group relative mb-5">
               <button
