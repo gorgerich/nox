@@ -1,5 +1,6 @@
 "use client";
 
+import { avatarTint } from "@/lib/avatar-tint";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -343,12 +344,16 @@ export function ProfileContent({
                   else fileInputRef.current?.click();
                 }}
                 disabled={pending}
-                className="relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-[0.96]"
+                /* The same name-derived tint every other avatar uses. A plain
+                   surface-muted disc was invisible against the surface behind
+                   it, so the initial read as floating type. */
+                className="nox-avatar-tint relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full transition-smooth active:scale-[0.96]"
+                data-avatar-tint={avatarTint(displayName || username)}
               >
                 {fullAvatarUrl ? (
                   <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
                 ) : (
-                  <span className="text-4xl font-semibold text-primary">
+                  <span className="text-4xl font-semibold">
                     {displayName[0]?.toUpperCase() || username[0]?.toUpperCase()}
                   </span>
                 )}

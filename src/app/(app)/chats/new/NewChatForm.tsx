@@ -187,7 +187,9 @@ export function NewChatForm() {
           </div>
           <button
             className="fast-tap flex h-12 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
-            disabled={pendingAction !== ""}
+            // An empty query has nothing to search for, so the button said it
+            // was available and then did nothing when pressed.
+            disabled={pendingAction !== "" || username.trim() === ""}
             type="submit"
           >
             {pendingAction === "search" ? "Ищем" : "Найти"}
