@@ -902,7 +902,11 @@ export const MessageBubble = memo(function MessageBubble({
             ))}
           </>
 
-          <div className={`${visualOnlyMessage ? "absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-white" : "mt-0.5"} flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+          {/* The timestamp sits at the trailing edge on both sides. Incoming
+              bubbles used to left-align it, which left a wide dead area to the
+              right of every short message and made the two sides of the same
+              conversation read as two different components. */}
+          <div className={`${visualOnlyMessage ? "absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-white" : "mt-0.5"} flex items-center gap-1.5 justify-end`}>
             <span
               className="text-[11px] font-medium tabular-nums"
               style={{ color: visualOnlyMessage ? "white" : mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
