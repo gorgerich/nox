@@ -994,7 +994,9 @@ body {
 
   .dock-tab {
     transition:
-      flex-grow 220ms var(--ease-out),
+      /* flex-grow is a layout property: animating it relaid out the whole dock
+         every frame, on every tab change. The sliding pill already carries the
+         movement, and it is a transform. */
       color 180ms ease,
       background-color 180ms ease,
       transform 160ms var(--ease-out);

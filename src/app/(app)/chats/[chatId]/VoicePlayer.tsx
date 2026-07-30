@@ -140,9 +140,13 @@ export function VoicePlayer({
         </div>
         
         <div className="relative h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--chat-focus-ring)" }}>
-          <div 
-            className="absolute left-0 top-0 h-full transition-[width,background-color] duration-100 ease-linear"
-            style={{ width: `${progress}%`, backgroundColor: activeWaveColor }}
+          {/* scaleX, not width: this bar moves on every timeupdate while a voice
+              message plays, and animating width ran layout and paint for the
+              whole bubble each time. A scale is composited, and the origin puts
+              the growth on the left where the fill belongs. */}
+          <div
+            className="absolute left-0 top-0 h-full w-full origin-left transition-[transform,background-color] duration-100 ease-linear"
+            style={{ transform: `scaleX(${Math.max(0, Math.min(100, progress)) / 100})`, backgroundColor: activeWaveColor }}
           />
         </div>
         
