@@ -65,7 +65,7 @@ export function E2EEContactDevices({ userId, chatId }: { userId: string; chatId?
     <section className="rounded-2xl border border-border-subtle bg-surface p-4">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">Шифрование</h3>
-        <p className="mt-1 text-xs font-normal text-muted">Ключи устройств собеседника и safety code</p>
+        <p className="mt-1 text-xs font-normal text-muted">Ключи устройств собеседника и код безопасности</p>
       </div>
       {loading ? <p className="py-3 text-sm font-medium text-muted">Загрузка ключей...</p> : null}
       {error ? <p className="mb-3 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">{error}</p> : null}

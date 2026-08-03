@@ -1,5 +1,6 @@
 "use client";
 
+import { avatarTint } from "@/lib/avatar-tint";
 import Image from "next/image";
 import { useState } from "react";
 import { AvatarViewer } from "../../profile/AvatarViewer";
@@ -21,7 +22,10 @@ export function UserAvatar({
         type="button"
         onClick={() => src && setOpen(true)}
         disabled={!src}
-        className="relative h-32 w-32 overflow-hidden rounded-full bg-primary/10 text-primary transition-smooth active:scale-[0.96] disabled:cursor-default"
+        // The same name-derived tint as every other avatar; a single accent
+        // wash made every profile look like the same person.
+        className="nox-avatar-tint relative h-32 w-32 overflow-hidden rounded-full transition-smooth active:scale-[0.96] disabled:cursor-default"
+        data-avatar-tint={avatarTint(displayName || username)}
         aria-label="Открыть фото профиля"
       >
         {src ? (
