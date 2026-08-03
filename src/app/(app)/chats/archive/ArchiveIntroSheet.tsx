@@ -53,16 +53,22 @@ export function ArchiveIntroSheet() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/35 animate-in fade-in duration-200"
+      // The blur matches the message overlay, which is the app's other scrim.
+      // A flat wash reads as a grey page rather than as something behind glass.
+      className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/32 backdrop-blur-md animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="archive-intro-title"
       onClick={dismiss}
     >
       <div
-        className="w-full max-w-md rounded-t-[2rem] bg-surface px-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] pt-8 shadow-[0_-8px_40px_rgba(15,23,42,0.18)] animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-md rounded-t-[2rem] bg-surface px-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] pt-8 shadow-[0_-8px_40px_rgba(15,23,42,0.18)] animate-in slide-in-from-bottom duration-300 ease-out"
         onClick={(event) => event.stopPropagation()}
       >
+        {/* Every other bottom sheet in the app has a grabber. Without one this
+            reads as a page that appeared rather than a sheet that can be
+            dismissed. */}
+        <div aria-hidden="true" className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-border" />
         <div className="flex flex-col items-center text-center">
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-b from-sky-400 to-primary text-white shadow-lg">
             <Archive className="h-9 w-9" strokeWidth={2.1} />

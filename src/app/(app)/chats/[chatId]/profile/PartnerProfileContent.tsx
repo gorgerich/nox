@@ -1,5 +1,6 @@
 "use client";
 
+import { avatarTint } from "@/lib/avatar-tint";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -177,13 +178,14 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
             type="button"
             onClick={() => fullAvatarUrl && setShowAvatarViewer(true)}
             disabled={!fullAvatarUrl}
-            className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full bg-surface-muted transition-smooth active:scale-[0.96] disabled:cursor-default"
+            className="nox-avatar-tint absolute inset-0 flex items-center justify-center overflow-hidden rounded-full transition-smooth active:scale-[0.96] disabled:cursor-default"
+            data-avatar-tint={avatarTint(settings.nickname || partnerUser.displayName || partnerUser.username)}
             aria-label="Открыть фото профиля"
           >
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
-              <span className="text-5xl font-semibold text-primary">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
+              <span className="text-5xl font-semibold">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
             )}
           </button>
           {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-background bg-primary" />}
@@ -196,17 +198,17 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       <div className="mb-7 grid grid-cols-4 gap-1 px-5">
         <ActionButton
           onClick={() => startCall(chatId, { displayName: settings.nickname || partnerUser.displayName, avatarUrl: partnerUser.avatarUrl ?? null }, { video: true })}
-          label="видео"
+          label="Видео"
           icon={<VideoIcon />}
         />
         <ActionButton 
           onClick={() => {
             startCall(chatId, { displayName: settings.nickname || partnerUser.displayName, avatarUrl: partnerUser.avatarUrl ?? null });
           }} 
-          label="аудио" 
+          label="Аудио"
           icon={<CallIcon />} 
         />
-        <ActionMenuButton label="звук" icon={<MuteIcon isMuted={!!settings.mutedUntil} />} options={muteOptions} onSelect={handleMute} />
+        <ActionMenuButton label="Звук" icon={<MuteIcon isMuted={!!settings.mutedUntil} />} options={muteOptions} onSelect={handleMute} />
         <MoreProfileButton
           isBlocked={settings.isBlocked}
           disabled={isBusy}
@@ -221,7 +223,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           <div className="px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[15px] text-muted">username</p>
+                <p className="text-[15px] text-muted">Username</p>
                 <p className="mt-0.5 truncate text-[20px] font-medium text-primary">@{partnerUser.username}</p>
               </div>
               <button
@@ -236,7 +238,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           </div>
           <div className="mx-5 h-px bg-border-subtle" />
           <div className="px-5 py-4">
-            <p className="text-[15px] text-muted">описание</p>
+            <p className="text-[15px] text-muted">Описание</p>
             <p className="mt-0.5 whitespace-pre-wrap text-[17px] leading-snug text-foreground">
               {partnerUser.bio?.trim() || "Описание профиля не добавлено"}
             </p>
@@ -360,7 +362,7 @@ function MoreProfileButton({
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div className="relative">
-      <ActionButton onClick={() => setIsOpen((v) => !v)} label="ещё" icon={<MoreIcon />} />
+      <ActionButton onClick={() => setIsOpen((v) => !v)} label="Ещё" icon={<MoreIcon />} />
       {isOpen && (
         <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label="Дополнительные действия">
           <div className="apple-glass-control absolute right-5 top-[calc(env(safe-area-inset-top,0px)+17rem)] w-64 overflow-hidden rounded-2xl p-2 animate-in zoom-in-95" onClick={(event) => event.stopPropagation()}>
