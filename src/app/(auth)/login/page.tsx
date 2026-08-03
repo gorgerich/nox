@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
-const LOGIN_ERROR_MESSAGE = "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u043e\u0439\u0442\u0438.";
+/**
+ * One sentence used to cover every failure — wrong password, server down, no
+ * network — tells the user nothing about what to do next. On a connection that
+ * needs a VPN to reach this app at all, "Не удалось войти." reads as "your
+ * account is broken" when the truth is "the request never arrived".
+ */
+const LOGIN_ERROR_MESSAGE = "Не удалось войти.";
+const LOGIN_OFFLINE_MESSAGE = "Нет соединения. Проверьте интернет и попробуйте снова.";
+const LOGIN_SERVER_MESSAGE = "Сервер сейчас недоступен. Попробуйте через минуту.";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,14 +37,19 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        setError(data?.error || LOGIN_ERROR_MESSAGE);
+        // The route answers 401 and 429 with a sentence of its own; anything in
+        // the 5xx range is the server's problem, not the credentials'.
+        setError(data?.error || (response.status >= 500 ? LOGIN_SERVER_MESSAGE : LOGIN_ERROR_MESSAGE));
         return;
       }
 
       router.replace("/chats");
       router.refresh();
     } catch {
-      setError(LOGIN_ERROR_MESSAGE);
+      // fetch only rejects when the request never completed: no network, DNS
+      // failure, TLS failure, a dropped tunnel. That is not a credentials
+      // problem and must not be worded like one.
+      setError(typeof navigator !== "undefined" && navigator.onLine === false ? LOGIN_OFFLINE_MESSAGE : LOGIN_SERVER_MESSAGE);
     } finally {
       setPending(false);
     }
