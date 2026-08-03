@@ -104,11 +104,17 @@ export default function ForgotPasswordPage() {
             </div>
 
             <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4 shadow-inner">
-               <p className="text-[11px] font-bold text-warning leading-relaxed text-center">
-                 Если вы сбрасываете пароль на новом устройстве, старые зашифрованные сообщения могут быть недоступны без recovery key или доверенного устройства.
+               {/* A warning has to be read, not shouted. Four lines of centred
+                   bold at 11px is the least readable way to say something that
+                   matters; the weight now marks the one clause that carries the
+                   consequence, and the block reads left-aligned like prose. */}
+               <p className="text-xs font-normal leading-relaxed text-warning">
+                 Если вы сбрасываете пароль на новом устройстве,{" "}
+                 <span className="font-semibold">старые зашифрованные сообщения могут стать недоступны</span>{" "}
+                 без ключа восстановления или доверенного устройства.
                </p>
-               <p className="mt-3 text-center text-xs font-semibold text-warning/80">
-                 Recovery keys в разработке
+               <p className="mt-2 text-xs font-medium text-warning/80">
+                 Ключи восстановления пока в разработке.
                </p>
             </div>
 
