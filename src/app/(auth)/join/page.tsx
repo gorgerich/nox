@@ -122,7 +122,11 @@ export default function JoinPage() {
               </p>
             )}
 
-            <button className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]" type="submit">
+            <button
+              className="fast-tap mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+              disabled={!login.trim() || !password.trim() || !inviteCode.trim()}
+              type="submit"
+            >
               Далее
             </button>
           </form>
@@ -168,8 +172,8 @@ export default function JoinPage() {
         )}
 
         <div className="mt-5 text-center">
-          <Link className="fast-tap inline-flex h-10 items-center justify-center px-3 text-sm font-semibold text-muted transition-smooth hover:text-primary active:scale-[0.96]" href="/login">
-            Уже есть профиль? Войти
+          <Link className="fast-tap inline-flex h-10 items-center justify-center px-3 text-sm font-medium text-muted transition-smooth active:scale-[0.96]" href="/login">
+            Уже есть профиль?&nbsp;<span className="font-semibold text-primary">Войти</span>
           </Link>
         </div>
       </div>
