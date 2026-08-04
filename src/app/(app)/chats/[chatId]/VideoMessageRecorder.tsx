@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, RotateCcw } from "lucide-react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -21,6 +22,7 @@ export function VideoMessageRecorder({
   onCapture: (file: File) => void;
   onClose: () => void;
 }) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -128,7 +130,8 @@ export function VideoMessageRecorder({
         setError("Нет доступа к камере. Разрешите камеру и микрофон.");
       }
     })();
-    return () => {
+
+  return () => {
       cancelled = true;
       discardRecording();
       stopStream();
@@ -209,7 +212,7 @@ export function VideoMessageRecorder({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1100] flex flex-col items-center justify-center bg-neutral-950 p-8 animate-in fade-in" role="dialog" aria-modal="true" aria-label="Запись видеосообщения">
+    <div ref={dialogRef} className="fixed inset-0 z-[1100] flex flex-col items-center justify-center bg-neutral-950 p-8 animate-in fade-in" role="dialog" aria-modal="true" aria-label="Запись видеосообщения">
       <div className="relative mb-8 h-72 w-72 overflow-hidden rounded-full border-4 border-white/15 bg-neutral-900 shadow-[0_18px_52px_rgba(0,0,0,0.32)]">
         <video ref={videoRef} autoPlay playsInline muted className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`} />
         {recording && (

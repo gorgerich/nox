@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 const CROP_AREA_SIZE = 288; // 72rem * 4px = 288px
 
@@ -148,8 +149,10 @@ export function MediaCropModal({
     };
   }, []);
 
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onCancel);
+
   return (
-    <div className="fixed inset-0 z-[1100] flex flex-col bg-black animate-in fade-in duration-200 touch-none" role="dialog" aria-modal="true" aria-label="Обрезка изображения">
+    <div ref={dialogRef} className="fixed inset-0 z-[1100] flex flex-col bg-black animate-in fade-in duration-200 touch-none" role="dialog" aria-modal="true" aria-label="Обрезка изображения">
       <header className="safe-top flex items-center justify-between px-6 py-4 text-white z-10">
         <button type="button" onClick={onCancel} className="h-10 px-2 flex items-center text-sm font-semibold text-white/70 hover:text-white transition-colors active:scale-[0.96]">Отмена</button>
         <h2 className="text-sm font-semibold text-white/90">Кадрирование</h2>

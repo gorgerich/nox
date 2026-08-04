@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import Image from "next/image";
 import { Search, UsersRound } from "lucide-react";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -115,8 +116,10 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
       if (!displayUsers.has(id)) displayUsers.set(id, u);
   });
 
+  const dialogRef = useFocusTrap<HTMLDivElement>(true);
+
   return (
-    <div className="fixed inset-0 z-[500] flex flex-col items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in transition-smooth sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-group-title">
+    <div ref={dialogRef} className="fixed inset-0 z-[500] flex flex-col items-center justify-center bg-black/45 p-4 backdrop-blur-sm animate-in fade-in transition-smooth sm:p-6" role="dialog" aria-modal="true" aria-labelledby="new-group-title">
         <div className="premium-glass flex max-h-full w-full max-w-md flex-col space-y-5 overflow-hidden rounded-[1.75rem] p-5">
             <div className="shrink-0 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/12 text-primary">
@@ -165,7 +168,8 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
                 {Array.from(displayUsers.values()).map(u => {
                     const isSelected = selectedUsers.has(u.id);
                     const fullAvatarUrl = normalizeAvatarUrl(u.avatarUrl);
-                    return (
+
+  return (
                       <button
                           type="button"
                           key={u.id} 

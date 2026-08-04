@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { MediaCropModal } from "./MediaCropModal";
 
 export interface MediaPreviewItem {
@@ -120,8 +121,11 @@ export function MediaPreviewComposer({
     );
   }
 
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onCancel);
+
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[2000] flex flex-col bg-black animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"

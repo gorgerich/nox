@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { createPortal } from "react-dom";
 
 export function AvatarViewer({
@@ -63,8 +64,11 @@ export function AvatarViewer({
     }
   };
 
+  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
+
   return createPortal(
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[1200] flex flex-col bg-black animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"

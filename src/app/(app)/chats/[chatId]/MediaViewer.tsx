@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { createPortal } from "react-dom";
 
 export type MediaItem = {
@@ -79,8 +80,12 @@ export function MediaViewer({
     }
   };
 
+  // Escape is already handled above; the trap owns focus and inert.
+  const dialogRef = useFocusTrap<HTMLDivElement>(true);
+
   return createPortal(
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[200] flex flex-col bg-black/95 transition-opacity animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"

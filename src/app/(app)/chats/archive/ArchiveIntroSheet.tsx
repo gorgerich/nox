@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { createPortal } from "react-dom";
 import { Archive, EyeOff, Undo2 } from "lucide-react";
 
@@ -29,6 +30,7 @@ const POINTS = [
 
 export function ArchiveIntroSheet() {
   const [isOpen, setIsOpen] = useState(false);
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   useEffect(() => {
     let seen = false;
@@ -55,6 +57,7 @@ export function ArchiveIntroSheet() {
     <div
       // The blur matches the message overlay, which is the app's other scrim.
       // A flat wash reads as a grey page rather than as something behind glass.
+      ref={dialogRef}
       className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/32 backdrop-blur-md animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
@@ -84,7 +87,8 @@ export function ArchiveIntroSheet() {
         <ul className="mt-7 space-y-5">
           {POINTS.map((point) => {
             const Icon = point.icon;
-            return (
+
+  return (
               <li key={point.title} className="flex gap-4">
                 <Icon className="mt-0.5 h-[1.4rem] w-[1.4rem] shrink-0 text-primary" strokeWidth={2} />
                 <div className="min-w-0">
