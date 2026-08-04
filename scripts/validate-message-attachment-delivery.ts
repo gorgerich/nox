@@ -65,6 +65,29 @@ async function countMessages(prisma: ReturnType<typeof createPrisma>, chatId: st
   return prisma.message.count({ where: { chatId } });
 }
 
+/**
+ * Polls until the conversation holds the expected number of messages.
+ *
+ * A fixed sleep encodes a guess about how fast the machine is. When the guess
+ * is wrong the suite reports "the upload never arrived" for one that arrives a
+ * moment later — and the very next assertion, counting one row more, passes.
+ * Waiting on the condition removes the guess.
+ */
+async function untilMessages(
+  prisma: ReturnType<typeof createPrisma>,
+  chatId: string,
+  expected: number,
+  timeoutMs = 45_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  let rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: true } });
+  while (rows.length < expected && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: true } });
+  }
+  return rows;
+}
+
 async function main() {
   const url = await requireIsolatedDatabase();
   const shots = screenshotDir();
@@ -109,9 +132,8 @@ async function main() {
     await attach(page, files.photo);
     await page.waitForTimeout(1_200);
     await page.screenshot({ path: join(shots, "attachment-uploading.png") });
-    await page.waitForTimeout(5_000);
 
-    let rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: true } });
+    let rows = await untilMessages(prisma, chatId, 1);
     check("a photo reaches the server exactly once", rows.length === 1, `rows=${rows.length}`);
     check("the photo is stored as an image", rows[0]?.type === "IMAGE", String(rows[0]?.type));
     check("the photo carries a client id", Boolean(rows[0]?.clientMessageId));
@@ -120,23 +142,20 @@ async function main() {
 
     // --- 2 — a plain file ---------------------------------------------------
     await attach(page, files.document);
-    await page.waitForTimeout(5_000);
-    rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: true } });
+    rows = await untilMessages(prisma, chatId, 2);
     check("a document reaches the server", rows.length === 2, `rows=${rows.length}`);
     check("the document is stored as a file", rows.some((row) => row.type === "FILE"));
 
     // --- 3 — a voice message ------------------------------------------------
     await attach(page, files.voice);
-    await page.waitForTimeout(5_000);
-    rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: true } });
+    rows = await untilMessages(prisma, chatId, 3);
     check("a voice message reaches the server", rows.length === 3, `rows=${rows.length}`);
     check("the voice message is stored as VOICE", rows.some((row) => row.type === "VOICE"));
     await page.screenshot({ path: join(shots, "voice-message-sent.png") });
 
     // --- 4 — a video circle -------------------------------------------------
     await attach(page, files.circle);
-    await page.waitForTimeout(5_000);
-    rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: true } });
+    rows = await untilMessages(prisma, chatId, 4);
     check("a video circle reaches the server", rows.length === 4, `rows=${rows.length}`);
     check("the video circle is stored as VIDEO_NOTE", rows.some((row) => row.type === "VIDEO_NOTE"));
     await page.screenshot({ path: join(shots, "video-circle-sent.png") });
