@@ -701,7 +701,12 @@ body {
    stays visible — it moves to the pill, which is what the user sees. */
 .composer-field:focus-within,
 .nox-search-pill:focus-within {
+  /* The global ring is removed because its rectangle fights the rounded pill,
+     but "removed" is not "replaced": a 1px border tint is not a focus
+     indicator. This is a 2px perimeter that follows the radius, which is what a
+     keyboard user needs to see. */
   outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 55%, transparent);
 }
 
 .composer-field :where(textarea, input):focus-visible,
@@ -1791,6 +1796,12 @@ body {
   .auth-field:focus-within,
   .auth-field :where(input):focus-visible {
     outline: none;
+  }
+
+  /* Same reasoning as the composer: the pill owns the indicator, so the pill
+     has to actually draw one. */
+  .auth-field:focus-within {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 55%, transparent);
   }
 
   .auth-field input {
