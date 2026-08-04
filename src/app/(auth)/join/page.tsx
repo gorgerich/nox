@@ -111,7 +111,7 @@ export default function JoinPage() {
                 />
                 <button
                   type="button"
-                  className="fast-tap -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition-smooth active:scale-[0.94]"
+                  className="fast-tap -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition-smooth active:scale-[0.96]"
                   onClick={() => setPasswordVisible((visible) => !visible)}
                   aria-label={passwordVisible ? "Скрыть пароль" : "Показать пароль"}
                   aria-pressed={passwordVisible}

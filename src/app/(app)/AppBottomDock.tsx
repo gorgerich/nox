@@ -363,7 +363,7 @@ export function AppBottomDock({
           aria-label="Поиск"
           aria-current={isSearchActive ? "page" : undefined}
           className={clsx(
-            "premium-glass dock-liquid fast-tap fluid-hit flex h-[3.25rem] w-[3.25rem] shrink-0 items-center justify-center rounded-full transition-smooth active:scale-[0.94]",
+            "premium-glass dock-liquid fast-tap fluid-hit flex h-[3.25rem] w-[3.25rem] shrink-0 items-center justify-center rounded-full transition-smooth active:scale-[0.96]",
             isSearchActive ? "text-primary" : "text-[var(--dock-inactive)]",
           )}
           href="/chats/search"
