@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useSocket } from "@/hooks/useSocket";
 
 type RecoveryRequest = {
@@ -11,8 +12,12 @@ type RecoveryRequest = {
 };
 
 export function AccountRecoveryListener() {
+
   const { socket } = useSocket();
   const [request, setRequest] = useState<RecoveryRequest | null>(null);
+  // This listener stays mounted for the whole session and only renders when a
+  // request arrives, so the trap is driven by the request, not by mounting.
+  const dialogRef = useFocusTrap<HTMLDivElement>(Boolean(request));
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +76,7 @@ export function AccountRecoveryListener() {
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm animate-in fade-in"
       role="dialog"
       aria-modal="true"

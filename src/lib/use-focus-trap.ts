@@ -31,7 +31,9 @@ export function useFocusTrap<T extends HTMLElement>(
   // Read through a ref so a caller that recreates the callback on every render
   // does not tear the trap down and rebuild it mid-interaction.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!isOpen) return;

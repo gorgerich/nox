@@ -30,6 +30,10 @@ export function AvatarViewer({
     };
   }, [onClose, src]);
 
+  // Above the early return, and driven by `src`: a hook after a conditional
+  // return runs in a different order between renders.
+  const dialogRef = useFocusTrap<HTMLDivElement>(Boolean(src), onClose);
+
   if (!src || typeof document === "undefined") return null;
 
   const handleSave = async (event: React.MouseEvent) => {
@@ -64,7 +68,6 @@ export function AvatarViewer({
     }
   };
 
-  const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
 
   return createPortal(
     <div

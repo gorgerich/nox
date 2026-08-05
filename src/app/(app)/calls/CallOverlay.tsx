@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useAudioCall } from "./CallProvider";
@@ -20,6 +21,9 @@ type WindowWithWebkitAudioContext = Window & typeof globalThis & {
 
 export function CallOverlay() {
   const { call, status, remoteStream, localStream, isMuted, isCameraOff, isVideo, isScreenSharing, error, debugInfo, acceptCall, declineCall, endCall, toggleMute, toggleCamera, switchCamera, markRemoteAudioPlayback } = useAudioCall();
+  // Always mounted and renders nothing while idle, so the trap follows the
+  // call status. No Escape handler: ending a call stays a deliberate action.
+  const dialogRef = useFocusTrap<HTMLDivElement>(status !== "idle");
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -265,6 +269,7 @@ export function CallOverlay() {
 
   return createPortal(
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[1000] flex flex-col items-center justify-between overflow-hidden bg-neutral-950 p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] animate-in fade-in duration-200 pointer-events-auto"
       role="dialog"
       aria-modal="true"

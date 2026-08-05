@@ -321,7 +321,10 @@ export type PageLike = {
   locator(selector: string): Locator;
   getByText(text: string, options?: { exact?: boolean }): Locator;
   getByRole(role: string, options?: { name?: string | RegExp }): Locator;
-  evaluate<T, A = undefined>(fn: (arg: A) => T | Promise<T>, arg?: A): Promise<T>;
+  // A string expression is also accepted, and is sometimes the only option:
+  // tsx rewrites named functions to carry a `__name` helper that does not exist
+  // inside the page, so a passed function throws `__name is not defined`.
+  evaluate<T, A = undefined>(fn: ((arg: A) => T | Promise<T>) | string, arg?: A): Promise<T>;
   close(): Promise<void>;
   request: {
     post(url: string, options: { data: unknown }): Promise<ApiResponse>;

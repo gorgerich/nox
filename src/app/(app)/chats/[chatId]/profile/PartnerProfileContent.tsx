@@ -1,6 +1,7 @@
 "use client";
 
 import { avatarTint } from "@/lib/avatar-tint";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -75,6 +76,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isEncryptionOpen, setIsEncryptionOpen] = useState(false);
+  const editSheetRef = useFocusTrap<HTMLDivElement>(isEditSheetOpen, () => setIsEditSheetOpen(false));
+  const encryptionRef = useFocusTrap<HTMLDivElement>(isEncryptionOpen, () => setIsEncryptionOpen(false));
   const [isBusy, setIsBusy] = useState(false);
 
   const presence = usePresence({
@@ -264,7 +267,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       </div>
 
       {isEditSheetOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="edit-contact-title">
+        <div ref={editSheetRef} className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="edit-contact-title">
           <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-5">
             <h2 id="edit-contact-title" className="mb-5 text-xl font-semibold">Изменить контакт</h2>
             <input 
@@ -292,7 +295,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
       )}
 
       {isEncryptionOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="encryption-title">
+        <div ref={encryptionRef} className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="encryption-title">
           <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-5">
             <div className="mb-4 flex items-center justify-between">
               <h2 id="encryption-title" className="text-xl font-semibold">Шифрование</h2>
@@ -328,11 +331,12 @@ function ActionButton({ label, icon, onClick, destructive }: { label: string, ic
 
 function ActionMenuButton({ label, icon, options, onSelect }: { label: string, icon: React.ReactNode, options: { label: string, value: number }[], onSelect: (val: number) => void }) {
   const [isOpen, setIsOpen] = useState(false);
+  const popoverRef = useFocusTrap<HTMLDivElement>(isOpen, () => setIsOpen(false));
   return (
     <div className="relative">
       <ActionButton onClick={() => setIsOpen(!isOpen)} label={label} icon={icon} />
       {isOpen && (
-        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label={label}>
+        <div ref={popoverRef} className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label={label}>
           <div className="apple-glass-control absolute left-1/2 top-1/2 w-64 -translate-x-1/2 -translate-y-1/2 rounded-2xl p-2 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             {options.map((opt) => (
               <button key={opt.value} onClick={() => { onSelect(opt.value); setIsOpen(false); }} className="w-full rounded-xl px-5 py-3.5 text-left text-sm font-medium transition-smooth hover:bg-foreground/5">
@@ -360,11 +364,12 @@ function MoreProfileButton({
   onBlock: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useFocusTrap<HTMLDivElement>(isOpen, () => setIsOpen(false));
   return (
     <div className="relative">
       <ActionButton onClick={() => setIsOpen((v) => !v)} label="Ещё" icon={<MoreIcon />} />
       {isOpen && (
-        <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label="Дополнительные действия">
+        <div ref={menuRef} className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label="Дополнительные действия">
           <div className="apple-glass-control absolute right-5 top-[calc(env(safe-area-inset-top,0px)+17rem)] w-64 overflow-hidden rounded-2xl p-2 animate-in zoom-in-95" onClick={(event) => event.stopPropagation()}>
             <MenuItem onClick={() => { setIsOpen(false); onSearch(); }} icon={<SearchIcon />} label="Поиск" />
             <MenuItem onClick={() => { setIsOpen(false); onClear(); }} icon={<TrashIcon />} label="Очистить диалог" destructive disabled={disabled} />

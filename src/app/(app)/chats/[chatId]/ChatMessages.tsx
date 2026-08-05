@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -988,6 +989,10 @@ export function ChatMessages({
   const [recentChatsLoading, setRecentChatsLoading] = useState(false);
   const recentChatsLoadedRef = useRef(initialForwardChats.length > 0);
   const [showForwardPicker, setShowForwardPicker] = useState(false);
+  // The action overlay is portalled to document.body and the forward picker is
+  // rendered inline; both are driven from here, so both traps live here too.
+  const actionOverlayRef = useFocusTrap<HTMLDivElement>(Boolean(menuState), () => setMenuState(null));
+  const forwardPickerRef = useFocusTrap<HTMLDivElement>(showForwardPicker, () => setShowForwardPicker(false));
   const [isForwarding, setIsForwarding] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -1915,6 +1920,7 @@ export function ChatMessages({
     return (
       <ChatThemePortal themeVars={themeVars as React.CSSProperties} scheme={chatScheme}>
       <div
+        ref={actionOverlayRef}
         className="fixed inset-0 z-[900] flex flex-col no-select"
         role="dialog"
         aria-modal="true"
@@ -2406,7 +2412,7 @@ export function ChatMessages({
       ) : null}
 
       {showForwardPicker && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="forward-picker-title">
+        <div ref={forwardPickerRef} className="fixed inset-0 z-[400] flex items-center justify-center bg-black/55 p-6 backdrop-blur-sm animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="forward-picker-title">
            <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-6">
               <h2 id="forward-picker-title" className="mb-6 px-2 text-xl font-semibold">Переслать</h2>
               <div className="max-h-80 overflow-y-auto space-y-2 pr-2 scrollbar-hide">

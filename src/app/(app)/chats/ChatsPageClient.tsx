@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, MessageCircle, Search, Send, UserPlus, Users } from "lucide-react";
@@ -82,6 +83,15 @@ export function ChatsPageClient({
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [inviteSheet, setInviteSheet] = useState<InviteSheetState | null>(null);
   const [invitePending, setInvitePending] = useState(false);
+  // Both sheets render inline and conditionally, so the traps are declared
+  // unconditionally here and driven by the same state that mounts them.
+  const plusMenuRef = useFocusTrap<HTMLDivElement>(plusMenuOpen, () => setPlusMenuOpen(false));
+  // While an invite is being created there is nothing to go back to yet, so
+  // Escape must not close it mid-request.
+  const inviteSheetRef = useFocusTrap<HTMLDivElement>(
+    Boolean(invitePending || inviteSheet),
+    invitePending ? undefined : () => setInviteSheet(null),
+  );
   const [inviteError, setInviteError] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
   const [chatFolders, setChatFolders] = useState(initialChatFolders);
@@ -653,6 +663,7 @@ export function ChatsPageClient({
 
       {plusMenuOpen && (
         <div
+          ref={plusMenuRef}
           className="nox-sheet-backdrop"
           role="dialog"
           aria-modal="true"
@@ -700,6 +711,7 @@ export function ChatsPageClient({
 
       {(invitePending || inviteSheet) && (
         <div
+          ref={inviteSheetRef}
           className="nox-sheet-backdrop"
           role="dialog"
           aria-modal="true"
