@@ -52,6 +52,30 @@ function files(stamp: number): Record<string, StagedFile> {
   };
 }
 
+/**
+ * Polls until the conversation holds the expected number of messages, with the
+ * attachment and envelope rows the assertions need.
+ *
+ * A fixed sleep encodes a guess about how fast the machine is; when the guess
+ * is wrong the suite reports "the upload never arrived" for one that arrives a
+ * moment later.
+ */
+async function untilAttachmentMessages(
+  prisma: ReturnType<typeof createPrisma>,
+  chatId: string,
+  expected: number,
+  timeoutMs = 60_000,
+) {
+  const include = { attachments: { include: { mediaKeyEnvelopes: true } } };
+  const deadline = Date.now() + timeoutMs;
+  let rows = await prisma.message.findMany({ where: { chatId }, include });
+  while (rows.length < expected && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    rows = await prisma.message.findMany({ where: { chatId }, include });
+  }
+  return rows;
+}
+
 async function waitForDevice(prisma: ReturnType<typeof createPrisma>, userId: string, timeoutMs = 60_000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
@@ -165,12 +189,10 @@ async function main() {
 
     // --- 1 — a photo in a one-to-one conversation ---------------------------
     await attach(pageA, file.photo);
-    await pageA.waitForTimeout(8_000);
-
-    let rows = await prisma.message.findMany({
-      where: { chatId },
-      include: { attachments: { include: { mediaKeyEnvelopes: true } } },
-    });
+    // Encrypting the file, wrapping the media key per device and uploading all
+    // take longer than sending plaintext, and longer again under the load of a
+    // full gate run. Wait for the row instead of guessing at eight seconds.
+    let rows = await untilAttachmentMessages(prisma, chatId, 1);
     check("an encrypted photo reaches the server exactly once", rows.length === 1, `rows=${rows.length}`);
     const photoMessage = rows[0];
     check("the photo is stored as an image", photoMessage?.type === "IMAGE", String(photoMessage?.type));
@@ -203,13 +225,11 @@ async function main() {
 
     // --- 2/3/4 — a file, a voice note and a video circle --------------------
     await attach(pageA, file.document);
-    await pageA.waitForTimeout(7_000);
+    await untilAttachmentMessages(prisma, chatId, 2);
     await attach(pageA, file.voice);
-    await pageA.waitForTimeout(7_000);
+    await untilAttachmentMessages(prisma, chatId, 3);
     await attach(pageA, file.circle);
-    await pageA.waitForTimeout(7_000);
-
-    rows = await prisma.message.findMany({ where: { chatId }, include: { attachments: { include: { mediaKeyEnvelopes: true } } } });
+    rows = await untilAttachmentMessages(prisma, chatId, 4);
     check("four encrypted attachments are stored", rows.length === 4, `rows=${rows.length}`);
     check("the document is stored as a file", rows.some((row) => row.type === "FILE"));
     check("the voice note is stored as VOICE", rows.some((row) => row.type === "VOICE"));
@@ -224,7 +244,8 @@ async function main() {
     {
       const caption = `подпись-${stamp}`;
       await attach(pageA, { ...file.photo, name: "captioned.png" }, caption);
-      await pageA.waitForTimeout(9_000);
+      // A captioned upload produces two messages: the media, then the text.
+      await untilAttachmentMessages(prisma, chatId, 6);
 
       const afterCaption = await prisma.message.findMany({
         where: { chatId },

@@ -1,6 +1,7 @@
 "use client";
 
 import { avatarTint } from "@/lib/avatar-tint";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { formatCalendarDate, roleLabel } from "@/lib/format-ru";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
@@ -67,6 +68,12 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   const [foundUsers, setFoundUser] = useState<FoundGroupUser[]>([]);
   const [pending, setPending] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const editTitleRef = useFocusTrap<HTMLDivElement>(isEditingTitle, () => setIsEditingTitle(false));
+  const addMembersRef = useFocusTrap<HTMLDivElement>(isAddingMembers, () => {
+    setIsAddingMembers(false);
+    setSearchUser("");
+    setFoundUser([]);
+  });
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const { settings: appearance, updateSettings, resetSettings } = useChatAppearance(chatId);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -348,7 +355,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       </div>
 
       {isEditingTitle && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="edit-group-title">
+        <div ref={editTitleRef} className="fixed inset-0 z-[600] flex items-center justify-center bg-black/55 p-6 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="edit-group-title">
           <div className="premium-glass w-full max-w-sm rounded-[1.75rem] p-5">
             <h2 id="edit-group-title" className="mb-5 text-xl font-semibold">Название группы</h2>
             <input className="input-nox mb-6" aria-label="Название группы" value={newTitle} onChange={e => setNewTitle(e.target.value)} autoFocus />
@@ -361,7 +368,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
       )}
 
       {isAddingMembers && (
-        <div className="fixed inset-0 z-[600] flex flex-col bg-surface safe-top animate-in slide-in-from-bottom duration-300" role="dialog" aria-modal="true" aria-labelledby="add-members-title">
+        <div ref={addMembersRef} className="fixed inset-0 z-[600] flex flex-col bg-surface safe-top animate-in slide-in-from-bottom duration-300" role="dialog" aria-modal="true" aria-labelledby="add-members-title">
            <header className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
              <button onClick={() => { setIsAddingMembers(false); setSearchUser(""); setFoundUser([]); }} className="text-sm font-semibold text-muted">Отмена</button>
              <h2 id="add-members-title" className="text-sm font-semibold">Добавить участников</h2>

@@ -110,8 +110,12 @@ export function MediaPreviewComposer({
   };
 
   const currentItem = items[currentIndex];
+  // While cropping this component renders MediaCropModal instead, which brings
+  // its own trap; two traps fighting over the same focus is worse than none.
+  const isCropView = isCropping && currentItem?.type === "IMAGE";
+  const dialogRef = useFocusTrap<HTMLDivElement>(!isCropView, onCancel);
 
-  if (isCropping && currentItem?.type === "IMAGE") {
+  if (isCropView) {
     return (
       <MediaCropModal
         imageSrc={currentItem.previewUrl}
@@ -121,7 +125,6 @@ export function MediaPreviewComposer({
     );
   }
 
-  const dialogRef = useFocusTrap<HTMLDivElement>(true, onCancel);
 
   return (
     <div

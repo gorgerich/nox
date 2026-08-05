@@ -166,7 +166,7 @@ async function main() {
       const composer = await composerOf(page);
       await composer.fill(caption);
       await composer.press("Enter");
-      await page.waitForTimeout(4_000);
+      await untilMessages(prisma, chatId, 5, 45_000);
       check("a caption is delivered as its own message", (await countMessages(prisma, chatId)) === 5);
       check("the caption is visible once", (await page.getByText(caption, { exact: true }).count()) === 1);
     }
@@ -225,7 +225,11 @@ async function main() {
       // --- 9 — retry once the route works again -----------------------------
       await context.unroute("**/api/chats/*/attachments");
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.waitForTimeout(9_000);
+      // Wait for the row, not for a stopwatch. The retry runs after a reload
+      // rehydrates the pending store, and under the load of a full gate run
+      // that took longer than the nine seconds this used to sleep for — which
+      // failed the suite on timing while the retry itself worked.
+      await untilMessages(prisma, chatId, 6, 60_000);
       const afterRetry = await countMessages(prisma, chatId);
       check("the retried upload is delivered exactly once", afterRetry === 6, `rows=${afterRetry}`);
       // The file that failed, survived a reload and was retried must exist
@@ -257,8 +261,17 @@ async function main() {
       check("a replayed upload creates no second attachment", attachments === 1, `attachments=${attachments}`);
 
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.waitForTimeout(4_000);
-      const bubbles = await page.locator("img[alt], a[download], audio, video").count();
+      // Wait for the bubbles to render rather than for four seconds; a slow
+      // reload otherwise reads as "the attachment disappeared".
+      //
+      // `attached`, not `visible`: the media bubbles sit in absolutely
+      // positioned, lazily loaded tiles that Playwright reports as hidden even
+      // once they are in the DOM, and the page also keeps a 1px aria-hidden
+      // <audio> for playback. What this step is checking is that the reloaded
+      // page rebuilt its bubbles, which is a question about the DOM.
+      const BUBBLES = "img[alt], a[download], audio:not([aria-hidden='true']), video:not([aria-hidden='true'])";
+      await page.locator(BUBBLES).first().waitFor({ state: "attached", timeout: 45_000 });
+      const bubbles = await page.locator(BUBBLES).count();
       check("a replayed upload creates no second bubble", bubbles > 0 && (await countMessages(prisma, chatId)) === before);
     }
 

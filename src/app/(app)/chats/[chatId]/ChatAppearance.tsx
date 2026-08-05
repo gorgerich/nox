@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, RotateCcw } from "lucide-react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useCallback, useState, useSyncExternalStore } from "react";
 
 export type ChatWallpaperKey = "none" | "orbit-night" | "botanical-light" | "contour-color";
@@ -765,12 +766,14 @@ export function ChatAppearanceSheet({
   onUpdate: (s: Partial<AppearanceSettings>, isGlobal?: boolean) => void;
   onReset: () => void;
 }) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
   if (!isOpen) {
     return null;
   }
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[300] flex items-end justify-center bg-black/35 backdrop-blur-[2px] transition-smooth animate-in fade-in"
       role="dialog"
       aria-modal="true"

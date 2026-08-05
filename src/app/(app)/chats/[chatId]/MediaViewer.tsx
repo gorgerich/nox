@@ -37,6 +37,10 @@ export function MediaViewer({
     };
   }, [item, onClose]);
 
+  // Escape is already handled above; the trap owns focus and inert. It has to
+  // sit above the early return so its call order never changes.
+  const dialogRef = useFocusTrap<HTMLDivElement>(Boolean(item));
+
   if (!item || typeof document === "undefined") return null;
 
   const handleDownload = async (e: React.MouseEvent) => {
@@ -80,8 +84,6 @@ export function MediaViewer({
     }
   };
 
-  // Escape is already handled above; the trap owns focus and inert.
-  const dialogRef = useFocusTrap<HTMLDivElement>(true);
 
   return createPortal(
     <div

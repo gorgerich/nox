@@ -1,6 +1,7 @@
 "use client";
 
 import { avatarTint } from "@/lib/avatar-tint";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -81,6 +82,7 @@ export function ProfileContent({
   const [passwordPending, setPasswordPending] = useState(false);
 
   const [showTrustedReset, setShowTrustedReset] = useState(false);
+  const trustedResetRef = useFocusTrap<HTMLDivElement>(showTrustedReset, () => setShowTrustedReset(false));
   const [trustedNewPassword, setTrustedNewPassword] = useState("");
   const [trustedPending, setTrustedPending] = useState(false);
   const [trustedError, setTrustedError] = useState("");
@@ -915,6 +917,7 @@ export function ProfileContent({
       {/* Trusted Reset Modal */}
       {showTrustedReset && (
         <div
+          ref={trustedResetRef}
           className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/55 p-6 animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
