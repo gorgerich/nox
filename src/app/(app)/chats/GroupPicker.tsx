@@ -138,7 +138,9 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
             <div className="shrink-0 space-y-4">
               <input 
                   className="input-nox w-full h-14" 
-                  placeholder="Название группы" 
+                  placeholder="Название группы"
+                  aria-label="Название группы"
+                  
                   value={title} 
                   onChange={e => setTitle(e.target.value)} 
                   maxLength={64}
@@ -147,7 +149,9 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
               <form onSubmit={handleSearch} className="flex gap-2">
                   <input 
                       className="input-nox w-full h-12 text-sm" 
-                      placeholder="Добавить по username" 
+                      placeholder="Добавить по username"
+                      aria-label="Добавить участника по username"
+                      
                       value={searchUsername} 
                       onChange={e => setSearchUsername(e.target.value)} 
                   />

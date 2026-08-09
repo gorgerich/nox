@@ -361,6 +361,7 @@ export function AdminPanel({
                   <input
                     className="input-nox"
                     placeholder="Лимит использований (число)"
+                    aria-label="Лимит использований"
                     type="number"
                     value={inviteForm.maxUses}
                     onChange={(e) => setInviteForm({...inviteForm, maxUses: e.target.value})}
@@ -368,6 +369,7 @@ export function AdminPanel({
                   <input
                     className="input-nox"
                     type="datetime-local"
+                    aria-label="Срок действия кода"
                     style={{ colorScheme: "dark" }}
                     value={inviteForm.expiresAt}
                     onChange={(e) => setInviteForm({...inviteForm, expiresAt: e.target.value})}

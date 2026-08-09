@@ -410,6 +410,7 @@ export function ChatComposer({
                 data-composer-ready={interactive ? "1" : undefined}
                 className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."
+                aria-label="Сообщение"
                 rows={1}
                 value={text}
                 onFocus={() => setShowEmoji(false)}

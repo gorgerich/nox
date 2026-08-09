@@ -60,6 +60,17 @@ function files(stamp: number): Record<string, StagedFile> {
  * is wrong the suite reports "the upload never arrived" for one that arrives a
  * moment later.
  */
+/** Polls the sender's device until it has nothing left owed, or gives up. */
+async function untilLocalStoresEmpty(page: PageLike, timeoutMs = 45_000) {
+  const deadline = Date.now() + timeoutMs;
+  let stores = await localStores(page);
+  while ((stores.blobs > 0 || stores.pending > 0) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    stores = await localStores(page);
+  }
+  return stores;
+}
+
 async function untilAttachmentMessages(
   prisma: ReturnType<typeof createPrisma>,
   chatId: string,
@@ -344,13 +355,21 @@ async function main() {
       // 7 — the retry, which must reuse the client id
       await contextA.unroute("**/api/chats/*/attachments");
       await pageA.reload({ waitUntil: "domcontentloaded" });
-      await pageA.waitForTimeout(12_000);
+      // The reload has to rehydrate the pending store, re-encrypt and re-upload
+      // before this row exists. Twelve seconds was a guess about how fast the
+      // machine is, and it lost that bet on a loaded one — reporting "the retry
+      // never delivered" for a retry that was still in flight.
+      await untilAttachmentMessages(prisma, chatId, 7);
       const after = await prisma.message.count({ where: { chatId } });
       check("the retried encrypted upload is delivered exactly once", after === 7, `rows=${after}`);
       const retried = await prisma.attachment.count({ where: { message: { chatId }, sizeBytes: file.photo.buffer.length } });
       check("the retry produced no duplicate attachment rows", retried <= 3, `matching=${retried}`);
 
-      const settled = await localStores(pageA);
+      // The row landing on the server and the device letting go of its copy are
+      // two different moments: the page still has to see the delivery before it
+      // clears the staged bytes. Wait for that, rather than reading the store
+      // the instant the row appears.
+      const settled = await untilLocalStoresEmpty(pageA);
       check("a delivered encrypted attachment releases its staged bytes", settled.blobs === 0, `blobs=${settled.blobs}`);
       check("a delivered encrypted attachment clears its pending record", settled.pending === 0, `pending=${settled.pending}`);
     }
@@ -390,8 +409,7 @@ async function main() {
 
     // --- 13/14 — both sides reload ------------------------------------------
     await pageA.reload({ waitUntil: "domcontentloaded" });
-    await pageA.waitForTimeout(5_000);
-    const senderStores = await localStores(pageA);
+    const senderStores = await untilLocalStoresEmpty(pageA);
     check("nothing is owed on the sender after a reload", senderStores.pending === 0 && senderStores.blobs === 0);
 
     await pageB.reload({ waitUntil: "domcontentloaded" });

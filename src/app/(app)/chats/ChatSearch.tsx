@@ -86,6 +86,7 @@ export function ChatSearch() {
         <input
           className="h-9 w-full rounded-[14px] border border-transparent bg-surface-muted pl-10 pr-4 text-[14px] font-medium text-foreground outline-none transition-colors duration-150 placeholder:text-muted/58 focus:border-border-subtle/60 focus:bg-surface"
           placeholder="Поиск: люди, чаты, сообщения"
+          aria-label="Поиск: люди, чаты, сообщения"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

@@ -2206,7 +2206,9 @@ export function ChatMessages({
               <div className="relative flex-1">
                  <input 
                    className="input-nox h-12 pl-12 pr-4 bg-foreground/5 border-none focus:ring-primary/20" 
-                   placeholder="Поиск сообщений..." 
+                   placeholder="Поиск сообщений..."
+                   aria-label="Поиск сообщений в чате"
+                   
                    value={searchQuery}
                    onChange={e => setSearchQuery(e.target.value)}
                    autoFocus
@@ -2405,8 +2407,14 @@ export function ChatMessages({
 
       {renderOverlay()}
 
+      {/* A stable, always-present region. Inserting a live region and its text
+          in the same commit is unreliable — screen readers announce what
+          changes inside a region they are already watching, so the region has
+          to exist first and only its text may change. */}
+      <div className="sr-only" role="status" aria-live="polite">{toastMessage ?? ""}</div>
+
       {toastMessage ? (
-        <div className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] z-[1000] -translate-x-1/2 rounded-full border border-border-subtle bg-surface-elevated/95 px-4 py-2 text-xs font-semibold text-foreground shadow-[0_10px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2">
+        <div aria-hidden="true" className="pointer-events-none fixed left-1/2 bottom-[calc(env(safe-area-inset-bottom,0px)+96px)] z-[1000] -translate-x-1/2 rounded-full border border-border-subtle bg-surface-elevated/95 px-4 py-2 text-xs font-semibold text-foreground shadow-[0_10px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2">
           {toastMessage}
         </div>
       ) : null}

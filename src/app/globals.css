@@ -1206,8 +1206,18 @@ body {
   .input-nox::placeholder { 
     @apply text-muted/50; 
   }
-  .input-nox:focus { 
-    @apply ring-2 ring-primary/20 border-primary/40;
+  /* The focus indicator is the global 2px outline on `:focus-visible`, which
+     is declared outside any cascade layer and therefore wins over this rule's
+     `outline-none` — layered styles lose to unlayered ones. What is left here
+     is the field waking up: a warmer border and a lifted surface.
+
+     `@apply ring-2 ring-primary/20` used to sit in this rule and drew nothing:
+     Tailwind's ring is a box-shadow, and the box-shadow declared three lines
+     below replaced it outright. Removed rather than repaired — a second ring
+     inside the outline is the double-indicator this file already avoids for
+     the composer and the auth fields. */
+  .input-nox:focus {
+    @apply border-primary/40;
     background: var(--glass-panel-fill-strong);
     box-shadow:
       var(--glass-inner-shadow),

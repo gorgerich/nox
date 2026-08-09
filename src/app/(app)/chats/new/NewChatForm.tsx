@@ -182,6 +182,7 @@ export function NewChatForm() {
               maxLength={32}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="@username"
+              aria-label="Найти по username"
               value={username}
             />
           </div>

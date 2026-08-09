@@ -100,6 +100,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
           onChange={(event) => setQuery(event.target.value)}
           className="min-w-0 flex-1 bg-transparent py-2 text-[16px] font-medium outline-none placeholder:text-muted/55"
           placeholder="Поиск людей"
+          aria-label="Поиск людей"
           type="search"
         />
       </label>

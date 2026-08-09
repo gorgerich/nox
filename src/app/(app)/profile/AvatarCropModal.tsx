@@ -209,6 +209,7 @@ export function AvatarCropModal({
              step={minZoom * 0.1} 
              value={zoom} 
              onChange={e => setZoom(parseFloat(e.target.value))}
+             aria-label="Масштаб"
              className="w-full h-1.5 bg-white/20 rounded-full appearance-none accent-primary cursor-pointer"
            />
         </div>
