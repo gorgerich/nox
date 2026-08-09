@@ -103,7 +103,7 @@ export function ArchiveIntroSheet() {
         <button
           type="button"
           onClick={dismiss}
-          className="fast-tap mt-8 flex h-13 w-full items-center justify-center rounded-full bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-smooth active:scale-[0.97]"
+          className="fast-tap mt-8 flex h-13 w-full items-center justify-center rounded-full bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
         >
           Понятно
         </button>

@@ -310,7 +310,13 @@ export type PageLike = {
   goBack(options?: { waitUntil?: string }): Promise<unknown>;
   locator(selector: string): Locator;
   keyboard: { press(key: string): Promise<void> };
-  mouse: { move(x: number, y: number): Promise<void>; wheel(x: number, y: number): Promise<void> };
+  mouse: {
+    move(x: number, y: number): Promise<void>;
+    wheel(x: number, y: number): Promise<void>;
+    // Held presses: the only way to read a :active style from the outside.
+    down(): Promise<void>;
+    up(): Promise<void>;
+  };
   on(event: "pageerror", handler: (error: Error) => void): void;
   on(event: "response", handler: (response: ResponseLike) => void): void;
   on(event: "console", handler: (message: ConsoleMessageLike) => void): void;

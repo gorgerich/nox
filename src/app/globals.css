@@ -513,8 +513,12 @@
   --radius-3xl: var(--radius-3xl);
 }
 
+/* `scale` is listed alongside `transform` on purpose. Tailwind v4 writes
+   `scale-*` to the independent `scale` property, not into `transform`, so a
+   transition that names only `transform` leaves every `active:scale-[0.96]`
+   in the app snapping on and off with no easing at all. */
 @utility transition-smooth {
-  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 180ms var(--ease-out);
+  transition: transform 160ms var(--ease-out), scale 160ms var(--ease-out), opacity 160ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 180ms var(--ease-out);
 }
 
 @utility transition-polish {
@@ -619,12 +623,16 @@
 }
 
 .fast-tap {
-  transition: transform 140ms var(--ease-out), opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  transition: scale 140ms var(--ease-out), transform 140ms var(--ease-out), opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+/* On `scale`, not `transform`. A `transform: scale()` here multiplied with
+   Tailwind's `scale:` on any element carrying both — the dock button carries
+   fast-tap, fluid-hit and active:scale-[0.96] at once and pressed to 0.93.
+   Same property means the cascade picks one instead of compounding. */
 .fast-tap:active {
-  transform: scale(0.97);
+  scale: 0.96;
 }
 
 html,
@@ -848,7 +856,7 @@ body {
   }
 
   .chat-emoji-button:active {
-    transform: scale(0.92);
+    scale: 0.96;
     background: color-mix(in oklab, var(--foreground) 10%, transparent);
   }
 
@@ -966,7 +974,8 @@ body {
   }
 
   .fluid-hit:active {
-    transform: scale(0.965) translateZ(0);
+    scale: 0.96;
+    transform: translateZ(0);
   }
 
   .surface-rise {
@@ -1095,7 +1104,7 @@ body {
   }
 
   .swipe-action:active .swipe-action-circle {
-    transform: scale(0.92);
+    scale: 0.96;
   }
 
   .swipe-action-label {
@@ -1106,7 +1115,10 @@ body {
     white-space: nowrap;
   }
 
-  /* Single highlight that glides between tabs (transform + width only, GPU). */
+  /* Single highlight that glides between tabs. `transform` is composited;
+     `width` is not, and never was — the hint below used to claim it. Tabs are
+     not equal width, so the width transition stays, but promising the
+     compositor a property it cannot take only costs memory. */
   .dock-slide-pill {
     position: absolute;
     top: 6px;
@@ -1120,7 +1132,7 @@ body {
       inset 0 1px 0 var(--dock-pill-highlight),
       0 1px 3px rgba(15, 23, 42, 0.08);
     pointer-events: none;
-    will-change: transform, width;
+    will-change: transform;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1466,7 +1478,7 @@ body {
   }
 
   .nox-chat-action-button:active {
-    transform: scale(0.92);
+    scale: 0.96;
     background-color: color-mix(in oklab, var(--primary) 12%, transparent);
   }
 
@@ -1595,7 +1607,7 @@ body {
   }
 
   .nox-filter-chip:active {
-    transform: scale(0.97);
+    scale: 0.96;
   }
 
   .nox-filter-chip-active {

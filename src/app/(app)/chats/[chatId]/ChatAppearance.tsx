@@ -886,7 +886,7 @@ export function ChatAppearanceSheet({
           </section>
         </div>
 
-        <button onClick={onClose} className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.98]">
+        <button onClick={onClose} className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]">
           Готово
         </button>
       </div>

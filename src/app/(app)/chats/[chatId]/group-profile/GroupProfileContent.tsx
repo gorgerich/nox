@@ -441,7 +441,7 @@ function EditIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 2
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button onClick={onClick} className={`h-10 rounded-full text-sm font-semibold transition-smooth active:scale-[0.98] ${active ? "bg-surface text-foreground shadow-sm" : "text-foreground/75 hover:bg-foreground/5"}`}>
+    <button onClick={onClick} className={`h-10 rounded-full text-sm font-semibold transition-smooth active:scale-[0.96] ${active ? "bg-surface text-foreground shadow-sm" : "text-foreground/75 hover:bg-foreground/5"}`}>
       {label}
     </button>
   );

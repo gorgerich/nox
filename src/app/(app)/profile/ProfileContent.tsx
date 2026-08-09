@@ -646,7 +646,7 @@ export function ProfileContent({
                   <button
                     key={option.value}
                     onClick={() => setAccent(option.value)}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-smooth active:scale-[0.98] ${
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-smooth active:scale-[0.96] ${
                       accent === option.value ? "bg-primary/10 ring-1 ring-primary/25" : "hover:bg-foreground/5"
                     }`}
                   >
@@ -803,7 +803,7 @@ export function ProfileContent({
                         key={chat.id}
                         type="button"
                         onClick={() => toggleFolderChat(chat.id)}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-smooth hover:bg-foreground/5 active:scale-[0.98]"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-smooth hover:bg-foreground/5 active:scale-[0.96]"
                       >
                         <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-smooth ${selected ? "border-primary bg-primary text-primary-foreground" : "border-border-subtle"}`}>
                           {selected ? (
@@ -1255,7 +1255,7 @@ function E2EEDevicesPanel({ userId }: { userId: string }) {
           type="button"
           onClick={() => void revokeOtherDevices()}
           disabled={revokeAllPending || activeOtherDevices.length === 0}
-          className="w-full rounded-2xl border border-danger/15 bg-danger/10 px-5 py-4 text-left transition-smooth active:scale-[0.98] disabled:opacity-45"
+          className="w-full rounded-2xl border border-danger/15 bg-danger/10 px-5 py-4 text-left transition-smooth active:scale-[0.96] disabled:opacity-45"
         >
           <span className="block text-sm font-black text-danger">Завершить все остальные сеансы</span>
           <span className="mt-1 block text-xs font-semibold text-danger/70">

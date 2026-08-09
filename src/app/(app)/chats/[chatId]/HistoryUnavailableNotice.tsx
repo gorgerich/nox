@@ -47,7 +47,7 @@ export function HistoryUnavailableNotice({
           <button
             type="button"
             onClick={onDismiss}
-            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 text-[15px] font-semibold text-primary-foreground transition-smooth active:scale-[0.97]"
+            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 text-[15px] font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
           >
             Продолжить с новой историей
           </button>
@@ -56,7 +56,7 @@ export function HistoryUnavailableNotice({
         {hasOtherDevices ? (
           <Link
             href="/profile"
-            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full border border-border-subtle px-4 text-[15px] font-semibold text-foreground transition-smooth active:scale-[0.97]"
+            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full border border-border-subtle px-4 text-[15px] font-semibold text-foreground transition-smooth active:scale-[0.96]"
           >
             Мои устройства
           </Link>

@@ -43,7 +43,8 @@
     "validate:appearance-persistence": "tsx scripts/validate-appearance-persistence.ts",
     "validate:messenger-ui-completion": "node scripts/validate-messenger-ui-completion.mjs",
     "validate:dialog-focus-trap": "tsx scripts/validate-dialog-focus-trap.ts",
-    "validate:a11y-basics": "tsx scripts/validate-a11y-basics.ts"
+    "validate:a11y-basics": "tsx scripts/validate-a11y-basics.ts",
+    "validate:press-feedback": "tsx scripts/validate-press-feedback.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
