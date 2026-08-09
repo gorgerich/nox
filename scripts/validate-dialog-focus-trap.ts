@@ -27,7 +27,7 @@ import {
   type PageLike,
 } from "./lib/browser-harness";
 
-const PORT = Number(process.env.FOCUS_TRAP_PORT ?? 3994);
+const PORT = Number(process.env.FOCUS_TRAP_PORT ?? 4011);
 const DIALOG = '[role="dialog"][aria-label="Создать или найти"]';
 
 async function main(): Promise<number> {

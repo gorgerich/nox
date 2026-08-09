@@ -49,6 +49,16 @@ export function ProfileContent({
   const router = useRouter();
 
   const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security" | "folders" | "data">("main");
+  // Each sub-screen is a full-viewport overlay, but the profile page stays
+  // mounted underneath it: without this, Tab walks straight out of the open
+  // screen into the page behind it, and a screen reader reads both.
+  // Escape closes back to the list, which is what the back button does.
+  const profileScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "profile", () => setActiveScreen("main"));
+  const devicesScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "devices", () => setActiveScreen("main"));
+  const appearanceScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "appearance", () => setActiveScreen("main"));
+  const securityScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "security", () => setActiveScreen("main"));
+  const foldersScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "folders", () => setActiveScreen("main"));
+  const dataScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "data", () => setActiveScreen("main"));
 
   const [displayName, setDisplayName] = useState(user.profile?.displayName || "");
   const [username, setUsername] = useState(user.username);
@@ -497,20 +507,29 @@ export function ProfileContent({
       )}
 
       {activeScreen === "profile" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
+        <div
+          ref={profileScreenRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-screen-profile"
+          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        >
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-semibold tracking-tight">Мой профиль</h1>
+             <h1 id="profile-screen-profile" className="text-base font-semibold tracking-tight">Мой профиль</h1>
              <div className="w-10" />
           </header>
 
           <form onSubmit={handleUpdate} className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="ml-4 text-sm font-medium text-muted">Имя</label>
+                  <label htmlFor="profile-display-name" className="ml-4 text-sm font-medium text-muted">Имя</label>
                   <input
+                    id="profile-display-name"
+                    name="displayName"
+                    autoComplete="name"
                     className="input-nox h-14"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
@@ -519,8 +538,11 @@ export function ProfileContent({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="ml-4 text-sm font-medium text-muted">Username</label>
+                  <label htmlFor="profile-username" className="ml-4 text-sm font-medium text-muted">Username</label>
                   <input
+                    id="profile-username"
+                    name="username"
+                    autoComplete="username"
                     className="input-nox h-14"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -529,8 +551,10 @@ export function ProfileContent({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="ml-4 text-sm font-medium text-muted">О себе</label>
+                  <label htmlFor="profile-bio" className="ml-4 text-sm font-medium text-muted">О себе</label>
                   <textarea
+                    id="profile-bio"
+                    name="bio"
                     className="input-nox min-h-[120px] resize-none py-4"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
@@ -554,12 +578,18 @@ export function ProfileContent({
       )}
 
       {activeScreen === "devices" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
+        <div
+          ref={devicesScreenRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-screen-devices"
+          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        >
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-semibold tracking-tight">Устройства</h1>
+             <h1 id="profile-screen-devices" className="text-base font-semibold tracking-tight">Устройства</h1>
              <div className="w-10" />
           </header>
 
@@ -570,12 +600,18 @@ export function ProfileContent({
       )}
 
       {activeScreen === "appearance" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
+        <div
+          ref={appearanceScreenRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-screen-appearance"
+          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        >
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-semibold tracking-tight">Оформление</h1>
+             <h1 id="profile-screen-appearance" className="text-base font-semibold tracking-tight">Оформление</h1>
              <div className="w-10" />
           </header>
 
@@ -647,12 +683,18 @@ export function ProfileContent({
       )}
 
       {activeScreen === "security" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
+        <div
+          ref={securityScreenRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-screen-security"
+          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        >
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-semibold tracking-tight">Безопасность</h1>
+             <h1 id="profile-screen-security" className="text-base font-semibold tracking-tight">Безопасность</h1>
              <div className="w-10" />
           </header>
 
@@ -660,8 +702,11 @@ export function ProfileContent({
             <form onSubmit={handlePasswordChange} className="space-y-6">
                <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="ml-4 text-sm font-medium text-muted">Текущий пароль</label>
+                    <label htmlFor="profile-current-password" className="ml-4 text-sm font-medium text-muted">Текущий пароль</label>
                     <input
+                      id="profile-current-password"
+                      name="currentPassword"
+                      autoComplete="current-password"
                       className="input-nox h-14"
                       type="password"
                       value={currentPassword}
@@ -671,8 +716,11 @@ export function ProfileContent({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="ml-4 text-sm font-medium text-muted">Новый пароль</label>
+                    <label htmlFor="profile-new-password" className="ml-4 text-sm font-medium text-muted">Новый пароль</label>
                     <input
+                      id="profile-new-password"
+                      name="newPassword"
+                      autoComplete="new-password"
                       className="input-nox h-14"
                       type="password"
                       value={newPassword}
@@ -715,12 +763,18 @@ export function ProfileContent({
       )}
 
       {activeScreen === "folders" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
+        <div
+          ref={foldersScreenRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-screen-folders"
+          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        >
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-semibold tracking-tight">Папки чатов</h1>
+             <h1 id="profile-screen-folders" className="text-base font-semibold tracking-tight">Папки чатов</h1>
              <div className="w-10" />
           </header>
 
@@ -737,6 +791,7 @@ export function ProfileContent({
                   value={folderName}
                   onChange={(event) => setFolderName(event.target.value)}
                   placeholder="Название папки"
+                  aria-label="Название папки"
                   maxLength={28}
                 />
 
@@ -899,12 +954,18 @@ export function ProfileContent({
       )}
 
       {activeScreen === "data" && (
-        <div className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top">
+        <div
+          ref={dataScreenRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-screen-data"
+          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        >
           <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
              <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
              </button>
-             <h1 className="text-base font-semibold tracking-tight">Данные и кэш</h1>
+             <h1 id="profile-screen-data" className="text-base font-semibold tracking-tight">Данные и кэш</h1>
              <div className="w-10" />
           </header>
 

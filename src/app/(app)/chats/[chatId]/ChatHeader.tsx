@@ -8,6 +8,7 @@ import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useClientValue } from "@/lib/use-client-value";
 import { useAudioCall } from "../../calls/CallProvider";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import { useMenuKeyboard } from "@/lib/use-menu-keyboard";
 
 export function ChatHeader({
   chatId,
@@ -50,6 +51,7 @@ export function ChatHeader({
   // trigger's rect, the menu lives outside that subtree entirely.
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number }>({ top: 64, right: 12 });
+  const menuRef = useMenuKeyboard<HTMLDivElement>(timerMenuOpen, () => setTimerMenuOpen(false), moreButtonRef);
 
   const anchorToButton = () => {
     const rect = moreButtonRef.current?.getBoundingClientRect();
@@ -197,6 +199,7 @@ export function ChatHeader({
               ref={moreButtonRef}
               type="button"
               aria-label="Ещё"
+              aria-haspopup="menu"
               aria-expanded={timerMenuOpen}
               onClick={openMenu}
               className="nox-chat-action-button touch-target text-primary"
@@ -206,8 +209,9 @@ export function ChatHeader({
             </button>
             {timerMenuOpen && (
               <ChatThemePortal themeVars={themeVars ?? {}} scheme={chatScheme}>
-                <div className="fixed inset-0 z-[200]" onClick={() => setTimerMenuOpen(false)} />
+                <div className="fixed inset-0 z-[200]" aria-hidden="true" onClick={() => setTimerMenuOpen(false)} />
                 <div
+                  ref={menuRef}
                   className="nox-chat-menu fixed z-[201] w-56 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl origin-top-right animate-in fade-in zoom-in-95 duration-150"
                   style={{ top: menuAnchor.top, right: menuAnchor.right }}
                   role="menu"
@@ -217,6 +221,7 @@ export function ChatHeader({
                     <button
                       type="button"
                       role="menuitem"
+                      tabIndex={-1}
                       onClick={() => { onSearchClick(); setTimerMenuOpen(false); }}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-smooth hover:bg-foreground/5"
                     >
@@ -228,6 +233,7 @@ export function ChatHeader({
                     <button
                       type="button"
                       role="menuitem"
+                      tabIndex={-1}
                       onClick={() => { onAppearanceClick(); setTimerMenuOpen(false); }}
                       className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-smooth hover:bg-foreground/5"
                     >
@@ -238,8 +244,9 @@ export function ChatHeader({
                   {onSetDisappearing && (onSearchClick || onAppearanceClick) && <div className="mx-4 h-px bg-border-subtle" />}
                   {onSetDisappearing && (
                   <>
-                  <p className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs font-medium text-muted">
-                    <Clock3 className="h-3.5 w-3.5" />
+                  <div role="group" aria-labelledby="chat-menu-disappearing">
+                  <p id="chat-menu-disappearing" className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs font-medium text-muted">
+                    <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
                     Исчезающие сообщения
                   </p>
                   {DISAPPEARING_OPTIONS.map((opt) => {
@@ -249,6 +256,7 @@ export function ChatHeader({
                         key={opt.label}
                         type="button"
                         role="menuitemradio"
+                        tabIndex={-1}
                         aria-checked={active}
                         onClick={() => { onSetDisappearing(opt.seconds); setTimerMenuOpen(false); }}
                         className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-smooth hover:bg-foreground/5 ${active ? "text-primary" : "text-foreground"}`}
@@ -258,6 +266,7 @@ export function ChatHeader({
                       </button>
                     );
                   })}
+                  </div>
                   </>
                   )}
                 </div>

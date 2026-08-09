@@ -189,6 +189,7 @@ const MERGE_GATES = [
   { name: "validate:message-attachment-delivery-e2ee", cmd: "npm", args: ["run", "validate:message-attachment-delivery-e2ee"], needsDb: true, browser: true },
   { name: "validate:connection-notice-hydration", cmd: "npm", args: ["run", "validate:connection-notice-hydration"], needsDb: true, browser: true },
   { name: "validate:dialog-focus-trap", cmd: "npm", args: ["run", "validate:dialog-focus-trap"], needsDb: true, browser: true },
+  { name: "validate:a11y-basics", cmd: "npm", args: ["run", "validate:a11y-basics"], needsDb: true, browser: true },
   { name: "production build", cmd: "npm", args: ["run", "build"] },
 ];
 
