@@ -153,7 +153,7 @@ function E2EEDisclaimer() {
     <div className="px-3 pb-3 pt-1">
       <Link
         href="/safety"
-        className="mx-auto flex max-w-[34rem] items-start gap-3 rounded-[1.25rem] border border-border-subtle/50 bg-surface/82 px-4 py-3.5 text-left shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-smooth active:scale-[0.99]"
+        className="mx-auto flex max-w-[34rem] items-start gap-3 rounded-[1.25rem] border border-border-subtle/50 bg-surface/82 px-4 py-3.5 text-left shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-smooth active:scale-[0.96]"
       >
         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
           <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2017,7 +2017,7 @@ export function ChatMessages({
                            key={emoji}
                            type="button"
                            aria-label={`Реакция ${emoji}`}
-                           className={`reaction-btn rounded-lg p-1 text-xl transition-transform active:scale-90 ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
+                           className={`reaction-btn rounded-lg p-1 text-xl transition-transform active:scale-[0.96] ${focusedMessage.reactions.some(r => r.emoji === emoji && r.userId === currentUserId) ? "bg-primary/20" : ""}`}
                            onClick={() => toggleReaction(menuState.id, emoji)}
                          >
                            {emoji}
@@ -2044,7 +2044,7 @@ export function ChatMessages({
                  <button
                    type="button"
                    aria-label="Больше эмодзи"
-                   className="reaction-pop flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted/70 transition-colors hover:bg-foreground/5 active:scale-95"
+                   className="reaction-pop flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted/70 transition-colors hover:bg-foreground/5 active:scale-[0.96]"
                    style={{ animationDelay: `${ALLOWED_REACTIONS.length * 28}ms` }}
                    onClick={() => setReactionPickerExpanded(true)}
                  >
@@ -2221,7 +2221,7 @@ export function ChatMessages({
            {searchResults.length > 0 && (
              <div className="mt-4 max-h-60 overflow-y-auto space-y-2 pb-2">
                 {searchResults.map(m => (
-                  <button key={m.id} onClick={() => jumpToMessage(m.id)} className="w-full text-left p-3 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.98]">
+                  <button key={m.id} onClick={() => jumpToMessage(m.id)} className="w-full text-left p-3 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.96]">
                      <div className="flex justify-between mb-1">
                         <span className="text-xs font-semibold text-primary">{m.senderName}</span>
                         <LocalTime value={m.createdAt} kind="date" className="text-[9px] font-bold text-muted" />

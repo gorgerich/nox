@@ -883,7 +883,7 @@ export function ChatsPageClient({
 
       {archivedCount > 0 && (
         <div className="mb-4">
-          <Link href="/chats/archive" className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface border border-border-subtle/50 transition-smooth hover:bg-surface-elevated active:scale-[0.98] fast-tap">
+          <Link href="/chats/archive" className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface border border-border-subtle/50 transition-smooth hover:bg-surface-elevated active:scale-[0.96] fast-tap">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -973,7 +973,7 @@ export function ChatsPageClient({
                   key={option.label}
                   type="button"
                   onClick={() => handleMuteChoice(option.minutes)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-border-subtle/40 bg-surface/70 px-4 py-4 text-left transition-smooth active:scale-[0.98] hover:bg-surface-hover"
+                  className="flex w-full items-center justify-between rounded-2xl border border-border-subtle/40 bg-surface/70 px-4 py-4 text-left transition-smooth active:scale-[0.96] hover:bg-surface-hover"
                 >
                   <span className="font-bold text-foreground">{option.label}</span>
                   <span className="text-xs font-semibold text-muted">Чат</span>

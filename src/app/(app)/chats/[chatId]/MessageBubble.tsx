@@ -830,7 +830,7 @@ export const MessageBubble = memo(function MessageBubble({
 
             <div
               ref={bubbleRef}
-              className={`group relative cursor-default active:scale-[0.99] no-select ${visualOnlyMessage ? "px-0 py-0" : "px-3 py-1.5"} ${
+              className={`group relative cursor-default active:scale-[0.96] no-select ${visualOnlyMessage ? "px-0 py-0" : "px-3 py-1.5"} ${
                 isFocused ? "focused-message" : ""
               } ${!visualOnlyMessage && !mine ? incomingClass : ""}`}
               style={{

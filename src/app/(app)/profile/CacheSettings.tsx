@@ -92,7 +92,7 @@ export function CacheSettings() {
           type="button"
           disabled={busy !== null}
           onClick={() => void runClear("messages")}
-          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.98] disabled:opacity-50"
+          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.96] disabled:opacity-50"
         >
           {busy === "messages" ? "Очистка…" : "Очистить кэш сообщений"}
         </button>
@@ -101,7 +101,7 @@ export function CacheSettings() {
           type="button"
           disabled={busy !== null}
           onClick={() => void runClear("browser")}
-          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.98] disabled:opacity-50"
+          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.96] disabled:opacity-50"
         >
           {busy === "browser" ? "Очистка…" : "Очистить медиа и кэш приложения"}
         </button>
@@ -110,7 +110,7 @@ export function CacheSettings() {
           type="button"
           disabled={busy !== null}
           onClick={() => void runClear("all")}
-          className="h-11 rounded-xl border border-primary/20 bg-primary/10 text-sm font-semibold text-primary transition-smooth hover:bg-primary/20 active:scale-[0.98] disabled:opacity-50"
+          className="h-11 rounded-xl border border-primary/20 bg-primary/10 text-sm font-semibold text-primary transition-smooth hover:bg-primary/20 active:scale-[0.96] disabled:opacity-50"
         >
           {busy === "all" ? "Очистка…" : "Очистить весь кэш (без ключей)"}
         </button>
@@ -129,7 +129,7 @@ export function CacheSettings() {
               type="button"
               disabled={busy !== null}
               onClick={() => void runClear("keys")}
-              className="h-11 flex-1 rounded-xl bg-danger text-sm font-semibold text-white transition-smooth active:scale-[0.98] disabled:opacity-50"
+              className="h-11 flex-1 rounded-xl bg-danger text-sm font-semibold text-white transition-smooth active:scale-[0.96] disabled:opacity-50"
             >
               {busy === "keys" ? "Сброс…" : "Да, сбросить ключи"}
             </button>
@@ -147,7 +147,7 @@ export function CacheSettings() {
             type="button"
             disabled={busy !== null}
             onClick={() => setConfirmKeys(true)}
-            className="h-11 w-full rounded-xl border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.98] disabled:opacity-50"
+            className="h-11 w-full rounded-xl border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.96] disabled:opacity-50"
           >
             Сбросить ключи шифрования
           </button>

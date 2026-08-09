@@ -140,7 +140,7 @@ export function ChatHeader({
       <button
         type="button"
         aria-label="Открыть профиль чата"
-        className="nox-chat-profile-pill min-w-0 text-left transition-smooth active:scale-[0.985]"
+        className="nox-chat-profile-pill min-w-0 text-left transition-smooth active:scale-[0.96]"
         onClick={handleHeaderClick}
       >
         <div className="relative shrink-0">
