@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import Image from "next/image";
 import Link from "next/link";
@@ -243,6 +243,10 @@ export function ChatMessages({
   const [loadingOlder, setLoadingOlder] = useState(false);
   const loadingOlderRef = useRef(false);
   const isPrependingRef = useRef(false);
+  const pendingAnchorRef = useRef<{ height: number; top: number } | null>(null);
+  // The chat whose opening position has been placed, so it happens once per
+  // conversation and only once content exists to place it against.
+  const openingPlacedForRef = useRef<string | null>(null);
   const messagesRef = useRef<Message[]>(seedMessages);
 
   // First message that was unread by me when the chat opened — we render an
@@ -328,6 +332,15 @@ export function ChatMessages({
 
     const applyBatch = (incoming: Message[], authoritative: boolean) => {
       if (cancelled || incoming.length === 0) return;
+      // The seeded opening batch is a screenful; the authoritative one is a
+      // full page, so it lands as older history stacked above what is already
+      // on screen. Without an anchor that pushes the read position down by the
+      // height of everything prepended — measured at a 0.734 shift, the
+      // conversation visibly jumping a second after it opened.
+      const container = scrollContainerRef.current;
+      if (container) {
+        pendingAnchorRef.current = { height: container.scrollHeight, top: container.scrollTop };
+      }
       const incomingIds = new Set(incoming.map((m) => m.id));
       setMessages((current) => {
         const keep = current.filter(
@@ -894,6 +907,11 @@ export function ChatMessages({
   // container, so we restore scrollTop by the height delta manually).
   const loadOlder = useCallback(async () => {
     if (loadingOlderRef.current || !hasMoreOlder) return;
+    // Not before the conversation has been placed at its newest message. Until
+    // then the container sits at scrollTop 0 because there is nothing in it
+    // yet, which reads as "the user is at the top" and pulled in a page nobody
+    // had scrolled to — the prepend that produced the 0.799 shift.
+    if (openingPlacedForRef.current !== chatId) return;
     const oldest = messagesRef.current.find((m) => !m.id.startsWith("temp-"));
     if (!oldest) return;
     const container = scrollContainerRef.current;
@@ -914,16 +932,13 @@ export function ChatMessages({
       setHasMoreOlder(Boolean(data.hasMore));
       if (older.length > 0) {
         isPrependingRef.current = true;
+        pendingAnchorRef.current = { height: prevHeight, top: prevTop };
         setMessages((current) => {
           const ids = new Set(current.map((m) => m.id));
           const merged = [...older.filter((m) => !ids.has(m.id)), ...current];
           return merged.sort(
             (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
           );
-        });
-        requestAnimationFrame(() => {
-          const c = scrollContainerRef.current;
-          if (c) c.scrollTop = prevTop + (c.scrollHeight - prevHeight);
         });
       }
     } catch {
@@ -941,9 +956,62 @@ export function ChatMessages({
     isAtBottomRef.current = atBottom;
     setShowScrollDown(scrollHeight - scrollTop - clientHeight > 400);
     if (atBottom) setUnseenCount(0);
-    // Near the top — pull in the previous page.
+    // Near the top — pull in the previous page. Not before the opening scroll
+    // has settled: until then scrollTop is still 0 while the list is being
+    // built, which fired a page load on every open and pulled in thirty
+    // messages nobody had scrolled to.
     if (scrollTop < 320) void loadOlder();
   }, [loadOlder]);
+
+  /**
+   * Restores the scroll position after older history is prepended — before the
+   * browser paints, which is the whole point.
+   *
+   * This used to run in `requestAnimationFrame`, one frame too late: React
+   * committed thirty new messages, the browser painted the list pushed down by
+   * their full height, and only then did the correction land. The measurement
+   * called it a layout shift of 0.799 on a page whose total was 0.884, and the
+   * eye called it the conversation jumping. A layout effect runs after the DOM
+   * is written and before the paint, so the shifted frame never exists.
+   */
+  /**
+   * Places the conversation before the browser paints it.
+   *
+   * Two jobs, both of which have to happen between React writing the DOM and
+   * the paint, which is what a layout effect is for.
+   *
+   * Opening: the history is not server-rendered — the page ships with the
+   * pinned message only and the real batch arrives from the client a second or
+   * two later. The opening scroll used to run on a timer from mount, so it
+   * fired against an empty list three times and did nothing, and the
+   * conversation opened at its oldest loaded message instead of its newest.
+   * Traced: messages landed at 3673ms with scrollTop still 0. Placing it here
+   * means it runs in the same commit the messages arrive in.
+   *
+   * Anchoring: when older history is prepended, hold the reader in place. This
+   * used to run in `requestAnimationFrame`, one frame too late — the browser
+   * painted the list pushed down by the full height of thirty messages first.
+   */
+  const placeConversation = useCallback((hasMessages: boolean) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    if (openingPlacedForRef.current !== chatId && hasMessages) {
+      openingPlacedForRef.current = chatId;
+      pendingAnchorRef.current = null;
+      container.scrollTo({ top: container.scrollHeight, behavior: "auto" });
+      return;
+    }
+
+    const anchor = pendingAnchorRef.current;
+    if (!anchor) return;
+    pendingAnchorRef.current = null;
+    container.scrollTo({ top: anchor.top + (container.scrollHeight - anchor.height), behavior: "auto" });
+  }, [chatId]);
+
+  useLayoutEffect(() => {
+    placeConversation(messages.length > 0);
+  }, [messages, placeConversation]);
 
   useEffect(() => {
     const grew = messages.length - prevMessageCountRef.current;
