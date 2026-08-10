@@ -62,13 +62,25 @@ export function InlineConnectionNotice({ status }: { status: ConnectionStatus })
     tone === "destructive" ? "var(--destructive)" : tone === "success" ? "var(--success)" : "var(--warning)";
 
   return (
+    /*
+     * A zero-height slot with the banner floating out of it, rather than a
+     * block in the flex column.
+     *
+     * In the flow, appearing and disappearing moved the whole conversation by
+     * the banner's height — measured as two layout shifts of 0.032 on a single
+     * open, one when it showed and one when it went. Connection state changing
+     * is not a reason for the message you are reading to move, and no native
+     * client moves it. The banner overlays instead, which is also how the same
+     * status reads on iOS.
+     */
+    <div className="relative z-20 h-0 overflow-visible">
     <div
       role="status"
       aria-live="polite"
-      className="flex shrink-0 items-center justify-center gap-2 px-4 py-1.5 text-[13px] font-semibold"
+      className="absolute inset-x-0 top-0 mx-auto flex w-fit max-w-[90%] items-center justify-center gap-2 rounded-full px-3 py-1 text-[13px] font-semibold shadow-sm backdrop-blur-md"
       style={{
         color,
-        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        background: `color-mix(in srgb, ${color} 16%, var(--surface-elevated))`,
       }}
     >
       <Icon
@@ -77,6 +89,7 @@ export function InlineConnectionNotice({ status }: { status: ConnectionStatus })
         aria-hidden="true"
       />
       <span className="truncate">{label}</span>
+    </div>
     </div>
   );
 }

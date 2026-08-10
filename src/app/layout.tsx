@@ -15,8 +15,12 @@ const inter = Inter({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Zoom stays available. Blocking it is the usual way to stop iOS from
+  // zooming when a field is focused, but iOS Safari has ignored the request
+  // since 10 — so it never bought anything here, while every other browser
+  // honours it and takes pinch-zoom away from anyone who needs it. The actual
+  // fix for the iOS behaviour is a 16px input font, which the fields already
+  // have.
   viewportFit: "cover",
   // Per-scheme status bar / browser chrome colour. A single dark value used to
   // be emitted, which left the light theme with dark system chrome.

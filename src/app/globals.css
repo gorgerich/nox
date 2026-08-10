@@ -653,6 +653,13 @@ html {
   color-scheme: dark;
 }
 
+html {
+  /* iOS inflates text in the wider orientation unless told not to. A native
+     app never re-sizes its type when the phone turns. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--app-bg);
   color: var(--app-fg);

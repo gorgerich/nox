@@ -191,6 +191,7 @@ const MERGE_GATES = [
   { name: "validate:dialog-focus-trap", cmd: "npm", args: ["run", "validate:dialog-focus-trap"], needsDb: true, browser: true },
   { name: "validate:a11y-basics", cmd: "npm", args: ["run", "validate:a11y-basics"], needsDb: true, browser: true },
   { name: "validate:press-feedback", cmd: "npm", args: ["run", "validate:press-feedback"], needsDb: true, browser: true },
+  { name: "validate:conversation-open", cmd: "npm", args: ["run", "validate:conversation-open"], needsDb: true, browser: true },
   { name: "production build", cmd: "npm", args: ["run", "build"] },
 ];
 

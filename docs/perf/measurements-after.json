@@ -1,0 +1,57 @@
+[
+  {
+    "label": "cold: chat list",
+    "ttfb": 95.90000000037253,
+    "firstPaint": 924,
+    "largestPaint": 924,
+    "domContentLoaded": 867.2999999998137,
+    "transferredKb": 439,
+    "scriptKb": 277,
+    "longTasks": 5,
+    "longTaskMs": 741,
+    "cls": 0
+  },
+  {
+    "label": "cold: conversation (200 messages)",
+    "ttfb": 39.799999999813735,
+    "firstPaint": 900,
+    "largestPaint": 900,
+    "domContentLoaded": 731.5,
+    "transferredKb": 385,
+    "scriptKb": 231,
+    "longTasks": 7,
+    "longTaskMs": 686,
+    "cls": 0
+  },
+  {
+    "label": "cold: profile",
+    "ttfb": 33,
+    "firstPaint": 648,
+    "largestPaint": 1908,
+    "domContentLoaded": 629.6000000005588,
+    "transferredKb": 351,
+    "scriptKb": 230,
+    "longTasks": 3,
+    "longTaskMs": 345,
+    "cls": 0
+  },
+  {
+    "label": "chat open",
+    "medianMs": 121.09999999962747,
+    "runs": [
+      461.3999999994412,
+      91.20000000018626,
+      71.30000000074506,
+      121.09999999962747,
+      282
+    ]
+  },
+  {
+    "label": "scroll",
+    "count": 83,
+    "median": 16.7,
+    "p95": 33.4,
+    "worst": 233.3,
+    "dropped": 6
+  }
+]
