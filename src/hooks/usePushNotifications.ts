@@ -88,6 +88,16 @@ export function usePushNotifications() {
       const supported = await checkSupport();
       if (!supported || !active) return;
 
+      // The permission is readable now. It used to wait for the service worker
+      // to register, so the profile screen showed nothing where the push
+      // status belongs and then grew a paragraph seconds later — which made
+      // that paragraph the largest contentful paint, at 5.3s on a screen whose
+      // heading had painted at 2.8s. Registration still happens; it just no
+      // longer decides when the user can read the answer.
+      if (typeof Notification !== "undefined") {
+        setStatus(Notification.permission as PushStatus);
+      }
+
       try {
         const reg = await navigator.serviceWorker.register("/sw.js");
         if (!active) return;
