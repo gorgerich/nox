@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nox</title>
+<!--
+  Shown by the iOS shell when the web layer cannot be reached at all — no
+  network on a cold start, or the connection dropped during a navigation.
+
+  Without it WKWebView renders WebKit's own error page: an English system
+  message on a white sheet with a URL in it, which is the single clearest way
+  for a wrapper to announce that it is a wrapper. This says the same thing in
+  the app's own voice and offers the one action that helps.
+
+  Self-contained on purpose: it has to render with no network, so it cannot
+  reference a stylesheet, a font or an image.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top) + 24px) 28px calc(env(safe-area-inset-bottom) + 24px);
+    background: #f2f2f7;
+    color: #000;
+    font: 400 17px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 20rem; text-align: center; }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  p { margin: 0; font-size: 15px; line-height: 1.4; color: #6c6c70; }
+  button {
+    margin-top: 28px;
+    width: 100%;
+    height: 48px;
+    border: 0;
+    border-radius: 999px;
+    background: #007aff;
+    color: #fff;
+    font: inherit;
+    font-weight: 500;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:active { opacity: 0.85; }
+  svg { width: 44px; height: 44px; margin-bottom: 18px; color: #8e8e93; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #000; color: #fff; }
+    p { color: #98989e; }
+    button { background: #0a84ff; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <path d="M12 19h.01M5 12.5a10 10 0 0 1 14 0M8.5 16a5.5 5.5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/>
+      <path d="M3 3l18 18"/>
+    </svg>
+    <h1>Нет соединения</h1>
+    <p>Nox не может связаться с сервером. Проверьте интернет и попробуйте снова.</p>
+    <button type="button" onclick="location.replace('https://noxchat.ru/')">Повторить</button>
+  </main>
+</body>
+</html>
