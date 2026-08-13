@@ -47,9 +47,20 @@ jobs:
       - run: npm ci
 
       - name: Create the disposable database
+        # The marker table is the suites' proof that this database was made to
+        # be thrown away. They refuse to touch anything without it — which is
+        # why the first CI run stopped here rather than running against
+        # whatever it was pointed at. Written explicitly, exactly as the local
+        # creator writes it.
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -c \
             'CREATE DATABASE nox_backup_disposable_test;'
+          PGPASSWORD=postgres psql -h localhost -U postgres -d nox_backup_disposable_test -c \
+            'CREATE SCHEMA IF NOT EXISTS nox_test_guard;
+             CREATE TABLE IF NOT EXISTS nox_test_guard.disposable_marker (
+               created_at timestamptz NOT NULL DEFAULT now()
+             );
+             INSERT INTO nox_test_guard.disposable_marker DEFAULT VALUES;'
 
       - name: Apply the schema
         run: npx prisma db push --accept-data-loss
