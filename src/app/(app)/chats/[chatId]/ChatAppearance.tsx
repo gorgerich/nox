@@ -632,10 +632,17 @@ export function ChatWallpaperControls({
   settings,
   onUpdate,
   onApplyGlobal,
+  /**
+   * On a screen whose own title is already "Фон чатов", the control's internal
+   * heading is the same word twice. The settings area passes this; the chat
+   * appearance sheet, where the heading is the only label, does not.
+   */
+  hideWallpaperHeading = false,
 }: {
   settings: AppearanceSettings;
   onUpdate: (settings: Partial<AppearanceSettings>) => void;
   onApplyGlobal?: () => void;
+  hideWallpaperHeading?: boolean;
 }) {
   const wallpaper = CHAT_WALLPAPERS.find((item) => item.id === settings.wallpaper) ?? CHAT_WALLPAPERS[0];
 
@@ -658,8 +665,16 @@ export function ChatWallpaperControls({
 
       <div>
         <div className="mb-2 flex items-center justify-between px-1">
-          <h3 className="text-sm font-semibold text-foreground">Фон чатов</h3>
-          <span className="text-xs text-muted">{wallpaper.label}</span>
+          {hideWallpaperHeading ? (
+            // The screen title already says "Фон чатов", so the only thing left
+            // to say here is which one is selected.
+            <span className="text-xs text-muted">{wallpaper.label}</span>
+          ) : (
+            <>
+              <h3 className="text-sm font-semibold text-foreground">Фон чатов</h3>
+              <span className="text-xs text-muted">{wallpaper.label}</span>
+            </>
+          )}
         </div>
         <div className="grid grid-cols-4 gap-2">
           {CHAT_WALLPAPERS.map((item) => {

@@ -45,6 +45,7 @@
     "validate:dialog-focus-trap": "tsx scripts/validate-dialog-focus-trap.ts",
     "validate:a11y-basics": "tsx scripts/validate-a11y-basics.ts",
     "validate:press-feedback": "tsx scripts/validate-press-feedback.ts",
+    "validate:settings-polish": "tsx scripts/validate-settings-polish.ts",
     "measure:performance": "tsx scripts/measure-performance.ts",
     "validate:conversation-open": "tsx scripts/validate-conversation-open.ts",
     "validate:e2ee-recovery": "tsx scripts/validate-e2ee-recovery.ts"
