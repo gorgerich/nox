@@ -1,0 +1,76 @@
+name: merge gate
+
+# The gate has lived on a developer's laptop, which makes quality depend on
+# whether someone remembered to run it — and, in practice, on whether the
+# machine was busy: three runs in one afternoon reported failures that were
+# load, not code. Running it here removes both.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The suites refuse to run against anything that is not demonstrably
+      # disposable; the name carries the marker they check for.
+      BACKUP_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nox_backup_disposable_test
+      # A runner has its own machine, so the load wait is dead weight here.
+      GATE_LOAD_CEILING: "0"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create the disposable database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c \
+            'CREATE DATABASE nox_backup_disposable_test;'
+
+      - name: Apply the schema
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: ${{ env.BACKUP_TEST_DATABASE_URL }}
+
+      - run: npx prisma generate
+
+      # Only Chromium: the suites drive one browser, and the other two would
+      # double the install for nothing.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the gate
+        run: npm run guard:message-delivery-p0
+
+      - name: Keep the failing run's screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: docs/screenshots/
+          retention-days: 7
+          if-no-files-found: ignore
