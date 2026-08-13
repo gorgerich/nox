@@ -2241,6 +2241,12 @@ export function ChatMessages({
 
   return (
     <div
+      // The chat's own scheme, as an attribute rather than only as variables:
+      // the glass tokens every frosted surface paints from are declared per
+      // scheme in CSS, not re-pointed in `themeVars`, so without this the
+      // composer and the sheets keep the app's palette inside a chat that has
+      // switched to the other one.
+      data-theme={chatScheme}
       className={`chat-screen relative isolate transition-[opacity] duration-150 ${menuState ? "overflow-hidden" : ""}`}
       style={themeVars as React.CSSProperties}
     >

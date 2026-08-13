@@ -1274,6 +1274,12 @@ body {
     flex-direction: column;
     overflow: hidden;
     background: var(--chat-background);
+    /* Stated, not inherited. `color` comes down from `body`, which computed it
+       from the app's scheme before the chat re-pointed its own tokens — so a
+       chat that had switched to light kept near-white text and put it on a
+       light composer. Everything below reads its colour from the chat's
+       foreground, whichever scheme that turns out to be. */
+    color: var(--foreground);
   }
 
   .chat-wallpaper-layer {
