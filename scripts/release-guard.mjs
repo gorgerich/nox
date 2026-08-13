@@ -19,6 +19,7 @@
  * docs/incidents/20260727-message-client-id-production-migration.md.
  */
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import { readFileSync, existsSync, statSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -192,6 +193,7 @@ const MERGE_GATES = [
   { name: "validate:a11y-basics", cmd: "npm", args: ["run", "validate:a11y-basics"], needsDb: true, browser: true },
   { name: "validate:press-feedback", cmd: "npm", args: ["run", "validate:press-feedback"], needsDb: true, browser: true },
   { name: "validate:conversation-open", cmd: "npm", args: ["run", "validate:conversation-open"], needsDb: true, browser: true },
+  { name: "validate:e2ee-recovery", cmd: "npm", args: ["run", "validate:e2ee-recovery"], needsDb: true, browser: true },
   { name: "production build", cmd: "npm", args: ["run", "build"] },
 ];
 
@@ -202,10 +204,50 @@ const RELEASE_GATES = [
 
 const gates = RELEASE_MODE ? [...MERGE_GATES, ...RELEASE_GATES] : MERGE_GATES;
 
+/**
+ * Waits for the machine to be quiet enough that a browser suite measures the
+ * product rather than the scheduler.
+ *
+ * These suites drive a real browser against a real server on four cores. Under
+ * heavy load they fail in ways indistinguishable from product regressions —
+ * `ECONNRESET` on sign-in, "the retry never delivered", media still decrypting
+ * when a window expires. Three gate runs were spent diagnosing failures that
+ * turned out to be load, each time passing standalone minutes later.
+ *
+ * Waiting is the fix on this side. Whatever else is running on this machine is
+ * not ours to throttle, and a gate that reports a false failure is worse than
+ * a gate that starts late.
+ */
+async function waitForAQuietMachine() {
+  const CEILING = Number(process.env.GATE_LOAD_CEILING ?? 8);
+  const DEADLINE_MS = Number(process.env.GATE_LOAD_WAIT_MS ?? 45 * 60_000);
+  if (CEILING <= 0) return;
+
+  const load = () => os.loadavg()[0];
+  if (load() <= CEILING) return;
+
+  const started = Date.now();
+  process.stdout.write(
+    `\nWaiting for load to fall below ${CEILING} before the browser suites ` +
+      `(now ${load().toFixed(1)}). Set GATE_LOAD_CEILING=0 to skip.\n`,
+  );
+  while (load() > CEILING && Date.now() - started < DEADLINE_MS) {
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
+  }
+  const waited = Math.round((Date.now() - started) / 1000);
+  process.stdout.write(
+    load() > CEILING
+      ? `Still at ${load().toFixed(1)} after ${waited}s — running anyway; treat timing failures with suspicion.\n`
+      : `Load is ${load().toFixed(1)} after ${waited}s. Starting.\n`,
+  );
+}
+
 const results = [];
 let blocked = false;
 
 for (const gate of gates) {
+  // Only the browser suites are load-sensitive; typecheck and lint are not.
+  if (gate.browser) await waitForAQuietMachine();
   process.stdout.write(`\n── ${gate.name} ────────────────────────────────\n`);
   const started = Date.now();
   let ok;

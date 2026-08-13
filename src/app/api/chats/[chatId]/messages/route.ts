@@ -326,6 +326,24 @@ export async function POST(
     });
     const deviceOwnerById = new Map(deviceBundles.map((device) => [device.deviceId, device.userId]));
 
+    // Envelopes may also be addressed to an account's recovery key, which is
+    // not a device and deliberately does not live in the device table. It is
+    // how a browser that lost its storage reads history back, so the ownership
+    // check has to recognise it — resolved against the recovery key that
+    // actually exists, never taken on the client's word.
+    const recoveryOwnerIds = deviceIds
+      .filter((deviceId) => deviceId.startsWith("recovery:"))
+      .map((deviceId) => deviceId.slice("recovery:".length));
+    if (recoveryOwnerIds.length > 0) {
+      const recoveryKeys = await prisma.accountRecoveryKey.findMany({
+        where: { userId: { in: recoveryOwnerIds } },
+        select: { userId: true },
+      });
+      for (const key of recoveryKeys) {
+        deviceOwnerById.set(`recovery:${key.userId}`, key.userId);
+      }
+    }
+
     if (deviceOwnerById.get(parsed.data.senderDeviceId) !== user.id) {
       return NextResponse.json({ error: "Invalid sender device" }, { status: 400 });
     }

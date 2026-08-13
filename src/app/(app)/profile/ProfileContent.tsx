@@ -1,6 +1,7 @@
 "use client";
 
 import { avatarTint } from "@/lib/avatar-tint";
+import { RecoveryKeyPanel } from "./RecoveryKeyPanel";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -699,6 +700,8 @@ export function ProfileContent({
           </header>
 
           <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
+            <RecoveryKeyPanel userId={user.id} />
+
             <form onSubmit={handlePasswordChange} className="space-y-6">
                <div className="space-y-4">
                   <div className="space-y-2">

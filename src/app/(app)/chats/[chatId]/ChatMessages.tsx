@@ -15,7 +15,7 @@ import { MediaPreviewComposer, MediaPreviewItem } from "./MediaPreviewComposer";
 import { MediaViewer, MediaItem } from "./MediaViewer";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usePresence } from "@/hooks/usePresence";
-import { decryptMessage, decryptMessageV2, encryptMessageForDevices } from "@/lib/e2ee/utils";
+import { addRecoveryEnvelope, decryptMessage, decryptMessageV2, encryptMessageForDevices, getOwnRecoveryPublicKey } from "@/lib/e2ee/utils";
 import { fetchRecipientKeyBundle, getLocalPublicJwk, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { getLocalEncryptedMessage, storeAndVerifyLocalEncryptedMessage, putPersistedChatMessages, getPersistedChatMessages } from "@/lib/e2ee/indexed-db";
 import { normalizeAvatarUrl } from "@/lib/media-url";
@@ -134,6 +134,28 @@ const NON_COPYABLE_MESSAGE_TEXTS = new Set([
   "Сообщение доставлено",
   "Сообщение доставлено и удалено с сервера",
 ]);
+
+/**
+ * Picks the envelope this browser can actually open.
+ *
+ * The device's own envelope first. Failing that — which is the normal state
+ * after a browser evicts its storage and registers a fresh device — the one
+ * addressed to the account's recovery key, which is exactly what that key is
+ * for. Without this fallback the recovery key is written, addressed and
+ * unusable: history stays "unavailable on this device" forever.
+ */
+function pickReadableEnvelope<T extends { recipientDeviceId: string }>(
+  envelopes: T[] | undefined,
+  localDeviceId: string | null,
+  currentUserId: string,
+): T | undefined {
+  if (!envelopes || envelopes.length === 0) return undefined;
+  const own = localDeviceId
+    ? envelopes.find((item) => item.recipientDeviceId === localDeviceId)
+    : undefined;
+  if (own) return own;
+  return envelopes.find((item) => item.recipientDeviceId === `recovery:${currentUserId}`);
+}
 
 function getCopyableMessageText(message: Message | MessageWithDecrypted | null) {
   if (!message || message.type !== "TEXT" || message.deletedAt || message.messageUnavailableOnThisDevice) {
@@ -466,7 +488,7 @@ export function ChatMessages({
         : null;
       if (cached) {
         if ((msg.encryptionVersion ?? 0) >= 2 && localDeviceId) {
-          const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+          const envelope = pickReadableEnvelope(msg.envelopes, localDeviceId, currentUserId);
           if (envelope?.ciphertext && !envelope.encryptedPayloadDeletedAt) {
             void sendDeliveryAck(msg.id, localDeviceId);
           }
@@ -475,8 +497,7 @@ export function ChatMessages({
       }
 
       if ((msg.encryptionVersion ?? 0) >= 2) {
-        if (!localDeviceId) return null;
-        const envelope = msg.envelopes?.find((item) => item.recipientDeviceId === localDeviceId);
+        const envelope = pickReadableEnvelope(msg.envelopes, localDeviceId, currentUserId);
         if (!envelope || !envelope.ciphertext || !envelope.iv || !envelope.salt) {
           return { id: msg.id, unavailable: true };
         }
@@ -497,8 +518,25 @@ export function ChatMessages({
         });
 
         if (decrypted) {
+          // While this device can still read it, give the account's recovery
+          // key a copy. Only possible for as long as some device holds the
+          // key — after that the message is unreachable for good, so the
+          // backfill happens the moment history is opened rather than being
+          // scheduled for a maintenance window that may come too late.
+          if (!msg.envelopes?.some((item) => item.recipientDeviceId === `recovery:${currentUserId}`)) {
+            void getOwnRecoveryPublicKey().then((recoveryPublicKey) => {
+              if (!recoveryPublicKey) return;
+              return addRecoveryEnvelope({
+                messageId: msg.id,
+                chatId,
+                plaintext: decrypted,
+                ownerUserId: currentUserId,
+                recoveryPublicKey,
+              }).catch(() => false);
+            });
+          }
           try {
-            await saveVerifiedLocalMessage(msg, decrypted, localDeviceId);
+            await saveVerifiedLocalMessage(msg, decrypted, envelope.recipientDeviceId);
           } catch (error) {
             console.error("[e2ee] Failed to save local encrypted cache", error);
             return null;

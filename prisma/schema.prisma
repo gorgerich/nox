@@ -39,6 +39,7 @@ model User {
   keyBundle                  UserKeyBundle?
   e2eeDevices                UserDevice[]
   deviceKeyBundles           DeviceKeyBundle[]
+  recoveryKey                AccountRecoveryKey?
   e2eeTrustOwned             E2EEDeviceTrust[]        @relation("E2EETrustOwner")
   e2eeTrustTargetingMe       E2EEDeviceTrust[]        @relation("E2EETrustTarget")
   receivedMessageEnvelopes   MessageEnvelope[]        @relation("MessageEnvelopeRecipientUser")
@@ -112,6 +113,34 @@ model UserDevice {
 
   @@index([userId])
   @@index([revokedAt])
+}
+
+/**
+ * The account's recovery key: an ECDH keypair whose private half is sealed
+ * under a passphrase only the user knows.
+ * Device keys are non-extractable and live in IndexedDB, which browsers evict.
+ * Every eviction mints a new device that cannot open anything sealed before it
+ * existed. Messages are addressed to this key in addition to each device, so a
+ * restoring device opens history through it.
+ * The server stores ciphertext and public material only. It never sees the
+ * passphrase or the private key, and there is deliberately no operator-side
+ * path to open this — a forgotten passphrase means the history stays sealed.
+ */
+model AccountRecoveryKey {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  publicKey  String
+  ciphertext String
+  iv         String
+  salt       String
+  kdf        String
+  algorithm  String
+  iterations Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model DeviceKeyBundle {

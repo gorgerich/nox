@@ -53,6 +53,31 @@ function getBrowserDeviceName() {
   return `Nox ${platform}`;
 }
 
+/**
+ * Asks the browser not to evict this origin's storage.
+ *
+ * The device's private key lives in IndexedDB, and IndexedDB is evictable. A
+ * cleared store means a new device id, and a new device cannot read anything
+ * sealed before it existed — which is what "Сообщение недоступно на этом
+ * устройстве" is. Production carries 66 device bundles for 10 users, one of
+ * them with 35: that is not 35 phones, it is one browser losing its store over
+ * and over.
+ *
+ * Granted, this is a request. Chromium grants it on engagement, Firefox
+ * prompts, and iOS Safari does not implement it at all — so it narrows the
+ * problem rather than closing it. Closing it needs key backup, which is a
+ * separate piece of work with its own security design.
+ */
+async function requestDurableStorage() {
+  try {
+    if (typeof navigator === "undefined" || !navigator.storage?.persist) return;
+    if (await navigator.storage.persisted?.()) return;
+    await navigator.storage.persist();
+  } catch {
+    // Never block device registration on a storage hint.
+  }
+}
+
 async function generateDeviceId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -70,6 +95,7 @@ async function storeScopedDeviceKey(userId: string, local: LocalDeviceKey) {
 }
 
 async function createScopedDeviceKey(userId: string): Promise<LocalDeviceKey> {
+  await requestDurableStorage();
   const deviceId = await generateDeviceId();
   const keyPair = await crypto.generateKeyPair();
   const publicKey = await crypto.exportPublicKey(keyPair.publicKey);

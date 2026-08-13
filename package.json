@@ -46,7 +46,8 @@
     "validate:a11y-basics": "tsx scripts/validate-a11y-basics.ts",
     "validate:press-feedback": "tsx scripts/validate-press-feedback.ts",
     "measure:performance": "tsx scripts/measure-performance.ts",
-    "validate:conversation-open": "tsx scripts/validate-conversation-open.ts"
+    "validate:conversation-open": "tsx scripts/validate-conversation-open.ts",
+    "validate:e2ee-recovery": "tsx scripts/validate-e2ee-recovery.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

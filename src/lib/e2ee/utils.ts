@@ -1,4 +1,6 @@
 import * as crypto from "./crypto";
+import { recoveryDeviceId } from "./key-backup";
+import { getLocalRecoveryPrivateKey } from "./recovery";
 import {
   DeviceKeyBundle,
   ensureKeys,
@@ -104,6 +106,46 @@ function uniqueDevices(devices: DeviceKeyBundle[]) {
   return Array.from(byDevice.values());
 }
 
+/**
+ * The recovery keys to address alongside the devices.
+ *
+ * A recovery key is shaped as a `DeviceKeyBundle` so the encryption path below
+ * needs no special case: it is one more recipient in the same list. Both sides
+ * are fetched — the recipient's so they can restore, and the sender's own so
+ * that a sender who loses their device can still read what they sent.
+ *
+ * Failure here is not fatal. An account without a recovery key is the state
+ * every account is in before setting one up, and a message must still send.
+ */
+async function fetchRecoveryBundles(
+  recipientUserId: string,
+  senderUserId: string,
+  chatId: string,
+): Promise<DeviceKeyBundle[]> {
+  const wanted = recipientUserId === senderUserId ? [senderUserId] : [recipientUserId, senderUserId];
+  const found = await Promise.all(
+    wanted.map(async (userId) => {
+      try {
+        const query = new URLSearchParams({ userId, chatId });
+        const response = await fetch(`/api/e2ee/recovery-key?${query.toString()}`);
+        if (!response.ok) return null;
+        const data = (await response.json()) as { recoveryKey?: { publicKey?: string } | null };
+        const publicKey = data.recoveryKey?.publicKey;
+        if (!publicKey) return null;
+        return {
+          userId,
+          deviceId: recoveryDeviceId(userId),
+          publicKey,
+          algorithm: crypto.ALGORITHM_NAME,
+        } satisfies DeviceKeyBundle;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return found.filter((bundle): bundle is DeviceKeyBundle => bundle !== null);
+}
+
 export async function encryptMessageForDevices(
   plaintext: string,
   recipientUserId: string,
@@ -111,16 +153,17 @@ export async function encryptMessageForDevices(
   senderUserId: string,
 ): Promise<EncryptedMessageV2Payload> {
   const local = await registerCurrentDevice(senderUserId);
-  const [recipientDevices, senderDevices] = await Promise.all([
+  const [recipientDevices, senderDevices, recoveryBundles] = await Promise.all([
     fetchUserDeviceBundles(recipientUserId, chatId),
     fetchCurrentUserDeviceBundles(),
+    fetchRecoveryBundles(recipientUserId, senderUserId, chatId),
   ]);
 
   if (recipientDevices.length === 0) {
     throw new Error("У собеседника ещё нет ключа шифрования. Попросите его открыть приложение.");
   }
 
-  const targetDevices = uniqueDevices([...recipientDevices, ...senderDevices]);
+  const targetDevices = uniqueDevices([...recipientDevices, ...senderDevices, ...recoveryBundles]);
   if (!targetDevices.some((device) => device.deviceId === local.deviceId)) {
     targetDevices.push({
       userId: senderUserId,
@@ -212,6 +255,13 @@ export async function decryptMessageV2(message: {
   envelope: {
     recipientUserId: string;
     recipientDeviceId: string;
+    /**
+     * Which device sealed *this* envelope. Normally the message's sender, but
+     * a recovery envelope added afterwards by the reader's own device carries
+     * that device instead — and the shared secret has to be derived against
+     * whichever key actually did the sealing.
+     */
+    senderDeviceId?: string | null;
     ciphertext: string | null;
     iv: string | null;
     salt: string | null;
@@ -222,10 +272,17 @@ export async function decryptMessageV2(message: {
   if (!message.envelope.ciphertext || !message.envelope.iv || !message.envelope.salt) return null;
 
   try {
-    const privateKey = await getLocalDevicePrivateKey(message.envelope.recipientUserId);
+    // An envelope addressed to the recovery key opens with the recovery key.
+    // This is how a browser that lost its device identity reads history back:
+    // the device private key it would have used no longer exists anywhere.
+    const isRecoveryEnvelope = message.envelope.recipientDeviceId.startsWith("recovery:");
+    const privateKey = isRecoveryEnvelope
+      ? await getLocalRecoveryPrivateKey(message.envelope.recipientUserId)
+      : await getLocalDevicePrivateKey(message.envelope.recipientUserId);
     if (!privateKey) return null;
 
-    const senderDevice = await fetchDeviceKeyBundle(message.senderDeviceId);
+    const sealingDeviceId = message.envelope.senderDeviceId || message.senderDeviceId;
+    const senderDevice = await fetchDeviceKeyBundle(sealingDeviceId);
     if (!senderDevice?.publicKey) return null;
 
     const peerPublicKey = await crypto.importPublicKey(senderDevice.publicKey);
@@ -235,7 +292,7 @@ export async function decryptMessageV2(message: {
     const aad = envelopeContext({
       chatId: message.chatId,
       senderUserId: message.senderUserId,
-      senderDeviceId: message.senderDeviceId,
+      senderDeviceId: sealingDeviceId,
       recipientUserId: message.envelope.recipientUserId,
       recipientDeviceId: message.envelope.recipientDeviceId,
       algorithm: message.envelope.algorithm,
@@ -295,4 +352,72 @@ export async function decryptMessage(
     console.error("[e2ee] Decryption failed:", error);
     return null;
   }
+}
+
+/**
+ * Re-seals a message this device can already read to the reader's own recovery
+ * key, so it survives the loss of this device.
+ *
+ * The sealing device is *this* one, not the message's original sender — the
+ * sender's private key is not ours to use. The envelope records that, and the
+ * decryption path derives the shared secret against whichever device actually
+ * sealed it, which is why this works at all.
+ */
+export async function addRecoveryEnvelope(params: {
+  messageId: string;
+  chatId: string;
+  plaintext: string;
+  ownerUserId: string;
+  recoveryPublicKey: string;
+}): Promise<boolean> {
+  const local = await registerCurrentDevice(params.ownerUserId);
+  const envelope = await encryptEnvelope({
+    plaintext: params.plaintext,
+    chatId: params.chatId,
+    // The AAD names this device as the sealer on both sides, so it has to be
+    // this device here too — anything else fails authentication on open.
+    senderUserId: params.ownerUserId,
+    senderDeviceId: local.deviceId,
+    senderPrivateKey: local.privateKey,
+    targetDevice: {
+      userId: params.ownerUserId,
+      deviceId: recoveryDeviceId(params.ownerUserId),
+      publicKey: params.recoveryPublicKey,
+      algorithm: crypto.ALGORITHM_NAME,
+    },
+  });
+
+  const response = await fetch(`/api/messages/${params.messageId}/recovery-envelope`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      recipientDeviceId: envelope.recipientDeviceId,
+      senderDeviceId: envelope.senderDeviceId,
+      ciphertext: envelope.ciphertext,
+      iv: envelope.iv,
+      salt: envelope.salt,
+      algorithm: envelope.algorithm,
+      encryptionVersion: envelope.encryptionVersion,
+    }),
+  });
+  return response.ok;
+}
+
+/**
+ * The caller's own recovery public key, fetched once per page.
+ *
+ * Cached because the backfill asks for it per message, and an account without
+ * a recovery key must not pay a request for every line of history to learn
+ * that it still does not have one.
+ */
+let ownRecoveryPublicKey: Promise<string | null> | null = null;
+
+export function getOwnRecoveryPublicKey(): Promise<string | null> {
+  if (!ownRecoveryPublicKey) {
+    ownRecoveryPublicKey = fetch("/api/e2ee/recovery-key")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => (data?.recoveryKey?.publicKey as string | undefined) ?? null)
+      .catch(() => null);
+  }
+  return ownRecoveryPublicKey;
 }
