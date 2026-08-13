@@ -1,6 +1,7 @@
 "use client";
 
 import { AppearanceSettings } from "./ChatAppearance";
+import { reportClientEvent } from "@/lib/report-client-event";
 import { VoicePlayer } from "./VoicePlayer";
 import { FileText, Play } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -287,6 +288,7 @@ function AttachmentPreview({
     const timer = window.setTimeout(() => {
       setIsDecrypting(false);
       setDecryptError((current) => current ?? "Медиа недоступно на этом устройстве");
+      reportClientEvent("client.media.decrypt.failed");
     }, 12_000);
     return () => window.clearTimeout(timer);
   }, [isDecrypting]);
@@ -380,7 +382,10 @@ function AttachmentPreview({
             alt=""
             className="absolute inset-0 h-full w-full object-cover transition-smooth hover:scale-[1.02]"
             loading="lazy"
-            onError={() => setImageBroken(true)}
+            onError={() => {
+              setImageBroken(true);
+              reportClientEvent("client.media.broken", { detail: attachment.mimeType });
+            }}
           />
         </button>
       ) : isRoundVideo ? (
@@ -755,7 +760,10 @@ export const MessageBubble = memo(function MessageBubble({
   const settledUndecryptable = undecryptable && settledFor === message.id;
   useEffect(() => {
     if (!undecryptable) return;
-    const timer = window.setTimeout(() => setSettledFor(message.id), 12_000);
+    const timer = window.setTimeout(() => {
+      setSettledFor(message.id);
+      reportClientEvent("client.decrypt.timeout");
+    }, 12_000);
     return () => window.clearTimeout(timer);
   }, [undecryptable, message.id]);
 
