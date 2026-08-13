@@ -68,6 +68,41 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/*
+          The visual viewport, published as a variable.
+
+          Bottom-anchored chrome — the dock, the composer — has floated above
+          the real bottom on a fresh open and only settled after a tap. Every
+          viewport unit misreports at some point in that sequence on iOS:
+          `dvh` before the chrome settles, `100%` when the layout viewport
+          exceeds what is on screen. `visualViewport` is the one measurement
+          that describes what the user can actually see, and it fires an event
+          whenever that changes.
+
+          Inline and before paint, so the first frame is already correct rather
+          than corrected. Falls back to `innerHeight` where the API is absent.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var root = document.documentElement;
+                function publish() {
+                  var vv = window.visualViewport;
+                  var height = vv ? vv.height : window.innerHeight;
+                  if (height > 0) root.style.setProperty('--visual-vh', height + 'px');
+                }
+                publish();
+                if (window.visualViewport) {
+                  window.visualViewport.addEventListener('resize', publish);
+                  window.visualViewport.addEventListener('scroll', publish);
+                }
+                window.addEventListener('orientationchange', publish);
+                window.addEventListener('pageshow', publish);
+              })();
+            `,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `

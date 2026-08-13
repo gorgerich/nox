@@ -1291,7 +1291,7 @@ body {
        conversation under the input. The page behind now carries the chat's own
        canvas, so a gap is invisible rather than white, and the height can be
        the honest one. */
-    height: 100dvh;
+    height: var(--visual-vh, 100dvh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1542,7 +1542,7 @@ body {
 
   /* --- Robust Safe Areas & Unified Layout --- */
   .app-screen {
-    min-height: max(100dvh, 100%);
+    min-height: var(--visual-vh, max(100dvh, 100%));
     background: var(--app-bg);
     color: var(--app-fg);
     overflow-x: hidden;
