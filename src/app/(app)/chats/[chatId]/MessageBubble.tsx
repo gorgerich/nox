@@ -272,6 +272,20 @@ function AttachmentPreview({
   const isRoundVideo = isVideo && message.type === "VIDEO_NOTE";
   const roundProgressLength = 2 * Math.PI * 47;
 
+  /**
+   * The same bounded wait the text bubble uses. Media whose key envelope was
+   * never addressed to this device cannot be decrypted here, and the shimmer
+   * for it is permanent — a silent grey box that never becomes a photo.
+   */
+  useEffect(() => {
+    if (!isDecrypting) return;
+    const timer = window.setTimeout(() => {
+      setIsDecrypting(false);
+      setDecryptError((current) => current ?? "Медиа недоступно на этом устройстве");
+    }, 12_000);
+    return () => window.clearTimeout(timer);
+  }, [isDecrypting]);
+
   // Reserve the media box from known dimensions so the bubble doesn't resize
   // (jump/jitter) when the image/video finishes decrypting or decoding.
   const ratioStyle: React.CSSProperties = attachment.width && attachment.height
@@ -712,6 +726,25 @@ export const MessageBubble = memo(function MessageBubble({
     return acc;
   }, {} as Record<string, { count: number; me: boolean }>);
 
+  /**
+   * An encrypted message with no body has either not been decrypted yet or
+   * never will be — and until now the two looked identical, both spinning on
+   * "Загрузка зашифрованного сообщения…" indefinitely. A message sent before
+   * this device existed has no envelope addressed to it and will never gain
+   * one, so the spinner was permanent and read as the app being stuck.
+   *
+   * After a bounded wait the state becomes terminal and says so. The wait is
+   * generous: decryption on a cold cache legitimately takes a few seconds.
+   */
+  const [settledFor, setSettledFor] = useState<string | null>(null);
+  const undecryptable = message.isEncrypted && !message.body && message.attachments.length === 0;
+  const settledUndecryptable = undecryptable && settledFor === message.id;
+  useEffect(() => {
+    if (!undecryptable) return;
+    const timer = window.setTimeout(() => setSettledFor(message.id), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [undecryptable, message.id]);
+
   const relevantReceipts = message.receipts?.filter((receipt) => receipt.userId !== message.senderUserId) ?? [];
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
@@ -753,7 +786,21 @@ export const MessageBubble = memo(function MessageBubble({
     return (
       <div className="relative flex w-full justify-center px-4 py-2">
         <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
-          Загрузка зашифрованного сообщения…
+          {settledUndecryptable ? "Сообщение недоступно на этом устройстве" : "Загрузка зашифрованного сообщения…"}
+        </div>
+      </div>
+    );
+  }
+
+  // A message with nothing in it: no body, no attachment, not encrypted, so
+  // there is nothing still to arrive. It used to render as a bubble containing
+  // only its timestamp — which reads as a duplicate of the message beside it,
+  // and is how a media message whose attachment never attached appears.
+  if (!message.body && message.attachments.length === 0 && !message.isEncrypted && !message.deletedAt) {
+    return (
+      <div className="relative flex w-full justify-center px-4 py-2">
+        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
+          Вложение не загрузилось
         </div>
       </div>
     );

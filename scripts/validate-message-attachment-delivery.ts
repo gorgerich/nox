@@ -286,7 +286,11 @@ async function main() {
 
     // Written without an inner helper on purpose: the transpiler injects a
     // `__name` shim into named functions, which does not exist in the page.
-    const leftover = await page.evaluate(async () => {
+    // Polled, not snapshotted: the row landing on the server and the device
+    // letting go of its copy are two different moments, and reading the store
+    // the instant the last assertion passed caught an upload that was still
+    // draining under the load of a full gate run.
+    const readStores = async () => page.evaluate(async () => {
       const open = indexedDB.open("nox-e2ee");
       const db: IDBDatabase = await new Promise((resolve, reject) => {
         open.onsuccess = () => resolve(open.result);
@@ -309,7 +313,14 @@ async function main() {
         })) as unknown[]).length;
       }
       return { pending, blobs };
-    });
+    }) as Promise<{ pending: number; blobs: number }>;
+
+    let leftover = await readStores();
+    const drainDeadline = Date.now() + 45_000;
+    while ((leftover.pending > 0 || leftover.blobs > 0) && Date.now() < drainDeadline) {
+      await page.waitForTimeout(500);
+      leftover = await readStores();
+    }
     check("nothing is left owed in the pending store", leftover.pending === 0, `pending=${leftover.pending}`);
     check("no staged bytes are left behind", leftover.blobs === 0, `blobs=${leftover.blobs}`);
 
