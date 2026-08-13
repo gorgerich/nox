@@ -660,6 +660,21 @@ html {
   text-size-adjust: 100%;
 }
 
+/* The page behind an open conversation.
+
+   `body` is white in the light theme while a chat's canvas is #F2F2F7, so
+   any strip the chat screen does not cover showed as a white band under the
+   composer — which is what `dvh` resolving shorter than the painted area
+   produces on a phone. Matching the two means an uncovered pixel is
+   indistinguishable from a covered one instead of announcing itself.
+
+   `:has()` rather than a route class: the chat screen already exists in the
+   markup and does not need a second flag kept in sync with it. */
+html:has(.chat-screen),
+html:has(.chat-screen) body {
+  background: var(--chat-background);
+}
+
 body {
   background: var(--app-bg);
   color: var(--app-fg);
