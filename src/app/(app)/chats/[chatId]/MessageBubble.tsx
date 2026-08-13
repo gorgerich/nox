@@ -175,6 +175,11 @@ function AttachmentPreview({
   ));
   const [decryptError, setDecryptError] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(Boolean(attachment.isEncrypted) && !cachedMediaUrl);
+  // Some stored attachments are truncated — production holds images of 70
+  // bytes from an old upload fault. They decrypt to something the decoder
+  // rejects, so the <img> paints nothing and the bubble reads as empty. The
+  // element tells us; nothing else can.
+  const [imageBroken, setImageBroken] = useState(false);
   const [roundExpanded, setRoundExpanded] = useState(false);
   const [roundProgress, setRoundProgress] = useState(0);
   const roundVideoRef = useRef<HTMLVideoElement>(null);
@@ -337,6 +342,14 @@ function AttachmentPreview({
     );
   }
 
+  if (imageBroken) {
+    return (
+      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
+        Изображение не открывается
+      </div>
+    );
+  }
+
   if (decryptError || !sourceUrl) {
     return (
       <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
@@ -367,6 +380,7 @@ function AttachmentPreview({
             alt=""
             className="absolute inset-0 h-full w-full object-cover transition-smooth hover:scale-[1.02]"
             loading="lazy"
+            onError={() => setImageBroken(true)}
           />
         </button>
       ) : isRoundVideo ? (
