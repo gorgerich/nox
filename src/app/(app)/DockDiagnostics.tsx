@@ -30,12 +30,31 @@ type Sample = {
   dockBottom: number | null;
   dockHeight: number | null;
   safeAreaBottom: number;
+  /** What the screen itself is, against what the page thinks it has. */
+  screenHeight: number;
+  /** The three viewport units, resolved. They disagree exactly when this bug shows. */
+  dvh: number;
+  lvh: number;
+  svh: number;
+  /** The computed offset the dock is actually positioned by. */
+  dockBottomOffset: string;
   scrollY: number;
   orientation: string;
   displayMode: string;
 };
 
 const DOCK_SELECTOR = 'nav[aria-label="Нижняя навигация"]';
+
+/** Resolves one viewport unit by measuring an element sized in it. */
+function measureUnit(unit: "dvh" | "lvh" | "svh"): number {
+  if (typeof document === "undefined") return -1;
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:fixed;top:0;left:0;width:1px;height:100${unit};pointer-events:none;visibility:hidden`;
+  document.body.appendChild(probe);
+  const height = Math.round(probe.getBoundingClientRect().height);
+  probe.remove();
+  return height;
+}
 
 function measure(event: string, sentinel: HTMLElement | null): Sample {
   const dock = document.querySelector(DOCK_SELECTOR);
@@ -53,6 +72,15 @@ function measure(event: string, sentinel: HTMLElement | null): Sample {
     // The sentinel is a zero-size element whose height is the safe-area inset,
     // which is the only way to read the inset as a number.
     safeAreaBottom: sentinel ? Math.round(sentinel.getBoundingClientRect().height) : -1,
+    screenHeight: Math.round(window.screen?.height ?? -1),
+    // Resolved through a probe rather than assumed: a unit that disagrees with
+    // the others is the whole question here.
+    dvh: measureUnit("dvh"),
+    lvh: measureUnit("lvh"),
+    svh: measureUnit("svh"),
+    dockBottomOffset: getComputedStyle(document.documentElement)
+      .getPropertyValue("--messenger-dock-bottom")
+      .trim() || "(unset)",
     scrollY: Math.round(window.scrollY),
     orientation: window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape",
     displayMode: window.matchMedia("(display-mode: standalone)").matches ? "standalone" : "browser",
