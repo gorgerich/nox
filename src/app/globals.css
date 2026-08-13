@@ -778,7 +778,11 @@ body {
     position: sticky;
     bottom: 0;
     z-index: 50;
-    padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    /* The bottom inset collapses exactly while the keyboard covers the home
+       indicator: iOS keeps reporting the indicator's 34px there, which parked
+       the composer that far above the keyboard. `--keyboard-inset` is 0 unless
+       a keyboard is actually up, so nothing changes anywhere else. */
+    padding: 8px 12px calc(max(0px, env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px)) + 8px);
     /* No surface of its own. The controls sit directly on the conversation —
        the attach button, the field and the mic each carry their own shape, so
        a bar behind them added a second, competing edge and a rule across the
@@ -1019,6 +1023,25 @@ body {
   .messenger-dock {
     bottom: var(--messenger-dock-bottom);
     transform: translateX(-50%);
+    /* Named properties only: `transition: all` here would also animate the
+       `bottom` that `--visual-vh` updates on every viewport event. */
+    transition: transform 220ms var(--ease-out), opacity 160ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .messenger-dock {
+      transition: opacity 160ms ease;
+    }
+  }
+
+  /* `position: fixed` is anchored to the layout viewport, which the keyboard
+     does not shrink — so the dock stayed exactly where it was and the keyboard
+     rose underneath it. Moved off-screen instead of hidden, so it slides rather
+     than disappears, and left non-interactive while it is gone. */
+  :root[data-keyboard="open"] .messenger-dock {
+    transform: translateX(-50%) translateY(calc(100% + var(--messenger-dock-bottom)));
+    opacity: 0;
+    pointer-events: none;
   }
 
   .dock-liquid {
