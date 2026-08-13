@@ -779,20 +779,20 @@ body {
     bottom: 0;
     z-index: 50;
     padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
-    /* The chat's own composer surface — using the app navigation background
-       here made the composer ignore the chat appearance and left a light bar
-       under a dark history. */
-    background: var(--chat-composer-bg, var(--navigation-background-fallback));
+    /* No surface of its own. The controls sit directly on the conversation —
+       the attach button, the field and the mic each carry their own shape, so
+       a bar behind them added a second, competing edge and a rule across the
+       wallpaper for nothing. */
+    background: transparent;
     border: 0;
-    border-top: 1px solid var(--separator);
     box-shadow: none;
   }
 
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .chat-composer-shell {
-      background: var(--chat-composer-bg, var(--navigation-background));
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
+      /* Deliberately left plain here too: blurring an area with no fill only
+         costs a compositor pass. */
+      background: transparent;
     }
   }
 
@@ -1282,9 +1282,16 @@ body {
   }
 
   .chat-screen {
-    /* See the note on body: the larger of the two, so the conversation always
-       reaches the bottom of what is painted. */
-    height: max(100dvh, 100%);
+    /* `dvh` alone, not `max(100dvh, 100%)`.
+
+       The max() was there so the conversation always reached the bottom of the
+       painted area, back when an uncovered strip showed as white. On iOS `100%`
+       can exceed the visual viewport, which pushed the screen's bottom edge —
+       and with it the sticky composer — below the fold, leaving a band of empty
+       conversation under the input. The page behind now carries the chat's own
+       canvas, so a gap is invisible rather than white, and the height can be
+       the honest one. */
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
