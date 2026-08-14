@@ -15,8 +15,8 @@ export function DateSeparator({ date }: { date: Date }) {
     <div className="my-3 flex justify-center">
       <time
         dateTime={date.toISOString()}
-        className="rounded-full px-3 py-1 text-[12px] font-semibold"
-        style={{ background: "var(--chat-date-bg)", color: "var(--chat-date-fg)" }}
+        className="rounded-full px-3 py-[5px] text-[13px] font-medium"
+        style={{ background: "var(--chat-date-bg, rgba(120,120,128,0.28))", color: "var(--chat-date-fg, var(--foreground))" }}
       >
         {label}
       </time>

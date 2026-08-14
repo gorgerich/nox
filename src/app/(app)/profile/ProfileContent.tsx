@@ -377,26 +377,14 @@ export function ProfileContent({
                 type="button"
                 aria-label="Изменить фото профиля"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-surface bg-primary text-primary-foreground transition-smooth active:scale-[0.96]"
+                className="absolute bottom-1 right-1 z-10 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-background bg-surface-secondary text-primary transition-smooth active:scale-[0.96]"
                 title="Изменить фото"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <svg className="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M9.4 4h5.2l1.2 2H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.2l1.2-2Zm2.6 5.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
                 </svg>
               </button>
 
-              {avatarUrl && (
-                <button
-                  type="button"
-                  aria-label="Удалить фото профиля"
-                  onClick={() => setConfirmAvatarDelete(true)}
-                  className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-destructive transition-smooth active:scale-[0.96]"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              )}
             </div>
 
             <h2 className="text-3xl font-semibold tracking-tight text-foreground">{displayName || username}</h2>
@@ -415,42 +403,42 @@ export function ProfileContent({
                 onClick={() => setActiveScreen("profile")}
                 icon={<ProfileIcon />}
               />
-              <div className="h-px bg-border-subtle/30 mx-4" />
+              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
               <SettingsMenuButton
                 label="Уведомления"
                 subtitle={pushValue}
                 onClick={() => setActiveScreen("notifications")}
                 icon={<BellIcon />}
               />
-              <div className="h-px bg-border-subtle/30 mx-4" />
+              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
               <SettingsMenuButton
                 label="Устройства"
                 subtitle="Активные сеансы"
                 onClick={() => setActiveScreen("devices")}
                 icon={<DevicesIcon />}
               />
-              <div className="h-px bg-border-subtle/30 mx-4" />
+              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
               <SettingsMenuButton
                 label="Оформление"
                 subtitle="Тема и акцент"
                 onClick={() => setActiveScreen("appearance")}
                 icon={<AppearanceIcon />}
               />
-              <div className="h-px bg-border-subtle/30 mx-4" />
+              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
               <SettingsMenuButton
                 label="Безопасность"
                 subtitle="Пароль и восстановление"
                 onClick={() => setActiveScreen("security")}
                 icon={<SecurityIcon />}
               />
-              <div className="h-px bg-border-subtle/30 mx-4" />
+              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
               <SettingsMenuButton
                 label="Папки чатов"
                 subtitle={`${visibleFolderCount} активных`}
                 onClick={() => setActiveScreen("folders")}
                 icon={<FoldersIcon />}
               />
-              <div className="h-px bg-border-subtle/30 mx-4" />
+              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
               <SettingsMenuButton
                 label="Данные и кэш"
                 subtitle="Хранилище и кэш"
@@ -460,22 +448,37 @@ export function ProfileContent({
             </section>
 
             {isAdmin && (
-              <Link
-                href="/admin"
-                className="flex h-12 w-full items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]"
-              >
-                Админ-панель
-              </Link>
+              <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+                <Link
+                  href="/admin"
+                  className="group flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <ShieldIcon />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-foreground">Админ-панель</span>
+                  <span className="shrink-0 text-muted opacity-50 transition-opacity group-hover:opacity-100">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                  </span>
+                </Link>
+              </section>
             )}
 
-            <button
-              type="button"
-              onClick={() => setConfirmLogout(true)}
-              disabled={pending}
-              className="h-12 w-full rounded-full border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.96] disabled:opacity-50"
-            >
-              {pending ? "Выход..." : "Выйти из аккаунта"}
-            </button>
+            <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(true)}
+                disabled={pending}
+                className="flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-danger/5 active:bg-danger/10 disabled:opacity-50"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
+                  <LogoutIcon />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-danger">
+                  {pending ? "Выход..." : "Выйти из аккаунта"}
+                </span>
+              </button>
+            </section>
           </div>
         </div>
       )}
@@ -532,6 +535,17 @@ export function ProfileContent({
                     {pending ? "Сохранение…" : "Сохранить"}
                   </SettingsPrimaryButton>
                 </SettingsBlock>
+              ) : null}
+
+              {avatarUrl ? (
+                <SettingsGroup>
+                  <SettingsActionRow
+                    title="Удалить фото профиля"
+                    tone="danger"
+                    disabled={pending}
+                    onClick={() => setConfirmAvatarDelete(true)}
+                  />
+                </SettingsGroup>
               ) : null}
 
               {message ? (
@@ -916,6 +930,9 @@ function SettingsMenuButton({ label, subtitle, icon, onClick }: { label: string;
     </button>
   );
 }
+
+function ShieldIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7.5 3v5.7c0 4.4-3.1 8.5-7.5 9.8-4.4-1.3-7.5-5.4-7.5-9.8V6L12 3Z" /></svg>; }
+function LogoutIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17l5-5-5-5m5 5H9M13 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7" /></svg>; }
 
 function ProfileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>; }
 function BellIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>; }

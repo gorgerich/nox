@@ -322,7 +322,7 @@ export function ChatComposer({
             onClick={() => fileInputRef.current?.click()}
             className="premium-glass touch-target fluid-hit flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground hover:text-primary dark:text-white"
           >
-            <Paperclip className="h-5.5 w-5.5" strokeWidth={2.25} />
+            <Paperclip className="h-[21px] w-[21px]" strokeWidth={2.1} />
           </button>
         )}
 

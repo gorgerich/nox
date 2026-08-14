@@ -20,11 +20,9 @@ export default async function ProfilePage() {
 
   return (
     <div className="app-section transition-smooth">
-      <div className="app-section-header px-2">
-        <div>
-          <h1 className="app-section-title">Профиль</h1>
-        </div>
-      </div>
+      {/* No page title: the avatar and name are the heading on this screen, and
+          a second "Профиль" above them only pushed everything down. */}
+      <h1 className="sr-only">Профиль</h1>
 
       <ProfileContent
         user={dbUser}

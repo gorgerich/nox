@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ChatThemePortal } from "./ChatThemePortal";
-import { ArrowLeft, Check, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
+import { Check, ChevronLeft, Clock3, MoreVertical, Palette, Phone, Search, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useClientValue } from "@/lib/use-client-value";
@@ -121,10 +121,10 @@ export function ChatHeader({
 
   return (
     <header
-      className="nox-chat-topbar sticky top-0 z-50 flex items-center gap-2 px-3 transition-smooth"
+      className="nox-chat-topbar sticky top-0 z-50 flex items-center px-1 transition-smooth"
       style={{
         color: "var(--chat-header-fg)",
-        minHeight: "calc(3.8rem + env(safe-area-inset-top, 0px))",
+        minHeight: "calc(3.25rem + env(safe-area-inset-top, 0px))",
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
@@ -132,43 +132,33 @@ export function ChatHeader({
         type="button"
         aria-label="Назад к чатам"
         onClick={handleBackToChats}
-        className="nox-chat-back-button touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-smooth active:scale-[0.96]"
+        className="fast-tap -ml-0.5 flex h-11 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-2 text-[17px] text-primary transition-smooth"
       >
-        <ArrowLeft className="h-6 w-6" strokeWidth={2.35} />
+        <ChevronLeft className="h-[26px] w-[26px]" strokeWidth={2.2} />
+        Чаты
       </button>
 
+      {/* Centred against the header, not against the row: the back label and
+          the trailing controls have different widths, so a flex-centred title
+          would sit off-centre and shift as the subtitle changes. */}
       <button
         type="button"
         aria-label="Открыть профиль чата"
-        className="nox-chat-profile-pill min-w-0 text-left transition-smooth active:scale-[0.96]"
+        className="pointer-events-auto absolute inset-x-0 mx-auto flex max-w-[52%] flex-col items-center justify-center"
+        style={{ top: "env(safe-area-inset-top, 0px)", height: "3.25rem" }}
         onClick={handleHeaderClick}
       >
-        <div className="relative shrink-0">
-          {fullAvatarUrl ? (
-            <div className="relative h-10 w-10 overflow-hidden rounded-full bg-surface-muted transition-smooth">
-              <Image src={fullAvatarUrl} alt={title} fill sizes="40px" className="object-cover" />
-            </div>
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full transition-smooth" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
-              <span className="text-base font-semibold">{title.substring(0, 1).toUpperCase()}</span>
-            </div>
-          )}
-          {!isGroup && isConnected && (
-            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-primary" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <h1 className="truncate text-[16px] font-semibold leading-[1.05] text-[var(--chat-header-fg)]">{title}</h1>
-          <p
-            className="mt-0.5 truncate text-[12px] font-normal leading-tight"
-            style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
-          >
-            {displaySubtitle}
-          </p>
-        </div>
+        <span className="max-w-full truncate text-[17px] font-semibold leading-tight text-[var(--chat-header-fg)]">{title}</span>
+        <span
+          className="max-w-full truncate text-[13px] leading-tight"
+          style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
+        >
+          {displaySubtitle}
+        </span>
       </button>
 
-      <div className="nox-chat-actions-pill shrink-0">
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
+
         {canCall && (
           <>
             <button
@@ -176,20 +166,10 @@ export function ChatHeader({
               aria-label="Аудиозвонок"
               onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null })}
               disabled={status !== "idle"}
-              className="nox-chat-action-button touch-target text-primary disabled:opacity-30 disabled:grayscale"
+              className="fast-tap flex h-10 w-10 items-center justify-center rounded-full text-primary transition-smooth disabled:opacity-30 disabled:grayscale"
               title="Аудиозвонок"
             >
-              <Phone className="h-5 w-5" strokeWidth={2.1} />
-            </button>
-            <button
-              type="button"
-              aria-label="Видеозвонок"
-              onClick={() => startCall(chatId, { displayName: title, avatarUrl: avatarUrl ?? null }, { video: true })}
-              disabled={status !== "idle"}
-              className="nox-chat-action-button touch-target text-primary disabled:opacity-30 disabled:grayscale"
-              title="Видеозвонок"
-            >
-              <Video className="h-5 w-5" strokeWidth={2.1} />
+              <Phone className="h-[22px] w-[22px]" strokeWidth={2.1} fill="currentColor" stroke="none" />
             </button>
           </>
         )}
@@ -202,7 +182,7 @@ export function ChatHeader({
               aria-haspopup="menu"
               aria-expanded={timerMenuOpen}
               onClick={openMenu}
-              className="nox-chat-action-button touch-target text-primary"
+              className="fast-tap flex h-10 w-9 items-center justify-center rounded-full text-primary transition-smooth"
               title="Ещё"
             >
               <MoreVertical className="h-5 w-5" strokeWidth={2.2} />
@@ -274,6 +254,28 @@ export function ChatHeader({
             )}
           </div>
         )}
+
+        {/* The partner's avatar, on the trailing edge and opening the same
+            profile the title does. */}
+        <button
+          type="button"
+          aria-label="Открыть профиль чата"
+          onClick={handleHeaderClick}
+          className="fast-tap ml-0.5 mr-1 shrink-0 transition-smooth"
+        >
+          {fullAvatarUrl ? (
+            <span className="relative block h-[34px] w-[34px] overflow-hidden rounded-full bg-surface-muted">
+              <Image src={fullAvatarUrl} alt={title} fill sizes="34px" className="object-cover" />
+            </span>
+          ) : (
+            <span
+              className="flex h-[34px] w-[34px] items-center justify-center rounded-full text-[15px] font-semibold"
+              style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}
+            >
+              {title.substring(0, 1).toUpperCase()}
+            </span>
+          )}
+        </button>
       </div>
     </header>
   );

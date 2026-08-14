@@ -162,6 +162,9 @@
   --ambient-3: transparent;
   --ambient-4: transparent;
   --chat-background: var(--background);
+  /* The composer panel: one surface with the keyboard under it. */
+  --chat-composer-bg: var(--surface-primary);
+  --chat-composer-glass: rgba(250, 250, 250, 0.82);
   --chat-header: var(--navigation-background);
   --chat-composer: var(--navigation-background);
   --chat-composer-border: var(--separator);
@@ -329,6 +332,8 @@
   --ambient-3: transparent;
   --ambient-4: transparent;
   --chat-background: var(--background);
+  --chat-composer-bg: var(--surface-secondary);
+  --chat-composer-glass: rgba(28, 28, 30, 0.82);
   --chat-header: var(--navigation-background);
   --chat-composer: var(--navigation-background);
   --chat-composer-border: var(--separator);
@@ -783,20 +788,21 @@ body {
        the composer that far above the keyboard. `--keyboard-inset` is 0 unless
        a keyboard is actually up, so nothing changes anywhere else. */
     padding: 8px 12px calc(max(0px, env(safe-area-inset-bottom, 0px) - var(--keyboard-inset, 0px)) + 8px);
-    /* No surface of its own. The controls sit directly on the conversation —
-       the attach button, the field and the mic each carry their own shape, so
-       a bar behind them added a second, competing edge and a rule across the
-       wallpaper for nothing. */
-    background: transparent;
+    /* A panel again, on purpose. It was transparent while the composer floated
+       over the conversation; against a keyboard it has to read as one surface
+       continuing into it, otherwise the wallpaper shows through a strip
+       between the field and the keys. One hairline on top, no other edge. */
+    background: var(--chat-composer-bg, var(--navigation-background-fallback));
     border: 0;
+    border-top: 1px solid var(--separator);
     box-shadow: none;
   }
 
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .chat-composer-shell {
-      /* Deliberately left plain here too: blurring an area with no fill only
-         costs a compositor pass. */
-      background: transparent;
+      background: var(--chat-composer-glass, var(--chat-composer-bg));
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
     }
   }
 
