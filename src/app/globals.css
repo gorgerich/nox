@@ -2839,3 +2839,23 @@ body {
     margin-top: 14px;
   }
 }
+
+/* The conversation is measured against the visual viewport, not the document.
+
+   Unlayered on purpose: `.chat-screen` also carries Tailwind's `relative`, and
+   a layered rule loses to it.
+
+   `--visual-vh` already gives the height the user can see. What was missing is
+   where that area starts: while the keyboard is up iOS leaves the page scrolled
+   by however much it moved to reveal the field, so a box sized to the visual
+   viewport but anchored to the document sat that far too high and left a band
+   of empty canvas between the composer and the keyboard. Pinning the screen to
+   the measured offset removes the gap without inventing a number — off-keyboard,
+   and on every platform that does not scroll to reveal, the offset is 0 and this
+   rule changes nothing. */
+:root[data-keyboard="open"] .chat-screen {
+  position: fixed;
+  top: var(--visual-vh-offset, 0px);
+  left: 0;
+  right: 0;
+}

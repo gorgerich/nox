@@ -111,6 +111,19 @@ export default function RootLayout({
                   var keyboard = covered > 120 ? Math.round(covered) : 0;
                   root.style.setProperty('--keyboard-inset', keyboard + 'px');
                   root.dataset.keyboard = keyboard > 0 ? 'open' : 'closed';
+
+                  /*
+                    How far the visual viewport has been scrolled inside the
+                    layout viewport.
+
+                    iOS scrolls the page to reveal a focused field before it
+                    reports the smaller viewport. A fixed-height screen anchored
+                    to the top of the document travels up with that scroll, so
+                    its bottom edge — the composer — ends up that far above the
+                    keyboard instead of against it. This is the number that says
+                    by how much, and it is 0 everywhere that does not do it.
+                  */
+                  root.style.setProperty('--visual-vh-offset', Math.round(vv ? vv.offsetTop : 0) + 'px');
                 }
                 publish();
                 if (window.visualViewport) {

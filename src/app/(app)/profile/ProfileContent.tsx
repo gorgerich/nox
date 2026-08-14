@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ACCENT_OPTIONS, useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
+import Link from "next/link";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { AvatarViewer } from "./AvatarViewer";
 import { CacheSettings } from "./CacheSettings";
@@ -402,72 +403,79 @@ export function ProfileContent({
             <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
           </section>
 
-          <div className="mt-8">
-            <SettingsStack>
-              <SettingsGroup>
-                <SettingsNavRow
-                  title="Мой профиль"
-                  subtitle="Имя, username, о себе"
-                  onClick={() => setActiveScreen("profile")}
-                  icon={<ProfileIcon />}
-                />
-                <SettingsNavRow
-                  title="Уведомления"
-                  value={pushValue}
-                  onClick={() => setActiveScreen("notifications")}
-                  icon={<BellIcon />}
-                />
-                <SettingsNavRow
-                  title="Устройства"
-                  subtitle="Активные сеансы"
-                  onClick={() => setActiveScreen("devices")}
-                  icon={<DevicesIcon />}
-                />
-                <SettingsNavRow
-                  title="Оформление"
-                  subtitle="Тема и акцент"
-                  onClick={() => setActiveScreen("appearance")}
-                  icon={<AppearanceIcon />}
-                />
-                <SettingsNavRow
-                  title="Безопасность"
-                  subtitle="Пароль и восстановление"
-                  onClick={() => setActiveScreen("security")}
-                  icon={<SecurityIcon />}
-                />
-                <SettingsNavRow
-                  title="Папки чатов"
-                  value={String(visibleFolderCount)}
-                  onClick={() => setActiveScreen("folders")}
-                  icon={<FoldersIcon />}
-                />
-                <SettingsNavRow
-                  title="Данные и кэш"
-                  subtitle="Хранилище на устройстве"
-                  onClick={() => setActiveScreen("data")}
-                  icon={<DataIcon />}
-                />
-              </SettingsGroup>
+          {/* The main list keeps its original presentation: one bordered card,
+              icon + label + subtitle rows, hairline dividers, and the same
+              pressed state. Only the destinations changed — Уведомления is now
+              a screen of its own rather than an inline toggle. */}
+          <div className="mt-8 space-y-6 px-4">
+            <section className="flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+              <SettingsMenuButton
+                label="Мой профиль"
+                subtitle="Имя, username, о себе"
+                onClick={() => setActiveScreen("profile")}
+                icon={<ProfileIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Уведомления"
+                subtitle={pushValue}
+                onClick={() => setActiveScreen("notifications")}
+                icon={<BellIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Устройства"
+                subtitle="Активные сеансы"
+                onClick={() => setActiveScreen("devices")}
+                icon={<DevicesIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Оформление"
+                subtitle="Тема и акцент"
+                onClick={() => setActiveScreen("appearance")}
+                icon={<AppearanceIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Безопасность"
+                subtitle="Пароль и восстановление"
+                onClick={() => setActiveScreen("security")}
+                icon={<SecurityIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Папки чатов"
+                subtitle={`${visibleFolderCount} активных`}
+                onClick={() => setActiveScreen("folders")}
+                icon={<FoldersIcon />}
+              />
+              <div className="h-px bg-border-subtle/30 mx-4" />
+              <SettingsMenuButton
+                label="Данные и кэш"
+                subtitle="Хранилище и кэш"
+                onClick={() => setActiveScreen("data")}
+                icon={<DataIcon />}
+              />
+            </section>
 
-              {isAdmin ? (
-                <SettingsGroup>
-                  <SettingsNavRow
-                    title="Админ-панель"
-                    onClick={() => router.push("/admin")}
-                    icon={<AdminIcon />}
-                  />
-                </SettingsGroup>
-              ) : null}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex h-12 w-full items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]"
+              >
+                Админ-панель
+              </Link>
+            )}
 
-              <SettingsGroup>
-                <SettingsActionRow
-                  title="Выйти из аккаунта"
-                  tone="danger"
-                  disabled={pending}
-                  onClick={() => setConfirmLogout(true)}
-                />
-              </SettingsGroup>
-            </SettingsStack>
+            <button
+              type="button"
+              onClick={() => setConfirmLogout(true)}
+              disabled={pending}
+              className="h-12 w-full rounded-full border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.96] disabled:opacity-50"
+            >
+              {pending ? "Выход..." : "Выйти из аккаунта"}
+            </button>
           </div>
         </div>
       )}
@@ -892,11 +900,27 @@ export function ProfileContent({
   );
 }
 
-function ProfileIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>; }
-function BellIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>; }
-function DevicesIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
-function AppearanceIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
-function SecurityIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
-function FoldersIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7.5A2.5 2.5 0 015.5 5h4.2c.55 0 1.08.22 1.47.61l1.22 1.22c.39.39.92.61 1.47.61h4.64A2.5 2.5 0 0121 9.94V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9Z" /></svg>; }
-function DataIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
-function AdminIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 3v5.5c0 4.2-2.9 8.1-7 9.5-4.1-1.4-7-5.3-7-9.5V6l7-3Z" /></svg>; }
+function SettingsMenuButton({ label, subtitle, icon, onClick }: { label: string; subtitle: string; icon: React.ReactNode; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="group flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1 text-left">
+        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+        <p className="mt-0.5 truncate text-xs font-normal text-muted">{subtitle}</p>
+      </div>
+      <div className="shrink-0 text-muted opacity-50 transition-opacity group-hover:opacity-100">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+      </div>
+    </button>
+  );
+}
+
+function ProfileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>; }
+function BellIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>; }
+function DevicesIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
+function AppearanceIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
+function SecurityIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
+function FoldersIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7.5A2.5 2.5 0 015.5 5h4.2c.55 0 1.08.22 1.47.61l1.22 1.22c.39.39.92.61 1.47.61h4.64A2.5 2.5 0 0121 9.94V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9Z" /></svg>; }
+function DataIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
