@@ -1,1 +1,6 @@
 CAPACITOR_DEBUG = true
+
+// The signing team is a property of whoever is building, not of the project.
+// `#include?` is the optional form: the build works with the file absent, so a
+// fresh clone compiles and only signing needs a Team picked in Xcode.
+#include? "Local.xcconfig"

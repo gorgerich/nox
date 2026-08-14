@@ -114,3 +114,6 @@ tsconfig.tsbuildinfo
 *.jks
 *.keystore
 android/keystore.properties
+
+# Local iOS signing identity, per developer
+ios/Local.xcconfig
