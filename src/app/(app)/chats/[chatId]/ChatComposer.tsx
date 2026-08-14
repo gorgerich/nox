@@ -5,6 +5,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { useClientValue } from "@/lib/use-client-value";
+import { useLockDocumentScroll } from "@/lib/use-lock-document-scroll";
 
 export type CaptureMode = "voice" | "video";
 
@@ -53,6 +54,13 @@ export function ChatComposer({
   // Enter has no handler, so automation that types too early loses the message
   // and still sees an empty composer, which reads as a successful send.
   const interactive = useClientValue(() => true, false);
+  const { lock: lockScroll, unlock: unlockScroll } = useLockDocumentScroll();
+  // Blur does not fire on unmount (navigating away while the field is
+  // focused, e.g. tapping back mid-type), which would leave the lock held
+  // forever. The ref tracks whether this instance actually holds it, so the
+  // cleanup only releases a lock it took.
+  const scrollLockedRef = useRef(false);
+  useEffect(() => () => { if (scrollLockedRef.current) { scrollLockedRef.current = false; unlockScroll(); } }, [unlockScroll]);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   // One source of truth for which capture the record button will start.
@@ -413,7 +421,8 @@ export function ChatComposer({
                 aria-label="Сообщение"
                 rows={1}
                 value={text}
-                onFocus={() => setShowEmoji(false)}
+                onFocus={() => { setShowEmoji(false); scrollLockedRef.current = true; lockScroll(); }}
+                onBlur={() => { scrollLockedRef.current = false; unlockScroll(); }}
                 onChange={(e) => {
                   setText(e.target.value);
                   onTyping(e.target.value);

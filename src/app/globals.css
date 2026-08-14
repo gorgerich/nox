@@ -2846,22 +2846,25 @@ body {
   }
 }
 
-/* The conversation is measured against the visual viewport, not the document.
+/* The document does not scroll while a field can be focused with the
+   composer's own scroll lock held (`useLockDocumentScroll`).
 
-   Unlayered on purpose: `.chat-screen` also carries Tailwind's `relative`, and
-   a layered rule loses to it.
+   The earlier attempt compensated for the reveal scroll after the fact —
+   measuring how far iOS had scrolled the page and pinning the screen to that
+   offset. On a physical phone it did not hold up: the scroll and the
+   visualViewport resize do not land in one frame, so the screen was
+   momentarily sized for one state while positioned for the other, and the gap
+   this was meant to close came back.
 
-   `--visual-vh` already gives the height the user can see. What was missing is
-   where that area starts: while the keyboard is up iOS leaves the page scrolled
-   by however much it moved to reveal the field, so a box sized to the visual
-   viewport but anchored to the document sat that far too high and left a band
-   of empty canvas between the composer and the keyboard. Pinning the screen to
-   the measured offset removes the gap without inventing a number — off-keyboard,
-   and on every platform that does not scroll to reveal, the offset is 0 and this
-   rule changes nothing. */
-:root[data-keyboard="open"] .chat-screen {
+   Removing the scroll instead of correcting for it needs no timing to get
+   right. A `position: fixed` document has no scroll surface, so there is
+   nothing for iOS to move: the keyboard then does only the one true thing —
+   `--visual-vh` shrinking — and `.chat-screen`'s existing `height:
+   var(--visual-vh)` already sizes correctly around that, with no offset of any
+   kind. Off-keyboard, and anywhere the lock is never taken, nothing here
+   applies. */
+:root[data-scroll-locked="1"] body {
   position: fixed;
-  top: var(--visual-vh-offset, 0px);
-  left: 0;
-  right: 0;
+  inset: 0;
+  width: 100%;
 }
