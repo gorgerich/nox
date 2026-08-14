@@ -3,19 +3,31 @@
 import { avatarTint } from "@/lib/avatar-tint";
 import { RecoveryKeyPanel } from "./RecoveryKeyPanel";
 import { useFocusTrap } from "@/lib/use-focus-trap";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ACCENT_OPTIONS, useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { AvatarViewer } from "./AvatarViewer";
 import { CacheSettings } from "./CacheSettings";
-import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
+import { DevicesPanel } from "./DevicesPanel";
+import { FoldersPanel, type FolderChatOption } from "./FoldersPanel";
+import { NotificationsPanel } from "./NotificationsPanel";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import type { BuiltInFolderItem, ChatFolderItem } from "@/lib/chat-list";
-import { ChatWallpaperControls, useGlobalChatAppearance } from "../chats/[chatId]/ChatAppearance";
+import { CHAT_WALLPAPERS, ChatWallpaperControls, useGlobalChatAppearance } from "../chats/[chatId]/ChatAppearance";
+import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { SettingsBlock, SettingsGroup, SettingsStack } from "@/components/settings/SettingsGroup";
+import {
+  SettingsActionRow,
+  SettingsInputRow,
+  SettingsNavRow,
+  SettingsNote,
+  SettingsPrimaryButton,
+  SettingsSegmented,
+} from "@/components/settings/SettingsRow";
+import { ConfirmSheet } from "@/components/settings/ConfirmSheet";
 
 type UserWithProfile = {
   id: string;
@@ -30,11 +42,24 @@ type UserWithProfile = {
   } | null;
 };
 
-type FolderChatOption = {
-  id: string;
-  title: string;
-  subtitle: string;
-};
+type Screen =
+  | "main"
+  | "profile"
+  | "notifications"
+  | "devices"
+  | "appearance"
+  | "appearance-wallpaper"
+  | "security"
+  | "security-password"
+  | "security-recovery"
+  | "folders"
+  | "data";
+
+const THEME_OPTIONS = [
+  { value: "system", label: "Системная" },
+  { value: "light", label: "Светлая" },
+  { value: "dark", label: "Тёмная" },
+] as const;
 
 export function ProfileContent({
   user,
@@ -49,15 +74,19 @@ export function ProfileContent({
 }) {
   const router = useRouter();
 
-  const [activeScreen, setActiveScreen] = useState<"main" | "profile" | "devices" | "appearance" | "security" | "folders" | "data">("main");
+  const [activeScreen, setActiveScreen] = useState<Screen>("main");
   // Each sub-screen is a full-viewport overlay, but the profile page stays
   // mounted underneath it: without this, Tab walks straight out of the open
   // screen into the page behind it, and a screen reader reads both.
   // Escape closes back to the list, which is what the back button does.
   const profileScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "profile", () => setActiveScreen("main"));
+  const notificationsScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "notifications", () => setActiveScreen("main"));
   const devicesScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "devices", () => setActiveScreen("main"));
   const appearanceScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "appearance", () => setActiveScreen("main"));
+  const wallpaperScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "appearance-wallpaper", () => setActiveScreen("appearance"));
   const securityScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "security", () => setActiveScreen("main"));
+  const passwordScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "security-password", () => setActiveScreen("security"));
+  const recoveryScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "security-recovery", () => setActiveScreen("security"));
   const foldersScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "folders", () => setActiveScreen("main"));
   const dataScreenRef = useFocusTrap<HTMLDivElement>(activeScreen === "data", () => setActiveScreen("main"));
 
@@ -69,12 +98,12 @@ export function ProfileContent({
   const [message, setMessage] = useState("");
   const [chatFolders, setChatFolders] = useState(initialChatFolders);
   const [builtInFolders, setBuiltInFolders] = useState(initialBuiltInFolders);
-  const [folderName, setFolderName] = useState("");
-  const [folderChatIds, setFolderChatIds] = useState<Set<string>>(new Set());
   const [folderPending, setFolderPending] = useState(false);
   const [folderMessage, setFolderMessage] = useState("");
   const [showFullscreenAvatar, setShowFullscreenAvatar] = useState(false);
   const [cropImage, setCropImage] = useState<string | null>(null);
+  const [confirmAvatarDelete, setConfirmAvatarDelete] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
@@ -101,6 +130,11 @@ export function ProfileContent({
 
   const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
+  const profileDirty =
+    displayName !== (user.profile?.displayName || "") ||
+    username !== user.username ||
+    bio !== (user.profile?.bio || "");
+
   async function handleTrustedReset(e: React.FormEvent) {
     e.preventDefault();
     setTrustedPending(true);
@@ -119,7 +153,7 @@ export function ProfileContent({
         throw new Error(data?.error || "Не удалось изменить пароль.");
       }
 
-      setTrustedMessage("Пароль успешно изменён.");
+      setTrustedMessage("Пароль изменён.");
       setTrustedNewPassword("");
       setTimeout(() => setShowTrustedReset(false), 2000);
     } catch (error) {
@@ -147,7 +181,7 @@ export function ProfileContent({
         throw new Error(data?.error || "Не удалось изменить пароль.");
       }
 
-      setPasswordMessage("Пароль успешно изменён.");
+      setPasswordMessage("Пароль изменён.");
       setCurrentPassword("");
       setNewPassword("");
     } catch (error) {
@@ -195,7 +229,7 @@ export function ProfileContent({
   }, [router]);
 
   async function handleAvatarDelete() {
-    if (!confirm("Удалить фото профиля?")) return;
+    setConfirmAvatarDelete(false);
     setPending(true);
     try {
       const res = await fetch("/api/me/avatar", { method: "DELETE" });
@@ -242,6 +276,7 @@ export function ProfileContent({
   }
 
   async function handleLogout() {
+    setConfirmLogout(false);
     setPending(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -252,96 +287,47 @@ export function ProfileContent({
     }
   }
 
-  const orderedBuiltInFolders = [...builtInFolders].sort((left, right) => left.order - right.order);
-
-  async function saveFolders(nextFolders: ChatFolderItem[], nextBuiltIns: BuiltInFolderItem[], successMessage: string) {
-    setFolderPending(true);
-    setFolderMessage("");
-    try {
-      const res = await fetch("/api/chat-folders", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ folders: nextFolders, builtIns: nextBuiltIns }),
-      });
-      const data = (await res.json().catch(() => null)) as { folders?: ChatFolderItem[]; builtIns?: BuiltInFolderItem[]; error?: string } | null;
-      if (!res.ok || !data?.folders || !data.builtIns) {
-        throw new Error(data?.error || "Не удалось сохранить папки.");
+  const saveFolders = useCallback(
+    async (nextFolders: ChatFolderItem[], nextBuiltIns: BuiltInFolderItem[], successMessage: string) => {
+      setFolderPending(true);
+      setFolderMessage("");
+      try {
+        const res = await fetch("/api/chat-folders", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ folders: nextFolders, builtIns: nextBuiltIns }),
+        });
+        const data = (await res.json().catch(() => null)) as { folders?: ChatFolderItem[]; builtIns?: BuiltInFolderItem[]; error?: string } | null;
+        if (!res.ok || !data?.folders || !data.builtIns) {
+          throw new Error(data?.error || "Не удалось сохранить папки.");
+        }
+        setChatFolders(data.folders);
+        setBuiltInFolders(data.builtIns);
+        setFolderMessage(successMessage);
+        router.refresh();
+      } catch (error) {
+        setFolderMessage(error instanceof Error ? error.message : "Не удалось сохранить папки.");
+      } finally {
+        setFolderPending(false);
       }
-      setChatFolders(data.folders);
-      setBuiltInFolders(data.builtIns);
-      setFolderMessage(successMessage);
-      router.refresh();
-    } catch (error) {
-      setFolderMessage(error instanceof Error ? error.message : "Не удалось сохранить папки.");
-    } finally {
-      setFolderPending(false);
-    }
-  }
+    },
+    [router],
+  );
 
-  async function createFolder() {
-    const name = folderName.trim();
-    if (!name || folderChatIds.size === 0 || folderPending) return;
+  const currentWallpaperLabel =
+    (CHAT_WALLPAPERS.find((item) => item.id === globalChatAppearance.wallpaper) ?? CHAT_WALLPAPERS[0]).label;
 
-    const nextFolder: ChatFolderItem = {
-      id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-      name,
-      chatIds: Array.from(folderChatIds),
-      createdAt: new Date().toISOString(),
-    };
+  const visibleFolderCount =
+    builtInFolders.filter((folder) => folder.visible).length + chatFolders.length;
 
-    await saveFolders([...chatFolders, nextFolder], builtInFolders, "Папка создана.");
-    setFolderName("");
-    setFolderChatIds(new Set());
-  }
-
-  async function deleteFolder(folderId: string) {
-    if (folderPending) return;
-    await saveFolders(chatFolders.filter((folder) => folder.id !== folderId), builtInFolders, "Папка удалена.");
-  }
-
-  async function toggleBuiltInFolder(folderKey: BuiltInFolderItem["key"]) {
-    if (folderPending) return;
-    const nextBuiltIns = builtInFolders.map((folder) =>
-      folder.key === folderKey ? { ...folder, visible: !folder.visible } : folder,
-    );
-    await saveFolders(chatFolders, nextBuiltIns, "Папки обновлены.");
-  }
-
-  async function moveBuiltInFolder(folderKey: BuiltInFolderItem["key"], direction: -1 | 1) {
-    if (folderPending) return;
-    const nextBuiltIns = [...orderedBuiltInFolders];
-    const index = nextBuiltIns.findIndex((folder) => folder.key === folderKey);
-    const targetIndex = index + direction;
-    if (index < 0 || targetIndex < 0 || targetIndex >= nextBuiltIns.length) return;
-    [nextBuiltIns[index], nextBuiltIns[targetIndex]] = [nextBuiltIns[targetIndex], nextBuiltIns[index]];
-    await saveFolders(
-      chatFolders,
-      nextBuiltIns.map((folder, nextIndex) => ({ ...folder, order: nextIndex })),
-      "Порядок обновлён.",
-    );
-  }
-
-  async function moveCustomFolder(folderId: string, direction: -1 | 1) {
-    if (folderPending) return;
-    const nextFolders = [...chatFolders];
-    const index = nextFolders.findIndex((folder) => folder.id === folderId);
-    const targetIndex = index + direction;
-    if (index < 0 || targetIndex < 0 || targetIndex >= nextFolders.length) return;
-    [nextFolders[index], nextFolders[targetIndex]] = [nextFolders[targetIndex], nextFolders[index]];
-    await saveFolders(nextFolders, builtInFolders, "Порядок обновлён.");
-  }
-
-  function toggleFolderChat(chatId: string) {
-    setFolderChatIds((current) => {
-      const next = new Set(current);
-      if (next.has(chatId)) {
-        next.delete(chatId);
-      } else {
-        next.add(chatId);
-      }
-      return next;
-    });
-  }
+  const pushValue =
+    pushStatus === "unsupported"
+      ? "Недоступно"
+      : pushStatus === "denied"
+        ? "Запрещены"
+        : isSubscribed
+          ? "Вкл."
+          : "Выкл.";
 
   return (
     <>
@@ -402,7 +388,7 @@ export function ProfileContent({
                 <button
                   type="button"
                   aria-label="Удалить фото профиля"
-                  onClick={handleAvatarDelete}
+                  onClick={() => setConfirmAvatarDelete(true)}
                   className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-destructive transition-smooth active:scale-[0.96]"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -416,622 +402,477 @@ export function ProfileContent({
             <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
           </section>
 
-          <div className="mt-8 space-y-6 px-4">
-            <section className="flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-              <SettingsMenuButton
-                label="Мой профиль"
-                subtitle="Имя и username"
-                onClick={() => setActiveScreen("profile")}
-                icon={<ProfileIcon />}
-              />
-              <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton
-                label="Устройства"
-                subtitle="Активные сеансы"
-                onClick={() => setActiveScreen("devices")}
-                icon={<DevicesIcon />}
-              />
-              <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton
-                label="Оформление"
-                subtitle="Тема и акцент"
-                onClick={() => setActiveScreen("appearance")}
-                icon={<AppearanceIcon />}
-              />
-              <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton
-                label="Безопасность"
-                subtitle="Пароль и восстановление"
-                onClick={() => setActiveScreen("security")}
-                icon={<SecurityIcon />}
-              />
-              <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton
-                label="Папки чатов"
-                subtitle={`${orderedBuiltInFolders.filter((folder) => folder.visible).length + chatFolders.length} активных`}
-                onClick={() => setActiveScreen("folders")}
-                icon={<FoldersIcon />}
-              />
-              <div className="h-px bg-border-subtle/30 mx-4" />
-              <SettingsMenuButton
-                label="Данные и кэш"
-                subtitle="Хранилище и кэш"
-                onClick={() => setActiveScreen("data")}
-                icon={<DataIcon />}
-              />
-            </section>
+          <div className="mt-8">
+            <SettingsStack>
+              <SettingsGroup>
+                <SettingsNavRow
+                  title="Мой профиль"
+                  subtitle="Имя, username, о себе"
+                  onClick={() => setActiveScreen("profile")}
+                  icon={<ProfileIcon />}
+                />
+                <SettingsNavRow
+                  title="Уведомления"
+                  value={pushValue}
+                  onClick={() => setActiveScreen("notifications")}
+                  icon={<BellIcon />}
+                />
+                <SettingsNavRow
+                  title="Устройства"
+                  subtitle="Активные сеансы"
+                  onClick={() => setActiveScreen("devices")}
+                  icon={<DevicesIcon />}
+                />
+                <SettingsNavRow
+                  title="Оформление"
+                  subtitle="Тема и акцент"
+                  onClick={() => setActiveScreen("appearance")}
+                  icon={<AppearanceIcon />}
+                />
+                <SettingsNavRow
+                  title="Безопасность"
+                  subtitle="Пароль и восстановление"
+                  onClick={() => setActiveScreen("security")}
+                  icon={<SecurityIcon />}
+                />
+                <SettingsNavRow
+                  title="Папки чатов"
+                  value={String(visibleFolderCount)}
+                  onClick={() => setActiveScreen("folders")}
+                  icon={<FoldersIcon />}
+                />
+                <SettingsNavRow
+                  title="Данные и кэш"
+                  subtitle="Хранилище на устройстве"
+                  onClick={() => setActiveScreen("data")}
+                  icon={<DataIcon />}
+                />
+              </SettingsGroup>
 
-            <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-              <div className="flex items-center justify-between gap-4 p-4">
-                 <div className="min-w-0">
-                   <p className="mb-1 text-sm font-semibold text-foreground">Push-уведомления</p>
-                   {(pushError || pushStatus === "unsupported" || pushStatus === "denied") && (
-                     <p className="text-xs leading-snug text-muted">
-                       {pushError
-                         || (pushStatus === "unsupported"
-                           ? "Недоступно в этой среде. Откройте сайт в браузере или установите приложение с экрана «Домой»."
-                           : "Уведомления заблокированы в настройках браузера.")}
-                     </p>
-                   )}
-                 </div>
-                 <button
-                   onClick={isSubscribed ? unsubscribe : subscribe}
-                   disabled={pushStatus === "unsupported"}
-                   className={`h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition-smooth active:scale-[0.96] disabled:opacity-40 ${
-                     isSubscribed ? "border border-primary/20 bg-primary/10 text-primary" : "bg-primary text-primary-foreground"
-                   }`}
-                 >
-                   {isSubscribed ? "Отключить" : "Включить"}
-                 </button>
-              </div>
-            </section>
+              {isAdmin ? (
+                <SettingsGroup>
+                  <SettingsNavRow
+                    title="Админ-панель"
+                    onClick={() => router.push("/admin")}
+                    icon={<AdminIcon />}
+                  />
+                </SettingsGroup>
+              ) : null}
 
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="flex h-12 w-full items-center justify-center rounded-full border border-border-subtle bg-surface-muted text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]"
-              >
-                Админ-панель
-              </Link>
-            )}
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={pending}
-              className="h-12 w-full rounded-full border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.96] disabled:opacity-50"
-            >
-              {pending ? "Выход..." : "Выйти из аккаунта"}
-            </button>
+              <SettingsGroup>
+                <SettingsActionRow
+                  title="Выйти из аккаунта"
+                  tone="danger"
+                  disabled={pending}
+                  onClick={() => setConfirmLogout(true)}
+                />
+              </SettingsGroup>
+            </SettingsStack>
           </div>
         </div>
       )}
 
       {activeScreen === "profile" && (
-        <div
-          ref={profileScreenRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="profile-screen-profile"
-          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        <SettingsScreen
+          title="Мой профиль"
+          titleId="profile-screen-profile"
+          onBack={() => setActiveScreen("main")}
+          containerRef={profileScreenRef}
         >
-          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
-               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-             </button>
-             <h1 id="profile-screen-profile" className="text-base font-semibold tracking-tight">Мой профиль</h1>
-             <div className="w-10" />
-          </header>
+          <form onSubmit={handleUpdate}>
+            <SettingsStack>
+              <SettingsGroup label="Аккаунт" footer="Username виден собеседникам и используется для поиска.">
+                <SettingsInputRow
+                  id="profile-display-name"
+                  label="Имя"
+                  autoComplete="name"
+                  value={displayName}
+                  onChange={setDisplayName}
+                  placeholder="Ваше имя"
+                  maxLength={50}
+                />
+                <SettingsInputRow
+                  id="profile-username"
+                  label="Username"
+                  autoComplete="username"
+                  value={username}
+                  onChange={setUsername}
+                  placeholder="username"
+                  maxLength={32}
+                  prefix="@"
+                />
+              </SettingsGroup>
 
-          <form onSubmit={handleUpdate} className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
-             <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="profile-display-name" className="ml-4 text-sm font-medium text-muted">Имя</label>
-                  <input
-                    id="profile-display-name"
-                    name="displayName"
-                    autoComplete="name"
-                    className="input-nox h-14"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Ваше имя"
-                  />
-                </div>
+              <SettingsGroup label="О себе" footer={bio.length > 150 ? `${bio.length} / 200` : undefined}>
+                <SettingsInputRow
+                  id="profile-bio"
+                  label="О себе"
+                  hideLabel
+                  value={bio}
+                  onChange={setBio}
+                  placeholder="Пара слов о вас"
+                  maxLength={200}
+                  multiline
+                />
+              </SettingsGroup>
 
-                <div className="space-y-2">
-                  <label htmlFor="profile-username" className="ml-4 text-sm font-medium text-muted">Username</label>
-                  <input
-                    id="profile-username"
-                    name="username"
-                    autoComplete="username"
-                    className="input-nox h-14"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="username"
-                  />
-                </div>
+              {/* The one primary action on this screen, and only once there is
+                  something to save. */}
+              {profileDirty || pending ? (
+                <SettingsBlock>
+                  <SettingsPrimaryButton type="submit" disabled={pending}>
+                    {pending ? "Сохранение…" : "Сохранить"}
+                  </SettingsPrimaryButton>
+                </SettingsBlock>
+              ) : null}
 
-                <div className="space-y-2">
-                  <label htmlFor="profile-bio" className="ml-4 text-sm font-medium text-muted">О себе</label>
-                  <textarea
-                    id="profile-bio"
-                    name="bio"
-                    className="input-nox min-h-[120px] resize-none py-4"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Расскажите о себе..."
-                  />
-                </div>
-             </div>
-
-             <div className="pt-4">
-               {message && <p className="mb-4 py-2 text-center text-sm font-semibold text-primary animate-in fade-in">{message}</p>}
-               <button
-                 type="submit"
-                 disabled={pending}
-                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
-               >
-                 {pending ? "Сохранение..." : "Сохранить изменения"}
-               </button>
-             </div>
+              {message ? (
+                <p role="status" className="px-5 text-center text-[13px] text-primary">{message}</p>
+              ) : null}
+            </SettingsStack>
           </form>
-        </div>
+        </SettingsScreen>
+      )}
+
+      {activeScreen === "notifications" && (
+        <SettingsScreen
+          title="Уведомления"
+          titleId="profile-screen-notifications"
+          onBack={() => setActiveScreen("main")}
+          containerRef={notificationsScreenRef}
+        >
+          <NotificationsPanel
+            status={pushStatus}
+            error={pushError}
+            isSubscribed={isSubscribed}
+            onSubscribe={subscribe}
+            onUnsubscribe={unsubscribe}
+          />
+        </SettingsScreen>
       )}
 
       {activeScreen === "devices" && (
-        <div
-          ref={devicesScreenRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="profile-screen-devices"
-          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        <SettingsScreen
+          title="Устройства"
+          titleId="profile-screen-devices"
+          onBack={() => setActiveScreen("main")}
+          containerRef={devicesScreenRef}
         >
-          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
-               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-             </button>
-             <h1 id="profile-screen-devices" className="text-base font-semibold tracking-tight">Устройства</h1>
-             <div className="w-10" />
-          </header>
-
-          <div className="animate-in fade-in zoom-in-95 duration-200">
-            <E2EEDevicesPanel userId={user.id} />
-          </div>
-        </div>
+          <DevicesPanel userId={user.id} />
+        </SettingsScreen>
       )}
 
       {activeScreen === "appearance" && (
-        <div
-          ref={appearanceScreenRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="profile-screen-appearance"
-          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        <SettingsScreen
+          title="Оформление"
+          titleId="profile-screen-appearance"
+          onBack={() => setActiveScreen("main")}
+          containerRef={appearanceScreenRef}
         >
-          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
-               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-             </button>
-             <h1 id="profile-screen-appearance" className="text-base font-semibold tracking-tight">Оформление</h1>
-             <div className="w-10" />
-          </header>
+          <SettingsStack>
+            <SettingsBlock label="Тема" footer="Системная тема следует настройке вашего телефона.">
+              <SettingsSegmented
+                label="Тема приложения"
+                value={theme}
+                options={THEME_OPTIONS}
+                onChange={setTheme}
+              />
+            </SettingsBlock>
 
-          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
-            <section className="space-y-3">
-              <div className="px-1">
-                <h2 className="text-sm font-semibold text-muted">Тема приложения</h2>
-                <p className="mt-2 text-sm font-medium text-muted leading-relaxed">Базовые поверхности остаются нейтральными, акцент применяется только к выбранным действиям и состояниям.</p>
-              </div>
-              <div className="grid grid-cols-3 gap-1 rounded-2xl border border-border-subtle bg-surface p-1">
-                {(["light", "dark", "system"] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTheme(t)}
-                    className={`rounded-xl px-3 py-3 text-sm font-semibold transition-smooth active:scale-[0.96] ${
-                      theme === t ? "bg-primary text-primary-foreground" : "text-muted hover:bg-foreground/5 hover:text-foreground"
-                    }`}
-                  >
-                    {t === "light" ? "Светлая" : t === "dark" ? "Тёмная" : "Системная"}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="px-1">
-                <h2 className="text-sm font-semibold text-muted">Акцентный цвет</h2>
-                <p className="mt-2 text-sm font-medium text-muted leading-relaxed">Акцент меняет активную вкладку, кнопки действия, selected state и бейджи. Фон и карточки остаются чёрно-бело-серыми.</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border-subtle bg-surface p-2">
-                {ACCENT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setAccent(option.value)}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-smooth active:scale-[0.96] ${
-                      accent === option.value ? "bg-primary/10 ring-1 ring-primary/25" : "hover:bg-foreground/5"
-                    }`}
-                  >
-                    <span className="h-8 w-8 rounded-full border border-black/10 shadow-inner" style={{ backgroundColor: option.swatch }} />
-                    <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{option.label}</span>
-                    {accent === option.value ? (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+            <SettingsBlock label="Акцент" footer="Акцент красит активные состояния и главные действия. Фон и карточки остаются нейтральными.">
+              <div role="radiogroup" aria-label="Акцентный цвет" className="flex flex-wrap gap-3 rounded-2xl bg-surface px-4 py-4">
+                {ACCENT_OPTIONS.map((option) => {
+                  const selected = accent === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={option.label}
+                      title={option.label}
+                      onClick={() => setAccent(option.value)}
+                      className={`fast-tap flex h-11 w-11 items-center justify-center rounded-full transition-smooth ${
+                        selected ? "ring-2 ring-primary ring-offset-2 ring-offset-surface" : ""
+                      }`}
+                    >
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
+                        style={{ backgroundColor: option.swatch }}
+                      >
+                        {selected ? (
+                          <svg className="h-4 w-4 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
-            </section>
+            </SettingsBlock>
 
-            <section className="space-y-3">
-              <div className="flex items-start justify-between gap-4 px-1">
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Фон чатов</h2>
-                  <p className="mt-1 text-sm leading-relaxed text-muted">Настройка применяется ко всем чатам по умолчанию.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetGlobalChatAppearance}
-                  className="fluid-hit shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
-                >
-                  Сбросить
-                </button>
-              </div>
-              <ChatWallpaperControls settings={globalChatAppearance} onUpdate={updateGlobalChatAppearance} />
-            </section>
-          </div>
-        </div>
+            {/* The wallpaper editor is a configurator — preview, four swatches
+                and three sliders. It belongs behind a row, not in front of the
+                two settings most people came here to change. */}
+            <SettingsGroup label="Чаты" footer="Применяется ко всем чатам по умолчанию.">
+              <SettingsNavRow
+                title="Фон чатов"
+                value={currentWallpaperLabel}
+                onClick={() => setActiveScreen("appearance-wallpaper")}
+              />
+            </SettingsGroup>
+          </SettingsStack>
+        </SettingsScreen>
+      )}
+
+      {activeScreen === "appearance-wallpaper" && (
+        <SettingsScreen
+          title="Фон чатов"
+          titleId="profile-screen-wallpaper"
+          onBack={() => setActiveScreen("appearance")}
+          containerRef={wallpaperScreenRef}
+        >
+          <SettingsStack>
+            <SettingsBlock>
+              <ChatWallpaperControls
+                settings={globalChatAppearance}
+                onUpdate={updateGlobalChatAppearance}
+                hideWallpaperHeading
+              />
+            </SettingsBlock>
+
+            <SettingsGroup>
+              <SettingsActionRow title="Вернуть оформление по умолчанию" onClick={resetGlobalChatAppearance} />
+            </SettingsGroup>
+          </SettingsStack>
+        </SettingsScreen>
       )}
 
       {activeScreen === "security" && (
-        <div
-          ref={securityScreenRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="profile-screen-security"
-          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        <SettingsScreen
+          title="Безопасность"
+          titleId="profile-screen-security"
+          onBack={() => setActiveScreen("main")}
+          containerRef={securityScreenRef}
         >
-          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
-               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-             </button>
-             <h1 id="profile-screen-security" className="text-base font-semibold tracking-tight">Безопасность</h1>
-             <div className="w-10" />
-          </header>
+          <SettingsStack>
+            <SettingsGroup label="Защита аккаунта">
+              <SettingsNavRow
+                title="Пароль"
+                value="Установлен"
+                onClick={() => setActiveScreen("security-password")}
+              />
+              <SettingsNavRow
+                title="Ключ восстановления"
+                onClick={() => setActiveScreen("security-recovery")}
+              />
+            </SettingsGroup>
 
-          <div className="p-6 space-y-8 animate-in fade-in zoom-in-95 duration-200">
-            <RecoveryKeyPanel userId={user.id} />
+            <SettingsGroup label="Шифрование" footer="Ключи хранятся только на ваших устройствах. Сервер не может прочитать переписку.">
+              <SettingsNavRow
+                title="Устройства и ключи"
+                subtitle="Активные сеансы этого аккаунта"
+                onClick={() => setActiveScreen("devices")}
+              />
+            </SettingsGroup>
 
-            <form onSubmit={handlePasswordChange} className="space-y-6">
-               <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="profile-current-password" className="ml-4 text-sm font-medium text-muted">Текущий пароль</label>
-                    <input
-                      id="profile-current-password"
-                      name="currentPassword"
-                      autoComplete="current-password"
-                      className="input-nox h-14"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Введите текущий пароль"
-                    />
-                  </div>
+            <SettingsGroup
+              label="Опасные действия"
+              footer={
+                <SettingsNote tone="warning">
+                  На новом устройстве старая переписка откроется только по ключу восстановления.
+                </SettingsNote>
+              }
+            >
+              <SettingsActionRow
+                title="Сбросить пароль полностью"
+                tone="danger"
+                onClick={() => router.push("/forgot-password")}
+              />
+            </SettingsGroup>
+          </SettingsStack>
+        </SettingsScreen>
+      )}
 
-                  <div className="space-y-2">
-                    <label htmlFor="profile-new-password" className="ml-4 text-sm font-medium text-muted">Новый пароль</label>
-                    <input
-                      id="profile-new-password"
-                      name="newPassword"
-                      autoComplete="new-password"
-                      className="input-nox h-14"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Новый пароль (минимум 8 символов)"
-                    />
-                  </div>
-               </div>
+      {activeScreen === "security-password" && (
+        <SettingsScreen
+          title="Пароль"
+          titleId="profile-screen-password"
+          onBack={() => setActiveScreen("security")}
+          containerRef={passwordScreenRef}
+        >
+          <form onSubmit={handlePasswordChange}>
+            <SettingsStack>
+              <SettingsGroup label="Смена пароля" footer="Не короче 8 символов.">
+                <SettingsInputRow
+                  id="profile-current-password"
+                  label="Текущий"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={setCurrentPassword}
+                  placeholder="Текущий пароль"
+                />
+                <SettingsInputRow
+                  id="profile-new-password"
+                  label="Новый"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  placeholder="Новый пароль"
+                />
+              </SettingsGroup>
 
-               {passwordError && <p className="py-1 text-center text-sm font-semibold text-destructive">{passwordError}</p>}
-               {passwordMessage && <p className="py-1 text-center text-sm font-semibold text-primary">{passwordMessage}</p>}
+              <SettingsBlock>
+                <SettingsPrimaryButton
+                  type="submit"
+                  disabled={passwordPending || !currentPassword || newPassword.length < 8}
+                >
+                  {passwordPending ? "Сохранение…" : "Изменить пароль"}
+                </SettingsPrimaryButton>
+              </SettingsBlock>
 
-               <button
-                 type="submit"
-                 disabled={passwordPending || !currentPassword || newPassword.length < 8}
-                 className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
-               >
-                 {passwordPending ? "Сохранение..." : "Изменить пароль"}
-               </button>
+              {passwordError ? (
+                <p role="alert" className="px-5 text-center text-[13px] text-danger">{passwordError}</p>
+              ) : null}
+              {passwordMessage ? (
+                <p role="status" className="px-5 text-center text-[13px] text-success">{passwordMessage}</p>
+              ) : null}
 
-               <button
-                 type="button"
-                 onClick={() => setShowTrustedReset(true)}
-                 className="h-12 w-full rounded-full bg-transparent text-sm font-semibold text-primary transition-smooth hover:bg-primary/5 active:scale-[0.96]"
-               >
-                 Не помню текущий пароль
-               </button>
-            </form>
+              <SettingsGroup footer="Это устройство уже авторизовано, поэтому пароль можно сменить без старого — переписка на нём останется доступна.">
+                <SettingsActionRow
+                  title="Не помню текущий пароль"
+                  onClick={() => setShowTrustedReset(true)}
+                />
+              </SettingsGroup>
+            </SettingsStack>
+          </form>
+        </SettingsScreen>
+      )}
 
-            <div className="mt-12 rounded-2xl border border-warning/20 bg-warning/10 p-5">
-               <p className="mb-4 text-center text-sm font-medium leading-relaxed text-warning">
-                 Nox не хранит ключи от ваших сообщений. После сброса пароля на новом устройстве старые сообщения могут быть недоступны без доверенного устройства.
-               </p>
-               <Link href="/forgot-password" className="flex h-12 w-full items-center justify-center rounded-full bg-warning text-sm font-semibold text-neutral-950 transition-smooth active:scale-[0.96]">
-                 Сбросить пароль полностью
-               </Link>
-            </div>
-          </div>
-        </div>
+      {activeScreen === "security-recovery" && (
+        <SettingsScreen
+          title="Восстановление"
+          titleId="profile-screen-recovery"
+          onBack={() => setActiveScreen("security")}
+          containerRef={recoveryScreenRef}
+        >
+          <RecoveryKeyPanel userId={user.id} />
+        </SettingsScreen>
       )}
 
       {activeScreen === "folders" && (
-        <div
-          ref={foldersScreenRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="profile-screen-folders"
-          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        <SettingsScreen
+          title="Папки чатов"
+          titleId="profile-screen-folders"
+          onBack={() => setActiveScreen("main")}
+          containerRef={foldersScreenRef}
         >
-          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
-               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-             </button>
-             <h1 id="profile-screen-folders" className="text-base font-semibold tracking-tight">Папки чатов</h1>
-             <div className="w-10" />
-          </header>
-
-          <div className="space-y-7 p-6 animate-in fade-in zoom-in-95 duration-200">
-            <section className="rounded-2xl border border-border-subtle bg-surface p-4">
-              <h2 className="text-base font-semibold tracking-tight text-foreground">Новая папка</h2>
-              <p className="mt-1 text-sm font-medium leading-relaxed text-muted">
-                Папка появится рядом с системными разделами в выбранном вами порядке.
-              </p>
-
-              <div className="mt-4 space-y-3">
-                <input
-                  className="input-nox h-12 rounded-full"
-                  value={folderName}
-                  onChange={(event) => setFolderName(event.target.value)}
-                  placeholder="Название папки"
-                  aria-label="Название папки"
-                  maxLength={28}
-                />
-
-                <div className="max-h-72 overflow-y-auto rounded-2xl border border-border-subtle/60 bg-background/50">
-                  {folderChats.length > 0 ? folderChats.map((chat) => {
-                    const selected = folderChatIds.has(chat.id);
-                    return (
-                      <button
-                        key={chat.id}
-                        type="button"
-                        onClick={() => toggleFolderChat(chat.id)}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-smooth hover:bg-foreground/5 active:scale-[0.96]"
-                      >
-                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-smooth ${selected ? "border-primary bg-primary text-primary-foreground" : "border-border-subtle"}`}>
-                          {selected ? (
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                          ) : null}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-foreground">{chat.title}</span>
-                          <span className="mt-0.5 block truncate text-xs font-medium text-muted">{chat.subtitle}</span>
-                        </span>
-                      </button>
-                    );
-                  }) : (
-                    <p className="px-4 py-5 text-sm font-semibold text-muted">Сначала создайте чат.</p>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => void createFolder()}
-                  disabled={folderPending || !folderName.trim() || folderChatIds.size === 0 || chatFolders.length >= 12}
-                  className="h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
-                >
-                  {folderPending ? "Сохранение..." : "Создать папку"}
-                </button>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="px-1">
-                <h2 className="text-sm font-semibold text-muted">Системные папки</h2>
-              </div>
-
-              <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-                {orderedBuiltInFolders.map((folder, index) => (
-                  <div key={folder.key}>
-                    {index > 0 ? <div className="mx-4 h-px bg-border-subtle/40" /> : null}
-                    <div className="flex items-center gap-3 px-4 py-3.5">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${folder.visible ? "bg-primary/10 text-primary" : "bg-foreground/5 text-muted"}`}>
-                        <FoldersIcon />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{folder.label}</p>
-                        <p className="mt-0.5 truncate text-xs font-medium text-muted">
-                          {folder.visible ? "Показывается в чатах" : "Скрыта из списка чатов"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => void moveBuiltInFolder(folder.key, -1)}
-                          disabled={folderPending || index === 0}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
-                          aria-label="Выше"
-                        >
-                          <ArrowUpIcon />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void moveBuiltInFolder(folder.key, 1)}
-                          disabled={folderPending || index === orderedBuiltInFolders.length - 1}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
-                          aria-label="Ниже"
-                        >
-                          <ArrowDownIcon />
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void toggleBuiltInFolder(folder.key)}
-                        disabled={folderPending}
-                        className={`rounded-full px-3 py-2 text-xs font-semibold transition-smooth active:scale-[0.96] disabled:opacity-45 ${
-                          folder.visible ? "bg-danger/10 text-danger" : "bg-primary/10 text-primary"
-                        }`}
-                      >
-                        {folder.visible ? "Скрыть" : "Вернуть"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="px-1">
-                <h2 className="text-sm font-semibold text-muted">Мои папки</h2>
-              </div>
-
-              {chatFolders.length > 0 ? (
-                <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-                  {chatFolders.map((folder, index) => (
-                    <div key={folder.id}>
-                      {index > 0 ? <div className="mx-4 h-px bg-border-subtle/40" /> : null}
-                      <div className="flex items-center gap-3 px-4 py-3.5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <FoldersIcon />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">{folder.name}</p>
-                          <p className="mt-0.5 truncate text-xs font-medium text-muted">
-                            {folder.chatIds.length} {folder.chatIds.length === 1 ? "чат" : folder.chatIds.length > 1 && folder.chatIds.length < 5 ? "чата" : "чатов"}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => void moveCustomFolder(folder.id, -1)}
-                            disabled={folderPending || index === 0}
-                            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
-                            aria-label="Выше"
-                          >
-                            <ArrowUpIcon />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void moveCustomFolder(folder.id, 1)}
-                            disabled={folderPending || index === chatFolders.length - 1}
-                            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-muted transition-smooth active:scale-[0.96] disabled:opacity-35"
-                            aria-label="Ниже"
-                          >
-                            <ArrowDownIcon />
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => void deleteFolder(folder.id)}
-                          disabled={folderPending}
-                          className="rounded-full bg-danger/10 px-3 py-2 text-xs font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-45"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
-                  Папок пока нет.
-                </div>
-              )}
-
-              {folderMessage ? (
-                <p className="px-1 text-center text-sm font-semibold text-primary">{folderMessage}</p>
-              ) : null}
-            </section>
-          </div>
-        </div>
+          <FoldersPanel
+            chatFolders={chatFolders}
+            builtInFolders={builtInFolders}
+            folderChats={folderChats}
+            pending={folderPending}
+            message={folderMessage}
+            onSave={saveFolders}
+          />
+        </SettingsScreen>
       )}
 
       {activeScreen === "data" && (
-        <div
-          ref={dataScreenRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="profile-screen-data"
-          className="fixed inset-0 z-[1100] bg-background overflow-y-auto pb-[var(--bottom-dock-clearance)] animate-in slide-in-from-right duration-200 safe-top"
+        <SettingsScreen
+          title="Данные и кэш"
+          titleId="profile-screen-data"
+          onBack={() => setActiveScreen("main")}
+          containerRef={dataScreenRef}
         >
-          <header className="liquid-top-chrome sticky top-0 z-50 flex min-h-14 items-center justify-between px-3 py-2">
-             <button type="button" aria-label="Назад" onClick={() => setActiveScreen("main")} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]">
-               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-             </button>
-             <h1 id="profile-screen-data" className="text-base font-semibold tracking-tight">Данные и кэш</h1>
-             <div className="w-10" />
-          </header>
-
-          <div className="p-6 animate-in fade-in zoom-in-95 duration-200">
-            <CacheSettings />
-          </div>
-        </div>
+          <CacheSettings />
+        </SettingsScreen>
       )}
 
-      {/* Trusted Reset Modal */}
       {showTrustedReset && (
         <div
-          ref={trustedResetRef}
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/55 p-6 animate-in fade-in duration-200"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="trusted-reset-title"
+          className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/45 p-3 animate-in fade-in duration-150"
           onClick={() => setShowTrustedReset(false)}
         >
           <div
-            className="premium-glass relative w-full max-w-sm rounded-[1.75rem] p-5"
-            onClick={e => e.stopPropagation()}
+            ref={trustedResetRef}
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-surface-elevated pb-[env(safe-area-inset-bottom)] animate-in slide-in-from-bottom-4 duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trusted-reset-title"
+            onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="trusted-reset-title" className="mb-2 text-center text-xl font-semibold">Сброс пароля</h2>
-            <p className="text-xs text-muted text-center mb-6 leading-relaxed">
-              Это устройство уже авторизовано. После смены пароля ваши сообщения на этом устройстве останутся доступны.
-            </p>
-
-            <form onSubmit={handleTrustedReset} className="space-y-6">
-              <input
-                className="input-nox h-14"
-                type="password"
-                value={trustedNewPassword}
-                onChange={(e) => setTrustedNewPassword(e.target.value)}
-                placeholder="Новый пароль (минимум 8 символов)"
-                aria-label="Новый пароль"
-                required
-                minLength={8}
-              />
-
-              {trustedError && <p className="text-center text-sm font-semibold text-destructive">{trustedError}</p>}
-              {trustedMessage && <p className="text-center text-sm font-semibold text-primary">{trustedMessage}</p>}
-
-              <div className="flex gap-4 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTrustedReset(false)}
-                  className="flex-1 py-3 text-sm font-semibold text-muted transition-smooth active:scale-[0.96]"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  disabled={trustedPending || trustedNewPassword.length < 8}
-                  className="flex-1 py-3 text-sm font-semibold text-primary transition-smooth active:scale-[0.96] disabled:opacity-50"
-                >
-                  {trustedPending ? "..." : "Сохранить"}
-                </button>
+            <form onSubmit={handleTrustedReset}>
+              <div className="px-5 pb-4 pt-5 text-center">
+                <h2 id="trusted-reset-title" className="text-[17px] font-semibold text-foreground">
+                  Новый пароль
+                </h2>
+                <p className="mt-1 text-[13px] leading-snug text-muted">
+                  Это устройство авторизовано, поэтому переписка на нём останется доступна.
+                </p>
               </div>
+              <div className="h-px bg-border-subtle" />
+              <div className="px-4 py-2">
+                <input
+                  className="h-12 w-full bg-transparent text-[17px] text-foreground outline-none placeholder:text-muted/60"
+                  type="password"
+                  autoComplete="new-password"
+                  value={trustedNewPassword}
+                  onChange={(e) => setTrustedNewPassword(e.target.value)}
+                  placeholder="Не короче 8 символов"
+                  aria-label="Новый пароль"
+                  required
+                  minLength={8}
+                />
+              </div>
+              {trustedError ? (
+                <p role="alert" className="px-5 pb-2 text-center text-[13px] text-danger">{trustedError}</p>
+              ) : null}
+              {trustedMessage ? (
+                <p role="status" className="px-5 pb-2 text-center text-[13px] text-success">{trustedMessage}</p>
+              ) : null}
+              <div className="h-px bg-border-subtle" />
+              <button
+                type="submit"
+                disabled={trustedPending || trustedNewPassword.length < 8}
+                className="h-[54px] w-full text-[17px] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-40"
+              >
+                {trustedPending ? "Подождите…" : "Сохранить"}
+              </button>
+              <div className="h-px bg-border-subtle" />
+              <button
+                type="button"
+                onClick={() => setShowTrustedReset(false)}
+                className="h-[54px] w-full text-[17px] text-muted transition-smooth hover:bg-surface-hover active:bg-surface-hover"
+              >
+                Отмена
+              </button>
             </form>
           </div>
         </div>
       )}
+
+      <ConfirmSheet
+        open={confirmAvatarDelete}
+        title="Удалить фото профиля?"
+        confirmLabel="Удалить фото"
+        busy={pending}
+        onConfirm={() => void handleAvatarDelete()}
+        onCancel={() => setConfirmAvatarDelete(false)}
+      />
+
+      <ConfirmSheet
+        open={confirmLogout}
+        title="Выйти из аккаунта?"
+        body="Переписка на этом устройстве останется, но потребуется вход заново."
+        confirmLabel="Выйти"
+        busy={pending}
+        onConfirm={() => void handleLogout()}
+        onCancel={() => setConfirmLogout(false)}
+      />
 
       <AvatarViewer
         src={showFullscreenAvatar ? fullAvatarUrl : null}
@@ -1051,304 +892,11 @@ export function ProfileContent({
   );
 }
 
-function SettingsMenuButton({ label, subtitle, icon, onClick }: { label: string, subtitle: string, icon: React.ReactNode, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="group flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform">
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1 text-left">
-        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-        <p className="mt-0.5 truncate text-xs font-normal text-muted">{subtitle}</p>
-      </div>
-      <div className="shrink-0 text-muted opacity-50 group-hover:opacity-100 transition-opacity">
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-      </div>
-    </button>
-  );
-}
-
-function ProfileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>; }
-function DevicesIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
-function AppearanceIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
-function SecurityIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
-function FoldersIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M3 7.5A2.5 2.5 0 015.5 5h4.2c.55 0 1.08.22 1.47.61l1.22 1.22c.39.39.92.61 1.47.61h4.64A2.5 2.5 0 0121 9.94V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9Z" /></svg>; }
-function DataIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
-function ArrowUpIcon() { return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m6 15 6-6 6 6" /></svg>; }
-function ArrowDownIcon() { return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m6 9 6 6 6-6" /></svg>; }
-
-type E2EEDevice = {
-  deviceId: string;
-  name: string | null;
-  platform: string | null;
-  userAgent: string | null;
-  createdAt: string;
-  lastSeenAt: string | null;
-  revokedAt: string | null;
-  isCurrentDevice: boolean;
-  fingerprintShort: string | null;
-};
-
-function getBrowserName(userAgent: string | null) {
-  if (!userAgent) return "браузер не определён";
-  if (/Edg\//.test(userAgent)) return "Edge";
-  if (/CriOS|Chrome\//.test(userAgent) && !/Edg\//.test(userAgent)) return "Chrome";
-  if (/Firefox\//.test(userAgent)) return "Firefox";
-  if (/Safari\//.test(userAgent) && !/Chrome\//.test(userAgent) && !/CriOS/.test(userAgent)) return "Safari";
-  return "Web";
-}
-
-function getDeviceName(device: E2EEDevice) {
-  const source = `${device.platform || ""} ${device.userAgent || ""}`;
-  if (/iPhone/i.test(source)) return "iPhone";
-  if (/iPad/i.test(source)) return "iPad";
-  if (/Android/i.test(source)) return "Android";
-  if (/Mac/i.test(source)) return "Mac";
-  if (/Windows/i.test(source)) return "Windows PC";
-  if (/Linux/i.test(source)) return "Linux";
-  return device.name || "Nox Web";
-}
-
-function getPlatformName(device: E2EEDevice) {
-  const source = `${device.platform || ""} ${device.userAgent || ""}`;
-  const browser = getBrowserName(device.userAgent);
-  let os = device.platform || "Web";
-  if (/iPhone|iPad|iPod/i.test(source)) os = "iOS";
-  else if (/Android/i.test(source)) os = "Android";
-  else if (/Mac/i.test(source)) os = "macOS";
-  else if (/Windows/i.test(source)) os = "Windows";
-  else if (/Linux/i.test(source)) os = "Linux";
-  return `${os} / ${browser}`;
-}
-
-function formatDeviceActivity(device: E2EEDevice) {
-  if (device.isCurrentDevice) return "Это устройство";
-  if (device.revokedAt) return `отозвано ${new Date(device.revokedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
-  if (!device.lastSeenAt) return "активность неизвестна";
-
-  const date = new Date(device.lastSeenAt);
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-
-  if (date.toDateString() === now.toDateString()) return `сегодня в ${time}`;
-  if (date.toDateString() === yesterday.toDateString()) return `вчера в ${time}`;
-  return date.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-}
-
-function E2EEDevicesPanel({ userId }: { userId: string }) {
-  const [devices, setDevices] = useState<E2EEDevice[]>([]);
-  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [pendingDeviceId, setPendingDeviceId] = useState<string | null>(null);
-  const [revokeAllPending, setRevokeAllPending] = useState(false);
-
-  const loadDevices = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      let deviceId: string | null = null;
-      try {
-        const current = await registerCurrentDevice(userId);
-        deviceId = current.deviceId;
-      } catch {
-        deviceId = await getLocalDeviceId(userId).catch(() => null);
-      }
-      setCurrentDeviceId(deviceId);
-      const res = await fetch(`/api/e2ee/devices/me${deviceId ? `?currentDeviceId=${encodeURIComponent(deviceId)}` : ""}`, { cache: "no-store" });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error || "Не удалось загрузить устройства");
-      setDevices(Array.isArray(data?.devices) ? data.devices : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось загрузить устройства");
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    queueMicrotask(() => void loadDevices());
-  }, [loadDevices]);
-
-  const revokeDevice = async (device: E2EEDevice) => {
-    if (device.isCurrentDevice || device.deviceId === currentDeviceId) return;
-    if (!confirm("Отозвать это устройство? Оно больше не сможет получать новые зашифрованные сообщения.")) return;
-    setError("");
-    setPendingDeviceId(device.deviceId);
-    const previous = devices;
-    const now = new Date().toISOString();
-    setDevices((current) => current.map((item) => item.deviceId === device.deviceId ? { ...item, revokedAt: now } : item));
-    const res = await fetch(`/api/e2ee/devices/${encodeURIComponent(device.deviceId)}/revoke`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json", ...(currentDeviceId ? { "x-nox-device-id": currentDeviceId } : {}) },
-      body: JSON.stringify({ currentDeviceId }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setDevices(previous);
-      setError(data?.error || "Не удалось отозвать устройство");
-      setPendingDeviceId(null);
-      return;
-    }
-    setPendingDeviceId(null);
-    await loadDevices();
-  };
-
-  const revokeOtherDevices = async () => {
-    if (!currentDeviceId) {
-      setError("Не удалось определить текущее устройство");
-      return;
-    }
-    const activeOthers = devices.filter((device) => !device.isCurrentDevice && device.deviceId !== currentDeviceId && !device.revokedAt);
-    if (activeOthers.length === 0) return;
-    if (!confirm("Завершить все остальные сеансы? Они больше не смогут получать новые зашифрованные сообщения.")) return;
-
-    setError("");
-    setRevokeAllPending(true);
-    const previous = devices;
-    const now = new Date().toISOString();
-    setDevices((current) => current.map((device) => (
-      device.isCurrentDevice || device.deviceId === currentDeviceId || device.revokedAt
-        ? device
-        : { ...device, revokedAt: now }
-    )));
-
-    const res = await fetch("/api/e2ee/devices/revoke-others", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-nox-device-id": currentDeviceId },
-      body: JSON.stringify({ currentDeviceId }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setDevices(previous);
-      setError(data?.error || "Не удалось завершить остальные сеансы");
-      setRevokeAllPending(false);
-      return;
-    }
-
-    setRevokeAllPending(false);
-    await loadDevices();
-  };
-
-  const currentDevice = devices.find((device) => device.isCurrentDevice || device.deviceId === currentDeviceId) ?? null;
-  const activeOtherDevices = devices.filter((device) => device.deviceId !== currentDevice?.deviceId && !device.revokedAt);
-  const revokedDevices = devices.filter((device) => device.deviceId !== currentDevice?.deviceId && device.revokedAt);
-
-  return (
-    <div className="space-y-8 px-6 py-6">
-      {loading ? <p className="py-4 text-sm font-bold text-muted text-center">Загрузка...</p> : null}
-      {error ? <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-xs font-bold text-destructive text-center">{error}</p> : null}
-
-      <section className="space-y-3">
-        <div className="px-1">
-          <h2 className="text-sm font-semibold text-muted">Это устройство</h2>
-        </div>
-        {currentDevice ? (
-          <DeviceSessionCard device={currentDevice} current />
-        ) : !loading ? (
-          <div className="rounded-2xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
-            Текущее устройство пока не определено.
-          </div>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={() => void revokeOtherDevices()}
-          disabled={revokeAllPending || activeOtherDevices.length === 0}
-          className="w-full rounded-2xl border border-danger/15 bg-danger/10 px-5 py-4 text-left transition-smooth active:scale-[0.96] disabled:opacity-45"
-        >
-          <span className="block text-sm font-black text-danger">Завершить все остальные сеансы</span>
-          <span className="mt-1 block text-xs font-semibold text-danger/70">
-            {activeOtherDevices.length > 0 ? "Отозвать ключи всех устройств, кроме текущего." : "Других активных сеансов нет."}
-          </span>
-        </button>
-      </section>
-
-      <section className="space-y-3">
-        <div className="px-1">
-          <h2 className="text-sm font-semibold text-muted">Активные сеансы</h2>
-        </div>
-        {activeOtherDevices.length > 0 ? (
-          <div className="space-y-3">
-            {activeOtherDevices.map((device) => (
-              <DeviceSessionCard
-                key={device.deviceId}
-                device={device}
-                action={
-                  <button
-                    onClick={() => void revokeDevice(device)}
-                    disabled={pendingDeviceId === device.deviceId}
-                    className="shrink-0 rounded-full bg-danger/10 px-4 py-2.5 text-xs font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-50"
-                  >
-                    {pendingDeviceId === device.deviceId ? "..." : "Завершить"}
-                  </button>
-                }
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-border-subtle bg-surface p-5 text-sm font-semibold text-muted">
-            Других активных сеансов нет.
-          </div>
-        )}
-      </section>
-
-      {revokedDevices.length > 0 ? (
-        <section className="space-y-3">
-          <div className="px-1">
-            <h2 className="text-sm font-semibold text-muted">Отозванные</h2>
-          </div>
-          <div className="space-y-3 opacity-75">
-            {revokedDevices.map((device) => (
-              <DeviceSessionCard key={device.deviceId} device={device} revoked />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <p className="px-1 text-[11px] font-semibold leading-relaxed text-muted/70">
-        Геолокация сеанса не отображается: сервер сейчас не хранит город или страну устройства. Nox показывает только реальные данные устройства, платформы, браузера и последней активности.
-      </p>
-    </div>
-  );
-}
-
-function DeviceSessionCard({
-  device,
-  current = false,
-  revoked = false,
-  action,
-}: {
-  device: E2EEDevice;
-  current?: boolean;
-  revoked?: boolean;
-  action?: React.ReactNode;
-}) {
-  const isRevoked = revoked || Boolean(device.revokedAt);
-  return (
-    <div className={`rounded-2xl border p-4 transition-smooth ${current ? "border-primary/25 bg-primary/10" : "border-border-subtle bg-surface"}`}>
-      <div className="flex items-start gap-4">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${current ? "bg-primary text-primary-foreground" : isRevoked ? "bg-danger/10 text-danger" : "bg-foreground/5 text-foreground"}`}>
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9.75 17 9 20l-1 1h8l-1-1-.75-3M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-base font-semibold text-foreground">{getDeviceName(device)}</p>
-            {current ? <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-semibold text-primary">Это устройство</span> : null}
-            {isRevoked ? <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-[10px] font-semibold text-danger">Отозвано</span> : null}
-          </div>
-          <p className="mt-1 text-xs font-bold text-muted">{getPlatformName(device)}</p>
-          <p className="mt-1 text-xs font-semibold text-muted/80">{formatDeviceActivity(device)}</p>
-          <p className="mt-1 text-xs font-semibold text-muted/70">Местоположение недоступно</p>
-          {device.fingerprintShort ? <p className="mt-2 break-all font-mono text-[10px] text-muted/45">{device.fingerprintShort}</p> : null}
-        </div>
-        {action}
-      </div>
-    </div>
-  );
-}
+function ProfileIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>; }
+function BellIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>; }
+function DevicesIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>; }
+function AppearanceIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>; }
+function SecurityIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
+function FoldersIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7.5A2.5 2.5 0 015.5 5h4.2c.55 0 1.08.22 1.47.61l1.22 1.22c.39.39.92.61 1.47.61h4.64A2.5 2.5 0 0121 9.94V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9Z" /></svg>; }
+function DataIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3-3.582 3-8 3-8-1.343-8-3Zm0 0v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" /></svg>; }
+function AdminIcon() { return <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 3v5.5c0 4.2-2.9 8.1-7 9.5-4.1-1.4-7-5.3-7-9.5V6l7-3Z" /></svg>; }

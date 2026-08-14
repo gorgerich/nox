@@ -421,10 +421,20 @@ export function ChatComposer({
                   e.target.style.height = e.target.scrollHeight + 'px';
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
+                  if (e.key !== 'Enter' || e.shiftKey) return;
+                  /*
+                    Enter sends only where Shift+Enter is available to mean the
+                    other thing.
+
+                    On a touch keyboard there is no Shift+Enter: Return is the
+                    only key that can start a new line, so binding it to send
+                    made a multi-line message impossible to type on a phone.
+                    The send button next to the field is the path there, and it
+                    is always present once the field has text.
+                  */
+                  if (window.matchMedia('(pointer: coarse)').matches) return;
+                  e.preventDefault();
+                  handleSend();
                 }}
               />
               <button

@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Nox</string>
+	<string>Nox</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -32,10 +32,19 @@
 	<string>Nox сохраняет выбранные пользователем медиа в библиотеку фото.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Nox открывает фото и видео, которые вы выбираете для отправки.</string>
+	<!--
+		`audio` keeps the WebRTC audio session alive when a call continues with
+		the app in the background, which is the one thing this wrapper actually
+		does off-screen.
+
+		`voip` was removed: that mode only does anything for an app that
+		registers a PKPushRegistry and receives VoIP pushes, and there is no
+		PushKit code anywhere in this project. It was a Capacitor-era default
+		claiming a capability nothing used.
+	-->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>voip</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

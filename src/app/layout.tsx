@@ -91,6 +91,26 @@ export default function RootLayout({
                   var vv = window.visualViewport;
                   var height = vv ? vv.height : window.innerHeight;
                   if (height > 0) root.style.setProperty('--visual-vh', height + 'px');
+
+                  /*
+                    How much of the window the keyboard is covering.
+
+                    Needed separately from the height because of one iOS
+                    detail: while the keyboard is up, env(safe-area-inset-bottom)
+                    keeps reporting the home indicator's 34px even though the
+                    indicator is no longer on screen. Anything padding itself
+                    against that inset — the composer — floats a phantom 34px
+                    gap above the keyboard. With the covered amount published,
+                    that padding can collapse exactly while it is wrong.
+
+                    Small values are treated as no keyboard: the URL bar and the
+                    rubber-band both move the visual viewport by a few pixels,
+                    and reacting to those would make the composer twitch.
+                  */
+                  var covered = vv ? window.innerHeight - vv.height - vv.offsetTop : 0;
+                  var keyboard = covered > 120 ? Math.round(covered) : 0;
+                  root.style.setProperty('--keyboard-inset', keyboard + 'px');
+                  root.dataset.keyboard = keyboard > 0 ? 'open' : 'closed';
                 }
                 publish();
                 if (window.visualViewport) {
@@ -128,6 +148,33 @@ export default function RootLayout({
                 meta.name = 'theme-color';
                 meta.content = effectiveTheme === 'dark' ? '#000000' : '#ffffff';
                 document.head.appendChild(meta);
+
+                /*
+                  Tell the iOS shell which theme is on screen.
+
+                  The native status bar resolves its glyph colour against the
+                  *system* appearance, so a user running iOS light with Nox set
+                  to dark got black glyphs on a black header. The shell listens
+                  on this channel and follows the app instead.
+
+                  A MutationObserver rather than a call from the theme switch:
+                  every path that changes the theme ends by writing this
+                  attribute, so watching the attribute covers all of them and
+                  needs no React involvement. Absent outside the iOS shell, in
+                  which case the whole block is a no-op.
+                */
+                var channel = window.webkit && window.webkit.messageHandlers
+                  && window.webkit.messageHandlers.noxTheme;
+                if (channel) {
+                  var post = function () {
+                    try { channel.postMessage(document.documentElement.dataset.theme || 'system'); } catch (e) {}
+                  };
+                  post();
+                  new MutationObserver(post).observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ['data-theme'],
+                  });
+                }
               } catch (e) {}
             `,
           }}

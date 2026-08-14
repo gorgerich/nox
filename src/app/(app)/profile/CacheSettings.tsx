@@ -6,6 +6,9 @@ import {
   clearCachedMessages,
   clearCryptoKeys,
 } from "@/lib/e2ee/indexed-db";
+import { SettingsBlock, SettingsGroup, SettingsStack } from "@/components/settings/SettingsGroup";
+import { SettingsActionRow, SettingsNote } from "@/components/settings/SettingsRow";
+import { ConfirmSheet } from "@/components/settings/ConfirmSheet";
 
 type ClearKind = "messages" | "browser" | "all" | "keys";
 
@@ -15,22 +18,54 @@ async function clearBrowserCaches(): Promise<void> {
   await Promise.all(names.map((name) => caches.delete(name)));
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} ГБ`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(0)} МБ`;
+  return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+}
+
+function pluralMessages(count: number): string {
+  const tail = count % 100;
+  if (tail > 10 && tail < 20) return "сообщений";
+  switch (count % 10) {
+    case 1:
+      return "сообщение";
+    case 2:
+    case 3:
+    case 4:
+      return "сообщения";
+    default:
+      return "сообщений";
+  }
+}
+
+/**
+ * Storage and cache.
+ *
+ * The browser reports one number — total bytes this origin occupies — and no
+ * breakdown by kind. So there is no photos/videos/files split here: inventing
+ * one would mean showing the user four numbers, three of which are guesses.
+ * What is shown is what can be measured, plus what clearing each thing costs.
+ */
 export function CacheSettings() {
   const [messageCount, setMessageCount] = useState<number | null>(null);
-  const [usageMB, setUsageMB] = useState<string | null>(null);
+  const [usage, setUsage] = useState<number | null>(null);
+  const [quota, setQuota] = useState<number | null>(null);
   const [busy, setBusy] = useState<ClearKind | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [confirmKeys, setConfirmKeys] = useState(false);
+  const [pendingClear, setPendingClear] = useState<ClearKind | null>(null);
 
   const refresh = useCallback(async () => {
     const count = await countCachedMessages().catch(() => 0);
     setMessageCount(count);
     if (typeof navigator !== "undefined" && navigator.storage?.estimate) {
       try {
-        const est = await navigator.storage.estimate();
-        setUsageMB(est.usage != null ? (est.usage / 1024 / 1024).toFixed(1) : null);
+        const estimate = await navigator.storage.estimate();
+        setUsage(estimate.usage ?? null);
+        setQuota(estimate.quota ?? null);
       } catch {
-        setUsageMB(null);
+        setUsage(null);
+        setQuota(null);
       }
     }
   }, []);
@@ -53,110 +88,116 @@ export function CacheSettings() {
         // Verify the wipe actually took effect.
         const remaining = await countCachedMessages().catch(() => -1);
         await refresh();
-        if (kind === "keys") {
-          setNote("Ключи и кэш сброшены. Перезагрузите приложение — устройство переустановит ключи.");
-        } else {
-          setNote(`Очищено. Сообщений в кэше осталось: ${remaining < 0 ? "?" : remaining}.`);
-        }
+        setNote(
+          kind === "keys"
+            ? "Ключи и кэш сброшены. Перезагрузите приложение — устройство переустановит ключи."
+            : `Очищено. В кэше осталось: ${remaining < 0 ? "?" : remaining}.`,
+        );
       } catch (error) {
         setNote(`Не удалось очистить: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setBusy(null);
-        setConfirmKeys(false);
+        setPendingClear(null);
       }
     },
     [refresh],
   );
 
+  const share = usage != null && quota ? Math.min(1, usage / quota) : null;
+
   return (
-    <section className="space-y-4 rounded-2xl border border-border-subtle bg-surface p-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">Хранилище и кэш</p>
-          <p className="text-xs text-muted mt-0.5">
-            {messageCount === null ? "Подсчёт…" : `Сообщений в кэше: ${messageCount}`}
-            {usageMB ? ` · ${usageMB} МБ на устройстве` : ""}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="h-9 rounded-full bg-foreground/5 px-3 text-sm font-semibold text-muted transition-smooth hover:text-foreground active:scale-[0.96]"
+    <>
+      <SettingsStack>
+        <SettingsBlock
+          label="Занято на устройстве"
+          footer={
+            quota
+              ? `Браузер выделил приложению до ${formatBytes(quota)}.`
+              : "Размер хранилища определяет браузер."
+          }
         >
-          Обновить
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => void runClear("messages")}
-          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.96] disabled:opacity-50"
-        >
-          {busy === "messages" ? "Очистка…" : "Очистить кэш сообщений"}
-        </button>
-
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => void runClear("browser")}
-          className="h-11 rounded-xl bg-foreground/5 text-sm font-semibold text-foreground transition-smooth hover:bg-foreground/10 active:scale-[0.96] disabled:opacity-50"
-        >
-          {busy === "browser" ? "Очистка…" : "Очистить медиа и кэш приложения"}
-        </button>
-
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => void runClear("all")}
-          className="h-11 rounded-xl border border-primary/20 bg-primary/10 text-sm font-semibold text-primary transition-smooth hover:bg-primary/20 active:scale-[0.96] disabled:opacity-50"
-        >
-          {busy === "all" ? "Очистка…" : "Очистить весь кэш (без ключей)"}
-        </button>
-      </div>
-
-      {/* Danger zone — wiping E2EE keys */}
-      <div className="rounded-xl border border-danger/20 bg-danger/5 p-3 space-y-2">
-        <p className="text-sm font-semibold text-danger">Опасная зона</p>
-        <p className="text-xs text-muted">
-          Сброс ключей шифрования удалит криптоидентичность этого устройства. Переписка
-          перестанет расшифровываться, пока устройство не переустановит ключи.
-        </p>
-        {confirmKeys ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => void runClear("keys")}
-              className="h-11 flex-1 rounded-xl bg-danger text-sm font-semibold text-white transition-smooth active:scale-[0.96] disabled:opacity-50"
-            >
-              {busy === "keys" ? "Сброс…" : "Да, сбросить ключи"}
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => setConfirmKeys(false)}
-              className="h-11 rounded-xl bg-foreground/5 px-4 text-sm font-semibold text-muted transition-smooth active:scale-[0.96]"
-            >
-              Отмена
-            </button>
+          <div className="rounded-2xl bg-surface px-4 py-4">
+            <p className="text-[34px] font-semibold leading-none tracking-tight text-foreground tabular-nums">
+              {usage == null ? "—" : formatBytes(usage)}
+            </p>
+            <p className="mt-1.5 text-[13px] text-muted">
+              {messageCount === null
+                ? "Подсчёт…"
+                : `${messageCount} ${pluralMessages(messageCount)} в кэше`}
+            </p>
+            {share != null ? (
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-tertiary">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-300"
+                  style={{ width: `${Math.max(share * 100, 1.5)}%` }}
+                />
+              </div>
+            ) : null}
           </div>
-        ) : (
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => setConfirmKeys(true)}
-            className="h-11 w-full rounded-xl border border-danger/20 bg-danger/10 text-sm font-semibold text-danger transition-smooth hover:bg-danger/20 active:scale-[0.96] disabled:opacity-50"
-          >
-            Сбросить ключи шифрования
-          </button>
-        )}
-      </div>
+        </SettingsBlock>
 
-      {note ? (
-        <p className="text-xs font-semibold text-foreground/80 bg-foreground/5 rounded-xl px-3 py-2">{note}</p>
-      ) : null}
-    </section>
+        <SettingsGroup
+          label="Управление хранилищем"
+          footer="Очистка не удаляет переписку: сообщения останутся на сервере и загрузятся снова."
+        >
+          <SettingsActionRow
+            title="Очистить кэш сообщений"
+            tone="neutral"
+            busy={busy === "messages"}
+            disabled={busy !== null}
+            onClick={() => void runClear("messages")}
+          />
+          <SettingsActionRow
+            title="Очистить медиа и файлы"
+            tone="neutral"
+            busy={busy === "browser"}
+            disabled={busy !== null}
+            onClick={() => void runClear("browser")}
+          />
+          <SettingsActionRow
+            title="Очистить весь кэш"
+            subtitle="Ключи шифрования сохранятся"
+            tone="neutral"
+            busy={busy === "all"}
+            disabled={busy !== null}
+            onClick={() => void runClear("all")}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup
+          label="Опасные действия"
+          footer={
+            <SettingsNote tone="warning">
+              Переписка перестанет открываться на этом устройстве, пока ключи не вернутся — по
+              ключу восстановления или с другого доверенного устройства.
+            </SettingsNote>
+          }
+        >
+          <SettingsActionRow
+            title="Сбросить ключи шифрования"
+            tone="danger"
+            busy={busy === "keys"}
+            disabled={busy !== null}
+            onClick={() => setPendingClear("keys")}
+          />
+        </SettingsGroup>
+
+        {note ? (
+          <p role="status" className="px-5 text-[13px] leading-snug text-muted">
+            {note}
+          </p>
+        ) : null}
+      </SettingsStack>
+
+      <ConfirmSheet
+        open={pendingClear === "keys"}
+        title="Сбросить ключи шифрования?"
+        body="Переписка на этом устройстве перестанет открываться, пока ключи не будут восстановлены."
+        confirmLabel="Сбросить ключи"
+        busy={busy === "keys"}
+        onConfirm={() => void runClear("keys")}
+        onCancel={() => setPendingClear(null)}
+      />
+    </>
   );
 }

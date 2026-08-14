@@ -7,6 +7,13 @@ import {
   setUpRecoveryKey,
   type RecoveryKeyStatus,
 } from "@/lib/e2ee/recovery";
+import { SettingsBlock, SettingsGroup, SettingsStack } from "@/components/settings/SettingsGroup";
+import {
+  SettingsInputRow,
+  SettingsNote,
+  SettingsPrimaryButton,
+  SettingsValueRow,
+} from "@/components/settings/SettingsRow";
 
 /**
  * Setting up and unlocking the account recovery key.
@@ -18,6 +25,9 @@ import {
  *     operator-side path to open the key;
  *   - messages sealed before this key existed stay unreadable, because nothing
  *     can address an envelope to a key that did not exist at the time.
+ *
+ * Those facts are stated once, in a footnote, rather than in a standing amber
+ * panel: the state being described is normal, not a fault.
  */
 export function RecoveryKeyPanel({ userId }: { userId: string }) {
   const [status, setStatus] = useState<RecoveryKeyStatus | null>(null);
@@ -86,76 +96,80 @@ export function RecoveryKeyPanel({ userId }: { userId: string }) {
   const unlocked = Boolean(status?.unlockedHere);
 
   return (
-    <section className="space-y-3 rounded-2xl border border-border-subtle bg-surface p-4">
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">Ключ восстановления</h2>
-        <p className="mt-1 text-xs leading-snug text-muted">
-          {configured
+    <SettingsStack>
+      <SettingsGroup
+        label="Состояние"
+        footer={
+          configured
             ? unlocked
-              ? "Ключ создан и открыт на этом устройстве. Переписка, зашифрованная после его создания, восстановится на любом новом устройстве."
-              : "Ключ создан, но на этом устройстве не открыт. Введите кодовую фразу, чтобы вернуть переписку."
-            : "Браузер может очистить хранилище — тогда ключи устройства пропадут, и переписка перестанет открываться. Ключ восстановления возвращает её по кодовой фразе."}
-        </p>
-      </div>
+              ? "Переписка, зашифрованная после создания ключа, восстановится на любом новом устройстве."
+              : "Введите кодовую фразу, чтобы вернуть переписку на это устройство."
+            : "Браузер может очистить хранилище — тогда ключи устройства пропадут вместе с доступом к переписке. Ключ восстановления возвращает её по кодовой фразе."
+        }
+      >
+        <SettingsValueRow
+          title="Ключ восстановления"
+          value={configured ? "Настроен" : "Не настроен"}
+        />
+        {configured ? (
+          <SettingsValueRow
+            title="На этом устройстве"
+            value={unlocked ? "Открыт" : "Не открыт"}
+          />
+        ) : null}
+      </SettingsGroup>
 
       {unlocked ? null : (
-        <div className="space-y-2">
-          <label htmlFor="recovery-passphrase" className="ml-1 text-xs font-medium text-muted">
-            Кодовая фраза
-          </label>
-          <input
-            id="recovery-passphrase"
-            className="input-nox h-12"
-            type="password"
-            autoComplete={configured ? "current-password" : "new-password"}
-            value={passphrase}
-            onChange={(event) => setPassphrase(event.target.value)}
-            placeholder="Не короче 8 символов"
-          />
-          {configured ? null : (
-            <>
-              <label htmlFor="recovery-passphrase-confirm" className="ml-1 text-xs font-medium text-muted">
-                Повторите фразу
-              </label>
-              <input
+        <>
+          <SettingsGroup label={configured ? "Кодовая фраза" : "Новая кодовая фраза"}>
+            <SettingsInputRow
+              id="recovery-passphrase"
+              label="Фраза"
+              type="password"
+              autoComplete={configured ? "current-password" : "new-password"}
+              value={passphrase}
+              onChange={setPassphrase}
+              placeholder="Не короче 8 символов"
+            />
+            {configured ? null : (
+              <SettingsInputRow
                 id="recovery-passphrase-confirm"
-                className="input-nox h-12"
+                label="Ещё раз"
                 type="password"
                 autoComplete="new-password"
                 value={confirmation}
-                onChange={(event) => setConfirmation(event.target.value)}
-                placeholder="Ещё раз"
+                onChange={setConfirmation}
+                placeholder="Повторите фразу"
               />
-            </>
-          )}
+            )}
+          </SettingsGroup>
 
-          <button
-            type="button"
-            onClick={submit}
-            disabled={busy}
-            className="h-11 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
-          >
-            {busy ? "Подождите…" : configured ? "Открыть на этом устройстве" : "Создать ключ"}
-          </button>
-        </div>
+          <SettingsBlock>
+            <SettingsPrimaryButton onClick={submit} disabled={busy}>
+              {busy ? "Подождите…" : configured ? "Открыть на этом устройстве" : "Создать ключ"}
+            </SettingsPrimaryButton>
+          </SettingsBlock>
+        </>
       )}
 
       {error ? (
-        <p role="alert" className="text-xs font-semibold text-danger">
+        <p role="alert" className="px-5 text-[13px] text-danger">
           {error}
         </p>
       ) : null}
       {done ? (
-        <p role="status" className="text-xs font-semibold text-success">
+        <p role="status" className="px-5 text-[13px] text-success">
           {done}
         </p>
       ) : null}
 
-      <p className="text-[11px] leading-snug text-muted">
-        Фразу невозможно восстановить: сервер хранит только зашифрованный ключ и никогда не видит саму
-        фразу. Сообщения, зашифрованные до создания ключа, останутся недоступны — их нельзя адресовать
-        ключу, которого тогда не существовало.
+      <p className="px-5 text-[13px] leading-snug text-muted">
+        <SettingsNote>
+          Фразу невозможно восстановить: сервер хранит только зашифрованный ключ и никогда не видит
+          саму фразу. Сообщения, зашифрованные до создания ключа, останутся недоступны — их нельзя
+          адресовать ключу, которого тогда не существовало.
+        </SettingsNote>
       </p>
-    </section>
+    </SettingsStack>
   );
 }
