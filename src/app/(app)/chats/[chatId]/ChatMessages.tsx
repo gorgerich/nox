@@ -31,7 +31,7 @@ import { classifyHistory } from "@/lib/history-availability";
 import { useTheme } from "@/components/ThemeProvider";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
-import { useMessageDelivery } from "./useMessageDelivery";
+import { useMessageDelivery, type UseMessageDelivery } from "./useMessageDelivery";
 import { sendStagedAttachment } from "./attachment-transport";
 import { createIndexedDbOutboxBlobStore } from "@/lib/messages/pending-repository";
 import type { DeliveryTransport } from "@/lib/messages/delivery-controller";
@@ -355,6 +355,16 @@ export function ChatMessages({
   }, []);
   const [historyNoticeDismissed, setHistoryNoticeDismissed] = useState(false);
 
+  // Declared here, ahead of `delivery` itself (created further down this
+  // component), because the history-load effect below needs it: without a
+  // reconciliation pass over fetched history, a message this device sent
+  // whose socket echo never arrived — a real gap when connectivity was
+  // flapping — stays "failed" in the local outbox forever, alongside the very
+  // same message arriving normally through history as a confirmed bubble. Two
+  // renders of one message. The effect that actually keeps this current lives
+  // near `delivery`'s own declaration, but the ref has to exist before that.
+  const deliveryRef = useRef<UseMessageDelivery | null>(null);
+
   // Client-side history load — the chat page no longer fetches messages on the
   // server (no RSC block). We paint instantly from the persistent cache, then
   // reconcile with the network. Optimistic (temp-) and the pinned message are
@@ -383,6 +393,24 @@ export function ChatMessages({
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
       });
+
+      // Fold every message this device sent into the outbox's own state.
+      // `ingestServerMessage` matches by server id first, then by
+      // clientMessageId, and is a no-op for anything it doesn't recognise —
+      // this is exactly the socket echo's own reconciliation call, run again
+      // here for the case the echo never reached this device at all.
+      if (deliveryRef.current) {
+        for (const m of incoming) {
+          if (m.senderUserId !== currentUserId) continue;
+          deliveryRef.current.ingestServerMessage({
+            id: m.id,
+            clientId: m.clientMessageId ?? null,
+            body: m.body,
+            createdAt: m.createdAt,
+          });
+        }
+      }
+
       if (authoritative && !historyLoadedRef.current) {
         historyLoadedRef.current = true;
         setInitialMessageIds(new Set(incoming.map((m) => m.id)));
@@ -802,9 +830,9 @@ export function ChatMessages({
     };
   }, [delivery.pending, outboxBlobs]);
 
-  // The socket effect must not re-subscribe every time delivery state changes,
-  // so it reaches the controller through a ref kept current in an effect.
-  const deliveryRef = useRef<typeof delivery | null>(null);
+  // deliveryRef itself is declared above the history-load effect, which reads
+  // it before `delivery` exists in this function's own evaluation order; this
+  // effect is what actually keeps it current from here on.
   useEffect(() => {
     deliveryRef.current = delivery;
   }, [delivery]);
