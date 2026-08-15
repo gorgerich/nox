@@ -342,6 +342,17 @@ export function ChatMessages({
   // text instantly instead of re-decrypting (no "Загрузка…" reflash).
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>(() => getChatDecrypted(chatId));
   const [unavailableMessageIds, setUnavailableMessageIds] = useState<Record<string, true>>({});
+  // Messages MessageBubble itself has confirmed will never render anything —
+  // an encrypted text with no envelope this device can open, or a media
+  // message whose every attachment is in the same state — reported here so
+  // date grouping can treat them as absent rather than leaving a divider
+  // standing over nothing. Distinct from `unavailableMessageIds` above,
+  // which drives a different, older decrypt path; a message can end up
+  // hidden through either one.
+  const [renderEmptyMessageIds, setRenderEmptyMessageIds] = useState<Record<string, true>>({});
+  const handleMessageUnavailable = useCallback((id: string) => {
+    setRenderEmptyMessageIds((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
+  }, []);
   const [historyNoticeDismissed, setHistoryNoticeDismissed] = useState(false);
 
   // Client-side history load — the chat page no longer fetches messages on the
@@ -2240,9 +2251,12 @@ export function ChatMessages({
 
   const groupedMessages = useMemo(() => {
     const result: GroupedItem[] = [];
-    messagesWithDecrypted.forEach((msg, idx) => {
-      const prev = messagesWithDecrypted[idx - 1];
-      const next = messagesWithDecrypted[idx + 1];
+    const visibleMessages = messagesWithDecrypted.filter(
+      (msg) => !msg.messageUnavailableOnThisDevice && !renderEmptyMessageIds[msg.id],
+    );
+    visibleMessages.forEach((msg, idx) => {
+      const prev = visibleMessages[idx - 1];
+      const next = visibleMessages[idx + 1];
       const date = new Date(msg.createdAt).toDateString();
       const prevDate = prev ? new Date(prev.createdAt).toDateString() : null;
       if (date !== prevDate) {
@@ -2262,7 +2276,7 @@ export function ChatMessages({
       });
     });
     return result;
-  }, [messagesWithDecrypted, currentUserId, chatInfo.type]);
+  }, [messagesWithDecrypted, renderEmptyMessageIds, currentUserId, chatInfo.type]);
 
   const currentUserInfo = useMemo(() => { return { displayName: "Я", avatarUrl: null }; }, []);
 
@@ -2455,6 +2469,7 @@ export function ChatMessages({
                       : Boolean(failedSends[item.message.id])
                   }
                   onRetry={handleRetrySend}
+                  onUnavailable={handleMessageUnavailable}
                 />
               </div>
             )

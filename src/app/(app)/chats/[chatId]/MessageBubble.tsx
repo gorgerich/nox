@@ -158,6 +158,7 @@ function AttachmentPreview({
   onMediaClick,
   chatId,
   localDeviceId,
+  onUnavailable,
 }: {
   attachment: Attachment;
   message: Message;
@@ -167,6 +168,8 @@ function AttachmentPreview({
   chatId?: string;
   currentUserId?: string;
   localDeviceId?: string | null;
+  /** Fired once, the moment this attachment settles into "unavailable on this device". */
+  onUnavailable?: () => void;
 }) {
   // Seed from the RAM media cache so already-decrypted media shows instantly on
   // re-open / scroll-back (no re-download, no "Расшифровка медиа…" flash).
@@ -184,6 +187,12 @@ function AttachmentPreview({
   const [roundExpanded, setRoundExpanded] = useState(false);
   const [roundProgress, setRoundProgress] = useState(0);
   const roundVideoRef = useRef<HTMLVideoElement>(null);
+  const reportedUnavailableRef = useRef(false);
+  useEffect(() => {
+    if (decryptError !== "Медиа недоступно на этом устройстве" || reportedUnavailableRef.current) return;
+    reportedUnavailableRef.current = true;
+    onUnavailable?.();
+  }, [decryptError, onUnavailable]);
 
   useEffect(() => {
     if (!attachment.isEncrypted) {
@@ -350,6 +359,10 @@ function AttachmentPreview({
         Изображение не открывается
       </div>
     );
+  }
+
+  if (decryptError === "Медиа недоступно на этом устройстве") {
+    return null;
   }
 
   if (decryptError || !sourceUrl) {
@@ -528,6 +541,7 @@ export const MessageBubble = memo(function MessageBubble({
   localDeviceId,
   isFailed = false,
   onRetry,
+  onUnavailable,
 }: {
   message: Message;
   mine: boolean;
@@ -550,6 +564,11 @@ export const MessageBubble = memo(function MessageBubble({
   localDeviceId?: string | null;
   isFailed?: boolean;
   onRetry?: (messageId: string) => void;
+  /** Fired once, the moment this message is confirmed to render nothing at
+      all — every attachment unavailable, or an encrypted body that never
+      settled. Lets the list drop a date separator that would otherwise stand
+      over an empty message. */
+  onUnavailable?: (messageId: string) => void;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -767,6 +786,28 @@ export const MessageBubble = memo(function MessageBubble({
     return () => window.clearTimeout(timer);
   }, [undecryptable, message.id]);
 
+  // Every attachment on a media-only message settling into "unavailable on
+  // this device" (each one reports itself, asynchronously and on its own
+  // timer) is the media equivalent of settledUndecryptable above: a message
+  // that will never have anything to show.
+  const [unavailableAttachmentIds, setUnavailableAttachmentIds] = useState<Set<string>>(() => new Set());
+  const handleAttachmentUnavailable = useCallback((attachmentId: string) => {
+    setUnavailableAttachmentIds((prev) => (prev.has(attachmentId) ? prev : new Set(prev).add(attachmentId)));
+  }, []);
+  const allAttachmentsUnavailable =
+    message.attachments.length > 0 && message.attachments.every((attachment) => unavailableAttachmentIds.has(attachment.id));
+
+  // Tell the list once this message is confirmed empty, whichever of the two
+  // ways above got it there — a stale divider over nothing is the same defect
+  // either way.
+  const reportedMessageUnavailableRef = useRef(false);
+  useEffect(() => {
+    if (!settledUndecryptable && !allAttachmentsUnavailable) return;
+    if (reportedMessageUnavailableRef.current) return;
+    reportedMessageUnavailableRef.current = true;
+    onUnavailable?.(message.id);
+  }, [settledUndecryptable, allAttachmentsUnavailable, message.id, onUnavailable]);
+
   const relevantReceipts = message.receipts?.filter((receipt) => receipt.userId !== message.senderUserId) ?? [];
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
@@ -781,14 +822,15 @@ export const MessageBubble = memo(function MessageBubble({
     borderRadius: 0,
   };
 
+  // Rendered nowhere: the list already filters these out before it ever
+  // reaches this component (see ChatMessages' `visibleMessages`), so this is
+  // a safety net for any path that constructs a MessageBubble directly.
   if (message.messageUnavailableOnThisDevice) {
-    return (
-      <div className="relative flex w-full justify-center px-4 py-2">
-        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
-          Сообщение недоступно на этом устройстве
-        </div>
-      </div>
-    );
+    return null;
+  }
+
+  if (allAttachmentsUnavailable) {
+    return null;
   }
 
   // A deleted message previously fell through to the normal bubble and rendered
@@ -805,10 +847,16 @@ export const MessageBubble = memo(function MessageBubble({
   }
 
   if (message.isEncrypted && !message.body && message.attachments.length === 0) {
+    // Once settled there is nothing left to wait for — this message will not
+    // become readable on its own, so it renders nothing rather than a
+    // permanent "unavailable" line. It reappears normally the moment a
+    // decryptable envelope actually arrives, since that changes `message.body`
+    // and this branch stops matching.
+    if (settledUndecryptable) return null;
     return (
       <div className="relative flex w-full justify-center px-4 py-2">
         <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
-          {settledUndecryptable ? "Сообщение недоступно на этом устройстве" : "Загрузка зашифрованного сообщения…"}
+          Загрузка зашифрованного сообщения…
         </div>
       </div>
     );
@@ -967,6 +1015,7 @@ export const MessageBubble = memo(function MessageBubble({
                 chatId={chatId}
                 currentUserId={currentUserId}
                 localDeviceId={localDeviceId}
+                onUnavailable={() => handleAttachmentUnavailable(att.id)}
               />
             ))}
           </>
