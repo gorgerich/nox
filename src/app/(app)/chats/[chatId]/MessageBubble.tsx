@@ -55,6 +55,11 @@ function renderRichText(text: string): React.ReactNode {
 
 export type Message = {
   id: string;
+  /** The id this device (or whichever device actually sent it) minted on
+      creation, echoed back verbatim by the server. Used to fold a server-
+      confirmed message onto its own optimistic outbox entry when the socket
+      echo that would normally do this never arrives. */
+  clientMessageId?: string | null;
   body: string | null;
   ciphertext?: string | null;
   iv?: string | null;
@@ -149,6 +154,7 @@ export type Message = {
 };
 
 type Attachment = Message["attachments"][number];
+type MediaKeyEnvelope = NonNullable<Attachment["mediaKeyEnvelopes"]>[number];
 
 function AttachmentPreview({
   attachment,
@@ -187,12 +193,47 @@ function AttachmentPreview({
   const [roundExpanded, setRoundExpanded] = useState(false);
   const [roundProgress, setRoundProgress] = useState(0);
   const roundVideoRef = useRef<HTMLVideoElement>(null);
+
+  // `localDeviceId` starts null on every cold open — it comes from an async
+  // read of the local key store — and is genuinely absent, briefly, for
+  // attachments that are perfectly fine. Treating that the same as "no
+  // envelope was ever addressed to this device" made every media message on
+  // screen at the moment of a fresh load flash to permanently hidden before
+  // the real id had a chance to arrive: this component would report itself
+  // unavailable, the list would blacklist the message, and by the time
+  // `localDeviceId` resolved a render or two later there was no mounted
+  // component left to notice. `notReady` below is exactly the missing
+  // distinction — it waits rather than verdicts.
+  const notReady = !chatId || !localDeviceId || !attachment.fileIv;
+  const envelope = !notReady
+    ? attachment.mediaKeyEnvelopes?.find((item) => item.recipientDeviceId === localDeviceId)
+    : undefined;
+  // True once "no envelope" has been true for a while — the media
+  // equivalent of the text bubble's `settledUndecryptable`, and for the same
+  // reason: an envelope that has not shown up yet (this message just arrived
+  // and the history fetch that carries it is a beat behind the socket echo)
+  // must not be declared permanently missing on the first render that sees it.
+  // Never reset back to false: this component is keyed by attachment id (see
+  // the `.map()` call site), so one instance only ever lives through one
+  // envelope's story — an envelope found after settling already makes
+  // `confirmedUnavailable` false via `!envelope` below, with no need to also
+  // rewind this flag.
+  const [envelopeSettled, setEnvelopeSettled] = useState(false);
+  useEffect(() => {
+    if (notReady || envelope) return;
+    const timer = window.setTimeout(() => setEnvelopeSettled(true), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [notReady, envelope]);
+  const confirmedUnavailable = !notReady && !envelope && envelopeSettled;
+
   const reportedUnavailableRef = useRef(false);
   useEffect(() => {
-    if (decryptError !== "Медиа недоступно на этом устройстве" || reportedUnavailableRef.current) return;
+    if (!confirmedUnavailable || reportedUnavailableRef.current) return;
     reportedUnavailableRef.current = true;
+    setDecryptError("Медиа недоступно на этом устройстве");
+    setIsDecrypting(false);
     onUnavailable?.();
-  }, [decryptError, onUnavailable]);
+  }, [confirmedUnavailable, onUnavailable]);
 
   useEffect(() => {
     if (!attachment.isEncrypted) {
@@ -204,22 +245,22 @@ function AttachmentPreview({
       return;
     }
 
+    // Not ready yet (device id still loading) or confirmed-absent-forever —
+    // either way there is nothing to attempt right now. The `notReady` case
+    // re-enters this effect on its own once `localDeviceId` deps change;
+    // the confirmed case is handled by the effect above, once. Re-checked
+    // explicitly (rather than trusting the `notReady`/`envelope` closed-over
+    // booleans) so the compiler narrows `chatId` and `attachment.fileIv` to
+    // non-nullable for the async function below.
+    if (!chatId || !attachment.fileIv || !envelope) {
+      return;
+    }
+    const fileIv = attachment.fileIv;
+    const activeChatId = chatId;
+
     let cancelled = false;
 
-    async function decryptAttachment() {
-      if (!chatId || !localDeviceId || !attachment.fileIv) {
-        setIsDecrypting(false);
-        setDecryptError("Медиа недоступно на этом устройстве");
-        return;
-      }
-
-      const envelope = attachment.mediaKeyEnvelopes?.find((item) => item.recipientDeviceId === localDeviceId);
-      if (!envelope) {
-        setIsDecrypting(false);
-        setDecryptError("Медиа недоступно на этом устройстве");
-        return;
-      }
-
+    async function decryptAttachment(envelope: MediaKeyEnvelope) {
       setIsDecrypting(true);
       setDecryptError(null);
 
@@ -229,10 +270,10 @@ function AttachmentPreview({
         const encryptedBlob = await response.blob();
         const decryptedBlob = await decryptMediaBlob({
           encryptedBlob,
-          fileIv: attachment.fileIv,
+          fileIv,
           senderUserId: message.senderUserId,
           senderDeviceId: envelope.senderDeviceId,
-          chatId,
+          chatId: activeChatId,
           envelope,
           mimeType: attachment.mimeType,
         });
@@ -257,7 +298,7 @@ function AttachmentPreview({
       }
     }
 
-    void decryptAttachment();
+    void decryptAttachment(envelope);
 
     // NOTE: do not revoke the object URL on unmount — the media cache owns it so
     // it can be reused instantly on re-open/scroll-back. The cache revokes on LRU
@@ -266,14 +307,14 @@ function AttachmentPreview({
       cancelled = true;
     };
   }, [
-    attachment.fileIv,
+    notReady,
+    envelope,
     attachment.id,
     attachment.isEncrypted,
-    attachment.mediaKeyEnvelopes,
     attachment.mimeType,
     attachment.url,
     chatId,
-    localDeviceId,
+    attachment.fileIv,
     message.senderUserId,
   ]);
 
