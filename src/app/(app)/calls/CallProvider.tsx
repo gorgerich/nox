@@ -67,18 +67,41 @@ interface CallContextType {
   remoteStream: MediaStream | null;
   isMuted: boolean;
   isCameraOff: boolean;
+  /** True once this call has video in either direction. Derived, not a
+      one-shot flag — `hasLocalVideo`/`hasRemoteVideo` below are the two
+      independent things it is derived from, because after the audio→video
+      upgrade a call can have one without the other in either direction. */
   isVideo: boolean;
+  /** A live local video track exists on the peer connection — independent of
+      `isCameraOff`, which only tracks whether that existing track is enabled. */
+  hasLocalVideo: boolean;
+  /** The remote peer has sent a video track over this call. */
+  hasRemoteVideo: boolean;
+  /** The remote peer's camera is off (their own toggle, signalled to us) —
+      distinct from `hasRemoteVideo`: their track can exist and be disabled. */
+  isRemoteCameraOff: boolean;
+  /** True while a local addVideo() is waiting on the far side's renegotiation
+      answer — lets the UI show a brief "loading" state on the video button. */
+  isUpgradingVideo: boolean;
   isScreenSharing: boolean;
   error: string | null;
   debugInfo: DebugInfo;
   startCall: (chatId: string, peerUser?: { displayName: string; avatarUrl: string | null }, options?: { video?: boolean }) => Promise<void>;
   resumePendingCall: (callId: string) => void;
   markRemoteAudioPlayback: (state: { srcObjectAssigned: boolean; playStatus: "idle" | "pending" | "success" | "failed" }) => void;
+  /** Dismisses the current error banner/sheet without touching call state —
+      for a permission-denied sheet the user closed without retrying. */
+  clearError: () => void;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
   endCall: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  /** Adds local video to an audio call (any state: still ringing, or an
+      already-active conversation) without ending or recreating the call, or
+      — if a local video track already exists — just toggles it on/off. This
+      is the single entry point the "Видео" button calls. */
+  toggleVideo: () => Promise<void>;
   switchCamera: () => Promise<void>;
   toggleScreenShare: () => void;
 }
@@ -102,6 +125,32 @@ interface IcePayload {
   callId: string;
   chatId: string;
   candidate: RTCIceCandidateInit;
+}
+
+/** A renegotiation offer/answer — same shape as the initial call:start/answer
+    exchange, but travelling as its own event because call:start is rejected
+    server-side for a caller already in a call, and reusing call:answer's
+    handler would force the client to disambiguate "first answer" from
+    "renegotiation answer" from inside one function. */
+interface VideoOfferPayload {
+  callId: string;
+  chatId: string;
+  offer: RTCSessionDescriptionInit;
+}
+
+interface VideoAnswerPayload {
+  callId: string;
+  chatId: string;
+  answer: RTCSessionDescriptionInit;
+}
+
+/** What the far side needs to know about our media that it cannot infer from
+    the track itself: `track.enabled = false` still transmits (silence/black
+    frames), so "camera off" has to be told, not detected. */
+interface MediaStatePayload {
+  callId: string;
+  chatId: string;
+  video: boolean;
 }
 
 interface CallAck {
@@ -192,7 +241,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const [isVideo, setIsVideo] = useState(false);
+  const [hasLocalVideo, setHasLocalVideo] = useState(false);
+  const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
+  const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
+  const [isUpgradingVideo, setIsUpgradingVideo] = useState(false);
+  const isVideo = hasLocalVideo || hasRemoteVideo;
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -251,6 +304,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const keepAliveAudioRef = useRef<HTMLAudioElement | null>(null);
+  // True while our own renegotiation offer is outstanding (sent, no answer
+  // yet). Used for "perfect negotiation" glare handling: if the other side's
+  // offer arrives while this is true, one role rolls back and yields, the
+  // other ignores the incoming offer and lets its own complete. Roles are
+  // fixed by CallRole (caller = impolite/ignores, callee = polite/yields) —
+  // deterministic without needing a separate negotiation-id exchange.
+  const negotiatingRef = useRef(false);
 
   useEffect(() => {
     statusRef.current = status;
@@ -498,13 +558,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     cameraFacingModeRef.current = "user";
     audioSrcObjectAssignedRef.current = false;
     remoteAudioPlaybackOkRef.current = false;
+    negotiatingRef.current = false;
 
     setCall(null);
     setLocalStream(null);
     setRemoteStream(null);
     setIsMuted(false);
     setIsCameraOff(false);
-    setIsVideo(false);
+    setHasLocalVideo(false);
+    setHasRemoteVideo(false);
+    setIsRemoteCameraOff(false);
+    setIsUpgradingVideo(false);
     setIsScreenSharing(false);
     updateDebugInfo({
       callId: null,
@@ -649,8 +713,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     remoteStreamRef.current = merged;
     setRemoteStream(merged);
     const audioCount = merged.getAudioTracks().length;
-    debugCall("remoteStream tracks count", { audio: audioCount, video: merged.getVideoTracks().length });
+    const videoCount = merged.getVideoTracks().length;
+    debugCall("remoteStream tracks count", { audio: audioCount, video: videoCount });
     updateDebugInfo({ remoteAudioTracks: audioCount, remoteStreamExists: true });
+    if (videoCount > 0) setHasRemoteVideo(true);
 
     if (audioCount > 0) {
       verifyAndSetActive("remote-audio-track");
@@ -843,7 +909,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("generated callId", { callId });
     currentCallRef.current = nextCall;
     setCall(nextCall);
-    setIsVideo(wantVideo);
+    setHasLocalVideo(wantVideo);
     setIsCameraOff(false);
     setCallStatus("outgoing");
     setError(null);
@@ -912,6 +978,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       debugCall("setRemoteDescription offer", { callId: current.callId });
       addLocalTracks(pc, stream, "acceptCall");
+      if (incomingVideoRef.current) setHasLocalVideo(true);
       await flushPendingIce(pc, "after-setRemoteDescription-offer");
 
       const answer = await pc.createAnswer();
@@ -971,18 +1038,28 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     debugCall("mute toggled", { enabled: track.enabled });
   }, [debugCall]);
 
+  const broadcastMediaState = useCallback((video: boolean) => {
+    const current = currentCallRef.current;
+    if (!current) return;
+    socket.emit("call:media-state", { callId: current.callId, chatId: current.chatId, video });
+  }, [socket]);
+
   const toggleCamera = useCallback(() => {
     const track = localStreamRef.current?.getVideoTracks()[0];
     if (!track) return;
     track.enabled = !track.enabled;
     setIsCameraOff(!track.enabled);
     debugCall("camera toggled", { enabled: track.enabled });
-  }, [debugCall]);
+    // track.enabled = false still transmits (silence/black frames) — the
+    // remote side cannot infer "camera off" from the track alone, so it has
+    // to be told.
+    broadcastMediaState(track.enabled);
+  }, [debugCall, broadcastMediaState]);
 
   const switchCamera = useCallback(async () => {
     const pc = pcRef.current;
     const stream = localStreamRef.current;
-    if (!pc || !stream || !isVideo || isScreenSharing) return;
+    if (!pc || !stream || !hasLocalVideo || isScreenSharing) return;
 
     const nextFacingMode = cameraFacingModeRef.current === "user" ? "environment" : "user";
     try {
@@ -1023,7 +1100,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setError("Не удалось переключить камеру");
       setTimeout(() => setError(null), 2500);
     }
-  }, [debugCall, isCameraOff, isScreenSharing, isVideo, tuneSenderBandwidth]);
+  }, [debugCall, isCameraOff, isScreenSharing, hasLocalVideo, tuneSenderBandwidth]);
 
   const restoreCameraInLocalStream = useCallback((cam: MediaStreamTrack) => {
     const ls = localStreamRef.current;
@@ -1089,6 +1166,135 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [restoreCameraInLocalStream, tuneSenderBandwidth]);
 
+  /**
+   * Adds local video to the current call, whichever state it is in — still
+   * ringing (caller, not yet answered) or an already-connected conversation
+   * (either role) — without ending the call or touching its RTCPeerConnection
+   * identity. This is the audio→video upgrade the "Видео" button drives; if a
+   * local video track already exists, `toggleVideo` below calls `toggleCamera`
+   * instead, since there is nothing left to negotiate.
+   *
+   * Same `pc`, same `callId`, same audio track throughout — `addTrack` extends
+   * the connection that already exists, `createOffer`/`setLocalDescription`
+   * produce a fresh SDP that includes the new video `m=` line alongside the
+   * one already flowing, and that SDP goes out over `call:video-offer`, a
+   * signalling channel dedicated to this (see the type above for why it is
+   * not just a second `call:start`/`call:answer`).
+   *
+   * Two real cases fall out of `statusRef.current`, not two code paths:
+   *  - **outgoing, not yet answered**: the callee has no peer connection yet —
+   *    `applyIncomingCall` only stored the offer as data. Re-sending the
+   *    updated offer just replaces what they will use once they DO accept
+   *    (`incomingOfferRef`/`incomingVideoRef`, updated by the video-offer
+   *    listener below). Nothing to await; `isUpgradingVideo` never sets.
+   *  - **connecting/active**: the other side has a live, negotiated `pc` and
+   *    must actually answer this new offer for the video track to start
+   *    flowing — `isUpgradingVideo` covers that wait, cleared by
+   *    `call:video-answer` or a bounded timeout.
+   */
+  const addVideo = useCallback(async () => {
+    const current = currentCallRef.current;
+    const pc = pcRef.current;
+    if (!current || !pc || hasLocalVideo || negotiatingRef.current) return;
+
+    setIsUpgradingVideo(true);
+    setError(null);
+
+    try {
+      const videoStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: cameraFacingModeRef.current,
+          width: { ideal: VIDEO_WIDTH },
+          height: { ideal: VIDEO_HEIGHT },
+          frameRate: { ideal: VIDEO_FRAME_RATE, max: VIDEO_FRAME_RATE },
+        },
+      });
+      const videoTrack = videoStream.getVideoTracks()[0];
+      if (!videoTrack) {
+        videoStream.getTracks().forEach((track) => track.stop());
+        throw new Error("NO_VIDEO_TRACK");
+      }
+      videoTrack.enabled = true;
+      cameraTrackRef.current = videoTrack;
+
+      // Merged into the SAME local stream the audio track already lives on,
+      // so the UI's local <video> and every other reader of `localStream`
+      // sees one consistent object rather than two streams to reconcile.
+      const stream = localStreamRef.current ?? new MediaStream();
+      stream.getVideoTracks().forEach((track) => { stream.removeTrack(track); track.stop(); });
+      stream.addTrack(videoTrack);
+      localStreamRef.current = stream;
+      setLocalStream(new MediaStream(stream.getTracks()));
+
+      // First video track ever on this connection: never a sender to replace,
+      // only ever a fresh addTrack (which itself reuses a recvonly transceiver
+      // the *other* side's video may already have created via their own offer —
+      // that reuse is the browser's job, not application code's).
+      const sender = pc.addTrack(videoTrack, stream);
+      tuneSenderBandwidth(sender, "video", "addVideo");
+      setHasLocalVideo(true);
+      debugCall("local video track added", { callId: current.callId, status: statusRef.current });
+
+      negotiatingRef.current = true;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      debugCall("renegotiation offer created", { callId: current.callId, status: statusRef.current });
+
+      const callId = current.callId;
+      const chatId = current.chatId;
+      socket.emit("call:video-offer", { callId, chatId, offer }, (ack?: CallAck) => {
+        debugCall("call:video-offer ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
+        if (!ack?.ok) {
+          negotiatingRef.current = false;
+          setIsUpgradingVideo(false);
+          setError("Не удалось включить видео");
+          setTimeout(() => setError(null), 2500);
+        }
+      });
+
+      if (statusRef.current === "outgoing") {
+        // No live remote peer connection to answer us yet — see the doc
+        // comment above. The updated offer is already what matters.
+        negotiatingRef.current = false;
+        setIsUpgradingVideo(false);
+      } else {
+        // Bounded wait for call:video-answer, mirroring the pattern the
+        // initial call setup already uses for its own offer/answer round trip.
+        setTimeout(() => {
+          if (currentCallRef.current?.callId === callId && negotiatingRef.current) {
+            debugCall("renegotiation timed out", { callId });
+            negotiatingRef.current = false;
+            setIsUpgradingVideo(false);
+          }
+        }, 15000);
+      }
+    } catch (upgradeError: unknown) {
+      debugCall("addVideo failed", { error: String(upgradeError) });
+      negotiatingRef.current = false;
+      setIsUpgradingVideo(false);
+      if (upgradeError instanceof DOMException && (upgradeError.name === "NotAllowedError" || upgradeError.name === "PermissionDeniedError")) {
+        // A sentinel, not a message: the UI shows its own iOS-style sheet for
+        // this one case instead of the plain error banner used elsewhere.
+        setError("CAMERA_PERMISSION_DENIED");
+      } else {
+        setError("Не удалось включить видео");
+        setTimeout(() => setError(null), 2500);
+      }
+    }
+  }, [debugCall, hasLocalVideo, socket, tuneSenderBandwidth]);
+
+  /** What the "Видео" button actually calls: add video the first time, then
+      just mute/unmute the camera on every tap after that. */
+  const toggleVideo = useCallback(async () => {
+    if (hasLocalVideo) {
+      toggleCamera();
+      return;
+    }
+    await addVideo();
+  }, [hasLocalVideo, toggleCamera, addVideo]);
+
+  const clearError = useCallback(() => setError(null), []);
+
   const markRemoteAudioPlayback = useCallback((state: {
     srcObjectAssigned: boolean;
     playStatus: "idle" | "pending" | "success" | "failed";
@@ -1128,7 +1334,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setRemoteStream(null);
       setError(null);
       setCall(nextCall);
-      setIsVideo(video);
+      setHasLocalVideo(false);
+      setHasRemoteVideo(video);
       setIsCameraOff(false);
       setCallStatus("incoming");
       updateDebugInfo({ pushSource: source });
@@ -1265,11 +1472,103 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setCallStatus("idle");
     };
 
+    // Renegotiation offer — either the caller updating a not-yet-answered
+    // pending call to video, or either side adding video mid-conversation.
+    const handleVideoOffer = async ({ callId, offer }: VideoOfferPayload) => {
+      const current = currentCallRef.current;
+      if (!current || current.callId !== callId) {
+        debugCall("video-offer ignored", { callId, currentCallId: current?.callId ?? null });
+        return;
+      }
+
+      // Pre-accept callee: applyIncomingCall stored the offer as plain data,
+      // no RTCPeerConnection exists yet. Refresh what acceptCall() will use
+      // and let the ringing screen react to `video` flipping true — nothing
+      // to negotiate until the call is actually accepted.
+      if (current.role === "callee" && statusRef.current === "incoming") {
+        incomingOfferRef.current = offer;
+        incomingVideoRef.current = true;
+        setHasRemoteVideo(true);
+        setCall((prev) => (prev ? { ...prev, video: true } : prev));
+        debugCall("pending incoming offer updated to video", { callId });
+        return;
+      }
+
+      const pc = pcRef.current;
+      if (!pc) return;
+
+      // Perfect negotiation: if we also have an offer outstanding, one side
+      // has to yield. The caller is fixed "impolite" (ignores the incoming
+      // offer — its own will complete and the far side will retry from
+      // scratch if it still wants video), the callee "polite" (rolls its own
+      // pending offer back and applies the incoming one instead). Fixed by
+      // role rather than negotiated, so both sides agree on it without
+      // exchanging anything extra.
+      const collision = negotiatingRef.current || pc.signalingState !== "stable";
+      if (collision) {
+        if (current.role === "caller") {
+          debugCall("video-offer glare: impolite, ignoring", { callId });
+          return;
+        }
+        debugCall("video-offer glare: polite, rolling back", { callId });
+        try {
+          await pc.setLocalDescription({ type: "rollback" });
+        } catch (rollbackError) {
+          debugCall("rollback failed", { callId, error: String(rollbackError) });
+        }
+        negotiatingRef.current = false;
+      }
+
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        debugCall("renegotiation offer applied", { callId });
+        await flushPendingIce(pc, "after-video-offer");
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        debugCall("renegotiation answer created", { callId });
+        socket.emit("call:video-answer", { callId, chatId: current.chatId, answer }, (ack?: CallAck) => {
+          debugCall("call:video-answer ack", { callId, ok: Boolean(ack?.ok), error: ack?.error ?? null });
+        });
+      } catch (renegotiateError) {
+        debugCall("video-offer handling failed", { callId, error: String(renegotiateError) });
+      }
+    };
+
+    // The far side answering OUR renegotiation offer (handleVideoOffer above
+    // is what answers theirs) — completes addVideo()'s offer/answer round trip.
+    const handleVideoAnswer = async ({ callId, answer }: VideoAnswerPayload) => {
+      const current = currentCallRef.current;
+      if (!current || current.callId !== callId) return;
+      const pc = pcRef.current;
+      if (!pc) return;
+
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        debugCall("renegotiation answer applied", { callId });
+      } catch (applyError) {
+        debugCall("video-answer apply failed", { callId, error: String(applyError) });
+      } finally {
+        negotiatingRef.current = false;
+        setIsUpgradingVideo(false);
+      }
+    };
+
+    // track.enabled toggling still transmits — this is how the far side
+    // learns "camera off" actually means camera off, not a frozen frame.
+    const handleMediaState = ({ callId, video }: MediaStatePayload) => {
+      const current = currentCallRef.current;
+      if (!current || current.callId !== callId) return;
+      setIsRemoteCameraOff(!video);
+    };
+
     socket.on("call:incoming", handleIncoming);
     socket.on("call:answer", handleAnswer);
     socket.on("call:ice-candidate", handleIceCandidate);
     socket.on("call:ended", handleEnded);
     socket.on("call:declined", handleDeclined);
+    socket.on("call:video-offer", handleVideoOffer);
+    socket.on("call:video-answer", handleVideoAnswer);
+    socket.on("call:media-state", handleMediaState);
 
     return () => {
       socket.off("call:incoming", handleIncoming);
@@ -1277,6 +1576,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off("call:ice-candidate", handleIceCandidate);
       socket.off("call:ended", handleEnded);
       socket.off("call:declined", handleDeclined);
+      socket.off("call:video-offer", handleVideoOffer);
+      socket.off("call:video-answer", handleVideoAnswer);
+      socket.off("call:media-state", handleMediaState);
     };
   }, [applyIncomingCall, cleanup, debugCall, failCall, flushPendingIce, scheduleMediaTimeout, setCallStatus, socket]);
 
@@ -1377,17 +1679,23 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         isMuted,
         isCameraOff,
         isVideo,
+        hasLocalVideo,
+        hasRemoteVideo,
+        isRemoteCameraOff,
+        isUpgradingVideo,
         isScreenSharing,
         error,
         debugInfo,
         startCall,
         resumePendingCall,
         markRemoteAudioPlayback,
+        clearError,
         acceptCall,
         declineCall,
         endCall,
         toggleMute,
         toggleCamera,
+        toggleVideo,
         switchCamera,
         toggleScreenShare,
       }}

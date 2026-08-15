@@ -1011,6 +1011,102 @@ app.prepare().then(() => {
       callback?.({ ok: true });
     });
 
+    // Renegotiation offer/answer: adding video to an already-established (or
+    // still-ringing) call without a second call:start/call:answer round trip.
+    // call:start rejects a caller already in a call (see below), and folding
+    // this into call:answer's handler would force the client to disambiguate
+    // "first answer" from "renegotiation answer" inside one function — a
+    // dedicated pair of events, validated the same way call:answer already
+    // is, is simpler on both ends. Either participant may send an offer here
+    // (unlike the initial call, where only the caller does), since either
+    // side can be the one adding their camera.
+    socket.on("call:video-offer", async (payload, callback) => {
+      const { callId, chatId, offer } = payload && typeof payload === "object" ? payload : {};
+      sweepExpiredCalls(io);
+      const call = activeCalls.get(callId);
+      logCall("call:video-offer received", { callId, chatId, userId, exists: Boolean(call) });
+
+      if (!call || call.chatId !== chatId || !offer || !payloadFits(offer, MAX_SIGNAL_PAYLOAD_BYTES)) {
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+      if (userId !== call.callerId && userId !== call.calleeId) {
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
+        return;
+      }
+      if (isCallExpired(call)) {
+        deleteCall(callId);
+        callback?.({ ok: false, error: "CALL_EXPIRED" });
+        return;
+      }
+      if (!(await isActiveMember(chatId, userId))) {
+        callback?.({ ok: false, error: "Нет доступа" });
+        return;
+      }
+
+      // A renegotiation offer means video is (now) part of this call — kept
+      // so a reconnect mid-call (call:resume-pending) reflects it, and so a
+      // second offer from the same side later doesn't look like a downgrade.
+      call.video = true;
+      const targetId = userId === call.callerId ? call.calleeId : call.callerId;
+      if (!isUserSocketReachable(io, targetId)) {
+        callback?.({ ok: false, error: "USER_UNREACHABLE" });
+        return;
+      }
+      io.to(`user:${targetId}`).emit("call:video-offer", { callId, chatId, offer });
+      logCall("call:video-offer forwarded", { callId, fromUserId: userId, toUserId: targetId });
+      callback?.({ ok: true });
+    });
+
+    socket.on("call:video-answer", async (payload, callback) => {
+      const { callId, chatId, answer } = payload && typeof payload === "object" ? payload : {};
+      sweepExpiredCalls(io);
+      const call = activeCalls.get(callId);
+      logCall("call:video-answer received", { callId, chatId, userId, exists: Boolean(call) });
+
+      if (!call || call.chatId !== chatId || !answer || !payloadFits(answer, MAX_SIGNAL_PAYLOAD_BYTES)) {
+        callback?.({ ok: false, error: "CALL_NOT_FOUND" });
+        return;
+      }
+      if (userId !== call.callerId && userId !== call.calleeId) {
+        callback?.({ ok: false, error: "NOT_CALL_PARTICIPANT" });
+        return;
+      }
+      if (isCallExpired(call)) {
+        deleteCall(callId);
+        callback?.({ ok: false, error: "CALL_EXPIRED" });
+        return;
+      }
+
+      const targetId = userId === call.callerId ? call.calleeId : call.callerId;
+      if (!isUserSocketReachable(io, targetId)) {
+        callback?.({ ok: false, error: "USER_UNREACHABLE" });
+        return;
+      }
+      io.to(`user:${targetId}`).emit("call:video-answer", { callId, chatId, answer });
+      logCall("call:video-answer forwarded", { callId, fromUserId: userId, toUserId: targetId });
+      callback?.({ ok: true });
+    });
+
+    // "Camera off" still transmits (track.enabled = false sends silence/black
+    // frames, it does not stop the track) — the far side cannot tell from the
+    // media alone, so this carries the fact itself. Same status-agnostic,
+    // call-id-keyed shape as call:ice-candidate; rate-limited the same way
+    // since, unlike an offer/answer, nothing stops a client from sending it
+    // in a loop.
+    socket.on("call:media-state", (payload) => {
+      const { callId, chatId, video } = payload && typeof payload === "object" ? payload : {};
+      if (!consumeEventBudget("call:media-state", 120, 60_000) || typeof video !== "boolean") return;
+      const call = activeCalls.get(callId);
+      if (!call || call.chatId !== chatId) return;
+      if (userId !== call.callerId && userId !== call.calleeId) return;
+
+      const targetId = userId === call.callerId ? call.calleeId : call.callerId;
+      if (isUserSocketReachable(io, targetId)) {
+        io.to(`user:${targetId}`).emit("call:media-state", { callId, chatId, video });
+      }
+    });
+
     socket.on("call:declined", async (payload, callback) => {
       const { callId, reason } = payload && typeof payload === "object" ? payload : {};
       const call = activeCalls.get(callId);
