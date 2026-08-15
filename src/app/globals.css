@@ -553,6 +553,18 @@
   animation: reaction-pop 320ms var(--ease-out) both;
 }
 
+/* A ringing call, not a spinner: the avatar breathes just enough to read as
+   "waiting for a live person" rather than "loading". Kept far short of a
+   pulse — 1.5% scale, 2.2s — because anything louder reads as an alert. */
+@keyframes call-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+
+@utility animate-call-breathe {
+  animation: call-breathe 2.2s ease-in-out infinite;
+}
+
 @keyframes animate-slide-in-from-bottom {
   from { transform: translateY(8px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
