@@ -32,12 +32,39 @@ export type ChatListItem = {
     deliveryStatus?: "sent" | "delivered" | "read";
     deletedAt: string | null;
     createdAt: string;
-    attachments: { id: string; fileName: string; mimeType: string; sizeBytes: number }[];
+    attachments: {
+      id: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      /** Clip length, so a voice note's row can say how long it is. */
+      durationSeconds?: number | null;
+      /** Encrypted attachments carry a placeholder file name, never the real one. */
+      isEncrypted?: boolean;
+    }[];
     sender: {
       id: string;
       username: string;
       displayName: string;
     };
+  } | null;
+  /**
+   * The most recent call in this chat, when it is more recent than the last
+   * message. A call is a real event in a conversation — a row whose last thing
+   * was a ten-minute call used to show a message from days earlier, or nothing.
+   *
+   * Deliberately no audio/video distinction: `CallLog` does not record which it
+   * was, and guessing would put a wrong word on screen. See the note in the
+   * presenter.
+   */
+  lastCall: {
+    id: string;
+    /** missed | declined | completed | failed | canceled */
+    status: string;
+    /** True when this user placed it. */
+    outgoing: boolean;
+    durationSec: number | null;
+    createdAt: string;
   } | null;
 };
 
@@ -99,6 +126,11 @@ export async function getChatsPageData(userId: string) {
                     fileName: true,
                     mimeType: true,
                     sizeBytes: true,
+                    // Both are needed to describe the media in one line without
+                    // guessing: the duration for a voice note, and the encrypted
+                    // flag so a placeholder file name is never shown as a title.
+                    durationSeconds: true,
+                    isEncrypted: true,
                   },
                 },
                 sender: {
@@ -176,6 +208,26 @@ export async function getChatsPageData(userId: string) {
       })
     : [];
 
+  // The newest call per conversation, in one query. `distinct` with the
+  // matching `orderBy` returns the first row of each chatId group, so this
+  // stays a single round trip however many conversations there are.
+  const latestCalls = chatIds.length > 0
+    ? await prisma.callLog.findMany({
+        where: { chatId: { in: chatIds } },
+        orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+        distinct: ["chatId"],
+        select: {
+          id: true,
+          chatId: true,
+          status: true,
+          callerId: true,
+          durationSec: true,
+          startedAt: true,
+        },
+      })
+    : [];
+  const latestCallByChatId = new Map(latestCalls.map((call) => [call.chatId, call]));
+
   const unreadCountByChatId = unreadGroups.reduce<Record<string, number>>((counts, group) => {
     counts[group.chatId] = group._count._all;
     return counts;
@@ -188,6 +240,13 @@ export async function getChatsPageData(userId: string) {
       const lastMessage = latestMessage && (
         !membership.clearedAt || latestMessage.createdAt > membership.clearedAt
       ) ? latestMessage : undefined;
+      // A call only earns the row when it is the newest thing in the chat, and
+      // only when it is visible under this member's own history cut.
+      const latestCall = latestCallByChatId.get(membership.chatId);
+      const callVisible = latestCall
+        && (!membership.clearedAt || latestCall.startedAt > membership.clearedAt)
+        && (!lastMessage || latestCall.startedAt > lastMessage.createdAt);
+
       const lastMessageReceipts = lastMessage?.receipts ?? [];
       const readAt = lastMessageReceipts.find((receipt) => receipt.readAt)?.readAt ?? null;
       const deliveredAt = lastMessageReceipts.find((receipt) => receipt.deliveredAt)?.deliveredAt ?? null;
@@ -235,6 +294,15 @@ export async function getChatsPageData(userId: string) {
               },
             }
           : null,
+        lastCall: callVisible && latestCall
+          ? {
+              id: latestCall.id,
+              status: latestCall.status,
+              outgoing: latestCall.callerId === userId,
+              durationSec: latestCall.durationSec,
+              createdAt: latestCall.startedAt.toISOString(),
+            }
+          : null,
       } satisfies ChatListItem;
     })
     .sort((left, right) => {
@@ -248,9 +316,9 @@ export async function getChatsPageData(userId: string) {
         return left.isSelfChat ? -1 : 1;
       }
 
-      const leftTime = left.lastMessage?.createdAt ?? left.updatedAt;
-      const rightTime = right.lastMessage?.createdAt ?? right.updatedAt;
-      return new Date(rightTime).getTime() - new Date(leftTime).getTime();
+      const latest = (chat: ChatListItem) =>
+        chat.lastCall?.createdAt ?? chat.lastMessage?.createdAt ?? chat.updatedAt;
+      return new Date(latest(right)).getTime() - new Date(latest(left)).getTime();
     });
 
   return {

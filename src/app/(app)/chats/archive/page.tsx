@@ -160,6 +160,10 @@ export default async function ArchivePage() {
               },
             }
           : null,
+        // The archive lists conversations that were deliberately set aside; a
+        // call event is not part of what it is for, and the projection does not
+        // load one.
+        lastCall: null,
       } satisfies ChatListItem;
     })
     .sort((left, right) => {

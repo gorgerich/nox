@@ -9,7 +9,9 @@ import { Check, Copy, MessageCircle, Search, Send, UserPlus, Users } from "lucid
 import { useSocket } from "@/hooks/useSocket";
 import type { BuiltInFolderItem, ChatFolderItem, ChatListItem, IncomingRequestCardItem } from "@/lib/chat-list";
 import { getChatCache, putChatHeader, putChatList, putChatPreview } from "@/lib/chat-cache";
-import { getMessagePreview } from "@/lib/chat-list-format";
+import { buildConversationPreview } from "@/lib/chat-preview";
+import { useChatPreviewBodies } from "@/lib/use-chat-preview-bodies";
+import { useAudioCall } from "../calls/CallProvider";
 
 import { IncomingRequestCards } from "./IncomingRequestCards";
 import { SwipeableChatRow } from "./SwipeableChatRow";
@@ -73,6 +75,17 @@ export function ChatsPageClient({
   const router = useRouter();
   const { socket } = useSocket();
   const [chats, setChats] = useState(initialChats);
+  // Plaintext for each row's last message, read from this device's own
+  // storage. The server cannot supply it for an encrypted chat, which is why
+  // every row used to read "Зашифрованное сообщение".
+  const previewBodies = useChatPreviewBodies(chats, currentUserId);
+  // A call in progress outranks anything stored, and is read live rather than
+  // written into the chat's last message — it is not history.
+  const { call: activeCall, status: callStatus } = useAudioCall();
+  const liveCallChatId =
+    activeCall && (callStatus === "active" || callStatus === "connecting" || callStatus === "outgoing" || callStatus === "incoming")
+      ? activeCall.chatId
+      : null;
   // chatId -> name of who is typing (live, from typing:update). Auto-cleared.
   const [typingByChat, setTypingByChat] = useState<Record<string, string>>({});
   const [incomingRequests, setIncomingRequests] = useState(initialIncomingRequests);
@@ -579,14 +592,18 @@ export function ChatsPageClient({
     const lastPreview = {
       id: last.id,
       mine: last.sender.id === currentUserId,
-      text: getMessagePreview(chat),
+      text: buildConversationPreview({
+        chat,
+        currentUserId,
+        decryptedBody: previewBodies[last.id] ?? null,
+      }).text,
     };
 
     const mergedPreview = existingPreview.some((message) => message.id === last.id)
       ? existingPreview
       : [...existingPreview, lastPreview];
     putChatPreview(chat.id, mergedPreview);
-  }, [chats, currentUserId]);
+  }, [chats, currentUserId, previewBodies]);
 
   const handleNavigate = useCallback((chatId: string) => {
     seedInstantChatCache(chatId);
@@ -947,6 +964,8 @@ export function ChatsPageClient({
               chat={chat}
               currentUserId={currentUserId}
               typingName={typingByChat[chat.id]}
+              decryptedBody={chat.lastMessage ? previewBodies[chat.lastMessage.id] ?? null : null}
+              liveCall={liveCallChatId === chat.id && activeCall ? { video: activeCall.video } : null}
               isOpen={openRowId === chat.id}
               onOpen={setOpenRowId}
               onNavigate={handleNavigate}

@@ -62,8 +62,19 @@ export function formatTimestamp(value: string | number | Date, kind: TimeKind, t
       if (dayKey(date) === dayKey(now)) {
         return zoned({ hour: "2-digit", minute: "2-digit" }, timeZone).format(date);
       }
+      // Named, because "Вчера" is read instantly and a weekday name for
+      // yesterday makes the reader work out which day that was.
+      const yesterday = new Date(now.getTime() - 1000 * 60 * 60 * 24);
+      if (dayKey(date) === dayKey(yesterday)) return "Вчера";
       if (now.getTime() - date.getTime() < week && now.getTime() >= date.getTime()) {
         return zoned({ weekday: "short" }, timeZone).format(date);
+      }
+      const sameYear =
+        zoned({ year: "numeric" }, timeZone).format(date) === zoned({ year: "numeric" }, timeZone).format(now);
+      // A different year needs to say so — "28 июл." for something from two
+      // years ago reads as recent.
+      if (!sameYear) {
+        return zoned({ day: "2-digit", month: "2-digit", year: "2-digit" }, timeZone).format(date);
       }
       return zoned({ day: "numeric", month: "short" }, timeZone).format(date);
     }

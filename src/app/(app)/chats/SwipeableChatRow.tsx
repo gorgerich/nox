@@ -3,20 +3,38 @@
 import Image from "next/image";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Archive, BellOff, Bookmark, Check, CheckCheck, Pin, Trash2 } from "lucide-react";
+import { Archive, BellOff, Bookmark, Check, CheckCheck, File as FileIcon, Image as ImageIcon,
+  Mic, Music, PhoneIncoming, PhoneMissed, PhoneOutgoing, Pin, Trash2, Video as VideoIcon } from "lucide-react";
 
 import type { ChatListItem } from "@/lib/chat-list";
 import { avatarTint } from "@/lib/avatar-tint";
 import { normalizeAvatarUrl } from "@/lib/media-url";
-import { getMessagePreview, getPreviewLabel, getSenderPrefix } from "@/lib/chat-list-format";
+import { buildConversationPreview, type PreviewIcon } from "@/lib/chat-preview";
 import { LocalTime } from "@/lib/time-format";
 
 const SWIPE_OPEN_THRESHOLD = 72;
+
+/** The preview's icon keys resolved to the row's own icon set. */
+const PREVIEW_ICONS: Record<NonNullable<PreviewIcon>, typeof Check> = {
+  photo: ImageIcon,
+  video: VideoIcon,
+  voice: Mic,
+  videoNote: VideoIcon,
+  file: FileIcon,
+  audio: Music,
+  callIncoming: PhoneIncoming,
+  callOutgoing: PhoneOutgoing,
+  callMissed: PhoneMissed,
+};
 
 type SwipeableChatRowProps = {
   chat: ChatListItem;
   currentUserId?: string;
   typingName?: string;
+  /** This chat's last message in plaintext, when this device holds it. */
+  decryptedBody?: string | null;
+  /** A call in progress with this chat, if any. */
+  liveCall?: { video: boolean } | null;
   isOpen: boolean;
   onOpen: (chatId: string | null) => void;
   onNavigate: (chatId: string) => void;
@@ -34,6 +52,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   chat,
   currentUserId,
   typingName,
+  decryptedBody,
+  liveCall,
   isOpen,
   onOpen,
   onNavigate,
@@ -196,48 +216,43 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     : chat.type === "DIRECT"
       ? chat.otherMember?.displayName ?? chat.otherMember?.username ?? "Личное"
     : chat.title ?? "Группа";
-  const lastIsMine = Boolean(
-    chat.lastMessage && !chat.lastMessage.deletedAt
-      && (chat.lastMessage.isMine || (currentUserId && chat.lastMessage.sender.id === currentUserId)),
+  const hasUnread = chat.unreadCount > 0;
+
+  // Everything the second line says is decided in one place, so the row is
+  // only responsible for drawing it. `decryptedBody` is what makes a real
+  // preview possible at all: the server sends `body: null` for an encrypted
+  // message by design, and this is the plaintext held on this device.
+  const preview = buildConversationPreview({
+    chat,
+    currentUserId,
+    decryptedBody,
+    liveCall,
+    typingName,
+    draft,
+  });
+  const PreviewIconComponent = preview.icon ? PREVIEW_ICONS[preview.icon] : null;
+  // Ticks are the outgoing message's own state and belong to the row, not to
+  // the sentence — the presenter decides whether there is one to show.
+  const showTicks = preview.deliveryState !== null;
+  const previewToneClass =
+    preview.tone === "live"
+      ? "text-primary"
+      : preview.tone === "danger"
+        ? "text-danger/80"
+        : hasUnread
+          ? "font-medium text-foreground/78"
+          : "text-muted/70";
+
+  const previewNode: ReactNode = preview.prefix ? (
+    <>
+      <span className="chat-preview-sender">{preview.prefix}: </span>
+      {preview.text}
+    </>
+  ) : (
+    preview.text
   );
-  const lastDelivered = Boolean(chat.lastMessage?.deliveredAt);
-  const deliveryStatus = chat.lastMessage?.deliveryStatus
-    ?? (chat.lastMessage?.readAt ? "read" : lastDelivered ? "delivered" : "sent");
 
-  let previewNode: ReactNode;
-  if (typingName) {
-    previewNode = (
-      <span className="text-primary">
-        {chat.type === "GROUP" ? `${typingName} печатает…` : "печатает…"}
-      </span>
-    );
-  } else if (draft) {
-    previewNode = (<><span className="text-danger/80">Черновик: </span>{draft}</>);
-  } else if (chat.isSelfChat) {
-    previewNode = "Сообщения самому себе";
-  } else {
-    // In a group the sender is part of the answer. The prefix carries slightly
-    // more weight than the text so the eye separates "who" from "what" without
-    // it reading as a link, and both live in one line that ellipses as a whole.
-    const senderPrefix = getSenderPrefix(chat);
-    previewNode = senderPrefix ? (
-      <>
-        <span className="chat-preview-sender">{senderPrefix}: </span>
-        {getMessagePreview(chat)}
-      </>
-    ) : (
-      getMessagePreview(chat)
-    );
-  }
-  const showTicks = lastIsMine && !typingName && !draft;
-
-  const accessibleName = [
-    title,
-    chat.isSelfChat ? "Сообщения самому себе" : getPreviewLabel(chat),
-    chat.unreadCount > 0 ? `непрочитанных: ${chat.unreadCount}` : null,
-  ]
-    .filter(Boolean)
-    .join(". ");
+  const accessibleName = [title, preview.label].filter(Boolean).join(". ");
 
   const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
   const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
@@ -248,7 +263,6 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
 
   const leftActionsVisible = translateX > 8;
   const rightActionsVisible = translateX < -8;
-  const hasUnread = chat.unreadCount > 0;
 
   return (
     <div ref={rowRef} className="relative isolate overflow-hidden" data-nox-swipe-ignore="true">
@@ -366,15 +380,18 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
             <div className="flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1">
                 {showTicks ? (
-                  deliveryStatus === "read" ? (
+                  preview.deliveryState === "read" ? (
                     <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2.5} aria-label="Прочитано" />
-                  ) : deliveryStatus === "delivered" ? (
+                  ) : preview.deliveryState === "delivered" ? (
                     <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/55" strokeWidth={2.4} aria-label="Доставлено" />
                   ) : (
                     <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} aria-label="Отправлено" />
                   )
                 ) : null}
-                <p className={`min-w-0 flex-1 truncate text-[13.5px] leading-snug ${hasUnread ? "font-medium text-foreground/78" : "text-muted/70"}`}>
+                {PreviewIconComponent ? (
+                  <PreviewIconComponent className="h-3.5 w-3.5 shrink-0 text-muted/60" strokeWidth={2} aria-hidden="true" />
+                ) : null}
+                <p className={`min-w-0 flex-1 truncate text-[13.5px] leading-snug ${previewToneClass}`}>
                   {previewNode}
                 </p>
               </div>
@@ -383,7 +400,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
               ) : null}
               {hasUnread ? (
                 <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-none tabular-nums text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
-                  {chat.unreadCount}
+                  {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
                 </span>
               ) : null}
             </div>

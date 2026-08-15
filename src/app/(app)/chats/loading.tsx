@@ -8,8 +8,8 @@
 
 import Image from "next/image";
 import { Bookmark, Check, CheckCheck } from "lucide-react";
-import { getChatList } from "@/lib/chat-cache";
-import { getMessagePreview, getSenderPrefix } from "@/lib/chat-list-format";
+import { getChatDecrypted, getChatList } from "@/lib/chat-cache";
+import { buildConversationPreview } from "@/lib/chat-preview";
 import { LocalTime } from "@/lib/time-format";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
@@ -43,11 +43,16 @@ export default function ChatsLoading() {
                   : chat.title ?? "Группа";
               // Same shape as the live row, so the cached frame and the real
               // list do not visibly differ for the instant both exist.
-              const senderPrefix = chat.isSelfChat ? null : getSenderPrefix(chat);
-              const preview = chat.isSelfChat ? "Сообщения самому себе" : getMessagePreview(chat);
-              const showTicks = Boolean(chat.lastMessage?.isMine && !chat.lastMessage.deletedAt);
-              const deliveryStatus = chat.lastMessage?.deliveryStatus
-                ?? (chat.lastMessage?.readAt ? "read" : chat.lastMessage?.deliveredAt ? "delivered" : "sent");
+              // The same presenter the live row uses, reading the same RAM cache
+              // of decrypted bodies — otherwise this frame would show the
+              // encrypted fallback and the real list would replace it a moment
+              // later with the actual text, which reads as a flicker.
+              const lastId = chat.lastMessage?.id;
+              const preview = buildConversationPreview({
+                chat,
+                decryptedBody: lastId ? getChatDecrypted(chat.id)?.[lastId] ?? null : null,
+              });
+              const showTicks = preview.deliveryState !== null;
               const avatarToDisplay = chat.type === "GROUP" ? chat.avatarUrl : chat.otherMember?.avatarUrl;
               const fullAvatarUrl = normalizeAvatarUrl(avatarToDisplay);
               return (
@@ -74,21 +79,21 @@ export default function ChatsLoading() {
                     </div>
                     <div className="flex items-center gap-2">
                       {showTicks ? (
-                        deliveryStatus === "read" ? (
+                        preview.deliveryState === "read" ? (
                           <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2.5} />
-                        ) : deliveryStatus === "delivered" ? (
+                        ) : preview.deliveryState === "delivered" ? (
                           <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/55" strokeWidth={2.4} />
                         ) : (
                           <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
                         )
                       ) : null}
                       <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
-                        {senderPrefix ? <span className="chat-preview-sender">{senderPrefix}: </span> : null}
-                        {preview}
+                        {preview.prefix ? <span className="chat-preview-sender">{preview.prefix}: </span> : null}
+                        {preview.text}
                       </p>
                       {chat.unreadCount > 0 ? (
                         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[12px] font-semibold text-white">
-                          {chat.unreadCount}
+                          {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
                         </span>
                       ) : null}
                     </div>
