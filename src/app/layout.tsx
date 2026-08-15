@@ -22,6 +22,15 @@ export const viewport: Viewport = {
   // fix for the iOS behaviour is a 16px input font, which the fields already
   // have.
   viewportFit: "cover",
+  // The layout viewport itself shrinks when the keyboard opens, in engines
+  // that support this (WebKit 17+, which covers both the iOS shell and any
+  // phone bought recently enough to run it). That is the actual fix for the
+  // composer/keyboard geometry problem: `100dvh`, `100%`, `window.innerHeight`
+  // all correctly report the space above the keyboard on their own, so there
+  // is no separate "visible area" to compute and no page-scroll-to-reveal for
+  // a fixed composer to fight. `--visual-vh` below still runs as a fallback
+  // for anything that ignores this value, and is a no-op where it doesn't.
+  interactiveWidget: "resizes-content",
   // Per-scheme status bar / browser chrome colour. A single dark value used to
   // be emitted, which left the light theme with dark system chrome.
   themeColor: [

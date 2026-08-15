@@ -2,7 +2,7 @@ import UIKit
 import Capacitor
 import WebKit
 
-/// The bridge view controller, taught three things Capacitor's default does
+/// The bridge view controller, taught two things Capacitor's default does
 /// not know about this app.
 ///
 /// **The status bar follows Nox, not iOS.** `CAPBridgeViewController` leaves the
@@ -17,14 +17,16 @@ import WebKit
 /// cold start in dark mode. Both the host view and the web view are painted the
 /// theme's own background instead.
 ///
-/// **The page never scrolls itself to reveal a focused field.** WKWebView's
-/// own page-level scroll does this before any of the web layer's own
-/// keyboard-height CSS gets a chance to react, which misaligned a screen that
-/// was already sized correctly. The composer locks it for as long as a field
-/// is focused; there is nothing below the fold in a single-screen chat for
-/// that scroll to be revealing in the first place.
+/// A third problem — the page scrolling itself to reveal a focused field,
+/// leaving the composer stranded above the keyboard — used to be patched here
+/// too, first by compensating for the scroll and then by disabling the page's
+/// own scroll view outright. Neither held up on a physical device. The actual
+/// fix is `interactive-widget: resizes-content` in the viewport meta
+/// (`src/app/layout.tsx`): the layout viewport itself shrinks for the
+/// keyboard, so there is nothing below the fold to reveal and nothing for a
+/// native scroll lock to be defending against.
 ///
-/// Deliberately no Capacitor plugin: this needs two messages and one colour, and
+/// Deliberately no Capacitor plugin: this needs one message and one colour, and
 /// a plugin would add a dependency, a registration list and a native build step
 /// for that. Nothing here touches entitlements, so free Personal Team signing
 /// keeps working.
@@ -34,14 +36,6 @@ class NoxViewController: CAPBridgeViewController, WKScriptMessageHandler {
     /// other end of it is a string literal in the page's boot script.
     private static let themeChannel = "noxTheme"
 
-    /// Second channel: the web layer's own document-scroll lock, mirrored onto
-    /// the page's outer scroll. See `useLockDocumentScroll` for why this needs
-    /// a native side at all — WKWebView's page-level scroll is a real
-    /// `UIScrollView`, separate from CSS `overflow`, and it is what performs
-    /// the "scroll the page to reveal the focused field" behaviour that CSS
-    /// alone cannot prevent.
-    private static let scrollLockChannel = "noxScrollLock"
-
     /// Nil until the web layer reports in, so the first frames follow the system
     /// appearance rather than guessing.
     private var webTheme: String?
@@ -49,7 +43,6 @@ class NoxViewController: CAPBridgeViewController, WKScriptMessageHandler {
     override func viewDidLoad() {
         super.viewDidLoad()
         webView?.configuration.userContentController.add(self, name: Self.themeChannel)
-        webView?.configuration.userContentController.add(self, name: Self.scrollLockChannel)
 
         // The web view draws its own page background; making it opaque-and-clear
         // here means the colour underneath shows during load and overscroll
@@ -87,23 +80,14 @@ class NoxViewController: CAPBridgeViewController, WKScriptMessageHandler {
         _ controller: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        switch message.name {
-        case Self.themeChannel:
-            guard let value = message.body as? String else { return }
-            guard value == "dark" || value == "light" || value == "system" else { return }
-            guard value != webTheme else { return }
+        guard message.name == Self.themeChannel else { return }
+        guard let value = message.body as? String else { return }
+        guard value == "dark" || value == "light" || value == "system" else { return }
+        guard value != webTheme else { return }
 
-            webTheme = value
-            applyBackground()
-            setNeedsStatusBarAppearanceUpdate()
-
-        case Self.scrollLockChannel:
-            guard let locked = message.body as? Bool else { return }
-            webView?.scrollView.isScrollEnabled = !locked
-
-        default:
-            break
-        }
+        webTheme = value
+        applyBackground()
+        setNeedsStatusBarAppearanceUpdate()
     }
 
     // MARK: - Appearance
