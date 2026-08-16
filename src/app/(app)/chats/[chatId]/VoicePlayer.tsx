@@ -1,17 +1,51 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
-export function VoicePlayer({ 
-  src, 
-  duration, 
+const WAVE_BARS = 24;
+
+/**
+ * A bar pattern derived from the message's own id.
+ *
+ * No amplitude data is captured anywhere in this product — the attachment row
+ * stores a duration and nothing else — so this is decoration, not a reading of
+ * the audio, and it is written to be honest about that rather than to look
+ * like analysis. What it must not do is lie in the other direction: the shape
+ * was a single hard-coded array, so every voice message in every conversation
+ * had exactly the same silhouette. Seeding from the id gives each message a
+ * stable identity of its own, recomputed never — the same message draws the
+ * same shape on every render, every reopen, every device.
+ */
+function waveformFor(seed: string, bars: number): number[] {
+  // xorshift over a cheap string hash. Deterministic, no allocation per frame,
+  // and no dependency on Math.random, which would change on every render.
+  let state = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    state ^= seed.charCodeAt(index);
+    state = Math.imul(state, 16777619);
+  }
+  const next = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return ((state >>> 0) % 1000) / 1000;
+  };
+  return Array.from({ length: bars }, () => 28 + Math.round(next() * 64));
+}
+
+export function VoicePlayer({
+  src,
+  duration,
   isMine = false,
-  cornerRadius = "round"
-}: { 
-  src: string; 
+  cornerRadius = "round",
+  waveformSeed,
+}: {
+  src: string;
   duration?: number;
   isMine?: boolean;
   cornerRadius?: "soft" | "round";
+  /** Stable per-message value, so the shape never changes between renders. */
+  waveformSeed?: string;
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -20,6 +54,7 @@ export function VoicePlayer({
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const bars = useMemo(() => waveformFor(waveformSeed ?? src, WAVE_BARS), [waveformSeed, src]);
 
   const formatTime = useCallback((seconds: number) => {
     if (!seconds || isNaN(seconds)) return "0:00";
@@ -126,32 +161,21 @@ export function VoicePlayer({
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-end gap-[2px] h-7 mb-1.5 opacity-80">
-           {[30, 60, 40, 80, 50, 70, 40, 90, 60, 40, 70, 50, 80, 40, 60].map((h, i) => (
-             <div 
-               key={i} 
-               className="w-[3px] rounded-full transition-colors duration-300"
-               style={{ 
-                 height: `${h}%`,
-                 backgroundColor: progress > (i / 15) * 100 ? activeWaveColor : waveColor
+        <div className="flex items-center gap-[2px] h-6" aria-hidden="true">
+           {bars.map((height, index) => (
+             <div
+               key={index}
+               className="min-w-[2px] flex-1 rounded-full transition-colors duration-200"
+               style={{
+                 height: `${height}%`,
+                 backgroundColor: progress > (index / bars.length) * 100 ? activeWaveColor : waveColor
                }}
              />
            ))}
         </div>
         
-        <div className="relative h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--chat-focus-ring)" }}>
-          {/* scaleX, not width: this bar moves on every timeupdate while a voice
-              message plays, and animating width ran layout and paint for the
-              whole bubble each time. A scale is composited, and the origin puts
-              the growth on the left where the fill belongs. */}
-          <div
-            className="absolute left-0 top-0 h-full w-full origin-left transition-[transform,background-color] duration-100 ease-linear"
-            style={{ transform: `scaleX(${Math.max(0, Math.min(100, progress)) / 100})`, backgroundColor: activeWaveColor }}
-          />
-        </div>
-        
         <div
-          className="mt-2 flex items-center justify-between text-[11px] font-semibold tabular-nums"
+          className="mt-1 flex items-center justify-between text-[11px] font-semibold tabular-nums"
           style={{ color: isMine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
         >
           <span>{formatTime(currentTime)}</span>

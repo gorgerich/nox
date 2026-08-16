@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Mic, Paperclip, Send, Smile, Video, X } from "lucide-react";
+import { quoteLabel } from "@/lib/reply-quote";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { VideoMessageRecorder } from "./VideoMessageRecorder";
 import { EMOJI_GROUPS } from "@/lib/emoji-data";
@@ -42,7 +43,7 @@ export function ChatComposer({
   recordingDuration: number;
   isLocked: boolean;
   pending: boolean;
-  replyingTo?: { id: string; body: string | null; sender: { profile: { displayName: string } | null; username: string } } | null;
+  replyingTo?: { id: string; body: string | null; type: string; deletedAt: string | null; sender: { profile: { displayName: string } | null; username: string } } | null;
   editingTo?: { id: string; body: string | null } | null;
   onCancelAction: () => void;
 }) {
@@ -293,11 +294,13 @@ export function ChatComposer({
               <div className="min-w-0 flex items-center gap-3">
                  <div className="h-8 w-1 shrink-0 rounded-full bg-primary" />
                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-primary">
-                      {replyingTo ? "Ответ" : "Редактирование"}
+                    <p className="truncate text-xs font-semibold text-primary">
+                      {replyingTo
+                        ? `Ответ на ${replyingTo.sender.profile?.displayName || replyingTo.sender.username}`
+                        : "Редактирование"}
                     </p>
                     <p className="truncate text-sm font-normal text-muted">
-                      {replyingTo ? (replyingTo.body || "Вложение") : editingTo?.body}
+                      {replyingTo ? quoteLabel(replyingTo) : editingTo?.body}
                     </p>
                  </div>
               </div>

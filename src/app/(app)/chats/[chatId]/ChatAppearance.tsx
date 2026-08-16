@@ -194,30 +194,47 @@ export const CHAT_PRESET_TOKENS: Record<ChatPresetKey, ChatPresetTokens> = {
   },
 };
 
+/**
+ * Every preset carries white text, so every `bg` here has to clear WCAG AA
+ * (4.5:1) against white — and stay distinguishable from the near-black canvas
+ * behind it. Six of the seven originally did not: measured white contrast was
+ * emerald 2.54:1, cyan 2.77:1, orange 2.80:1, rose 3.67:1, violet 4.23:1, blue
+ * 3.68:1. Each was deepened along its own hue until white reached 4.6:1, which
+ * also leaves ≥4.3:1 against the canvas. Graphite already measured 10.44:1 and
+ * is unchanged.
+ */
 export const OUTGOING_BUBBLE_TOKENS: Record<string, OutgoingBubbleTokens> = {
   blue: {
-    bg: "#3B82F6",
+    // Deeper than the #3B82F6 this used to be, for two reasons that point the
+    // same way. Measured: white on #3B82F6 is 3.68:1, which fails WCAG AA for
+    // body text; on #2563EB it is 5.17:1. And on the near-black chat canvas
+    // the lighter blue read as neon — this one keeps 4.06:1 against the
+    // background, so the bubble is still clearly a bubble, without glowing.
+    bg: "#2563EB",
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.76)",
     tick: "rgba(255,255,255,0.84)",
-    read: "#34D399",
+    // Was #34D399 — a green, on a blue bubble, in an app whose accent is blue.
+    // Every other palette here tints its read state with its own hue; this one
+    // was the odd one out and read as a borrowed WhatsApp signal.
+    read: "#DBEAFE",
   },
   emerald: {
-    bg: "#10B981",
+    bg: "#0C865D",
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.76)",
     tick: "rgba(255,255,255,0.84)",
     read: "#D1FAE5",
   },
   violet: {
-    bg: "#8B5CF6",
+    bg: "#8553F6",
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.76)",
     tick: "rgba(255,255,255,0.84)",
     read: "#DDD6FE",
   },
   rose: {
-    bg: "#F43F5E",
+    bg: "#E90D33",
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.76)",
     tick: "rgba(255,255,255,0.84)",
@@ -231,14 +248,14 @@ export const OUTGOING_BUBBLE_TOKENS: Record<string, OutgoingBubbleTokens> = {
     read: "#E5E7EB",
   },
   cyan: {
-    bg: "#0EA5E9",
+    bg: "#0B7DB0",
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.76)",
     tick: "rgba(255,255,255,0.84)",
     read: "#BAE6FD",
   },
   orange: {
-    bg: "#F97316",
+    bg: "#C35305",
     fg: "#FFFFFF",
     muted: "rgba(255,255,255,0.78)",
     tick: "rgba(255,255,255,0.86)",

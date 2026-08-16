@@ -10,6 +10,11 @@ import { decryptMediaBlob } from "@/lib/e2ee/media";
 import { useFormattedTimestamp } from "@/lib/time-format";
 import { getMediaUrl, putMediaUrl } from "@/lib/media-cache";
 import { escapeRegExp } from "@/lib/text";
+import {
+  isVisualOnlyBubble,
+  type AttachmentRenderMode,
+} from "@/lib/message-visibility";
+import { quoteLabel } from "@/lib/reply-quote";
 
 const SWIPE_REPLY_THRESHOLD = 64;
 const SWIPE_REPLY_MAX = 92;
@@ -165,6 +170,7 @@ function AttachmentPreview({
   chatId,
   localDeviceId,
   onUnavailable,
+  onRenderMode,
 }: {
   attachment: Attachment;
   message: Message;
@@ -176,6 +182,14 @@ function AttachmentPreview({
   localDeviceId?: string | null;
   /** Fired once, the moment this attachment settles into "unavailable on this device". */
   onUnavailable?: () => void;
+  /**
+   * What this attachment actually put on screen. The parent needs it because
+   * it decides whether the bubble is "media only" — transparent, unpadded,
+   * with the timestamp floating over the picture. When the media turns out not
+   * to be a picture at all, that bubble has nothing left to show behind the
+   * timestamp, and a lone `18:28 ✓✓` is what the user sees.
+   */
+  onRenderMode?: (mode: AttachmentRenderMode) => void;
 }) {
   // Seed from the RAM media cache so already-decrypted media shows instantly on
   // re-open / scroll-back (no re-download, no "Расшифровка медиа…" flash).
@@ -373,6 +387,27 @@ function AttachmentPreview({
     });
   }, [roundExpanded]);
 
+  // The single place that decides what this attachment is about to draw. The
+  // early returns below follow it exactly, so what the parent is told and what
+  // the user sees can never disagree.
+  const renderMode: AttachmentRenderMode =
+    isDecrypting
+      // A shimmer for image/video is already the right size and shape, so the
+      // bubble may stay media-shaped through it and not flicker its chrome on
+      // and off around decryption. The textual one is not media.
+      ? (isImage || isVideo || isRoundVideo ? "media" : "fallback")
+      : imageBroken
+        ? "fallback"
+        : decryptError === "Медиа недоступно на этом устройстве"
+          ? "hidden"
+          : decryptError || !sourceUrl
+            ? "fallback"
+            : "media";
+
+  useEffect(() => {
+    onRenderMode?.(renderMode);
+  }, [renderMode, onRenderMode]);
+
   if (isDecrypting) {
     // Sized shimmer that matches the final media box — keeps layout stable so
     // the conversation doesn't jump when decryption completes.
@@ -421,6 +456,10 @@ function AttachmentPreview({
           src={sourceUrl}
           isMine={mine}
           cornerRadius={settings.bubbleRadius}
+          // The attachment id, not the src: an encrypted voice note's src is a
+          // blob URL minted fresh on every decrypt, so seeding from it would
+          // redraw the waveform each time the chat is reopened.
+          waveformSeed={attachment.id}
         />
       ) : isImage ? (
         <button
@@ -763,8 +802,8 @@ export const MessageBubble = memo(function MessageBubble({
   const time = useFormattedTimestamp(message.createdAt, "time");
 
   const isRound = settings.bubbleRadius === "round";
-  const rBase = isRound ? "16px" : "12px";
-  const rSmall = "5px";
+  const rBase = isRound ? "20px" : "16px";
+  const rSmall = "6px";
   
   const radiusStyle = mine 
     ? {
@@ -835,8 +874,17 @@ export const MessageBubble = memo(function MessageBubble({
   const handleAttachmentUnavailable = useCallback((attachmentId: string) => {
     setUnavailableAttachmentIds((prev) => (prev.has(attachmentId) ? prev : new Set(prev).add(attachmentId)));
   }, []);
+
+  // What each attachment actually drew. Reported by the attachment itself,
+  // because only it knows whether the bytes turned into a picture.
+  const [attachmentModes, setAttachmentModes] = useState<Record<string, AttachmentRenderMode>>({});
+  const handleAttachmentRenderMode = useCallback((attachmentId: string, mode: AttachmentRenderMode) => {
+    setAttachmentModes((prev) => (prev[attachmentId] === mode ? prev : { ...prev, [attachmentId]: mode }));
+  }, []);
   const allAttachmentsUnavailable =
-    message.attachments.length > 0 && message.attachments.every((attachment) => unavailableAttachmentIds.has(attachment.id));
+    message.attachments.length > 0
+    && message.attachments.every((attachment) =>
+      unavailableAttachmentIds.has(attachment.id) || attachmentModes[attachment.id] === "hidden");
 
   // Tell the list once this message is confirmed empty, whichever of the two
   // ways above got it there — a stale divider over nothing is the same defect
@@ -853,8 +901,26 @@ export const MessageBubble = memo(function MessageBubble({
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
   const isPendingLocal = mine && message.id.startsWith("temp-");
-  const visualOnlyMessage = !message.body && !message.replyToMessage && message.attachments.length > 0
-    && message.attachments.every((attachment) => attachment.mimeType.startsWith("image/") || attachment.mimeType.startsWith("video/"));
+  // A "visual only" bubble is transparent, unpadded, and puts its timestamp in
+  // a floating pill *over* the picture. That is right for a photo and wrong for
+  // anything that failed to become one: the pill is absolutely positioned, so
+  // it survives its own container collapsing to nothing, and what is left on
+  // screen is a bare `18:28 ✓✓` with no bubble under it — the orphan timestamp.
+  //
+  // So the mode is no longer assumed from the mime type alone. Every
+  // attachment must also report that it really drew media; the moment one
+  // draws a text fallback instead, the bubble takes its normal background and
+  // padding back and the timestamp returns to the flow, where it always has
+  // something behind it.
+  const visualOnlyMessage = isVisualOnlyBubble({
+    hasBody: Boolean(message.body),
+    hasReply: Boolean(message.replyToMessage),
+    isEncrypted: Boolean(message.isEncrypted),
+    isDeleted: Boolean(message.deletedAt),
+    settledUndecryptable: Boolean(settledUndecryptable),
+    attachments: message.attachments,
+    attachmentModes,
+  });
   const isVideoNoteMessage = message.type === "VIDEO_NOTE";
   const visualOnlyStyle: React.CSSProperties = {
     backgroundColor: "transparent",
@@ -1022,7 +1088,7 @@ export const MessageBubble = memo(function MessageBubble({
             >
               <p className="truncate font-semibold">{message.replyToMessage.sender.profile?.displayName || message.replyToMessage.sender.username}</p>
               <p className="truncate line-clamp-1 italic opacity-70">
-                {message.replyToMessage.deletedAt ? "Исходное сообщение удалено" : (message.replyToMessage.body || "Вложение")}
+                {quoteLabel(message.replyToMessage)}
               </p>
             </button>
           )}
@@ -1057,6 +1123,7 @@ export const MessageBubble = memo(function MessageBubble({
                 currentUserId={currentUserId}
                 localDeviceId={localDeviceId}
                 onUnavailable={() => handleAttachmentUnavailable(att.id)}
+                onRenderMode={(mode) => handleAttachmentRenderMode(att.id, mode)}
               />
             ))}
           </>

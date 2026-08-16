@@ -13,6 +13,13 @@ import {
   formatDateLabel,
   type GroupableMessage,
 } from "../src/lib/message-grouping";
+import {
+  isVisualOnlyBubble,
+  resolveMessageVisibility,
+  type AttachmentRenderMode,
+  type VisibilityInput,
+} from "../src/lib/message-visibility";
+import { quoteLabel } from "../src/lib/reply-quote";
 
 let failures = 0;
 
@@ -76,6 +83,134 @@ check("today label", formatDateLabel(new Date("2026-07-25T09:00:00"), now), "С�
 check("yesterday label", formatDateLabel(new Date("2026-07-24T09:00:00"), now), "Вчера");
 check("same-year label omits the year", formatDateLabel(new Date("2026-03-04T09:00:00"), now), "4 марта");
 check("other-year label includes the year", formatDateLabel(new Date("2025-03-04T09:00:00"), now), "4 марта 2025 г.");
+
+// --- visibility -------------------------------------------------------------
+//
+// The defect these guard: a bare `18:28 ✓✓` in the conversation with no bubble
+// under it. A message drawn "visual only" is transparent with its timestamp in
+// a pill positioned over the picture, so when the picture fails to paint the
+// pill is the only thing left on screen.
+
+const vis = (over: Partial<VisibilityInput> = {}): VisibilityInput => ({
+  hasBody: true,
+  hasReply: false,
+  isEncrypted: false,
+  isDeleted: false,
+  settledUndecryptable: false,
+  attachments: [],
+  attachmentModes: {},
+  ...over,
+});
+
+const photo = [{ id: "a1", mimeType: "image/jpeg" }];
+const modes = (mode: AttachmentRenderMode) => ({ a1: mode });
+
+check("an ordinary text message renders a bubble", resolveMessageVisibility(vis()), "bubble");
+check(
+  "a photo renders a bubble",
+  resolveMessageVisibility(vis({ hasBody: false, attachments: photo })),
+  "bubble",
+);
+check("a deleted message becomes a service line", resolveMessageVisibility(vis({ isDeleted: true })), "service");
+check(
+  "an encrypted message still decrypting says so",
+  resolveMessageVisibility(vis({ hasBody: false, isEncrypted: true })),
+  "service",
+);
+check(
+  "an encrypted message that will never decrypt renders nothing",
+  resolveMessageVisibility(vis({ hasBody: false, isEncrypted: true, settledUndecryptable: true })),
+  "hidden",
+);
+check(
+  "a message whose every attachment drew nothing renders nothing",
+  resolveMessageVisibility(vis({ hasBody: false, attachments: photo, attachmentModes: modes("hidden") })),
+  "hidden",
+);
+check(
+  "a message with no body and no attachment is a service line, never an empty bubble",
+  resolveMessageVisibility(vis({ hasBody: false })),
+  "service",
+);
+check(
+  "a hidden attachment hides the row even when the message is encrypted",
+  resolveMessageVisibility(vis({ hasBody: false, isEncrypted: true, attachments: photo, attachmentModes: modes("hidden") })),
+  "hidden",
+);
+
+// The orphan itself: media by type, but nothing actually drawn.
+check(
+  "a photo that painted is visual only",
+  isVisualOnlyBubble(vis({ hasBody: false, attachments: photo, attachmentModes: modes("media") })),
+  true,
+);
+check(
+  "a photo that has not reported yet is still visual only, so chrome does not flicker",
+  isVisualOnlyBubble(vis({ hasBody: false, attachments: photo })),
+  true,
+);
+check(
+  "a photo that fell back to a text box is NOT visual only — this is the orphan timestamp",
+  isVisualOnlyBubble(vis({ hasBody: false, attachments: photo, attachmentModes: modes("fallback") })),
+  false,
+);
+check(
+  "a caption keeps the bubble out of visual-only mode",
+  isVisualOnlyBubble(vis({ attachments: photo, attachmentModes: modes("media") })),
+  false,
+);
+check(
+  "a reply keeps the bubble out of visual-only mode",
+  isVisualOnlyBubble(vis({ hasBody: false, hasReply: true, attachments: photo, attachmentModes: modes("media") })),
+  false,
+);
+check(
+  "a file is never visual only",
+  isVisualOnlyBubble(vis({ hasBody: false, attachments: [{ id: "a1", mimeType: "application/pdf" }] })),
+  false,
+);
+check(
+  "one failed item among several drops the whole bubble out of visual-only mode",
+  isVisualOnlyBubble(vis({
+    hasBody: false,
+    attachments: [{ id: "a1", mimeType: "image/jpeg" }, { id: "a2", mimeType: "image/jpeg" }],
+    attachmentModes: { a1: "media", a2: "fallback" },
+  })),
+  false,
+);
+
+// ---------------------------------------------------------------------------
+// Reply quotes.
+//
+// A quote is the one place where a message this device cannot read still has to
+// say something. It used to say "Вложение" for everything, which claimed an
+// attachment on replies to plain text.
+// ---------------------------------------------------------------------------
+
+check(
+  "a readable quote shows its own text",
+  quoteLabel({ body: "Нога в гипсе", type: "TEXT", deletedAt: null }),
+  "Нога в гипсе",
+);
+check(
+  "a quote to an unreadable text message does not claim an attachment",
+  quoteLabel({ body: null, type: "TEXT", deletedAt: null }),
+  "Сообщение",
+);
+check("a quote to a photo says so", quoteLabel({ body: null, type: "IMAGE", deletedAt: null }), "Фото");
+check("a quote to a voice note says so", quoteLabel({ body: null, type: "VOICE", deletedAt: null }), "Голосовое сообщение");
+check("a quote to a video note says video", quoteLabel({ body: null, type: "VIDEO_NOTE", deletedAt: null }), "Видео");
+check("a quote to a file says so", quoteLabel({ body: null, type: "FILE", deletedAt: null }), "Файл");
+check(
+  "a deleted original wins over every other label",
+  quoteLabel({ body: "текст", type: "IMAGE", deletedAt: "2026-08-16T00:00:00.000Z" }),
+  "Исходное сообщение удалено",
+);
+check(
+  "whitespace is not text",
+  quoteLabel({ body: "   ", type: "IMAGE", deletedAt: null }),
+  "Фото",
+);
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed.`);

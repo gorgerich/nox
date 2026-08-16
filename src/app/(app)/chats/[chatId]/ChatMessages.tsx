@@ -841,6 +841,15 @@ export function ChatMessages({
     const canonical = messages.map(msg => ({
       ...msg,
       body: msg.body || decryptedBodies[msg.id] || (msg.isEncrypted ? ((msg.encryptionVersion ?? 0) >= 2 ? "" : msg.ciphertext ? "Зашифрованное сообщение" : "") : msg.body || ""),
+      // The quoted message needs the same treatment as the message itself. The
+      // server sends `body: null` for anything encrypted — correct, it does not
+      // have the text — so a reply to an ordinary encrypted message used to
+      // quote the word "Вложение", claiming an attachment that was never there.
+      // The plaintext is already in this component's own decrypted map, keyed
+      // by the very id the quote points at, so quoting it costs one lookup.
+      replyToMessage: msg.replyToMessage && !msg.replyToMessage.body
+        ? { ...msg.replyToMessage, body: decryptedBodies[msg.replyToMessage.id] ?? null }
+        : msg.replyToMessage,
       messageUnavailableOnThisDevice: msg.attachments.length === 0 && Boolean(unavailableMessageIds[msg.id]),
     })) as MessageWithDecrypted[];
 
@@ -1939,7 +1948,14 @@ export function ChatMessages({
   const { effectiveTheme } = useTheme();
   const themeVars = getChatAppearanceVars(settings, effectiveTheme);
   const chatScheme = resolveChatScheme(settings, effectiveTheme);
-  const focusedMessage = useMemo(() => menuState ? messages.find(m => m.id === menuState.id) : null, [menuState, messages]);
+  // From the decrypted projection, not the raw one. This message is what the
+  // context menu previews and what "Ответить" hands to the composer, and the
+  // raw copy has `body: null` for anything encrypted — so replying to an
+  // ordinary encrypted message used to quote "Вложение" in the composer.
+  const focusedMessage = useMemo(
+    () => (menuState ? messagesWithDecrypted.find((m) => m.id === menuState.id) : null),
+    [menuState, messagesWithDecrypted],
+  );
   const focusedMessageCopyText = useMemo(() => {
     if (!menuState) return null;
     return getCopyableMessageText(messagesWithDecrypted.find((message) => message.id === menuState.id) ?? null);
