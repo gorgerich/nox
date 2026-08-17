@@ -49,7 +49,7 @@ function renderRichText(text: string): React.ReactNode {
     }
     if (part.length > 2 && part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={i} className="rounded bg-foreground/10 px-1 py-0.5 font-mono text-[13px]">
+        <code key={i} className="rounded bg-foreground/10 px-1 py-0.5 font-mono text-[0.8125rem]">
           {part.slice(1, -1)}
         </code>
       );
@@ -204,7 +204,8 @@ function AttachmentPreview({
   // rejects, so the <img> paints nothing and the bubble reads as empty. The
   // element tells us; nothing else can.
   const [imageBroken, setImageBroken] = useState(false);
-  const [roundExpanded, setRoundExpanded] = useState(false);
+  // Playing, not expanded: the circle is the same size either way.
+  const [roundPlaying, setRoundPlaying] = useState(false);
   const [roundProgress, setRoundProgress] = useState(0);
   const roundVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -368,15 +369,15 @@ function AttachmentPreview({
     const video = roundVideoRef.current;
     if (!video) return;
 
-    if (roundExpanded) {
+    if (roundPlaying) {
       video.pause();
       video.muted = true;
-      setRoundExpanded(false);
+      setRoundPlaying(false);
       setRoundProgress(0);
       return;
     }
 
-    setRoundExpanded(true);
+    setRoundPlaying(true);
     setRoundProgress(0);
     video.loop = false;
     video.muted = false;
@@ -385,7 +386,7 @@ function AttachmentPreview({
       video.muted = true;
       void video.play().catch(() => undefined);
     });
-  }, [roundExpanded]);
+  }, [roundPlaying]);
 
   // The single place that decides what this attachment is about to draw. The
   // early returns below follow it exactly, so what the parent is told and what
@@ -423,7 +424,7 @@ function AttachmentPreview({
       );
     }
     return (
-      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
+      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted">
         Расшифровка медиа…
       </div>
     );
@@ -431,7 +432,7 @@ function AttachmentPreview({
 
   if (imageBroken) {
     return (
-      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
+      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted">
         Изображение не открывается
       </div>
     );
@@ -443,14 +444,14 @@ function AttachmentPreview({
 
   if (decryptError || !sourceUrl) {
     return (
-      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[12px] font-medium text-muted">
+      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted">
         {decryptError || "Медиа недоступно на этом устройстве"}
       </div>
     );
   }
 
   return (
-    <div className={`mt-2 first:mt-0 rounded-xl ${isRoundVideo ? "overflow-visible" : "overflow-hidden"}`}>
+    <div className="mt-2 first:mt-0 overflow-hidden rounded-xl">
       {message.type === "VOICE" ? (
         <VoicePlayer
           src={sourceUrl}
@@ -484,16 +485,22 @@ function AttachmentPreview({
       ) : isRoundVideo ? (
         <button
           type="button"
-          aria-label={roundExpanded ? "Свернуть видеосообщение" : "Воспроизвести видеосообщение"}
+          aria-label={roundPlaying ? "Пауза" : "Воспроизвести видеосообщение"}
           /* Sized once and scaled, rather than animating width and height.
              Those two are layout properties: every frame of the old transition
              ran layout and paint for the whole message list, on the main thread.
              transform is composited, so the same expansion costs nothing beyond
              the GPU — and scale carries the video and the rounding with it. */
-          className="relative mx-auto my-1 h-56 w-56 cursor-pointer overflow-hidden rounded-full shadow-sm transition-[transform,opacity,box-shadow] duration-300 will-change-transform active:opacity-90"
-          style={{
-            transform: roundExpanded ? "scale(var(--round-video-expanded-scale))" : "scale(1)",
-          }}
+          /* One size, always.
+             Tapping used to scale the circle up to `min(76vw, 24rem)`, which
+             on a phone is most of the screen: the bubble grew mid-conversation,
+             pushed its neighbours around and read as the chat coming apart.
+             Playback is a state, not a size — so it is now shown by the
+             progress ring and the audio, and the geometry never moves.
+             The width is viewport-relative with a cap, so a 320px phone gets a
+             smaller circle without a second breakpoint, and `aspect-square`
+             keeps it round whatever the video's own dimensions turn out to be. */
+          className="relative mx-auto my-1 aspect-square w-[min(64vw,15rem)] cursor-pointer overflow-hidden rounded-full shadow-sm transition-opacity duration-200 active:opacity-90"
           onClick={toggleRoundVideo}
         >
           <video
@@ -501,17 +508,17 @@ function AttachmentPreview({
             src={sourceUrl}
             className="h-full w-full object-cover"
             autoPlay
-            loop={!roundExpanded}
-            muted={!roundExpanded}
+            loop={!roundPlaying}
+            muted={!roundPlaying}
             playsInline
             preload="metadata"
             onTimeUpdate={(event) => {
               const video = event.currentTarget;
-              if (!roundExpanded || !video.duration || Number.isNaN(video.duration)) return;
+              if (!roundPlaying || !video.duration || Number.isNaN(video.duration)) return;
               setRoundProgress(Math.min(1, video.currentTime / video.duration));
             }}
             onEnded={() => {
-              setRoundExpanded(false);
+              setRoundPlaying(false);
               setRoundProgress(0);
               const video = roundVideoRef.current;
               if (video) {
@@ -521,7 +528,7 @@ function AttachmentPreview({
               }
             }}
           />
-          {roundExpanded ? (
+          {roundPlaying ? (
             <svg className="pointer-events-none absolute inset-1 -rotate-90 text-white drop-shadow" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" strokeOpacity="0.26" strokeWidth="2.5" />
               <circle
@@ -536,7 +543,7 @@ function AttachmentPreview({
               />
             </svg>
           ) : null}
-          <div className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold text-white">
+          <div className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-black/45 px-2 py-0.5 text-[0.625rem] font-bold text-white">
             <svg className="inline h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           </div>
         </button>
@@ -589,7 +596,7 @@ function AttachmentPreview({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{attachment.fileName}</p>
-            <p className="mt-0.5 text-[11px] font-medium opacity-60">
+            <p className="mt-0.5 text-[0.6875rem] font-medium opacity-60">
               {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
             </p>
           </div>
@@ -597,6 +604,29 @@ function AttachmentPreview({
       )}
     </div>
   );
+}
+
+/**
+ * True once a send has been in flight long enough to be worth mentioning.
+ *
+ * Threshold, not spinner: below it the user sees no status at all, which is
+ * the honest rendering of "this is going through normally". A local send on a
+ * good connection resolves well inside the window, so in ordinary use the
+ * indicator never appears.
+ */
+function usePendingMark(pending: boolean, delayMs = 500): boolean {
+  const [elapsed, setElapsed] = useState(false);
+
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => setElapsed(true), delayMs);
+    return () => clearTimeout(timer);
+  }, [pending, delayMs]);
+
+  // Read through `pending` rather than reset in the effect: once the message
+  // is sent the mark is gone regardless of what the timer did, and there is no
+  // synchronous state write on the way there.
+  return pending && elapsed;
 }
 
 export const MessageBubble = memo(function MessageBubble({
@@ -901,6 +931,20 @@ export const MessageBubble = memo(function MessageBubble({
   const isRead = relevantReceipts.some((receipt) => Boolean(receipt.readAt));
   const isDelivered = relevantReceipts.some((receipt) => Boolean(receipt.deliveredAt));
   const isPendingLocal = mine && message.id.startsWith("temp-");
+  // Whether to *draw* anything for that pending state.
+  //
+  // The bubble itself is never delayed — it is on screen the moment the user
+  // taps send. What was delaying the *feeling* of having sent it was this
+  // indicator: a spinner, shown from the first frame, for the whole time the
+  // request was in flight. A spinner is the universal sign for "still
+  // working", so a send that completed in 300ms still read as a send that had
+  // not happened yet.
+  //
+  // A message that lands quickly now shows nothing at all in that window, and
+  // goes straight from written to sent. Only a send that genuinely drags gets
+  // a mark, and it is a still clock rather than a spinner: it says "waiting",
+  // not "busy".
+  const showPendingMark = usePendingMark(isPendingLocal);
   // A "visual only" bubble is transparent, unpadded, and puts its timestamp in
   // a floating pill *over* the picture. That is right for a photo and wrong for
   // anything that failed to become one: the pill is absolutely positioned, so
@@ -946,7 +990,7 @@ export const MessageBubble = memo(function MessageBubble({
   if (message.deletedAt) {
     return (
       <div className="relative flex w-full justify-center px-4 py-1.5">
-        <div className="max-w-[82%] rounded-full bg-surface-muted px-3 py-1.5 text-center text-[12px] font-medium text-muted">
+        <div className="max-w-[82%] rounded-full bg-surface-muted px-3 py-1.5 text-center text-[0.75rem] font-medium text-muted">
           Сообщение удалено
         </div>
       </div>
@@ -962,7 +1006,7 @@ export const MessageBubble = memo(function MessageBubble({
     if (settledUndecryptable) return null;
     return (
       <div className="relative flex w-full justify-center px-4 py-2">
-        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
+        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[0.75rem] font-medium text-muted">
           Загрузка зашифрованного сообщения…
         </div>
       </div>
@@ -976,7 +1020,7 @@ export const MessageBubble = memo(function MessageBubble({
   if (!message.body && message.attachments.length === 0 && !message.isEncrypted && !message.deletedAt) {
     return (
       <div className="relative flex w-full justify-center px-4 py-2">
-        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[12px] font-medium text-muted">
+        <div className="max-w-[82%] rounded-full bg-surface-muted/70 px-3 py-1.5 text-center text-[0.75rem] font-medium text-muted">
           Вложение не загрузилось
         </div>
       </div>
@@ -1095,7 +1139,7 @@ export const MessageBubble = memo(function MessageBubble({
 
           <>
             {message.body && (
-              <p className="mb-1 whitespace-pre-wrap break-words text-[15px] font-normal leading-[1.3] last:mb-0">
+              <p className="mb-1 whitespace-pre-wrap break-words text-[0.9375rem] font-normal leading-[1.3] last:mb-0">
                 {searchQuery ? (
                   message.body.split(new RegExp(`(${escapeRegExp(searchQuery)})`, "gi")).map((part, i) =>
                     part.toLowerCase() === searchQuery.toLowerCase() ? (
@@ -1134,7 +1178,7 @@ export const MessageBubble = memo(function MessageBubble({
               conversation read as two different components. */}
           <div className={`${visualOnlyMessage ? "absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-white" : "mt-0.5"} flex items-center gap-1.5 justify-end`}>
             <span
-              className="text-[11px] font-medium tabular-nums"
+              className="text-[0.6875rem] font-medium tabular-nums"
               style={{ color: visualOnlyMessage ? "white" : mine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
             >
               {message.editedAt && "изм. "}
@@ -1151,11 +1195,24 @@ export const MessageBubble = memo(function MessageBubble({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 ) : isPendingLocal ? (
-                  <span
-                    className="h-2.5 w-2.5 rounded-full border-2 border-current border-t-transparent animate-spin"
-                    style={{ color: "var(--message-tick)" }}
-                    aria-label="Отправляется"
-                  />
+                  showPendingMark ? (
+                    <svg
+                      className="h-2.5 w-2.5 animate-in fade-in duration-200"
+                      style={{ color: "var(--message-tick)" }}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-label="Отправляется"
+                      role="img"
+                    >
+                      <circle cx="12" cy="12" r="9" strokeWidth={2.4} />
+                      <path strokeLinecap="round" strokeWidth={2.4} d="M12 7.5V12l3 1.8" />
+                    </svg>
+                  ) : (
+                    // Nothing yet — and the space is held so the ticks do not
+                    // shift the timestamp sideways when they arrive.
+                    <span className="h-2.5 w-2.5" aria-hidden="true" />
+                  )
                 ) : isRead ? (
                   <div className="flex -space-x-1" aria-label="Прочитано" role="img">
                     <svg className="h-2.5 w-2.5 animate-in fade-in" style={{ color: "var(--message-read)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1187,12 +1244,12 @@ export const MessageBubble = memo(function MessageBubble({
 
         {isFailed && (
           <div className="mt-1 flex items-center justify-end gap-2 pr-1">
-            <span className="text-[11px] font-semibold text-destructive">Не отправлено</span>
+            <span className="text-[0.6875rem] font-semibold text-destructive">Не отправлено</span>
             <button
               type="button"
               onClick={(event) => { event.stopPropagation(); onRetry?.(message.id); }}
               aria-label="Повторить отправку сообщения"
-              className="touch-target -my-2 flex min-h-11 items-center rounded-full px-2 text-[11px] font-semibold text-primary transition-smooth active:scale-[0.96]"
+              className="touch-target -my-2 flex min-h-11 items-center rounded-full px-2 text-[0.6875rem] font-semibold text-primary transition-smooth active:scale-[0.96]"
             >
               Повторить
             </button>
@@ -1208,7 +1265,7 @@ export const MessageBubble = memo(function MessageBubble({
                 className="flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-muted px-2.5 py-1 text-xs font-semibold text-foreground/70 transition-smooth hover:bg-surface-hover active:scale-[0.96]"
               >
                 <span>{emoji}</span>
-                <span className="text-[10px]">{info.count}</span>
+                <span className="text-[0.625rem]">{info.count}</span>
               </button>
             ))}
           </div>

@@ -19,6 +19,7 @@ import { normalizeAvatarUrl } from "@/lib/media-url";
 import type { BuiltInFolderItem, ChatFolderItem } from "@/lib/chat-list";
 import { CHAT_WALLPAPERS, ChatWallpaperControls, useGlobalChatAppearance } from "../chats/[chatId]/ChatAppearance";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { UiScaleSlider } from "@/components/settings/UiScaleSlider";
 import { SettingsBlock, SettingsGroup, SettingsStack } from "@/components/settings/SettingsGroup";
 import {
   SettingsActionRow,
@@ -109,7 +110,7 @@ export function ProfileContent({
 
   const isAdmin = user.role === "OWNER" || user.role === "ADMIN";
   const { status: pushStatus, error: pushError, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
-  const { theme, setTheme, accent, setAccent } = useTheme();
+  const { theme, setTheme, accent, setAccent, uiScale, setUiScale } = useTheme();
   const {
     settings: globalChatAppearance,
     updateSettings: updateGlobalChatAppearance,
@@ -549,7 +550,7 @@ export function ProfileContent({
               ) : null}
 
               {message ? (
-                <p role="status" className="px-5 text-center text-[13px] text-primary">{message}</p>
+                <p role="status" className="px-5 text-center text-[0.8125rem] text-primary">{message}</p>
               ) : null}
             </SettingsStack>
           </form>
@@ -632,6 +633,13 @@ export function ProfileContent({
                   );
                 })}
               </div>
+            </SettingsBlock>
+
+            <SettingsBlock
+              label="Размер интерфейса"
+              footer="Изменяет размер текста, значков и элементов интерфейса."
+            >
+              <UiScaleSlider value={uiScale} onChange={setUiScale} />
             </SettingsBlock>
 
             {/* The wallpaper editor is a configurator — preview, four swatches
@@ -757,10 +765,10 @@ export function ProfileContent({
               </SettingsBlock>
 
               {passwordError ? (
-                <p role="alert" className="px-5 text-center text-[13px] text-danger">{passwordError}</p>
+                <p role="alert" className="px-5 text-center text-[0.8125rem] text-danger">{passwordError}</p>
               ) : null}
               {passwordMessage ? (
-                <p role="status" className="px-5 text-center text-[13px] text-success">{passwordMessage}</p>
+                <p role="status" className="px-5 text-center text-[0.8125rem] text-success">{passwordMessage}</p>
               ) : null}
 
               <SettingsGroup footer="Это устройство уже авторизовано, поэтому пароль можно сменить без старого — переписка на нём останется доступна.">
@@ -829,17 +837,17 @@ export function ProfileContent({
           >
             <form onSubmit={handleTrustedReset}>
               <div className="px-5 pb-4 pt-5 text-center">
-                <h2 id="trusted-reset-title" className="text-[17px] font-semibold text-foreground">
+                <h2 id="trusted-reset-title" className="text-[1.0625rem] font-semibold text-foreground">
                   Новый пароль
                 </h2>
-                <p className="mt-1 text-[13px] leading-snug text-muted">
+                <p className="mt-1 text-[0.8125rem] leading-snug text-muted">
                   Это устройство авторизовано, поэтому переписка на нём останется доступна.
                 </p>
               </div>
               <div className="h-px bg-border-subtle" />
               <div className="px-4 py-2">
                 <input
-                  className="h-12 w-full bg-transparent text-[17px] text-foreground outline-none placeholder:text-muted/60"
+                  className="h-12 w-full bg-transparent text-[1.0625rem] text-foreground outline-none placeholder:text-muted/60"
                   type="password"
                   autoComplete="new-password"
                   value={trustedNewPassword}
@@ -851,16 +859,16 @@ export function ProfileContent({
                 />
               </div>
               {trustedError ? (
-                <p role="alert" className="px-5 pb-2 text-center text-[13px] text-danger">{trustedError}</p>
+                <p role="alert" className="px-5 pb-2 text-center text-[0.8125rem] text-danger">{trustedError}</p>
               ) : null}
               {trustedMessage ? (
-                <p role="status" className="px-5 pb-2 text-center text-[13px] text-success">{trustedMessage}</p>
+                <p role="status" className="px-5 pb-2 text-center text-[0.8125rem] text-success">{trustedMessage}</p>
               ) : null}
               <div className="h-px bg-border-subtle" />
               <button
                 type="submit"
                 disabled={trustedPending || trustedNewPassword.length < 8}
-                className="h-[54px] w-full text-[17px] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-40"
+                className="h-[54px] w-full text-[1.0625rem] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-40"
               >
                 {trustedPending ? "Подождите…" : "Сохранить"}
               </button>
@@ -868,7 +876,7 @@ export function ProfileContent({
               <button
                 type="button"
                 onClick={() => setShowTrustedReset(false)}
-                className="h-[54px] w-full text-[17px] text-muted transition-smooth hover:bg-surface-hover active:bg-surface-hover"
+                className="h-[54px] w-full text-[1.0625rem] text-muted transition-smooth hover:bg-surface-hover active:bg-surface-hover"
               >
                 Отмена
               </button>

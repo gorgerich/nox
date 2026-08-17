@@ -76,10 +76,10 @@ export function ArchiveIntroSheet() {
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-b from-sky-400 to-primary text-white shadow-lg">
             <Archive className="h-9 w-9" strokeWidth={2.1} />
           </span>
-          <h2 id="archive-intro-title" className="mt-5 text-[22px] font-bold tracking-tight text-foreground">
+          <h2 id="archive-intro-title" className="mt-5 text-[1.375rem] font-bold tracking-tight text-foreground">
             Это ваш архив
           </h2>
-          <p className="mt-2 text-[15px] leading-6 text-muted">
+          <p className="mt-2 text-[0.9375rem] leading-6 text-muted">
             Здесь лежат чаты, которые вы скрыли из основного списка.
           </p>
         </div>
@@ -92,8 +92,8 @@ export function ArchiveIntroSheet() {
               <li key={point.title} className="flex gap-4">
                 <Icon className="mt-0.5 h-[1.4rem] w-[1.4rem] shrink-0 text-primary" strokeWidth={2} />
                 <div className="min-w-0">
-                  <p className="text-[15px] font-semibold text-foreground">{point.title}</p>
-                  <p className="mt-0.5 text-[14px] leading-5 text-muted">{point.copy}</p>
+                  <p className="text-[0.9375rem] font-semibold text-foreground">{point.title}</p>
+                  <p className="mt-0.5 text-[0.875rem] leading-5 text-muted">{point.copy}</p>
                 </div>
               </li>
             );
@@ -103,7 +103,7 @@ export function ArchiveIntroSheet() {
         <button
           type="button"
           onClick={dismiss}
-          className="fast-tap mt-8 flex h-13 w-full items-center justify-center rounded-full bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
+          className="fast-tap mt-8 flex h-13 w-full items-center justify-center rounded-full bg-primary py-3.5 text-[1rem] font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
         >
           Понятно
         </button>

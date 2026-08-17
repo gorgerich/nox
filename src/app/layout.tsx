@@ -137,6 +137,24 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
+                /*
+                  The interface scale, before the first paint.
+
+                  Same shape as the theme below it and for the same reason: a
+                  value read after hydration means the app renders once at the
+                  standard size and then jumps, which on a cold start is the
+                  most visible thing on screen. Written as a custom property
+                  because the root font size is derived from it in CSS — one
+                  place decides what the number means.
+                */
+                var storedScale = Number(localStorage.getItem('nox:ui-scale'));
+                var scaleLevel = Number.isInteger(storedScale) && storedScale >= 1 && storedScale <= 7
+                  ? storedScale
+                  : 4;
+                var scaleSteps = { 1: 0.86, 2: 0.91, 3: 0.955, 4: 1, 5: 1.06, 6: 1.11, 7: 1.16 };
+                document.documentElement.style.setProperty('--ui-scale', String(scaleSteps[scaleLevel]));
+                document.documentElement.dataset.uiScale = String(scaleLevel);
+
                 const storedTheme = localStorage.getItem('nox:theme');
                 const theme = storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system'
                   ? storedTheme

@@ -287,7 +287,7 @@ export function AdminPanel({
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
-            className={`min-w-16 flex-1 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-smooth ${
+            className={`min-w-16 flex-1 rounded-xl px-3 py-2.5 text-[0.75rem] font-semibold transition-smooth ${
               activeSection === s.id
                 ? "bg-surface text-primary shadow-sm"
                 : "text-muted hover:text-foreground"
@@ -398,7 +398,7 @@ export function AdminPanel({
                       <p className="text-xs mt-1">
                         <span className="font-bold">{invite.usedCount}/{invite.maxUses}</span> • до {formatDate(invite.expiresAt)}
                       </p>
-                      <p className="mt-1 text-[11px] text-muted">
+                      <p className="mt-1 text-[0.6875rem] text-muted">
                         Создал: {invite.createdBy?.profile?.displayName ?? invite.createdBy?.username ?? "неизвестно"}
                       </p>
                     </div>
@@ -440,7 +440,7 @@ export function AdminPanel({
                           <h3 className="font-bold">
                             {request.user.profile?.displayName ?? request.user.username}
                           </h3>
-                          <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                          <span className={`rounded-full px-2 py-1 text-[0.6875rem] font-semibold ${
                             actionable ? "bg-warning/10 text-warning" : "bg-surface-hover text-muted"
                           }`}>
                             {getRecoveryStatusLabel(request.status, request.expiresAt)}
@@ -451,18 +451,18 @@ export function AdminPanel({
                           {request.user.login ? ` • login: ${request.user.login}` : ""}
                           {request.user.email ? ` • ${request.user.email}` : ""}
                         </p>
-                        <p className="mt-3 text-[11px] font-semibold text-muted/70">
+                        <p className="mt-3 text-[0.6875rem] font-semibold text-muted/70">
                           Создан: {formatDate(request.createdAt)} • до {formatDate(request.expiresAt)}
                         </p>
                         {request.requesterUserAgent && (
-                          <p className="mt-2 truncate text-[10px] text-muted/60">
+                          <p className="mt-2 truncate text-[0.625rem] text-muted/60">
                             {request.requesterUserAgent}
                           </p>
                         )}
                       </div>
 
                       <div className="shrink-0 rounded-2xl border border-border-subtle bg-foreground/5 px-4 py-3 text-center">
-                        <p className="mb-1 text-[11px] font-semibold text-muted">Код</p>
+                        <p className="mb-1 text-[0.6875rem] font-semibold text-muted">Код</p>
                         <code className="select-all font-mono text-xl font-bold tracking-[0.14em] text-primary">
                           {request.publicCode}
                         </code>
@@ -525,7 +525,7 @@ export function AdminPanel({
                 <article key={item.id} className="card-clean p-4 text-sm">
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <p className="font-bold text-primary">{getActionLabel(item.action)}</p>
-                    <time className="text-[10px] text-muted font-bold uppercase">{formatDate(item.createdAt)}</time>
+                    <time className="text-[0.625rem] text-muted font-bold uppercase">{formatDate(item.createdAt)}</time>
                   </div>
                   <p className="text-xs text-muted">Исполнитель: {item.admin.profile?.displayName ?? item.admin.username}</p>
                 </article>

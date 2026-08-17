@@ -158,9 +158,9 @@ export function ChatHeader({
           )}
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-[16px] font-semibold leading-[1.05] text-[var(--chat-header-fg)]">{title}</h1>
+          <h1 className="truncate text-[1rem] font-semibold leading-[1.05] text-[var(--chat-header-fg)]">{title}</h1>
           <p
-            className="mt-0.5 truncate text-[12px] font-normal leading-tight"
+            className="mt-0.5 truncate text-[0.75rem] font-normal leading-tight"
             style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
           >
             {displaySubtitle}

@@ -286,6 +286,7 @@ export type Locator = {
   count(): Promise<number>;
   fill(value: string): Promise<void>;
   press(key: string): Promise<void>;
+  focus(): Promise<void>;
   click(options?: { force?: boolean; timeout?: number }): Promise<void>;
   inputValue(): Promise<string>;
   setInputFiles(files: unknown): Promise<void>;

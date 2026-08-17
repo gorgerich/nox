@@ -84,7 +84,7 @@ function ResetPasswordForm() {
       </div>
 
       <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4 shadow-inner">
-         <p className="text-[11px] font-bold text-warning leading-relaxed text-center">
+         <p className="text-[0.6875rem] font-bold text-warning leading-relaxed text-center">
            Из-за сквозного шифрования Nox не хранит ключи от ваших сообщений.
            После сброса пароля старые сообщения могут быть недоступны на новом устройстве,
            если у вас нет recovery key или доверенного устройства.

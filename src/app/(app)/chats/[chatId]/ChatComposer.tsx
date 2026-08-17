@@ -361,7 +361,7 @@ export function ChatComposer({
               aria-label="Выбор эмодзи"
             >
               <div className="chat-emoji-header">
-                <p className="text-[13px] font-semibold text-foreground">Эмодзи</p>
+                <p className="text-[0.8125rem] font-semibold text-foreground">Эмодзи</p>
                 <button
                   type="button"
                   aria-label="Закрыть эмодзи"
@@ -374,7 +374,7 @@ export function ChatComposer({
               <div className="chat-emoji-scroll">
                 {EMOJI_GROUPS.map((group) => (
                   <section key={group.label} className="mb-3 last:mb-0">
-                    <h3 className="mb-1.5 px-1 text-[11px] font-semibold text-muted">
+                    <h3 className="mb-1.5 px-1 text-[0.6875rem] font-semibold text-muted">
                       {group.label}
                     </h3>
                     <div className="grid grid-cols-8 gap-0.5">
@@ -411,7 +411,7 @@ export function ChatComposer({
               <textarea
                 ref={inputRef}
                 data-composer-ready={interactive ? "1" : undefined}
-                className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[16px] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
+                className="max-h-32 min-h-11 w-full resize-none bg-transparent py-3 pr-2 text-[1rem] leading-5 outline-none transition-smooth placeholder:text-[var(--chat-input-placeholder)]"
                 placeholder="Сообщение..."
                 aria-label="Сообщение"
                 rows={1}

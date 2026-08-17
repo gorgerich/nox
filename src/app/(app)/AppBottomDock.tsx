@@ -338,14 +338,14 @@ export function AppBottomDock({
                     />
                   )}
                   {shouldShowBadge ? (
-                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[0.625rem] font-semibold text-white">
                       {incomingRequestCount > 9 ? "9+" : incomingRequestCount}
                     </span>
                   ) : null}
                 </span>
                 <span
                   className={clsx(
-                    "dock-tab-label overflow-hidden whitespace-nowrap text-[11px] font-semibold leading-none tracking-normal",
+                    "dock-tab-label overflow-hidden whitespace-nowrap text-[0.6875rem] font-semibold leading-none tracking-normal",
                     // 4rem cut the two longest labels mid-word ("Контакт",
                     // "Профил"). The cap only exists so the label can animate
                     // open from zero; it should never be the thing that decides

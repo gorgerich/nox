@@ -117,10 +117,10 @@ export function CacheSettings() {
           }
         >
           <div className="rounded-2xl bg-surface px-4 py-4">
-            <p className="text-[34px] font-semibold leading-none tracking-tight text-foreground tabular-nums">
+            <p className="text-[2.125rem] font-semibold leading-none tracking-tight text-foreground tabular-nums">
               {usage == null ? "—" : formatBytes(usage)}
             </p>
-            <p className="mt-1.5 text-[13px] text-muted">
+            <p className="mt-1.5 text-[0.8125rem] text-muted">
               {messageCount === null
                 ? "Подсчёт…"
                 : `${messageCount} ${pluralMessages(messageCount)} в кэше`}
@@ -183,7 +183,7 @@ export function CacheSettings() {
         </SettingsGroup>
 
         {note ? (
-          <p role="status" className="px-5 text-[13px] leading-snug text-muted">
+          <p role="status" className="px-5 text-[0.8125rem] leading-snug text-muted">
             {note}
           </p>
         ) : null}

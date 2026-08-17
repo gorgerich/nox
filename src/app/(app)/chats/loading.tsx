@@ -70,11 +70,11 @@ export default function ChatsLoading() {
                   </div>
                   <div className="min-w-0 flex-1 self-stretch border-b border-border-subtle/40 py-1.5">
                     <div className="mb-0.5 flex items-center gap-2">
-                      <p className="min-w-0 flex-1 truncate text-[16px] font-semibold text-foreground">{title}</p>
+                      <p className="min-w-0 flex-1 truncate text-[1rem] font-semibold text-foreground">{title}</p>
                       <LocalTime
                         value={chat.lastMessage?.createdAt ?? chat.createdAt}
                         kind="chatListStamp"
-                        className="shrink-0 text-[13px] tabular-nums text-muted/60"
+                        className="shrink-0 text-[0.8125rem] tabular-nums text-muted/60"
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -87,12 +87,12 @@ export default function ChatsLoading() {
                           <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} />
                         )
                       ) : null}
-                      <p className={`min-w-0 flex-1 truncate text-[14px] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
+                      <p className={`min-w-0 flex-1 truncate text-[0.875rem] leading-snug ${chat.unreadCount > 0 ? "text-foreground/70" : "text-muted/70"}`}>
                         {preview.prefix ? <span className="chat-preview-sender">{preview.prefix}: </span> : null}
                         {preview.text}
                       </p>
                       {chat.unreadCount > 0 ? (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[12px] font-semibold text-white">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.75rem] font-semibold text-white">
                           {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
                         </span>
                       ) : null}

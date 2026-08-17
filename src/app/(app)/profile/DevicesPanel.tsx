@@ -188,7 +188,7 @@ export function DevicesPanel({ userId }: { userId: string }) {
     <>
       <SettingsStack>
         {error ? (
-          <p role="alert" className="px-5 text-[13px] text-danger">{error}</p>
+          <p role="alert" className="px-5 text-[0.8125rem] text-danger">{error}</p>
         ) : null}
 
         <SettingsGroup label="Это устройство">
@@ -256,7 +256,7 @@ export function DevicesPanel({ userId }: { userId: string }) {
           </SettingsGroup>
         ) : null}
 
-        <p className="px-5 text-[13px] leading-snug text-muted">
+        <p className="px-5 text-[0.8125rem] leading-snug text-muted">
           Город и страна сеанса не показываются: сервер их не хранит. Nox отображает только то, что
           известно на самом деле — устройство, платформу, браузер и время последней активности.
         </p>
@@ -276,11 +276,11 @@ export function DevicesPanel({ userId }: { userId: string }) {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="px-5 pb-4 pt-5">
-              <p className="text-[20px] font-semibold text-foreground">{getDeviceName(detailDevice)}</p>
-              <p className="mt-0.5 text-[13px] text-muted">{getPlatformName(detailDevice)}</p>
+              <p className="text-[1.25rem] font-semibold text-foreground">{getDeviceName(detailDevice)}</p>
+              <p className="mt-0.5 text-[0.8125rem] text-muted">{getPlatformName(detailDevice)}</p>
             </div>
             <div className="h-px bg-border-subtle" />
-            <dl className="px-5 py-3 text-[13px]">
+            <dl className="px-5 py-3 text-[0.8125rem]">
               <div className="flex justify-between gap-4 py-1.5">
                 <dt className="text-muted">Последняя активность</dt>
                 <dd className="text-right text-foreground">{formatDeviceActivity(detailDevice)}</dd>
@@ -294,7 +294,7 @@ export function DevicesPanel({ userId }: { userId: string }) {
               {detailDevice.fingerprintShort ? (
                 <div className="flex justify-between gap-4 py-1.5">
                   <dt className="text-muted">Отпечаток ключа</dt>
-                  <dd className="break-all text-right font-mono text-[12px] text-muted">
+                  <dd className="break-all text-right font-mono text-[0.75rem] text-muted">
                     {detailDevice.fingerprintShort}
                   </dd>
                 </div>
@@ -305,7 +305,7 @@ export function DevicesPanel({ userId }: { userId: string }) {
               type="button"
               onClick={() => setConfirmRevoke(detailDevice)}
               disabled={pendingDeviceId === detailDevice.deviceId}
-              className="h-[54px] w-full text-[17px] text-danger transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-45"
+              className="h-[54px] w-full text-[1.0625rem] text-danger transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-45"
             >
               {pendingDeviceId === detailDevice.deviceId ? "Подождите…" : "Завершить сеанс"}
             </button>
@@ -313,7 +313,7 @@ export function DevicesPanel({ userId }: { userId: string }) {
             <button
               type="button"
               onClick={() => setDetailDeviceId(null)}
-              className="h-[54px] w-full text-[17px] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover"
+              className="h-[54px] w-full text-[1.0625rem] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover"
             >
               Закрыть
             </button>

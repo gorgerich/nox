@@ -668,11 +668,11 @@ export function ChatWallpaperControls({
       <div className="chat-wallpaper-preview" style={getChatAppearanceVars(settings) as React.CSSProperties}>
         <div className="chat-wallpaper-layer" aria-hidden="true" />
         <div className="relative z-10 flex h-full flex-col justify-end gap-2 p-4">
-          <div className="max-w-[72%] self-start rounded-[18px] rounded-bl-md border border-white/15 bg-black/45 px-3 py-2 text-[12px] text-white backdrop-blur-xl">
+          <div className="max-w-[72%] self-start rounded-[18px] rounded-bl-md border border-white/15 bg-black/45 px-3 py-2 text-[0.75rem] text-white backdrop-blur-xl">
             Новый фон выглядит так
           </div>
           <div
-            className="max-w-[72%] self-end rounded-[18px] rounded-br-md px-3 py-2 text-[12px]"
+            className="max-w-[72%] self-end rounded-[18px] rounded-br-md px-3 py-2 text-[0.75rem]"
             style={{ background: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}
           >
             Всё читается отлично

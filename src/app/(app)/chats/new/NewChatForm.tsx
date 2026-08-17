@@ -178,7 +178,7 @@ export function NewChatForm() {
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" strokeWidth={2.1} />
             <input
-              className="h-12 w-full rounded-full border border-border-subtle bg-input px-11 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+              className="h-12 w-full rounded-full border border-border-subtle bg-input px-11 text-[1rem] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
               maxLength={32}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="@username"
@@ -207,7 +207,7 @@ export function NewChatForm() {
                 {foundUser.displayName.slice(0, 1).toLocaleUpperCase("ru-RU")}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[17px] font-semibold tracking-tight">{foundUser.displayName}</h2>
+                <h2 className="truncate text-[1.0625rem] font-semibold tracking-tight">{foundUser.displayName}</h2>
                 <p className="truncate text-sm text-muted">@{foundUser.username}</p>
               </div>
             </div>
@@ -266,7 +266,7 @@ export function NewChatForm() {
 
       <div className="grid gap-5 animate-in fade-in slide-in-from-bottom-4 duration-180 sm:grid-cols-2">
         <section className="space-y-3">
-          <h2 className="px-1 text-[13px] font-semibold text-muted">Входящие запросы</h2>
+          <h2 className="px-1 text-[0.8125rem] font-semibold text-muted">Входящие запросы</h2>
           <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">
             {incoming.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted">Запросов пока нет</p>
@@ -300,7 +300,7 @@ export function NewChatForm() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="px-1 text-[13px] font-semibold text-muted">Ваши запросы</h2>
+          <h2 className="px-1 text-[0.8125rem] font-semibold text-muted">Ваши запросы</h2>
           <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">
             {outgoing.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted">Вы не отправляли запросов</p>
@@ -344,11 +344,11 @@ function RequestCard({
             {displayUser(user).slice(0, 1).toLocaleUpperCase("ru-RU")}
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-[15px] font-semibold tracking-tight">{displayUser(user)}</h3>
-            <p className="truncate text-[13px] text-muted">@{user.username}</p>
+            <h3 className="truncate text-[0.9375rem] font-semibold tracking-tight">{displayUser(user)}</h3>
+            <p className="truncate text-[0.8125rem] text-muted">@{user.username}</p>
           </div>
         </div>
-        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[0.75rem] font-semibold ${
           request.status === "PENDING" ? "bg-primary/10 text-primary" : "bg-foreground/5 text-muted"
         }`}>
           {request.status === "PENDING" ? <Clock3 className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
@@ -357,7 +357,7 @@ function RequestCard({
       </div>
       {request.message && (
         <div className="mt-3 rounded-2xl bg-background px-3 py-2">
-          <p className="text-[13px] leading-relaxed text-muted">&ldquo;{request.message}&rdquo;</p>
+          <p className="text-[0.8125rem] leading-relaxed text-muted">&ldquo;{request.message}&rdquo;</p>
         </div>
       )}
       {children}

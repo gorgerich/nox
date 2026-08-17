@@ -84,7 +84,7 @@ export function ChatSearch() {
     <div className="relative" ref={containerRef}>
       <div className="relative group">
         <input
-          className="h-9 w-full rounded-[14px] border border-transparent bg-surface-muted pl-10 pr-4 text-[14px] font-medium text-foreground outline-none transition-colors duration-150 placeholder:text-muted/58 focus:border-border-subtle/60 focus:bg-surface"
+          className="h-9 w-full rounded-[14px] border border-transparent bg-surface-muted pl-10 pr-4 text-[0.875rem] font-medium text-foreground outline-none transition-colors duration-150 placeholder:text-muted/58 focus:border-border-subtle/60 focus:bg-surface"
           placeholder="Поиск: люди, чаты, сообщения"
           aria-label="Поиск: люди, чаты, сообщения"
           value={query}
@@ -105,17 +105,17 @@ export function ChatSearch() {
         <div className="glass-panel absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl p-2 animate-in fade-in slide-in-from-top-4 duration-200">
           {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH ? (
             <div className="p-10 text-center">
-              <p className="text-[14px] text-muted/50">Минимум 3 символа</p>
+              <p className="text-[0.875rem] text-muted/50">Минимум 3 символа</p>
             </div>
           ) : loading ? (
             <div className="p-10 text-center">
-              <p className="text-[14px] text-primary animate-pulse">Поиск…</p>
+              <p className="text-[0.875rem] text-primary animate-pulse">Поиск…</p>
             </div>
           ) : results && Object.values(results).some((arr) => arr.length > 0) ? (
             <div className="space-y-6 p-1">
               {results.people.length > 0 && (
                 <section>
-                  <h3 className="mb-2 px-3 text-[13px] font-semibold text-muted/60">Пользователи</h3>
+                  <h3 className="mb-2 px-3 text-[0.8125rem] font-semibold text-muted/60">Пользователи</h3>
                   <div className="space-y-1">
                     {results.people.map((person) => (
                       <Link
@@ -134,9 +134,9 @@ export function ChatSearch() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-sm font-bold text-foreground tracking-tight">{highlightText(person.displayName, query)}</p>
-                            {person.isSelf && <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">Вы</span>}
+                            {person.isSelf && <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[0.6875rem] font-medium text-primary">Вы</span>}
                           </div>
-                          <p className="truncate text-[13px] text-muted/60">@{highlightText(person.username, query)}</p>
+                          <p className="truncate text-[0.8125rem] text-muted/60">@{highlightText(person.username, query)}</p>
                         </div>
                       </Link>
                     ))}
@@ -146,7 +146,7 @@ export function ChatSearch() {
 
               {results.chats.length > 0 && (
                 <section>
-                  <h3 className="mb-2 px-3 text-[13px] font-semibold text-muted/60">Диалоги</h3>
+                  <h3 className="mb-2 px-3 text-[0.8125rem] font-semibold text-muted/60">Диалоги</h3>
                   <div className="space-y-1">
                     {results.chats.map((chat) => (
                       <Link
@@ -172,7 +172,7 @@ export function ChatSearch() {
                           <p className={`truncate text-sm font-bold tracking-tight ${chat.isSelfChat ? "text-primary" : "text-foreground"}`}>
                             {chat.isSelfChat ? "Личное" : highlightText(chat.title || "Личный чат", query)}
                           </p>
-                          <p className="truncate text-[13px] text-muted/60">Открыть</p>
+                          <p className="truncate text-[0.8125rem] text-muted/60">Открыть</p>
                         </div>
                       </Link>
                     ))}
@@ -182,7 +182,7 @@ export function ChatSearch() {
 
               {results.messages.length > 0 && (
                 <section>
-                  <h3 className="mb-2 px-3 text-[13px] font-semibold text-muted/60">Сообщения</h3>
+                  <h3 className="mb-2 px-3 text-[0.8125rem] font-semibold text-muted/60">Сообщения</h3>
                   <div className="space-y-1">
                     {results.messages.map((msg) => (
                       <Link
@@ -192,10 +192,10 @@ export function ChatSearch() {
                         className="block rounded-xl p-3 transition-colors hover:bg-surface-muted"
                       >
                         <div className="mb-1 flex items-center justify-between gap-2">
-                          <p className="truncate text-[14px] font-semibold text-foreground">{msg.senderName}</p>
-                          <p className="shrink-0 text-[12px] tabular-nums text-muted/50">{new Date(msg.createdAt).toLocaleDateString("ru-RU")}</p>
+                          <p className="truncate text-[0.875rem] font-semibold text-foreground">{msg.senderName}</p>
+                          <p className="shrink-0 text-[0.75rem] tabular-nums text-muted/50">{new Date(msg.createdAt).toLocaleDateString("ru-RU")}</p>
                         </div>
-                        <p className="truncate text-[14px] text-muted leading-snug">{highlightText(msg.body, query)}</p>
+                        <p className="truncate text-[0.875rem] text-muted leading-snug">{highlightText(msg.body, query)}</p>
                       </Link>
                     ))}
                   </div>
@@ -204,7 +204,7 @@ export function ChatSearch() {
             </div>
           ) : (
             <div className="p-10 text-center animate-in fade-in zoom-in-95 duration-300">
-              <p className="text-[14px] text-muted/50">Ничего не найдено</p>
+              <p className="text-[0.875rem] text-muted/50">Ничего не найдено</p>
             </div>
           )}
         </div>

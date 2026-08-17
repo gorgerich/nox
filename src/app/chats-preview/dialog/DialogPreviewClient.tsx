@@ -137,10 +137,10 @@ export function DialogPreviewClient() {
       >
         <div className="h-10 w-10 shrink-0 rounded-full bg-accent-muted" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-semibold" style={{ color: "var(--chat-header-fg)" }}>
+          <p className="truncate text-[1rem] font-semibold" style={{ color: "var(--chat-header-fg)" }}>
             Екатерина Александровна Комиссарова
           </p>
-          <p className="truncate text-[13px]" style={{ color: "var(--bubble-incoming-muted)" }}>
+          <p className="truncate text-[0.8125rem]" style={{ color: "var(--bubble-incoming-muted)" }}>
             {scenario === "typing" ? "печатает…" : "в сети"}
           </p>
         </div>
@@ -164,7 +164,7 @@ export function DialogPreviewClient() {
       <div className="flex-1 overflow-y-auto px-3 py-2" style={{ background: "var(--chat-bg)" }}>
         <div className="mx-auto flex w-full max-w-3xl flex-col">
           {scenario === "pagination" && (
-            <div className="flex items-center justify-center gap-2 py-3 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+            <div className="flex items-center justify-center gap-2 py-3 text-[0.8125rem] font-medium" style={{ color: "var(--text-secondary)" }}>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
               Загружаем предыдущие сообщения…
             </div>
@@ -172,8 +172,8 @@ export function DialogPreviewClient() {
 
           {messages.length === 0 && (
             <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
-              <p className="text-[17px] font-semibold text-foreground">Пока нет сообщений</p>
-              <p className="mt-1 text-[14px] text-muted">Напишите первым — сообщения шифруютсяend-to-end.</p>
+              <p className="text-[1.0625rem] font-semibold text-foreground">Пока нет сообщений</p>
+              <p className="mt-1 text-[0.875rem] text-muted">Напишите первым — сообщения шифруютсяend-to-end.</p>
             </div>
           )}
 

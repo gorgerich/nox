@@ -51,17 +51,17 @@ export function ConfirmSheet({
       >
         <div className="overflow-hidden rounded-2xl bg-surface-elevated">
           <div className="px-5 py-4 text-center">
-            <p id="confirm-sheet-title" className="text-[15px] font-semibold text-foreground">
+            <p id="confirm-sheet-title" className="text-[0.9375rem] font-semibold text-foreground">
               {title}
             </p>
-            {body ? <p className="mt-1 text-[13px] leading-snug text-muted">{body}</p> : null}
+            {body ? <p className="mt-1 text-[0.8125rem] leading-snug text-muted">{body}</p> : null}
           </div>
           <div className="h-px bg-border-subtle" />
           <button
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className={`h-[54px] w-full text-[17px] font-medium transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-45 ${
+            className={`h-[54px] w-full text-[1.0625rem] font-medium transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-45 ${
               destructive ? "text-danger" : "text-primary"
             }`}
           >
@@ -72,7 +72,7 @@ export function ConfirmSheet({
         <button
           type="button"
           onClick={onCancel}
-          className="h-[54px] w-full rounded-2xl bg-surface-elevated text-[17px] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover"
+          className="h-[54px] w-full rounded-2xl bg-surface-elevated text-[1.0625rem] font-semibold text-primary transition-smooth hover:bg-surface-hover active:bg-surface-hover"
         >
           {cancelLabel}
         </button>

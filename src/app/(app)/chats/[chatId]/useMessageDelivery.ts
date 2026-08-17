@@ -37,7 +37,7 @@ export type UseMessageDelivery = {
   /** Resolves once the file's bytes and metadata are durable, not once uploaded. */
   sendAttachment: (
     file: File,
-    options?: { caption?: string; replyToMessageId?: string | null },
+    options?: { caption?: string; replyToMessageId?: string | null; clientMessageId?: string },
   ) => Promise<OutgoingMessage>;
   retry: (clientMessageId: string) => void;
   discard: (clientMessageId: string) => Promise<void>;
@@ -131,12 +131,19 @@ export function useMessageDelivery(params: {
   );
 
   const sendAttachment = useCallback(
-    (file: File, options?: { caption?: string; replyToMessageId?: string | null }) =>
+    (
+      file: File,
+      options?: { caption?: string; replyToMessageId?: string | null; clientMessageId?: string },
+    ) =>
       controller.enqueueAttachment({
         blob: file,
         attachment: attachmentMetaOf(file),
         caption: options?.caption,
         replyToMessageId: options?.replyToMessageId ?? null,
+        // The caller may mint the id first so it can show a local preview from
+        // the file it already holds, without waiting for the staged copy to
+        // come back off disk.
+        clientMessageId: options?.clientMessageId,
       }),
     [controller],
   );

@@ -135,7 +135,17 @@ async function main(): Promise<number> {
           return cs ? (cs.scale === 'none' ? 1 : parseFloat(cs.scale.split(' ')[0])) : null;
         })()`,
       )) as number | null;
-      check("the button returns to rest when released", released === 1, `scale=${released}`);
+      // A tolerance rather than an exact 1. What this guards is that the press
+      // is released at all — a stuck 0.96 is the regression. Under load the
+      // read can land on the last frame of the 140ms ease, which reports
+      // 0.999973: settled for every purpose except an equality check, and the
+      // suite failed the whole merge gate over it while passing on a quiet
+      // machine seconds later.
+      check(
+        "the button returns to rest when released",
+        released !== null && Math.abs(released - 1) < 0.005,
+        `scale=${released}`,
+      );
     }
   } finally {
     await context.close();

@@ -77,7 +77,7 @@ export function InlineConnectionNotice({ status }: { status: ConnectionStatus })
     <div
       role="status"
       aria-live="polite"
-      className="absolute inset-x-0 top-0 mx-auto flex w-fit max-w-[90%] items-center justify-center gap-2 rounded-full px-3 py-1 text-[13px] font-semibold shadow-sm backdrop-blur-md"
+      className="absolute inset-x-0 top-0 mx-auto flex w-fit max-w-[90%] items-center justify-center gap-2 rounded-full px-3 py-1 text-[0.8125rem] font-semibold shadow-sm backdrop-blur-md"
       style={{
         color,
         background: `color-mix(in srgb, ${color} 16%, var(--surface-elevated))`,

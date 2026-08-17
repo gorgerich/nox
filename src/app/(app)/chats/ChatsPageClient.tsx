@@ -659,7 +659,7 @@ export function ChatsPageClient({
           <div className="flex items-baseline gap-2">
             <h1 className="nox-page-title">Чаты</h1>
             {unreadTotal > 0 ? (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[12px] font-semibold text-primary">
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.75rem] font-semibold text-primary">
                 {unreadTotal} новых
               </span>
             ) : null}
@@ -697,7 +697,7 @@ export function ChatsPageClient({
               className="fluid-hit flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-surface-muted"
             >
               <Search className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
-              <span className="text-[16px] font-medium text-foreground">Найти человека</span>
+              <span className="text-[1rem] font-medium text-foreground">Найти человека</span>
             </button>
             <button
               type="button"
@@ -705,7 +705,7 @@ export function ChatsPageClient({
               className="fluid-hit flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-surface-muted"
             >
               <Users className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
-              <span className="text-[16px] font-medium text-foreground">Создать групповой чат</span>
+              <span className="text-[1rem] font-medium text-foreground">Создать групповой чат</span>
             </button>
             <button
               type="button"
@@ -713,12 +713,12 @@ export function ChatsPageClient({
               className="fluid-hit flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-surface-muted"
             >
               <UserPlus className="h-5 w-5 shrink-0 text-primary" strokeWidth={2} />
-              <span className="text-[16px] font-medium text-foreground">Пригласить человека</span>
+              <span className="text-[1rem] font-medium text-foreground">Пригласить человека</span>
             </button>
             <button
               type="button"
               onClick={() => setPlusMenuOpen(false)}
-              className="fluid-hit mt-1 w-full rounded-2xl px-4 py-3.5 text-[16px] font-semibold text-muted transition-colors hover:bg-surface-muted"
+              className="fluid-hit mt-1 w-full rounded-2xl px-4 py-3.5 text-[1rem] font-semibold text-muted transition-colors hover:bg-surface-muted"
             >
               Отмена
             </button>
@@ -766,15 +766,15 @@ export function ChatsPageClient({
             ) : inviteSheet?.link ? (
               <div className="space-y-3">
                 <div className="rounded-2xl border border-border-subtle/60 bg-background/60 p-3">
-                  <p className="mb-2 text-[11px] font-semibold text-muted">Ссылка</p>
-                  <p className="break-all text-[14px] font-medium leading-5 text-foreground">{inviteSheet.link}</p>
+                  <p className="mb-2 text-[0.6875rem] font-semibold text-muted">Ссылка</p>
+                  <p className="break-all text-[0.875rem] font-medium leading-5 text-foreground">{inviteSheet.link}</p>
                 </div>
                 <div className="rounded-2xl border border-border-subtle/60 bg-background/60 p-3">
-                  <p className="mb-2 text-[11px] font-semibold text-muted">Код</p>
-                  <code className="block select-all truncate font-mono text-[13px] text-foreground">{inviteSheet.code}</code>
+                  <p className="mb-2 text-[0.6875rem] font-semibold text-muted">Код</p>
+                  <code className="block select-all truncate font-mono text-[0.8125rem] text-foreground">{inviteSheet.code}</code>
                 </div>
                 {inviteSheet.expiresAt && (
-                  <p className="px-1 text-[12px] text-muted">
+                  <p className="px-1 text-[0.75rem] text-muted">
                     Действует до {new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(inviteSheet.expiresAt))}
                   </p>
                 )}
@@ -833,13 +833,13 @@ export function ChatsPageClient({
               key={folder.key}
               type="button"
               onClick={() => setSelectedFolder(folder.key)}
-              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] font-semibold transition-colors ${
                 active ? "bg-primary/12 text-primary" : "text-muted/72 hover:bg-surface-muted"
               }`}
             >
               <span>{folder.label}</span>
               {count > 0 ? (
-                <span className={`text-[11px] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
+                <span className={`text-[0.6875rem] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
                   {count > 99 ? "99+" : count}
                 </span>
               ) : null}
@@ -854,13 +854,13 @@ export function ChatsPageClient({
               key={folder.key}
               type="button"
               onClick={() => setSelectedFolder(folder.key)}
-              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] font-semibold transition-colors ${
                 active ? "bg-primary/12 text-primary" : "text-muted/72 hover:bg-surface-muted"
               }`}
             >
               <span>{folder.label}</span>
               {count > 0 ? (
-                <span className={`text-[11px] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
+                <span className={`text-[0.6875rem] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
                   {count > 99 ? "99+" : count}
                 </span>
               ) : null}
@@ -876,13 +876,13 @@ export function ChatsPageClient({
               key={folder.id}
               type="button"
               onClick={() => setSelectedFolder(selectedKey)}
-              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+              className={`fluid-hit fast-tap flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] font-semibold transition-colors ${
                 active ? "bg-primary/12 text-primary" : "text-muted/72 hover:bg-surface-muted"
               }`}
             >
               <span>{folder.name}</span>
               {count > 0 ? (
-                <span className={`text-[11px] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
+                <span className={`text-[0.6875rem] font-semibold tabular-nums ${active ? "text-primary/72" : "text-muted/54"}`}>
                   {count > 99 ? "99+" : count}
                 </span>
               ) : null}
@@ -893,7 +893,7 @@ export function ChatsPageClient({
 
       {incomingRequests.length > 0 ? (
         <div className="mb-10 animate-in slide-in-from-top-2 duration-200">
-          <h2 className="mb-3 px-3 text-[13px] font-semibold text-muted/70">Запросы на переписку</h2>
+          <h2 className="mb-3 px-3 text-[0.8125rem] font-semibold text-muted/70">Запросы на переписку</h2>
           <IncomingRequestCards requests={incomingRequests} onChange={() => { void syncChats(); }} />
         </div>
       ) : null}
@@ -908,8 +908,8 @@ export function ChatsPageClient({
                 </svg>
               </div>
               <div>
-                <p className="text-[16px] font-semibold text-foreground">Архив</p>
-                <p className="text-[13px] text-muted">{archivedCount} {archivedCount === 1 ? 'чат' : (archivedCount > 1 && archivedCount < 5) ? 'чата' : 'чатов'}</p>
+                <p className="text-[1rem] font-semibold text-foreground">Архив</p>
+                <p className="text-[0.8125rem] text-muted">{archivedCount} {archivedCount === 1 ? 'чат' : (archivedCount > 1 && archivedCount < 5) ? 'чата' : 'чатов'}</p>
               </div>
             </div>
             <svg className="h-4 w-4 text-muted/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">

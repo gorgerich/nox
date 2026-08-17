@@ -198,7 +198,7 @@ export function MediaCropModal({
       {/* Footer controls */}
       <footer className="safe-bottom p-6 z-10 flex flex-col items-center justify-center w-full bg-gradient-to-t from-black to-transparent">
         <div className="w-full max-w-xs space-y-4">
-           <div className="flex justify-between px-1 text-[11px] font-semibold text-white/60">
+           <div className="flex justify-between px-1 text-[0.6875rem] font-semibold text-white/60">
               <span>Масштаб</span>
               <span>{Math.round(zoom * 100)}%</span>
            </div>

@@ -32,11 +32,11 @@ export function HistoryUnavailableNotice({
         <KeyRound className="h-5 w-5" strokeWidth={2.1} aria-hidden="true" />
       </span>
 
-      <h2 id="history-unavailable-title" className="text-[16px] font-semibold text-foreground">
+      <h2 id="history-unavailable-title" className="text-[1rem] font-semibold text-foreground">
         История недоступна на этом устройстве
       </h2>
 
-      <p className="mt-1.5 text-[14px] leading-5 text-muted">
+      <p className="mt-1.5 text-[0.875rem] leading-5 text-muted">
         {scope === "all"
           ? "Эти сообщения были зашифрованы для предыдущей установки приложения. Ключ от неё больше недоступен, поэтому расшифровать старую историю на этом устройстве невозможно."
           : "Часть сообщений была зашифрована для предыдущей установки приложения. Ключ от неё больше недоступен, поэтому эти сообщения не открываются здесь."}
@@ -47,7 +47,7 @@ export function HistoryUnavailableNotice({
           <button
             type="button"
             onClick={onDismiss}
-            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 text-[15px] font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
+            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 text-[0.9375rem] font-semibold text-primary-foreground transition-smooth active:scale-[0.96]"
           >
             Продолжить с новой историей
           </button>
@@ -56,7 +56,7 @@ export function HistoryUnavailableNotice({
         {hasOtherDevices ? (
           <Link
             href="/profile"
-            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full border border-border-subtle px-4 text-[15px] font-semibold text-foreground transition-smooth active:scale-[0.96]"
+            className="fast-tap flex min-h-11 w-full items-center justify-center rounded-full border border-border-subtle px-4 text-[0.9375rem] font-semibold text-foreground transition-smooth active:scale-[0.96]"
           >
             Мои устройства
           </Link>

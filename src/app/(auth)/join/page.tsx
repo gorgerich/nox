@@ -65,9 +65,9 @@ export default function JoinPage() {
     <main className="auth-screen app-screen justify-center px-6 py-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
       <div className="mx-auto w-full max-w-sm">
         <div className="flex flex-col items-center text-center">
-          <div className="auth-logo text-[26px] font-bold">N</div>
+          <div className="auth-logo text-[1.625rem] font-bold">N</div>
           <h1 className="mt-6 text-[2rem] font-bold leading-tight tracking-tight text-foreground">Создать профиль</h1>
-          <p className="mt-2 max-w-[17rem] text-[15px] leading-6 text-muted">
+          <p className="mt-2 max-w-[17rem] text-[0.9375rem] leading-6 text-muted">
             {step === "account" ? "Сначала логин, пароль и код приглашения." : "Теперь выберите публичный username."}
           </p>
         </div>
@@ -155,7 +155,7 @@ export default function JoinPage() {
           <form className="rounded-[1.75rem] border border-border-subtle bg-surface p-3 shadow-sm" id="join-form" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <input
-                className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[16px] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                className="h-12 w-full rounded-2xl border border-border-subtle bg-background px-4 text-[1rem] font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
                 aria-label="Username"
                 name="username"
                 type="text"
@@ -165,7 +165,7 @@ export default function JoinPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
-              <p className="px-1 text-[13px] leading-5 text-muted">Username видят другие пользователи. Разрешены буквы, цифры и нижнее подчёркивание.</p>
+              <p className="px-1 text-[0.8125rem] leading-5 text-muted">Username видят другие пользователи. Разрешены буквы, цифры и нижнее подчёркивание.</p>
             </div>
 
             {error && (

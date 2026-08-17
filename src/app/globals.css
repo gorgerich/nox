@@ -75,7 +75,6 @@
   /* A round video note is 14rem (h-56) at rest and min(76vw, 24rem) expanded.
      Expressing that as a scale factor keeps the transition on the compositor:
      the ratio is the expanded size over the resting one. */
-  --round-video-expanded-scale: calc(min(76vw, 24rem) / 14rem);
   --messenger-dock-height: 3.25rem;   /* the pill height; the search button matches it */
   --messenger-dock-bottom-gap: 12px;  /* space between the dock and the safe area */
   /* Reverted to the plain form. An attempt to cancel a suspected double count
@@ -675,6 +674,44 @@ html {
      app never re-sizes its type when the phone turns. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+
+  /* The global interface scale — see src/lib/ui-scale.ts.
+
+     Everything sized in `rem` hangs off this one declaration: Tailwind's type
+     ramp, its spacing scale, and every `h-11`/`w-6` in the app. The token is
+     set on this element by the boot script before first paint and rewritten by
+     the settings slider; the fallback keeps the app at its normal size when
+     nothing has been chosen.
+
+     Deliberately *not* a transform or `zoom`. Those would take the viewport
+     with them, and the keyboard inset, the safe areas and the visual-viewport
+     height are all real device pixels that must stay real. Anything that must
+     not move with this setting is expressed in `px` or `env()`, which this
+     cannot reach. */
+  font-size: calc(100% * var(--ui-scale, 1));
+}
+
+/* A focused input under 16px makes iOS zoom the whole page, and nothing but a
+   pinch gets the user back out. The three stops below standard are the ones
+   that can push a 16px field under that line, so the floor is scoped to
+   exactly those: at the default and above, this rule does not exist and the
+   app's own type utilities are untouched.
+
+   `1em` reads the size the field would otherwise have inherited, so a control
+   that is already comfortably large keeps growing with the rest of the
+   interface; only the ones that would have crossed the threshold are held. */
+@media (pointer: coarse) {
+  html[data-ui-scale="1"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  html[data-ui-scale="1"] textarea,
+  html[data-ui-scale="1"] [contenteditable="true"],
+  html[data-ui-scale="2"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  html[data-ui-scale="2"] textarea,
+  html[data-ui-scale="2"] [contenteditable="true"],
+  html[data-ui-scale="3"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  html[data-ui-scale="3"] textarea,
+  html[data-ui-scale="3"] [contenteditable="true"] {
+    font-size: max(16px, 1em);
+  }
 }
 
 /* The page behind an open conversation.
@@ -1171,7 +1208,7 @@ body {
   }
 
   .swipe-action-label {
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
     line-height: 1;
     color: var(--muted);
@@ -1673,7 +1710,7 @@ body {
     border-radius: 9999px;
     background: var(--surface-secondary);
     color: var(--text-secondary);
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 600;
     white-space: nowrap;
     transition:
@@ -1692,7 +1729,7 @@ body {
   }
 
   .nox-filter-chip-count {
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--text-tertiary);
@@ -1908,7 +1945,7 @@ body {
     background: transparent;
     border: none;
     outline: none;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 500;
     color: var(--foreground);
   }
@@ -1942,7 +1979,7 @@ body {
     border-radius: 16px;
     background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 86%, white), var(--primary));
     color: var(--primary-foreground);
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 650;
     box-shadow: 0 12px 26px -12px color-mix(in oklab, var(--primary) 65%, transparent);
     transition: transform 160ms var(--ease-out), box-shadow 180ms ease, opacity 160ms ease;
@@ -1968,7 +2005,7 @@ body {
     background: transparent;
     border: 1px solid color-mix(in oklab, var(--primary) 42%, transparent);
     color: var(--primary);
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 600;
     transition: transform 160ms var(--ease-out), background-color 160ms ease;
   }
@@ -1986,7 +2023,7 @@ body {
   /* A dashed underline says "this is a link" without borrowing the accent,
      which here belongs to the two buttons above it. */
   .auth-quiet-link {
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 500;
     color: color-mix(in oklab, var(--foreground) 45%, transparent);
     text-decoration: underline;
@@ -2415,7 +2452,7 @@ body {
 
   .appearance-title {
     text-align: center;
-    font-size: 17px;
+    font-size: 1.0625rem;
     font-weight: 640;
     letter-spacing: -0.01em;
   }
@@ -2440,7 +2477,7 @@ body {
 
   .appearance-header-text {
     padding-inline: 12px;
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 560;
     color: var(--accent);
   }
@@ -2468,7 +2505,7 @@ body {
   }
 
   .appearance-section-title {
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 640;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -2477,7 +2514,7 @@ body {
 
   .appearance-section-hint {
     margin-top: 3px;
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--text-secondary);
     opacity: 0.82;
   }
@@ -2517,7 +2554,7 @@ body {
     max-width: 78%;
     padding: 8px 11px;
     border-radius: 16px;
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.32;
   }
 
@@ -2555,7 +2592,7 @@ body {
   }
 
   .appearance-preview-sender {
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 640;
     color: var(--accent);
   }
@@ -2565,7 +2602,7 @@ body {
     align-items: center;
     gap: 3px;
     align-self: flex-end;
-    font-size: 10.5px;
+    font-size: 0.65625rem;
     font-variant-numeric: tabular-nums;
     color: var(--bubble-outgoing-muted);
   }
@@ -2587,7 +2624,7 @@ body {
     margin-bottom: 2px;
     border-left: 2px solid currentColor;
     opacity: 0.78;
-    font-size: 12px;
+    font-size: 0.75rem;
   }
 
   .appearance-preview-reply-name {
@@ -2698,13 +2735,13 @@ body {
   }
 
   .appearance-card-title {
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 580;
     color: var(--text-primary);
   }
 
   .appearance-card-hint {
-    font-size: 11px;
+    font-size: 0.6875rem;
     line-height: 1.25;
     color: var(--text-secondary);
   }
@@ -2765,7 +2802,7 @@ body {
     flex: 1 1 0;
     min-height: 40px;
     border-radius: 11px;
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 560;
     color: var(--text-secondary);
     transition: background-color 140ms ease, color 140ms ease;
@@ -2797,7 +2834,7 @@ body {
     border-radius: 15px;
     background: var(--accent);
     color: #fff;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 620;
     transition: opacity 140ms ease, transform 140ms ease;
   }
@@ -2816,7 +2853,7 @@ body {
     border-radius: 15px;
     background: var(--surface-secondary);
     color: var(--text-primary);
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 560;
   }
 
@@ -2840,13 +2877,13 @@ body {
   }
 
   .appearance-confirm-title {
-    font-size: 17px;
+    font-size: 1.0625rem;
     font-weight: 620;
   }
 
   .appearance-confirm-text {
     margin-top: 4px;
-    font-size: 14px;
+    font-size: 0.875rem;
     color: var(--text-secondary);
   }
 
@@ -2858,3 +2895,74 @@ body {
   }
 }
 
+
+/* The interface-size slider.
+
+   A real <input type="range"> does the interaction — keyboard, touch, the
+   announced value — and the visible track, ticks and thumb are drawn behind
+   it. So the native furniture is hidden rather than styled: the input stays a
+   transparent, full-height hit area sitting over its own artwork. */
+.ui-scale-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.75rem;
+  height: 2.75rem;
+  background: transparent;
+  border: 0;
+}
+
+.ui-scale-range::-webkit-slider-runnable-track {
+  background: transparent;
+  border: 0;
+  height: 2.75rem;
+}
+
+.ui-scale-range::-moz-range-thumb {
+  width: 1.75rem;
+  height: 2.75rem;
+  background: transparent;
+  border: 0;
+}
+
+.ui-scale-range::-moz-range-track {
+  background: transparent;
+  border: 0;
+  height: 2.75rem;
+}
+
+/* Keyboard focus has to land somewhere visible even though the control the
+   user sees is the artwork behind the input. The thumb follows the input in
+   the DOM for exactly this reason, so the ring can be drawn on the one element
+   that has a shape worth ringing. */
+.ui-scale-range:focus-visible ~ .ui-scale-thumb {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* The dock at the largest interface sizes.
+
+   Four tabs, a search button and a label all grow together, and the dock's own
+   width is bounded by the phone — so past a point the active tab's label has
+   nowhere left to go and gets clipped mid-word. Dropping the label instead is
+   what the platform itself does when type gets large: the icons still say what
+   each tab is, and a clipped word says nothing. The label already animates its
+   width open and closed, so this rides the same transition rather than
+   introducing a second mechanism. */
+html[data-ui-scale="6"] .dock-tab-label,
+html[data-ui-scale="7"] .dock-tab-label {
+  max-width: 0;
+  opacity: 0;
+}
+
+/* The point where the label stops fitting depends on the phone as well as the
+   scale. Measured on a 320px iPhone SE, "Чаты" needs 30px and has 27 at the
+   first enlarged stop — so that width gives up its labels one step sooner.
+   `px` in the query on purpose: this is about the device, not the type size,
+   and media queries resolve `rem` against the browser's initial font size
+   anyway, which would make a rem threshold here quietly meaningless. */
+@media (max-width: 359px) {
+  html[data-ui-scale="5"] .dock-tab-label {
+    max-width: 0;
+    opacity: 0;
+  }
+}

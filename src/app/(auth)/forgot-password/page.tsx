@@ -178,7 +178,7 @@ export default function ForgotPasswordPage() {
               {pending ? "Сохранение..." : "Сохранить новый пароль"}
             </button>
 
-            <p className="text-center text-[10px] font-bold text-muted mt-6 px-4">
+            <p className="text-center text-[0.625rem] font-bold text-muted mt-6 px-4">
               Код можно получить у администратора после подтверждения заявки или на доверенном устройстве Nox.
             </p>
           </form>

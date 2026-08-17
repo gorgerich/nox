@@ -99,8 +99,8 @@ export function IncomingRequestCards({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-primary/75">Новый запрос</p>
-                  <h3 className="truncate text-[17px] font-semibold tracking-tight text-foreground">{displayName}</h3>
+                  <p className="text-[0.8125rem] font-medium text-primary/75">Новый запрос</p>
+                  <h3 className="truncate text-[1.0625rem] font-semibold tracking-tight text-foreground">{displayName}</h3>
                 </div>
               </div>
               <div className="flex gap-2">

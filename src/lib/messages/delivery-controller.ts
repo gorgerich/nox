@@ -87,7 +87,7 @@ export type DeliveryControllerOptions = {
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 
-function newClientMessageId(): string {
+export function newClientMessageId(): string {
   const globalCrypto = typeof crypto !== "undefined" ? crypto : undefined;
   if (globalCrypto?.randomUUID) return globalCrypto.randomUUID();
   return `cid-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;

@@ -61,9 +61,9 @@ export default function LoginPage() {
     <main className="auth-screen app-screen justify-center px-6 py-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
       <div className="mx-auto w-full max-w-sm">
         <div className="flex flex-col items-center text-center">
-          <div className="auth-logo text-[26px] font-bold">N</div>
+          <div className="auth-logo text-[1.625rem] font-bold">N</div>
           <h1 className="mt-6 text-[2rem] font-bold leading-tight tracking-tight text-foreground">Войти в Nox</h1>
-          <p className="mt-2 max-w-[17rem] text-[15px] leading-6 text-muted">
+          <p className="mt-2 max-w-[17rem] text-[0.9375rem] leading-6 text-muted">
             Введите логин и пароль, чтобы открыть чаты.
           </p>
         </div>

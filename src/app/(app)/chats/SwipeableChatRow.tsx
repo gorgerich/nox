@@ -366,7 +366,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
             <div className="mb-0.5 flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 {hasUnread ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" /> : null}
-                <p className={`truncate text-[15px] text-foreground ${hasUnread ? "font-bold" : "font-semibold"}`}>{title}</p>
+                <p className={`truncate text-[0.9375rem] text-foreground ${hasUnread ? "font-bold" : "font-semibold"}`}>{title}</p>
                 {muted ? (
                   <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/50" />
                 ) : null}
@@ -374,7 +374,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
               <LocalTime
                 value={chat.lastMessage?.createdAt ?? chat.createdAt}
                 kind="chatListStamp"
-                className={`shrink-0 text-[12px] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}
+                className={`shrink-0 text-[0.75rem] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -391,7 +391,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                 {PreviewIconComponent ? (
                   <PreviewIconComponent className="h-3.5 w-3.5 shrink-0 text-muted/60" strokeWidth={2} aria-hidden="true" />
                 ) : null}
-                <p className={`min-w-0 flex-1 truncate text-[13.5px] leading-snug ${previewToneClass}`}>
+                <p className={`min-w-0 flex-1 truncate text-[0.84375rem] leading-snug ${previewToneClass}`}>
                   {previewNode}
                 </p>
               </div>
@@ -399,7 +399,7 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                 <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/40" />
               ) : null}
               {hasUnread ? (
-                <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-none tabular-nums text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
+                <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold leading-none tabular-nums text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>
                   {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
                 </span>
               ) : null}

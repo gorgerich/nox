@@ -153,17 +153,17 @@ export function RecoveryKeyPanel({ userId }: { userId: string }) {
       )}
 
       {error ? (
-        <p role="alert" className="px-5 text-[13px] text-danger">
+        <p role="alert" className="px-5 text-[0.8125rem] text-danger">
           {error}
         </p>
       ) : null}
       {done ? (
-        <p role="status" className="px-5 text-[13px] text-success">
+        <p role="status" className="px-5 text-[0.8125rem] text-success">
           {done}
         </p>
       ) : null}
 
-      <p className="px-5 text-[13px] leading-snug text-muted">
+      <p className="px-5 text-[0.8125rem] leading-snug text-muted">
         <SettingsNote>
           Фразу невозможно восстановить: сервер хранит только зашифрованный ключ и никогда не видит
           саму фразу. Сообщения, зашифрованные до создания ключа, останутся недоступны — их нельзя

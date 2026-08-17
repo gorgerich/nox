@@ -41,7 +41,7 @@ export function SettingsScreen({
         <button
           type="button"
           onClick={onBack}
-          className="fast-tap -ml-0.5 flex h-11 items-center gap-0.5 rounded-full pl-2 pr-3 text-[17px] text-primary transition-smooth hover:bg-primary/10"
+          className="fast-tap -ml-0.5 flex h-11 items-center gap-0.5 rounded-full pl-2 pr-3 text-[1.0625rem] text-primary transition-smooth hover:bg-primary/10"
         >
           <svg className="h-[22px] w-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
@@ -52,7 +52,7 @@ export function SettingsScreen({
             never pushes it off-centre or wraps the header to two lines. */}
         <h1
           id={titleId}
-          className="pointer-events-none absolute inset-x-0 mx-auto max-w-[55%] truncate text-center text-[17px] font-semibold tracking-tight text-foreground"
+          className="pointer-events-none absolute inset-x-0 mx-auto max-w-[55%] truncate text-center text-[1.0625rem] font-semibold tracking-tight text-foreground"
         >
           {title}
         </h1>

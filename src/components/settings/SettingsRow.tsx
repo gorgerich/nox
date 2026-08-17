@@ -9,16 +9,16 @@ import type { ReactNode } from "react";
  * invented its own row, which is why the same idea — "a thing you tap to open
  * a sub-screen" — looked different in three places.
  *
- * Title is the only text that reads first: `text-[17px]` at regular weight.
- * Everything else (subtitle, value, footnote) is `text-[13px]`/`text-[15px]`
+ * Title is the only text that reads first: `text-[1.0625rem]` at regular weight.
+ * Everything else (subtitle, value, footnote) is `text-[0.8125rem]`/`text-[0.9375rem]`
  * in muted, so hierarchy is carried by contrast rather than by weight
  * escalation.
  */
 
 const ROW = "flex w-full items-center gap-3 px-4 py-3 text-left min-h-[52px]";
-const TITLE = "truncate text-[17px] text-foreground";
-const SUBTITLE = "mt-0.5 line-clamp-2 text-[13px] leading-snug text-muted";
-const VALUE = "shrink-0 text-[15px] text-muted";
+const TITLE = "truncate text-[1.0625rem] text-foreground";
+const SUBTITLE = "mt-0.5 line-clamp-2 text-[0.8125rem] leading-snug text-muted";
+const VALUE = "shrink-0 text-[0.9375rem] text-muted";
 
 function Chevron() {
   return (
@@ -179,7 +179,7 @@ export function SettingsActionRow({
       className={`${ROW} transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-40`}
     >
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[17px] ${toneClass}`}>{busy ? "Подождите…" : title}</span>
+        <span className={`block truncate text-[1.0625rem] ${toneClass}`}>{busy ? "Подождите…" : title}</span>
         {subtitle ? <span className={`block ${SUBTITLE}`}>{subtitle}</span> : null}
       </span>
     </button>
@@ -265,12 +265,12 @@ export function SettingsInputRow({
   hideLabel?: boolean;
 }) {
   const field =
-    "min-w-0 flex-1 bg-transparent text-[17px] text-foreground outline-none placeholder:text-muted/60";
+    "min-w-0 flex-1 bg-transparent text-[1.0625rem] text-foreground outline-none placeholder:text-muted/60";
 
   if (multiline) {
     return (
       <div className="px-4 py-3">
-        <label htmlFor={id} className={hideLabel ? "sr-only" : "block text-[13px] text-muted"}>
+        <label htmlFor={id} className={hideLabel ? "sr-only" : "block text-[0.8125rem] text-muted"}>
           {label}
         </label>
         <textarea
@@ -288,10 +288,10 @@ export function SettingsInputRow({
 
   return (
     <div className="flex min-h-[52px] items-center gap-3 px-4 py-2">
-      <label htmlFor={id} className="w-[104px] shrink-0 text-[17px] text-foreground">
+      <label htmlFor={id} className="w-[104px] shrink-0 text-[1.0625rem] text-foreground">
         {label}
       </label>
-      {prefix ? <span className="shrink-0 text-[17px] text-muted">{prefix}</span> : null}
+      {prefix ? <span className="shrink-0 text-[1.0625rem] text-muted">{prefix}</span> : null}
       <input
         id={id}
         type={type}
@@ -337,7 +337,7 @@ export function SettingsSegmented<T extends string>({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.value)}
-            className={`min-h-[34px] flex-1 rounded-lg px-2 text-[14px] transition-smooth ${
+            className={`min-h-[34px] flex-1 rounded-lg px-2 text-[0.875rem] transition-smooth ${
               selected
                 ? "bg-surface text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.14)]"
                 : "text-muted hover:text-foreground"
@@ -359,7 +359,7 @@ export function SettingsPrimaryButton({
   return (
     <button
       {...props}
-      className="fast-tap h-12 w-full rounded-full bg-primary text-[17px] font-medium text-primary-foreground transition-smooth disabled:opacity-40"
+      className="fast-tap h-12 w-full rounded-full bg-primary text-[1.0625rem] font-medium text-primary-foreground transition-smooth disabled:opacity-40"
     >
       {children}
     </button>

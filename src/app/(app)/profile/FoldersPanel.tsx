@@ -243,7 +243,7 @@ export function FoldersPanel({
         </SettingsGroup>
 
         {message ? (
-          <p role="status" className="px-5 text-[13px] text-muted">{message}</p>
+          <p role="status" className="px-5 text-[0.8125rem] text-muted">{message}</p>
         ) : null}
       </SettingsStack>
 
@@ -297,8 +297,8 @@ export function FoldersPanel({
                       ) : null}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[17px] text-foreground">{chat.title}</span>
-                      <span className="mt-0.5 block truncate text-[13px] text-muted">{chat.subtitle}</span>
+                      <span className="block truncate text-[1.0625rem] text-foreground">{chat.title}</span>
+                      <span className="mt-0.5 block truncate text-[0.8125rem] text-muted">{chat.subtitle}</span>
                     </span>
                   </button>
                 );

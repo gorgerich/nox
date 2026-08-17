@@ -48,7 +48,9 @@
     "validate:settings-polish": "tsx scripts/validate-settings-polish.ts",
     "measure:performance": "tsx scripts/measure-performance.ts",
     "validate:conversation-open": "tsx scripts/validate-conversation-open.ts",
-    "validate:e2ee-recovery": "tsx scripts/validate-e2ee-recovery.ts"
+    "validate:e2ee-recovery": "tsx scripts/validate-e2ee-recovery.ts",
+    "validate:ui-scale": "tsx scripts/validate-ui-scale.ts",
+    "validate:instant-send": "tsx scripts/validate-instant-send.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

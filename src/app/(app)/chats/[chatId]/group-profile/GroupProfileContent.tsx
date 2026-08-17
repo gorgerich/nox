@@ -324,7 +324,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-foreground/5 px-2 py-1 text-[11px] font-medium text-muted">{roleLabel(m.role)}</span>
+                  <span className="rounded-full bg-foreground/5 px-2 py-1 text-[0.6875rem] font-medium text-muted">{roleLabel(m.role)}</span>
                 {permissions.canRemoveMembers && !m.isSelf && (
                   <button onClick={() => handleRemoveMember(m.userId)} className="rounded-full p-2 text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover:opacity-100" aria-label="Удалить участника">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -429,7 +429,7 @@ function ActionButton({ label, icon, onClick }: { label: string, icon: React.Rea
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-[0.96]">
         {icon}
       </div>
-      <span className="text-[11px] font-semibold text-primary opacity-90">{label}</span>
+      <span className="text-[0.6875rem] font-semibold text-primary opacity-90">{label}</span>
     </button>
   );
 }

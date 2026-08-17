@@ -52,10 +52,10 @@ export function E2EEUserDevices({ userId }: { userId: string }) {
           <div key={device.deviceId} className="rounded-xl border border-border-subtle bg-surface p-3 text-left">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold text-foreground">{device.name || device.platform || "Nox device"}</p>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${device.isVerified ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>{device.isVerified ? "Проверено" : "Не проверено"}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${device.isVerified ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>{device.isVerified ? "Проверено" : "Не проверено"}</span>
             </div>
             {device.keyChanged ? <p className="mt-2 text-xs font-semibold text-destructive">Ключ устройства изменился</p> : null}
-            <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-muted/45">{device.fingerprintShort}</p>
+            <p className="mt-2 break-all font-mono text-[0.625rem] leading-relaxed text-muted/45">{device.fingerprintShort}</p>
             {!device.isVerified ? <button onClick={() => void verifyDevice(device)} className="mt-3 rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">Проверить</button> : null}
           </div>
         ))}

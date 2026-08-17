@@ -193,6 +193,10 @@ const MERGE_GATES = [
   { name: "validate:a11y-basics", cmd: "npm", args: ["run", "validate:a11y-basics"], needsDb: true, browser: true },
   { name: "validate:press-feedback", cmd: "npm", args: ["run", "validate:press-feedback"], needsDb: true, browser: true },
   { name: "validate:conversation-open", cmd: "npm", args: ["run", "validate:conversation-open"], needsDb: true, browser: true },
+  // Both of these guard something a screenshot cannot: that the send feels
+  // finished before the network is, and that a video note keeps one size.
+  { name: "validate:instant-send", cmd: "npm", args: ["run", "validate:instant-send"], needsDb: true, browser: true },
+  { name: "validate:ui-scale", cmd: "npm", args: ["run", "validate:ui-scale"], needsDb: true, browser: true },
   { name: "validate:e2ee-recovery", cmd: "npm", args: ["run", "validate:e2ee-recovery"], needsDb: true, browser: true },
   { name: "production build", cmd: "npm", args: ["run", "build"] },
 ];

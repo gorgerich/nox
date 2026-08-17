@@ -169,7 +169,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         <button
           type="button"
           onClick={() => setIsEditSheetOpen(true)}
-          className="rounded-full bg-surface-elevated px-4 py-2 text-[16px] font-semibold text-foreground shadow-sm transition-smooth active:scale-[0.96]"
+          className="rounded-full bg-surface-elevated px-4 py-2 text-[1rem] font-semibold text-foreground shadow-sm transition-smooth active:scale-[0.96]"
         >
           Изменить
         </button>
@@ -194,8 +194,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-background bg-primary" />}
         </div>
         
-        <h2 className="text-center text-[32px] font-semibold leading-tight tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
-        <p className={`mt-1 text-[16px] ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
+        <h2 className="text-center text-[2rem] font-semibold leading-tight tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
+        <p className={`mt-1 text-[1rem] ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
       </section>
 
       <div className="mb-7 grid grid-cols-4 gap-1 px-5">
@@ -226,8 +226,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           <div className="px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[15px] text-muted">Username</p>
-                <p className="mt-0.5 truncate text-[20px] font-medium text-primary">@{partnerUser.username}</p>
+                <p className="text-[0.9375rem] text-muted">Username</p>
+                <p className="mt-0.5 truncate text-[1.25rem] font-medium text-primary">@{partnerUser.username}</p>
               </div>
               <button
                 type="button"
@@ -241,8 +241,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           </div>
           <div className="mx-5 h-px bg-border-subtle" />
           <div className="px-5 py-4">
-            <p className="text-[15px] text-muted">Описание</p>
-            <p className="mt-0.5 whitespace-pre-wrap text-[17px] leading-snug text-foreground">
+            <p className="text-[0.9375rem] text-muted">Описание</p>
+            <p className="mt-0.5 whitespace-pre-wrap text-[1.0625rem] leading-snug text-foreground">
               {partnerUser.bio?.trim() || "Описание профиля не добавлено"}
             </p>
           </div>
@@ -324,7 +324,7 @@ function ActionButton({ label, icon, onClick, destructive }: { label: string, ic
       <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-[0.96] group-hover:bg-foreground/5 ${destructive ? "text-danger" : "text-primary"}`}>
         {icon}
       </div>
-      <span className={`text-[11px] font-medium ${destructive ? "text-danger" : "text-primary"}`}>{label}</span>
+      <span className={`text-[0.6875rem] font-medium ${destructive ? "text-danger" : "text-primary"}`}>{label}</span>
     </button>
   );
 }
@@ -496,7 +496,7 @@ function SharedMediaTile({ item, chatId, currentUserId }: { item: PhotoItem, cha
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} className="h-full w-full object-cover" alt="" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-bold text-muted">
+        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[0.625rem] font-bold text-muted">
           {error ? "Медиа недоступно" : "Расшифровка…"}
         </div>
       )}

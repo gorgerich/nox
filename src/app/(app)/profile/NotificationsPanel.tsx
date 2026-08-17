@@ -68,7 +68,7 @@ export function NotificationsPanel({
       </SettingsGroup>
 
       {error ? (
-        <p role="alert" className="px-5 text-[13px] text-danger">{error}</p>
+        <p role="alert" className="px-5 text-[0.8125rem] text-danger">{error}</p>
       ) : null}
     </SettingsStack>
   );

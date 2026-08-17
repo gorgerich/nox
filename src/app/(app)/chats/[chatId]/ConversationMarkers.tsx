@@ -15,7 +15,7 @@ export function DateSeparator({ date }: { date: Date }) {
     <div className="my-3 flex justify-center">
       <time
         dateTime={date.toISOString()}
-        className="rounded-full px-3 py-[5px] text-[13px] font-medium"
+        className="rounded-full px-3 py-[5px] text-[0.8125rem] font-medium"
         style={{ background: "var(--chat-date-bg, rgba(120,120,128,0.28))", color: "var(--chat-date-fg, var(--foreground))" }}
       >
         {label}
@@ -34,7 +34,7 @@ export function UnreadSeparator({ count }: { count?: number }) {
   return (
     <div className="my-3 flex items-center gap-3 px-1" role="separator" aria-label={label}>
       <span className="h-px flex-1" style={{ background: "var(--accent-muted)" }} aria-hidden="true" />
-      <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
+      <span className="text-[0.75rem] font-semibold" style={{ color: "var(--accent)" }}>
         Новые сообщения
       </span>
       <span className="h-px flex-1" style={{ background: "var(--accent-muted)" }} aria-hidden="true" />
@@ -67,7 +67,7 @@ export function TypingIndicator({ names }: { names: string[] }) {
           />
         ))}
       </span>
-      <span className="min-w-0 truncate text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+      <span className="min-w-0 truncate text-[0.8125rem] font-medium" style={{ color: "var(--text-secondary)" }}>
         {typingLabel(names)}
       </span>
     </div>

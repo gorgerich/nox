@@ -30,7 +30,7 @@ export function SettingsGroup({
   return (
     <section className={`px-4 ${className}`}>
       {label ? (
-        <h2 className="px-1 pb-2 text-[13px] font-medium uppercase tracking-[0.04em] text-muted">
+        <h2 className="px-1 pb-2 text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-muted">
           {label}
         </h2>
       ) : null}
@@ -43,7 +43,7 @@ export function SettingsGroup({
         ))}
       </div>
       {footer ? (
-        <p className="px-1 pt-2 text-[13px] leading-snug text-muted">{footer}</p>
+        <p className="px-1 pt-2 text-[0.8125rem] leading-snug text-muted">{footer}</p>
       ) : null}
     </section>
   );
@@ -68,13 +68,13 @@ export function SettingsBlock({
   return (
     <section className={`px-4 ${className}`}>
       {label ? (
-        <h2 className="px-1 pb-2 text-[13px] font-medium uppercase tracking-[0.04em] text-muted">
+        <h2 className="px-1 pb-2 text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-muted">
           {label}
         </h2>
       ) : null}
       {children}
       {footer ? (
-        <p className="px-1 pt-2 text-[13px] leading-snug text-muted">{footer}</p>
+        <p className="px-1 pt-2 text-[0.8125rem] leading-snug text-muted">{footer}</p>
       ) : null}
     </section>
   );

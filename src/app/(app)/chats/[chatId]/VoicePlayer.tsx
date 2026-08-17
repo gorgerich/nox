@@ -175,7 +175,7 @@ export function VoicePlayer({
         </div>
         
         <div
-          className="mt-1 flex items-center justify-between text-[11px] font-semibold tabular-nums"
+          className="mt-1 flex items-center justify-between text-[0.6875rem] font-semibold tabular-nums"
           style={{ color: isMine ? "var(--bubble-outgoing-muted)" : "var(--bubble-incoming-muted)" }}
         >
           <span>{formatTime(currentTime)}</span>

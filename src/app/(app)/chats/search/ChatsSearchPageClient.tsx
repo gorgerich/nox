@@ -137,7 +137,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Поиск"
-              className="h-11 w-full rounded-full bg-transparent px-11 text-[17px] font-medium outline-none transition-smooth placeholder:text-muted/60"
+              className="h-11 w-full rounded-full bg-transparent px-11 text-[1.0625rem] font-medium outline-none transition-smooth placeholder:text-muted/60"
               type="search"
               autoFocus
               enterKeyHint="search"
@@ -180,7 +180,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                         avatarInitial(title)
                       )}
                     </div>
-                    <span className="line-clamp-1 w-full text-[13px] font-medium leading-4 text-foreground">{title}</span>
+                    <span className="line-clamp-1 w-full text-[0.8125rem] font-medium leading-4 text-foreground">{title}</span>
                   </Link>
                 );
               })}

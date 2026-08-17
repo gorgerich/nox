@@ -70,7 +70,7 @@ function CallControlButton({
           icon
         )}
       </span>
-      <span className="text-[12px] font-medium text-white/75">{label}</span>
+      <span className="text-[0.75rem] font-medium text-white/75">{label}</span>
     </button>
   );
 }
@@ -549,7 +549,7 @@ export function CallOverlay() {
         style={{ top: "calc(env(safe-area-inset-top, 0px) + 6px)" }}
       >
         <PhoneIcon />
-        <span className="text-[13px] font-semibold tabular-nums">
+        <span className="text-[0.8125rem] font-semibold tabular-nums">
           {isActive ? formatDuration(elapsedSec) : statusText}
         </span>
       </button>,
@@ -618,7 +618,7 @@ export function CallOverlay() {
       />
 
       {DEBUG_CALLS && (
-        <div className="absolute left-4 top-24 z-50 max-w-[200px] rounded-lg bg-black/80 p-3 text-[10px] font-mono text-green-500 shadow-xl backdrop-blur-md">
+        <div className="absolute left-4 top-24 z-50 max-w-[200px] rounded-lg bg-black/80 p-3 text-[0.625rem] font-mono text-green-500 shadow-xl backdrop-blur-md">
           <div className="mb-1 border-b border-green-500/30 pb-1 font-bold">CALL DEBUG</div>
           <div>ID: {debugInfo.callId?.slice(0, 8)}...</div>
           <div>Role: {debugInfo.role}</div>
@@ -675,7 +675,7 @@ export function CallOverlay() {
             <ChevronDownIcon />
           </button>
           {status === "outgoing" && !isVideo ? (
-            <span className="text-[13px] font-medium text-white/55">Исходящий аудиозвонок</span>
+            <span className="text-[0.8125rem] font-medium text-white/55">Исходящий аудиозвонок</span>
           ) : <span />}
           <div className="relative">
             <button
@@ -729,13 +729,13 @@ export function CallOverlay() {
         )}
 
         <h2
-          className={`mb-1 text-[28px] font-semibold tracking-tight text-white ${
+          className={`mb-1 text-[1.75rem] font-semibold tracking-tight text-white ${
             showRemoteFullscreen ? "drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]" : ""
           }`}
         >
           {peer.displayName}
         </h2>
-        <p className={`text-[15px] font-medium tabular-nums ${isActive ? "text-white/85" : "text-white/60"}`}>
+        <p className={`text-[0.9375rem] font-medium tabular-nums ${isActive ? "text-white/85" : "text-white/60"}`}>
           {statusText}
         </p>
 
@@ -744,7 +744,7 @@ export function CallOverlay() {
             mandatory DTLS-SRTP, not the app's pinned-device-key E2EE that
             messages use. */}
         {isActive && (
-          <p className="mt-2 flex items-center gap-1 text-[12px] font-medium text-white/45">
+          <p className="mt-2 flex items-center gap-1 text-[0.75rem] font-medium text-white/45">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
@@ -869,8 +869,8 @@ export function CallOverlay() {
         >
           <div className="premium-glass w-full max-w-sm overflow-hidden rounded-2xl">
             <div className="px-5 py-4 text-center">
-              <p className="text-[15px] font-semibold text-white">Нет доступа к камере</p>
-              <p className="mt-1 text-[13px] leading-snug text-white/60">
+              <p className="text-[0.9375rem] font-semibold text-white">Нет доступа к камере</p>
+              <p className="mt-1 text-[0.8125rem] leading-snug text-white/60">
                 Разрешите доступ к камере в настройках iPhone, чтобы включить видео.
               </p>
             </div>
@@ -878,7 +878,7 @@ export function CallOverlay() {
             <button
               type="button"
               onClick={(event) => { event.stopPropagation(); clearError(); }}
-              className="h-[52px] w-full text-[17px] font-semibold text-primary transition-smooth hover:bg-white/5"
+              className="h-[52px] w-full text-[1.0625rem] font-semibold text-primary transition-smooth hover:bg-white/5"
             >
               Понятно
             </button>

@@ -1,6 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  UI_SCALE_DEFAULT,
+  UI_SCALE_STORAGE_KEY,
+  applyUiScale,
+  parseUiScaleLevel,
+  type UiScaleLevel,
+} from "@/lib/ui-scale";
 
 type ThemePreference = "dark" | "light" | "system";
 type EffectiveTheme = "dark" | "light";
@@ -21,8 +28,11 @@ interface ThemeContextType {
   theme: ThemePreference;
   effectiveTheme: EffectiveTheme;
   accent: AccentPreference;
+  /** Global interface scale, 1-7. See src/lib/ui-scale.ts. */
+  uiScale: UiScaleLevel;
   setTheme: (theme: ThemePreference) => void;
   setAccent: (accent: AccentPreference) => void;
+  setUiScale: (level: UiScaleLevel) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
@@ -114,6 +124,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedAccent = localStorage.getItem(ACCENT_STORAGE_KEY);
     return isAccentPreference(storedAccent) ? storedAccent : "blue";
   });
+  // Seeded from the root element, which the boot script has already written
+  // from storage — the same order the theme uses, and the reason neither one
+  // flashes its default before hydration catches up.
+  const [uiScale, setUiScaleState] = useState<UiScaleLevel>(() => {
+    if (typeof document === "undefined") {
+      return UI_SCALE_DEFAULT;
+    }
+
+    const fromRoot = Number(document.documentElement.dataset.uiScale);
+    if (Number.isInteger(fromRoot) && fromRoot >= 1 && fromRoot <= 7) {
+      return fromRoot as UiScaleLevel;
+    }
+
+    return parseUiScaleLevel(localStorage.getItem(UI_SCALE_STORAGE_KEY));
+  });
   const systemPrefersDark = useSyncExternalStore(
     subscribeToSystemTheme,
     getSystemThemeSnapshot,
@@ -129,6 +154,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(ACCENT_STORAGE_KEY, accent);
   }, [theme, effectiveTheme, accent]);
 
+  // Applies to the DOM only. Storage is written where the choice is made, not
+  // on every mount: the boot script has already read the value by the time
+  // this runs, so a write here says nothing new — and it lands *after* the
+  // page has settled, which is late enough to overwrite a value someone else
+  // put there in between.
+  useEffect(() => {
+    applyUiScale(uiScale, document.documentElement);
+  }, [uiScale]);
+
   const setTheme = (newTheme: ThemePreference) => {
     setThemeState(newTheme);
   };
@@ -137,8 +171,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setAccentState(newAccent);
   };
 
+  const setUiScale = (level: UiScaleLevel) => {
+    // The root property is written here as well as in the effect above: a drag
+    // should land on the same frame as the finger, and waiting for React to
+    // commit before touching the DOM is what makes a live preview feel late.
+    applyUiScale(level, document.documentElement);
+    localStorage.setItem(UI_SCALE_STORAGE_KEY, String(level));
+    setUiScaleState(level);
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, effectiveTheme, accent, setTheme, setAccent }}>
+    <ThemeContext.Provider value={{ theme, effectiveTheme, accent, uiScale, setTheme, setAccent, setUiScale }}>
       {children}
     </ThemeContext.Provider>
   );

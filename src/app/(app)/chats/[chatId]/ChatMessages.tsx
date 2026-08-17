@@ -33,6 +33,7 @@ import { EMOJI_GROUPS } from "@/lib/emoji-data";
 import { ChevronDown } from "lucide-react";
 import { useMessageDelivery, type UseMessageDelivery } from "./useMessageDelivery";
 import { sendStagedAttachment } from "./attachment-transport";
+import { newClientMessageId } from "@/lib/messages/delivery-controller";
 import { createIndexedDbOutboxBlobStore } from "@/lib/messages/pending-repository";
 import type { DeliveryTransport } from "@/lib/messages/delivery-controller";
 import type { ServerMessage } from "@/lib/messages/reconcile";
@@ -183,7 +184,7 @@ function E2EEDisclaimer() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9.6 12.2 11.3 14l3.5-4" />
           </svg>
         </span>
-        <span className="text-[14px] font-semibold leading-5 text-foreground">
+        <span className="text-[0.875rem] font-semibold leading-5 text-foreground">
           Сообщения и звонки защищены сквозным шифрованием. Никто вне этого чата, даже Nox, не может читать или слушать их. Нажмите, чтобы узнать больше.
         </span>
       </Link>
@@ -814,6 +815,9 @@ export function ChatMessages({
 
     for (const clientMessageId of wanted) {
       if (pendingUrlsRef.current[clientMessageId]) continue;
+      // Falls back to the staged copy on disk. This is the reload path — the
+      // send path registers the URL from the file it already has in hand, and
+      // never reaches here.
       void outboxBlobs
         .get(clientMessageId)
         .then((blob) => {
@@ -890,7 +894,12 @@ export function ChatMessages({
       });
 
     return overlay.length > 0 ? [...canonical, ...overlay] : canonical;
-  }, [messages, decryptedBodies, unavailableMessageIds, delivery.pending, currentUserId]);
+    // `pendingAttachmentUrls` belongs here. Without it the overlay was built
+    // once with `url: ""` and never rebuilt when the preview URL arrived, so a
+    // just-recorded video note sat as an empty circle until some unrelated
+    // state change happened to invalidate this memo — the one to two seconds
+    // of nothing the user was seeing.
+  }, [messages, decryptedBodies, unavailableMessageIds, delivery.pending, currentUserId, pendingAttachmentUrls]);
 
   // Persist decrypted bodies to the in-memory cache so a later re-open seeds
   // instantly (RAM only — see chat-cache.ts).
@@ -1779,7 +1788,24 @@ export function ChatMessages({
     debugMedia("file selected", { name: file.name, type: file.type, size: file.size });
     const replyTarget = replyingToMessage;
     setReplyingToMessage(null);
-    await delivery.sendAttachment(file, { replyToMessageId: replyTarget?.id ?? null });
+
+    // The id and the preview are minted here, before anything is awaited.
+    //
+    // `sendAttachment` resolves only after the bytes are staged in IndexedDB —
+    // deliberately, so a send survives a reload — and for a video note that is
+    // a multi-megabyte write. Waiting for the staged copy to be written and
+    // then read back out again was the whole delay: the bubble appeared with
+    // no source and stayed empty for a second or two. The file is already in
+    // memory at this point, so the preview costs one `createObjectURL`.
+    const clientMessageId = newClientMessageId();
+    const previewUrl = URL.createObjectURL(file);
+    pendingUrlsRef.current[clientMessageId] = previewUrl;
+    setPendingAttachmentUrls((current) => ({ ...current, [clientMessageId]: previewUrl }));
+
+    await delivery.sendAttachment(file, {
+      replyToMessageId: replyTarget?.id ?? null,
+      clientMessageId,
+    });
   }, [debugMedia, delivery, replyingToMessage]);
 
   const handleSend = useCallback(async (body: string) => {
@@ -2147,7 +2173,7 @@ export function ChatMessages({
                  into a picker rather than stacking more chrome). */}
              {!reactionPickerExpanded && chatInfo.type === "GROUP" && focusedMessage.senderUserId === currentUserId && (
                <div className="flex items-center justify-between gap-3 mb-2 px-3 py-1.5 bg-foreground/5 rounded-2xl">
-                 <span className="text-[11px] font-semibold text-muted/80">
+                 <span className="text-[0.6875rem] font-semibold text-muted/80">
                    {!menuState.readers ? "Загрузка..." : menuState.readers.length === 0 ? "Никто не прочитал" : `${menuState.readers.length} прочитали`}
                  </span>
                  <div className="flex items-center -space-x-1.5">
@@ -2156,7 +2182,7 @@ export function ChatMessages({
                        {r.avatarUrl ? (
                          <Image src={normalizeAvatarUrl(r.avatarUrl) || ""} fill className="object-cover" alt={r.name} />
                        ) : (
-                         <span className="text-[9px] font-semibold text-primary">{r.name[0]?.toUpperCase()}</span>
+                         <span className="text-[0.5625rem] font-semibold text-primary">{r.name[0]?.toUpperCase()}</span>
                        )}
                      </div>
                    ))}
@@ -2171,7 +2197,7 @@ export function ChatMessages({
                >
                  {EMOJI_GROUPS.map((group) => (
                    <div key={group.label} className="mb-2 last:mb-0">
-                     <p className="mb-1 px-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted/60">{group.label}</p>
+                     <p className="mb-1 px-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted/60">{group.label}</p>
                      <div className="grid grid-cols-8 gap-0.5">
                        {group.emojis.map((emoji) => (
                          <button
@@ -2394,7 +2420,7 @@ export function ChatMessages({
                   <button key={m.id} onClick={() => jumpToMessage(m.id)} className="w-full text-left p-3 rounded-2xl hover:bg-foreground/5 transition-smooth active:scale-[0.96]">
                      <div className="flex justify-between mb-1">
                         <span className="text-xs font-semibold text-primary">{m.senderName}</span>
-                        <LocalTime value={m.createdAt} kind="date" className="text-[9px] font-bold text-muted" />
+                        <LocalTime value={m.createdAt} kind="date" className="text-[0.5625rem] font-bold text-muted" />
                      </div>
                      <p className="text-xs truncate text-foreground/80">
                         {searchQuery ? (
@@ -2451,7 +2477,7 @@ export function ChatMessages({
             <>
               <div className="flex justify-center py-3">
                 <span
-                  className="rounded-full border px-3 py-1.5 text-[11px] font-semibold backdrop-blur-md"
+                  className="rounded-full border px-3 py-1.5 text-[0.6875rem] font-semibold backdrop-blur-md"
                   style={{
                     backgroundColor: "var(--chat-date-bg)",
                     color: "var(--chat-date-fg)",
@@ -2483,7 +2509,7 @@ export function ChatMessages({
                 {firstUnreadId === item.message.id ? (
                   <div className="my-3 flex items-center gap-3 px-2">
                     <div className="h-px flex-1 bg-primary/30" />
-                    <span className="rounded-full bg-primary/15 px-3 py-1 text-[11px] font-semibold text-primary">Непрочитанные</span>
+                    <span className="rounded-full bg-primary/15 px-3 py-1 text-[0.6875rem] font-semibold text-primary">Непрочитанные</span>
                     <div className="h-px flex-1 bg-primary/30" />
                   </div>
                 ) : null}
@@ -2534,7 +2560,7 @@ export function ChatMessages({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
           {unseenCount > 0 ? (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-none tabular-nums text-primary-foreground shadow">
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.625rem] font-semibold leading-none tabular-nums text-primary-foreground shadow">
               {unseenCount > 99 ? "99+" : unseenCount}
             </span>
           ) : null}
