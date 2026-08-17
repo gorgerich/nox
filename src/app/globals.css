@@ -2960,8 +2960,18 @@ html[data-ui-scale="7"] .dock-tab-label {
    `px` in the query on purpose: this is about the device, not the type size,
    and media queries resolve `rem` against the browser's initial font size
    anyway, which would make a rem threshold here quietly meaningless. */
+/* Measured on a 320px iPhone SE: the active tab's label has 32px and "Профиль"
+   needs 50 — so it is clipped mid-word at the *default* size, before the
+   interface scale enters into it at all. Below this width the dock is icons
+   only. Four icons are self-describing where half a word is not, and the
+   label already animates its width open and closed, so this rides the same
+   transition rather than introducing a second mechanism.
+
+   `px` in the query on purpose: this is about the device, not the type size,
+   and media queries resolve `rem` against the browser's initial font size
+   anyway, which would make a rem threshold here quietly meaningless. */
 @media (max-width: 359px) {
-  html[data-ui-scale="5"] .dock-tab-label {
+  .dock-tab-label {
     max-width: 0;
     opacity: 0;
   }

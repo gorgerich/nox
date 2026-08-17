@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAudioCall } from "../../../calls/CallProvider";
 import { usePresence } from "@/hooks/usePresence";
 import { E2EEContactDevices } from "./E2EEContactDevices";
+import { ConfirmSheet } from "@/components/settings/ConfirmSheet";
 import { AvatarViewer } from "../../../profile/AvatarViewer";
 import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { clearCachedMessagesForChat, clearPersistedChatMessagesForChat } from "@/lib/e2ee/indexed-db";
@@ -72,6 +73,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const [activeTab, setActiveSection] = useState<"media" | "files" | "links">("media");
   const [shared, setShared] = useState<SharedMedia | null>(null);
   const [loadingShared, setLoadingShared] = useState(true);
+  const [sharedError, setSharedError] = useState(false);
   const [newName, setNewName] = useState(settings.nickname || partnerUser.displayName);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
@@ -87,10 +89,31 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   });
 
   useEffect(() => {
+    let cancelled = false;
+    // A failed request used to land on the same screen as an empty one: the
+    // catch only cleared the loading flag, so "Ничего не найдено" was shown
+    // for a chat that may well have had media in it. Failing and being empty
+    // are different things and the user can act on only one of them.
     fetch(`/api/chats/${chatId}/shared`)
-      .then(res => res.json())
-      .then(data => { setShared(data); setLoadingShared(false); })
-      .catch(() => setLoadingShared(false));
+      .then(res => {
+        if (!res.ok) throw new Error(`shared media: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        if (cancelled) return;
+        setShared(data);
+        // Cleared here rather than at the top of the effect: a synchronous
+        // write in the effect body cascades a render before the fetch has even
+        // started, and this says the same thing one tick later.
+        setSharedError(false);
+        setLoadingShared(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSharedError(true);
+        setLoadingShared(false);
+      });
+    return () => { cancelled = true; };
   }, [chatId]);
 
   const updateContact = async (patch: Partial<typeof settings>) => {
@@ -118,8 +141,21 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
     updateContact({ mutedUntil });
   };
 
+  /**
+   * The pending destructive action, if any.
+   *
+   * One slot rather than a boolean per action: the sheet can only ask about
+   * one thing at a time, and this way adding a destructive action does not
+   * mean adding another piece of state to keep in sync.
+   */
+  const [confirming, setConfirming] = useState<{
+    title: string;
+    body?: string;
+    confirmLabel: string;
+    run: () => void | Promise<void>;
+  } | null>(null);
+
   const clearDialog = async () => {
-    if (!window.confirm("Очистить диалог? История будет скрыта только у вас.")) return;
     setIsBusy(true);
     try {
       const res = await fetch(`/api/chats/${chatId}/clear`, { method: "DELETE" });
@@ -136,7 +172,6 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   };
 
   const deleteContact = async () => {
-    if (!window.confirm("Удалить контакт и скрыть диалог из списка?")) return;
     setIsBusy(true);
     try {
       await fetch(`/api/users/${partnerUser.id}/contact-settings`, {
@@ -216,7 +251,14 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           isBlocked={settings.isBlocked}
           disabled={isBusy}
           onSearch={() => router.push(`/chats/${chatId}?search=true`)}
-          onClear={clearDialog}
+          onClear={() =>
+            setConfirming({
+              title: "Очистить диалог?",
+              body: "История будет скрыта только у вас. У собеседника она останется.",
+              confirmLabel: "Очистить",
+              run: clearDialog,
+            })
+          }
           onBlock={() => updateContact({ isBlocked: !settings.isBlocked })}
         />
       </div>
@@ -260,6 +302,11 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         <div className="flex-1 pb-10">
           {loadingShared ? (
             <div className="flex justify-center py-10"><div className="h-6 w-6 border-2 border-primary border-t-transparent animate-spin rounded-full" /></div>
+          ) : sharedError ? (
+            <div className="py-20 text-center">
+              <p className="text-sm font-medium text-foreground">Не удалось загрузить</p>
+              <p className="mt-1 text-[0.8125rem] text-muted">Проверьте соединение и попробуйте снова.</p>
+            </div>
           ) : (
             <SharedContent type={activeTab} data={shared} chatId={chatId} currentUserId={currentUserId} />
           )}
@@ -280,7 +327,14 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
             />
             <button
               type="button"
-              onClick={deleteContact}
+              onClick={() =>
+                setConfirming({
+                  title: "Удалить контакт?",
+                  body: "Диалог пропадёт из списка. Сообщения не удаляются.",
+                  confirmLabel: "Удалить",
+                  run: deleteContact,
+                })
+              }
               disabled={isBusy}
               className="mb-3 w-full rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger disabled:opacity-50"
             >
@@ -313,6 +367,19 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         alt={settings.nickname || partnerUser.displayName}
         fileName={`${partnerUser.username || "profile"}-avatar.jpg`}
         onClose={() => setShowAvatarViewer(false)}
+      />
+      <ConfirmSheet
+        open={confirming !== null}
+        title={confirming?.title ?? ""}
+        body={confirming?.body}
+        confirmLabel={confirming?.confirmLabel ?? ""}
+        busy={isBusy}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          const pending = confirming;
+          setConfirming(null);
+          void pending?.run();
+        }}
       />
     </div>
   );

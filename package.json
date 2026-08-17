@@ -50,7 +50,8 @@
     "validate:conversation-open": "tsx scripts/validate-conversation-open.ts",
     "validate:e2ee-recovery": "tsx scripts/validate-e2ee-recovery.ts",
     "validate:ui-scale": "tsx scripts/validate-ui-scale.ts",
-    "validate:instant-send": "tsx scripts/validate-instant-send.ts"
+    "validate:instant-send": "tsx scripts/validate-instant-send.ts",
+    "validate:long-text": "tsx scripts/validate-long-text.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

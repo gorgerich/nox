@@ -39,7 +39,10 @@ export function GroupPicker({ onClose, onNavigate }: { onClose: () => void; onNa
           setContacts(uniqueUsers);
         }
       })
-      .catch(() => {});
+      // A failed load used to be indistinguishable from having no contacts:
+      // the list simply stayed empty. Search by username still works either
+      // way, so this says what happened without getting in the way.
+      .catch(() => setError("Не удалось загрузить контакты. Найдите человека по имени пользователя."));
   }, []);
 
   const handleSearch = async (e: FormEvent) => {

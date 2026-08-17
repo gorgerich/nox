@@ -90,7 +90,13 @@ export async function POST(request: Request) {
             userAgent,
           },
         });
-        if (process.env.NODE_ENV !== "production" || process.env.DEBUG_AUTH === "true") {
+        // Development only, and only development. This prints a *live* reset
+        // token — whoever reads the line can take the account. There used to be
+        // a `DEBUG_AUTH=true` escape hatch alongside the environment check,
+        // which meant one environment variable away from a credential in the
+        // production log stream, set by someone debugging who had no way to
+        // know that is what it did.
+        if (process.env.NODE_ENV !== "production") {
           console.log(`[DEV ONLY] Password reset token for ${user.username}: ${token}`);
         }
       }

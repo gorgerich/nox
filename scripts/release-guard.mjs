@@ -197,6 +197,10 @@ const MERGE_GATES = [
   // finished before the network is, and that a video note keeps one size.
   { name: "validate:instant-send", cmd: "npm", args: ["run", "validate:instant-send"], needsDb: true, browser: true },
   { name: "validate:ui-scale", cmd: "npm", args: ["run", "validate:ui-scale"], needsDb: true, browser: true },
+  // Real names are longer than the ones screens get built against, and Russian
+  // is longer still. This is the suite that found the dock label clipped on a
+  // 320px phone at the default size.
+  { name: "validate:long-text", cmd: "npm", args: ["run", "validate:long-text"], needsDb: true, browser: true },
   { name: "validate:e2ee-recovery", cmd: "npm", args: ["run", "validate:e2ee-recovery"], needsDb: true, browser: true },
   { name: "production build", cmd: "npm", args: ["run", "build"] },
 ];

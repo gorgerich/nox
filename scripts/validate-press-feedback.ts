@@ -127,20 +127,30 @@ async function main(): Promise<number> {
         pressed ? `effective=${pressed.effective.toFixed(4)} (scale=${pressed.fromScale}, transform=${pressed.fromTransform.toFixed(4)})` : "not measured",
       );
 
-      await page.waitForTimeout(300);
-      const released = (await page.evaluate(
-        `(() => {
-          const el = document.querySelector('[data-press-probe="1"]');
-          const cs = el ? getComputedStyle(el) : null;
-          return cs ? (cs.scale === 'none' ? 1 : parseFloat(cs.scale.split(' ')[0])) : null;
-        })()`,
-      )) as number | null;
-      // A tolerance rather than an exact 1. What this guards is that the press
-      // is released at all — a stuck 0.96 is the regression. Under load the
-      // read can land on the last frame of the 140ms ease, which reports
-      // 0.999973: settled for every purpose except an equality check, and the
-      // suite failed the whole merge gate over it while passing on a quiet
-      // machine seconds later.
+      // Polled to a deadline rather than read once after a fixed sleep.
+      //
+      // The transition is 140ms and the old read waited 300, which is ample on
+      // an idle machine and not ample at all on a loaded one: the release event
+      // and the frames that follow it are wall-clock work, and the suite failed
+      // the merge gate reporting a still-pressed 0.96 while passing seconds
+      // later on the same build. Polling keeps the assertion exactly as strict
+      // — a button that never returns still fails, three seconds later instead
+      // of three hundred milliseconds — while removing the race with the
+      // machine's own load.
+      const readScale = `(() => {
+        const el = document.querySelector('[data-press-probe="1"]');
+        const cs = el ? getComputedStyle(el) : null;
+        return cs ? (cs.scale === 'none' ? 1 : parseFloat(cs.scale.split(' ')[0])) : null;
+      })()`;
+      let released = (await page.evaluate(readScale)) as number | null;
+      const settleDeadline = Date.now() + 3_000;
+      while (Date.now() < settleDeadline && (released === null || Math.abs(released - 1) >= 0.005)) {
+        await page.waitForTimeout(100);
+        released = (await page.evaluate(readScale)) as number | null;
+      }
+      // A tolerance rather than an exact 1: the last frame of the ease reports
+      // 0.999973, which is settled for every purpose except an equality check.
+      // What this guards is that the press is released at all.
       check(
         "the button returns to rest when released",
         released !== null && Math.abs(released - 1) < 0.005,

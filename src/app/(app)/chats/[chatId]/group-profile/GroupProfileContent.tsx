@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
+import { ConfirmSheet } from "@/components/settings/ConfirmSheet";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 
 interface GroupMember {
@@ -61,6 +62,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   const [activeTab, setActiveSection] = useState<"media" | "files" | "links">("media");
   const [shared, setShared] = useState<SharedMedia | null>(null);
   const [loadingShared, setLoadingShared] = useState(true);
+  const [sharedError, setSharedError] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState(chat.title);
   const [isAddingMembers, setIsAddingMembers] = useState(false);
@@ -79,10 +81,31 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    // A failed request used to land on the same screen as an empty one: the
+    // catch only cleared the loading flag, so "Ничего не найдено" was shown
+    // for a chat that may well have had media in it. Failing and being empty
+    // are different things and the user can act on only one of them.
     fetch(`/api/chats/${chatId}/shared`)
-      .then(res => res.json())
-      .then(data => { setShared(data); setLoadingShared(false); })
-      .catch(() => setLoadingShared(false));
+      .then(res => {
+        if (!res.ok) throw new Error(`shared media: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        if (cancelled) return;
+        setShared(data);
+        // Cleared here rather than at the top of the effect: a synchronous
+        // write in the effect body cascades a render before the fetch has even
+        // started, and this says the same thing one tick later.
+        setSharedError(false);
+        setLoadingShared(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSharedError(true);
+        setLoadingShared(false);
+      });
+    return () => { cancelled = true; };
   }, [chatId]);
 
   useEffect(() => {
@@ -158,8 +181,14 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
     }
   };
 
+  const [confirming, setConfirming] = useState<{
+    title: string;
+    body?: string;
+    confirmLabel: string;
+    run: () => void | Promise<void>;
+  } | null>(null);
+
   const handleAvatarDelete = async () => {
-    if (!confirm("Удалить фото группы?")) return;
     setPending(true);
     try {
       const res = await fetch(`/api/chats/${chatId}/group-avatar`, { method: "DELETE" });
@@ -174,7 +203,6 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!confirm("Удалить участника?")) return;
     try {
       const res = await fetch(`/api/chats/${chatId}/members/${userId}`, { method: "DELETE" });
       if (res.ok) {
@@ -265,7 +293,13 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
 
           {permissions.canEditGroup && chat.avatarUrl && (
             <button 
-              onClick={handleAvatarDelete}
+              onClick={() =>
+                setConfirming({
+                  title: "Удалить фото группы?",
+                  confirmLabel: "Удалить",
+                  run: handleAvatarDelete,
+                })
+              }
               disabled={pending}
               className="absolute -bottom-1 -right-1 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-danger shadow-lg transition-smooth active:scale-[0.96]"
               aria-label="Удалить фото группы"
@@ -326,7 +360,14 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-foreground/5 px-2 py-1 text-[0.6875rem] font-medium text-muted">{roleLabel(m.role)}</span>
                 {permissions.canRemoveMembers && !m.isSelf && (
-                  <button onClick={() => handleRemoveMember(m.userId)} className="rounded-full p-2 text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover:opacity-100" aria-label="Удалить участника">
+                  <button onClick={() =>
+                    setConfirming({
+                      title: "Удалить участника?",
+                      body: `${m.name || m.username} потеряет доступ к этой группе.`,
+                      confirmLabel: "Удалить",
+                      run: () => handleRemoveMember(m.userId),
+                    })
+                  } className="rounded-full p-2 text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover:opacity-100" aria-label="Удалить участника">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 )}
@@ -348,6 +389,11 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         <div className="flex-1 pb-10">
           {loadingShared ? (
             <div className="flex justify-center py-10"><div className="h-6 w-6 border-2 border-primary border-t-transparent animate-spin rounded-full" /></div>
+          ) : sharedError ? (
+            <div className="py-20 text-center">
+              <p className="text-sm font-medium text-foreground">Не удалось загрузить</p>
+              <p className="mt-1 text-[0.8125rem] text-muted">Проверьте соединение и попробуйте снова.</p>
+            </div>
           ) : (
             <SharedContent type={activeTab} data={shared} />
           )}
@@ -418,6 +464,19 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         settings={appearance} 
         onUpdate={updateSettings} 
         onReset={resetSettings} 
+      />
+      <ConfirmSheet
+        open={confirming !== null}
+        title={confirming?.title ?? ""}
+        body={confirming?.body}
+        confirmLabel={confirming?.confirmLabel ?? ""}
+        busy={pending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          const target = confirming;
+          setConfirming(null);
+          void target?.run();
+        }}
       />
     </div>
   );

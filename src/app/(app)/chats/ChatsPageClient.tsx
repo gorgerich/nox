@@ -75,6 +75,18 @@ export function ChatsPageClient({
   const router = useRouter();
   const { socket } = useSocket();
   const [chats, setChats] = useState(initialChats);
+  // The last action that failed, if any. Cleared on its own — an error about
+  // a mute toggle is not worth a dismiss button.
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Clears itself. Tied to the message rather than to the element, so a second
+  // failure restarts the clock instead of inheriting the first one's.
+  useEffect(() => {
+    if (!actionError) return;
+    const timer = setTimeout(() => setActionError(null), 3600);
+    return () => clearTimeout(timer);
+  }, [actionError]);
+
   // Plaintext for each row's last message, read from this device's own
   // storage. The server cannot supply it for an encrypted chat, which is why
   // every row used to read "Зашифрованное сообщение".
@@ -417,7 +429,11 @@ export function ChatsPageClient({
       }
     } catch (error) {
       setChats(rollback);
-      alert(error instanceof Error ? error.message : "Не удалось обновить настройки чата");
+      // A browser `alert` here stopped the whole app on a modal the phone drew
+      // itself, in the middle of an interface that is otherwise native-feeling.
+      // The row has already rolled back, so the message only has to say what
+      // failed — it does not need to block anything.
+      setActionError(error instanceof Error ? error.message : "Не удалось обновить настройки чата");
     }
   }, []);
 
@@ -640,6 +656,15 @@ export function ChatsPageClient({
       onTouchMove={handlePullTouchMove}
       onTouchEnd={handlePullTouchEnd}
     >
+      {actionError ? (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-[1100] rounded-2xl bg-surface-elevated px-4 py-3 text-center text-[0.8125rem] font-medium text-foreground shadow-[0_10px_30px_rgba(15,23,42,0.18)] animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          {actionError}
+        </div>
+      ) : null}
+
       {/* Pull indicator */}
       {(pullProgress > 0 || isRefreshing) && (
         <div 
