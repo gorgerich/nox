@@ -173,9 +173,9 @@ export default async function ArchivePage() {
     });
 
   return (
-    <div className="app-section animate-in fade-in duration-180">
-      <header className="app-section-header">
-        <h1 className="app-section-title text-3xl">Архив</h1>
+    <div className="app-section app-section-compact">
+      <header className="nox-page-header">
+        <h1 className="nox-page-title">Архив</h1>
       </header>
       <ArchivePageClient initialChats={archivedChats} />
     </div>

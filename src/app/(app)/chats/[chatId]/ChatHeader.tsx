@@ -69,7 +69,6 @@ export function ChatHeader({
   // e.g. sticky header settling on iOS) so the anchor is always correct.
   useEffect(() => {
     if (timerMenuOpen) anchorToButton();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerMenuOpen]);
   const DISAPPEARING_OPTIONS: { label: string; seconds: number | null }[] = [
     { label: "Выключить", seconds: null },
@@ -121,20 +120,21 @@ export function ChatHeader({
 
   return (
     <header
-      className="nox-chat-topbar sticky top-0 z-50 flex items-center gap-2 px-3 transition-smooth"
+      className="nox-chat-topbar sticky top-0 z-50 transition-smooth"
       style={{
         color: "var(--chat-header-fg)",
-        minHeight: "calc(3.8rem + env(safe-area-inset-top, 0px))",
+        minHeight: "calc(3.35rem + env(safe-area-inset-top, 0px))",
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
+      <div className="nox-chat-topbar-inner">
       <button
         type="button"
         aria-label="Назад к чатам"
         onClick={handleBackToChats}
-        className="nox-chat-back-button touch-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-smooth active:scale-[0.96]"
+        className="nox-chat-back-button touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-smooth active:scale-[0.96]"
       >
-        <ArrowLeft className="h-6 w-6" strokeWidth={2.35} />
+        <ArrowLeft className="h-[1.35rem] w-[1.35rem]" strokeWidth={2.35} />
       </button>
 
       <button
@@ -145,12 +145,12 @@ export function ChatHeader({
       >
         <div className="relative shrink-0">
           {fullAvatarUrl ? (
-            <div className="relative h-10 w-10 overflow-hidden rounded-full bg-surface-muted transition-smooth">
-              <Image src={fullAvatarUrl} alt={title} fill sizes="40px" className="object-cover" />
+            <div className="relative h-9 w-9 overflow-hidden rounded-full bg-surface-muted transition-smooth">
+              <Image src={fullAvatarUrl} alt={title} fill sizes="36px" className="object-cover" />
             </div>
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full transition-smooth" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
-              <span className="text-base font-semibold">{title.substring(0, 1).toUpperCase()}</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full transition-smooth" style={{ backgroundColor: "var(--bubble-outgoing-bg)", color: "var(--bubble-outgoing-fg)" }}>
+              <span className="text-[0.9375rem] font-semibold">{title.substring(0, 1).toUpperCase()}</span>
             </div>
           )}
           {!isGroup && isConnected && (
@@ -158,9 +158,9 @@ export function ChatHeader({
           )}
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-[1rem] font-semibold leading-[1.05] text-[var(--chat-header-fg)]">{title}</h1>
+          <h1 className="truncate text-[0.9375rem] font-semibold leading-[1.08] text-[var(--chat-header-fg)]">{title}</h1>
           <p
-            className="mt-0.5 truncate text-[0.75rem] font-normal leading-tight"
+            className="mt-0.5 truncate text-[0.6875rem] font-normal leading-tight"
             style={{ color: !isGroup && displaySubtitle === "в сети" ? "var(--message-read)" : "var(--bubble-incoming-muted)" }}
           >
             {displaySubtitle}
@@ -274,6 +274,7 @@ export function ChatHeader({
             )}
           </div>
         )}
+      </div>
       </div>
     </header>
   );

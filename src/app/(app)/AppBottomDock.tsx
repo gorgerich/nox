@@ -23,6 +23,9 @@ type DockSwipeStart = {
   y: number;
   pointerId: number;
   dragging: boolean;
+  lastX: number;
+  lastTime: number;
+  velocityX: number;
 };
 
 function getTabScrollKey(href: string) {
@@ -60,6 +63,7 @@ export function AppBottomDock({
   // geometry is measured from the active tab and tracked while that tab grows
   // (the label expands over 220ms), so the pill follows in lockstep.
   const tabsBoxRef = useRef<HTMLDivElement | null>(null);
+  const pillRef = useRef<HTMLSpanElement | null>(null);
   const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   // State rather than a ref: this value is read while rendering (it decides
   // whether the pill transitions), and a ref read during render is exactly the
@@ -84,6 +88,18 @@ export function AppBottomDock({
       return;
     }
 
+    const placePill = (index: number, transition: string) => {
+      const pillNode = pillRef.current;
+      const box = tabsBoxRef.current;
+      const tab = tabRefs.current[index];
+      if (!pillNode || !box || !tab) return;
+      const boxRect = box.getBoundingClientRect();
+      const tabRect = tab.getBoundingClientRect();
+      pillNode.style.transition = transition;
+      pillNode.style.transform = `translateX(${tabRect.left - boxRect.left}px)`;
+      pillNode.style.width = `${tabRect.width}px`;
+    };
+
     const handlePointerDown = (event: PointerEvent) => {
       if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) {
         swipeStartRef.current = null;
@@ -95,6 +111,9 @@ export function AppBottomDock({
         y: event.clientY,
         pointerId: event.pointerId,
         dragging: false,
+        lastX: event.clientX,
+        lastTime: performance.now(),
+        velocityX: 0,
       };
     };
 
@@ -111,6 +130,35 @@ export function AppBottomDock({
         suppressClickRef.current = true;
         dock.setPointerCapture(event.pointerId);
       }
+
+      if (!start.dragging) return;
+
+      event.preventDefault();
+      const now = performance.now();
+      const elapsed = Math.max(1, now - start.lastTime);
+      const instantVelocity = (event.clientX - start.lastX) / elapsed;
+      start.velocityX = start.velocityX * 0.55 + instantVelocity * 0.45;
+      start.lastX = event.clientX;
+      start.lastTime = now;
+
+      const direction = dx < 0 ? 1 : -1;
+      const targetIndex = Math.max(0, Math.min(tabs.length - 1, activeTabIndex + direction));
+      const pillNode = pillRef.current;
+      const box = tabsBoxRef.current;
+      const active = tabRefs.current[activeTabIndex];
+      const target = tabRefs.current[targetIndex];
+      if (!pillNode || !box || !active || !target) return;
+
+      const boxRect = box.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const progress = Math.min(1, Math.abs(dx) / 72);
+      const edgeOffset = targetIndex === activeTabIndex ? Math.max(-7, Math.min(7, dx * 0.12)) : 0;
+      const left = activeRect.left - boxRect.left + (targetRect.left - activeRect.left) * progress + edgeOffset;
+      const width = activeRect.width + (targetRect.width - activeRect.width) * progress;
+      pillNode.style.transition = "none";
+      pillNode.style.transform = `translateX(${left}px)`;
+      pillNode.style.width = `${width}px`;
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -122,21 +170,47 @@ export function AppBottomDock({
 
       const dx = event.clientX - start.x;
       const dy = event.clientY - start.y;
-      if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy) * 1.25) {
+      const projectedDx = dx + start.velocityX * 130;
+      const isHorizontal = Math.abs(dx) >= 34 && Math.abs(dx) >= Math.abs(dy) * 1.2;
+      const isProjected = Math.abs(projectedDx) >= 54 && Math.abs(dx) >= 16;
+      if (start.dragging) {
+        window.setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 300);
+      }
+      if (!start.dragging || (!isHorizontal && !isProjected)) {
+        placePill(activeTabIndex, "transform 180ms var(--ease-out), width 180ms var(--ease-out)");
+        if (dock.hasPointerCapture(event.pointerId)) {
+          dock.releasePointerCapture(event.pointerId);
+        }
         return;
       }
 
       event.preventDefault();
       event.stopPropagation();
-      const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
+      const navigationDx = Math.abs(projectedDx) > Math.abs(dx) ? projectedDx : dx;
+      const nextIndex = navigationDx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
       const nextTab = tabs[nextIndex];
       if (nextTab) {
+        placePill(nextIndex, "transform 180ms var(--ease-out), width 180ms var(--ease-out)");
         router.push(nextTab.href, { scroll: false });
+      } else {
+        placePill(activeTabIndex, "transform 180ms var(--ease-out), width 180ms var(--ease-out)");
+      }
+      if (dock.hasPointerCapture(event.pointerId)) {
+        dock.releasePointerCapture(event.pointerId);
       }
     };
 
-    const handlePointerCancel = () => {
+    const handlePointerCancel = (event: PointerEvent) => {
+      placePill(activeTabIndex, "transform 180ms var(--ease-out), width 180ms var(--ease-out)");
+      if (dock.hasPointerCapture(event.pointerId)) {
+        dock.releasePointerCapture(event.pointerId);
+      }
       swipeStartRef.current = null;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 300);
     };
 
     dock.addEventListener("pointerdown", handlePointerDown);
@@ -275,6 +349,7 @@ export function AppBottomDock({
         >
           {pill ? (
             <span
+              ref={pillRef}
               aria-hidden="true"
               className="dock-slide-pill"
               style={{

@@ -262,24 +262,24 @@ export function AdminPanel({
   }
 
   return (
-    <div className="app-section transition-smooth !max-w-5xl !pb-[var(--bottom-dock-clearance)]">
-      <div className="mb-6 flex items-center justify-between gap-4 px-1">
+    <div className="app-section !max-w-5xl !pb-[var(--bottom-dock-clearance)]">
+      <div className="mb-4 flex items-center justify-between gap-4 px-1">
         <div>
           <h1 className="nox-page-title">Админ</h1>
         </div>
         <button 
           onClick={loadAdminData}
-          className={`touch-target h-11 w-11 flex items-center justify-center rounded-full bg-surface-muted border border-border-subtle/50 text-muted transition-smooth active:scale-[0.96] ${loading ? 'animate-spin' : ''}`}
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-hover"
           aria-label="Обновить"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
 
       <nav
-        className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-border-subtle/50 bg-surface-muted p-1 scrollbar-hide"
+        className="mb-5 flex gap-1 overflow-x-auto rounded-[0.875rem] bg-surface-tertiary p-1 scrollbar-hide"
         data-nox-horizontal-scroll="true"
         aria-label="Разделы админ-панели"
       >
@@ -287,9 +287,9 @@ export function AdminPanel({
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
-            className={`min-w-16 flex-1 rounded-xl px-3 py-2.5 text-[0.75rem] font-semibold transition-smooth ${
+            className={`min-h-10 min-w-16 flex-1 rounded-[0.625rem] px-3 py-2 text-[0.75rem] font-semibold transition-colors ${
               activeSection === s.id
-                ? "bg-surface text-primary shadow-sm"
+                ? "bg-surface text-primary shadow-[0_1px_2px_rgba(0,0,0,0.10)]"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -298,15 +298,15 @@ export function AdminPanel({
         ))}
       </nav>
 
-      {error && <p className="bg-destructive/10 text-destructive text-xs font-bold p-3 rounded-xl text-center border border-destructive/20">{error}</p>}
+      {error && <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-center text-xs font-medium text-destructive">{error}</p>}
       {loading && <p className="py-12 text-center text-sm font-semibold text-muted animate-pulse">Загрузка...</p>}
 
       {!loading && (
-        <div className="animate-in fade-in duration-200">
+        <div>
           {activeSection === "users" && (
             <div className="space-y-3">
               {users.map((user) => (
-                <article key={user.id} className="card-clean p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <article key={user.id} className="flex flex-col justify-between gap-4 rounded-[0.875rem] bg-surface p-4 md:flex-row md:items-center">
                   <div className="flex items-center gap-4">
                     <div className="h-10 w-10 rounded-full bg-surface-hover flex items-center justify-center font-bold text-primary">
                       {user.username.slice(0, 1).toUpperCase()}
@@ -355,7 +355,7 @@ export function AdminPanel({
 
           {activeSection === "invites" && (
             <div className="space-y-6">
-              <form className="card-clean p-6 space-y-4" onSubmit={createInvite} method="POST">
+              <form className="space-y-4 rounded-[0.875rem] bg-surface p-4 sm:p-5" onSubmit={createInvite} method="POST">
                 <h2 className="text-base font-semibold">Создать код</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
@@ -370,7 +370,6 @@ export function AdminPanel({
                     className="input-nox"
                     type="datetime-local"
                     aria-label="Срок действия кода"
-                    style={{ colorScheme: "dark" }}
                     value={inviteForm.expiresAt}
                     onChange={(e) => setInviteForm({...inviteForm, expiresAt: e.target.value})}
                   />
@@ -381,9 +380,9 @@ export function AdminPanel({
               </form>
 
               {rawInviteCode && (
-                <div className="card-clean border-primary/30 bg-primary/5 p-6 text-center animate-in zoom-in-95 duration-200">
+                <div className="rounded-[0.875rem] bg-primary/8 p-5 text-center">
                   <p className="mb-3 text-sm font-semibold text-primary">{notice}</p>
-                  <code className="block bg-background p-4 rounded-xl border border-border-subtle font-mono text-sm select-all">
+                  <code className="block select-all rounded-xl bg-background p-4 font-mono text-sm [overflow-wrap:anywhere]">
                     {rawInviteCode}
                   </code>
                 </div>
@@ -392,7 +391,7 @@ export function AdminPanel({
               <div className="space-y-3">
                 <h2 className="nox-section-label !m-0 px-2">Активные коды</h2>
                 {invites.map((invite) => (
-                  <article key={invite.id} className="card-clean p-4 flex items-center justify-between gap-4">
+                  <article key={invite.id} className="flex items-center justify-between gap-4 rounded-[0.875rem] bg-surface p-4">
                     <div className="min-w-0">
                       <p className="font-mono text-xs truncate opacity-60">{invite.id}</p>
                       <p className="text-xs mt-1">
@@ -403,7 +402,7 @@ export function AdminPanel({
                       </p>
                     </div>
                     <button 
-                      className="text-xs font-semibold text-destructive transition hover:text-destructive"
+                      className="min-h-11 shrink-0 px-2 text-xs font-semibold text-destructive transition-colors hover:text-destructive/75"
                       onClick={() => runAction(`revoke-invite-${invite.id}`, `/api/admin/invites/${invite.id}/revoke`)}
                     >
                       Отозвать
@@ -416,8 +415,8 @@ export function AdminPanel({
 
           {activeSection === "recovery" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4">
-                <p className="text-xs font-bold leading-relaxed text-warning">
+              <div className="rounded-[0.875rem] bg-warning/10 p-4">
+                <p className="text-xs font-medium leading-5 text-warning">
                   Разрешайте сброс только если лично убедились, что запрос сделал владелец аккаунта.
                   После разрешения передайте ему код из карточки: он введет его на странице восстановления.
                 </p>
@@ -433,7 +432,7 @@ export function AdminPanel({
                 const actionable = isRecoveryActionable(request);
 
                 return (
-                  <article key={request.id} className="card-clean p-5">
+                  <article key={request.id} className="rounded-[0.875rem] bg-surface p-4 sm:p-5">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -461,7 +460,7 @@ export function AdminPanel({
                         )}
                       </div>
 
-                      <div className="shrink-0 rounded-2xl border border-border-subtle bg-foreground/5 px-4 py-3 text-center">
+                      <div className="shrink-0 rounded-xl bg-foreground/5 px-4 py-3 text-center">
                         <p className="mb-1 text-[0.6875rem] font-semibold text-muted">Код</p>
                         <code className="select-all font-mono text-xl font-bold tracking-[0.14em] text-primary">
                           {request.publicCode}
@@ -472,14 +471,14 @@ export function AdminPanel({
                     {actionable && (
                       <div className="mt-5 flex gap-3">
                         <button
-                          className="flex-1 rounded-xl bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-smooth active:scale-[0.96] disabled:opacity-50"
+                          className="min-h-11 flex-1 rounded-xl bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`deny-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/deny`)}
                         >
                           {pendingAction === `deny-recovery-${request.id}` ? "..." : "Отклонить"}
                         </button>
                         <button
-                          className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-50"
+                          className="min-h-11 flex-1 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
                           disabled={pendingAction !== ""}
                           onClick={() => runAction(`approve-recovery-${request.id}`, `/api/admin/recovery-requests/${request.id}/approve`)}
                         >
@@ -495,18 +494,15 @@ export function AdminPanel({
 
           {activeSection === "security" && (
             <div className="space-y-6">
-              <article className={`card-clean p-8 text-center border-2 transition-colors ${system?.emergencyLocked ? "border-destructive/50 bg-destructive/5" : "border-primary/20 bg-primary/5"}`}>
-                  <div className={`mx-auto mb-6 h-16 w-16 rounded-full flex items-center justify-center text-2xl ${system?.emergencyLocked ? "bg-danger text-primary-foreground animate-pulse" : "bg-primary text-primary-foreground"}`}>
-                  {system?.emergencyLocked ? "🔒" : "🛡️"}
-                </div>
-                <h2 className="text-2xl font-bold">Экстренная блокировка</h2>
-                <p className="mt-3 text-sm text-muted max-w-sm mx-auto">
+              <article className={`rounded-[0.875rem] p-5 transition-colors ${system?.emergencyLocked ? "bg-destructive/10" : "bg-surface"}`}>
+                <h2 className="text-[1.0625rem] font-semibold">Экстренная блокировка</h2>
+                <p className="mt-1 max-w-xl text-sm leading-5 text-muted">
                   {system?.emergencyLocked 
                     ? "Доступ для обычных пользователей закрыт. Только администраторы могут войти." 
                     : "Система работает в штатном режиме. Все пользователи имеют доступ."}
                 </p>
                 <button
-                  className={`mt-8 btn-primary w-full md:w-auto md:px-12 ${system?.emergencyLocked ? "bg-primary" : "bg-danger hover:opacity-90 text-primary-foreground"}`}
+                  className={`mt-5 min-h-11 w-full rounded-xl px-5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-50 sm:w-auto ${system?.emergencyLocked ? "bg-primary hover:bg-primary-hover" : "bg-danger hover:opacity-85"}`}
                   disabled={pendingAction !== ""}
                   onClick={() => runAction(
                     system?.emergencyLocked ? "unlock" : "lock",
@@ -522,10 +518,10 @@ export function AdminPanel({
           {activeSection === "audit" && (
             <div className="space-y-3">
               {auditLog.map((item) => (
-                <article key={item.id} className="card-clean p-4 text-sm">
+                <article key={item.id} className="rounded-[0.875rem] bg-surface p-4 text-sm">
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <p className="font-bold text-primary">{getActionLabel(item.action)}</p>
-                    <time className="text-[0.625rem] text-muted font-bold uppercase">{formatDate(item.createdAt)}</time>
+                    <time className="text-[0.6875rem] font-medium text-muted">{formatDate(item.createdAt)}</time>
                   </div>
                   <p className="text-xs text-muted">Исполнитель: {item.admin.profile?.displayName ?? item.admin.username}</p>
                 </article>
@@ -546,7 +542,7 @@ function AdminActionButton({ label, onClick, pending, variant = "default" }: {
 }) {
   return (
     <button
-      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-[transform,background-color,color,opacity] active:scale-[0.96] ${
+      className={`min-h-9 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
         variant === "danger" 
           ? "bg-destructive/10 text-destructive hover:bg-destructive/20" 
           : "bg-surface-hover text-muted hover:text-foreground"

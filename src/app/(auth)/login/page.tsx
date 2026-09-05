@@ -61,14 +61,14 @@ export default function LoginPage() {
     <main className="auth-screen app-screen justify-center px-6 py-[calc(env(safe-area-inset-top,0px)+1.5rem)] safe-bottom">
       <div className="mx-auto w-full max-w-sm">
         <div className="flex flex-col items-center text-center">
-          <div className="auth-logo text-[1.625rem] font-bold">N</div>
-          <h1 className="mt-6 text-[2rem] font-bold leading-tight tracking-tight text-foreground">Войти в Nox</h1>
+          <div className="auth-wordmark" aria-hidden="true">Nox</div>
+          <h1 className="mt-4 text-[1.75rem] font-bold leading-tight text-foreground">Войти</h1>
           <p className="mt-2 max-w-[17rem] text-[0.9375rem] leading-6 text-muted">
             Введите логин и пароль, чтобы открыть чаты.
           </p>
         </div>
 
-        <form className="auth-card mt-8 p-4" id="login-form" onSubmit={handleSubmit}>
+        <form className="auth-card mt-6 p-4" id="login-form" onSubmit={handleSubmit}>
           <div className="space-y-3">
             <div className="auth-field px-4">
               <UserRound className="mr-3 h-5 w-5 shrink-0 text-primary" strokeWidth={2.2} aria-hidden="true" />

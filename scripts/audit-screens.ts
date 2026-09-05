@@ -9,7 +9,7 @@
  * Output: docs/screenshots/audit/<screen>-<theme>-<viewport>.png
  */
 import { mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
   createPrisma,
@@ -25,7 +25,7 @@ import {
 } from "./lib/browser-harness";
 
 const PORT = Number(process.env.AUDIT_PORT ?? 3989);
-const OUT = join(process.cwd(), "docs/screenshots/audit");
+const OUT = resolve(process.cwd(), process.env.AUDIT_OUT ?? "docs/screenshots/audit");
 
 const VIEWPORTS = [
   { name: "phone", width: 390, height: 844 },
@@ -40,6 +40,7 @@ async function main() {
 
   const stamp = Date.now();
   const me = await seedUser(prisma, randomUUID(), `audit${stamp}`);
+  await prisma.user.update({ where: { id: me.id }, data: { role: "OWNER" } });
   const peer = await seedUser(prisma, randomUUID(), `peer${stamp}`);
   const third = await seedUser(prisma, randomUUID(), `third${stamp}`);
 
@@ -103,6 +104,7 @@ async function main() {
     { name: "11-group-profile", path: `/chats/${group}/group-profile` },
     { name: "12-user", path: `/users/${peer.id}` },
     { name: "13-safety", path: "/safety" },
+    { name: "14-admin", path: "/admin" },
   ];
 
   const publicScreens = [
@@ -135,6 +137,7 @@ async function main() {
 
         for (const screen of [...screens, ...publicScreens]) {
           await page.goto(`${app.base}${screen.path}`, { waitUntil: "networkidle" });
+          await page.evaluate(() => window.scrollTo(0, 0));
           // Let entry animations settle so the shot is the resting state.
           await page.waitForTimeout(900);
           await page.screenshot({ path: join(OUT, `${screen.name}-${scheme}-${viewport.name}.png`) });

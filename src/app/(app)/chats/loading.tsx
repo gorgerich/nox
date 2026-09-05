@@ -20,7 +20,7 @@ export default function ChatsLoading() {
   const hasChats = !!chats && chats.length > 0;
 
   return (
-    <div className="app-section" aria-busy="true" aria-label="Загрузка чатов">
+    <div className="app-section app-section-compact" aria-busy="true" aria-label="Загрузка чатов">
       <div className="nox-page-header !mb-3">
         <h1 className="nox-page-title">Чаты</h1>
         <div className="h-10 w-10 rounded-full bg-surface-muted/70" />

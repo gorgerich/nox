@@ -4,21 +4,18 @@ import { NewChatForm } from "./NewChatForm";
 
 export default async function NewChatPage() {
   return (
-    <div className="app-section !max-w-2xl !pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-      <div className="mb-4">
+    <div className="app-section app-section-compact !pt-[env(safe-area-inset-top,0px)]">
+      <header className="nox-detail-header app-section-header !grid">
         <Link 
-          className="fast-tap mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]"
+          className="fast-tap inline-flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/8"
           href="/chats"
           aria-label="Назад"
         >
-          <ArrowLeft className="h-6 w-6" strokeWidth={2.3} />
+          <ArrowLeft className="h-5 w-5" strokeWidth={2.3} />
         </Link>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h1 className="nox-page-title">Добавить контакт</h1>
-          </div>
-        </div>
-      </div>
+        <h1 className="nox-detail-title">Добавить контакт</h1>
+        <div className="h-11 w-11" />
+      </header>
 
       <NewChatForm />
     </div>

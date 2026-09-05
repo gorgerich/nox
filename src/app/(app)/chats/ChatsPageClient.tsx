@@ -651,7 +651,7 @@ export function ChatsPageClient({
 
   return (
     <div 
-      className="app-section relative !px-4 !pt-[calc(env(safe-area-inset-top,0px)+16px)] transition-smooth"
+      className="app-section app-section-compact relative !px-4 !pt-[calc(env(safe-area-inset-top,0px)+16px)] transition-smooth"
       onTouchStart={handlePullTouchStart}
       onTouchMove={handlePullTouchMove}
       onTouchEnd={handlePullTouchEnd}
@@ -925,9 +925,9 @@ export function ChatsPageClient({
 
       {archivedCount > 0 && (
         <div className="mb-4">
-          <Link href="/chats/archive" className="flex items-center justify-between px-4 py-3 rounded-2xl bg-surface border border-border-subtle/50 transition-smooth hover:bg-surface-elevated active:scale-[0.96] fast-tap">
+          <Link href="/chats/archive" className="nox-list-row fast-tap rounded-xl bg-surface-muted/55">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-10 w-10 items-center justify-center text-primary">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                 </svg>
@@ -937,7 +937,7 @@ export function ChatsPageClient({
                 <p className="text-[0.8125rem] text-muted">{archivedCount} {archivedCount === 1 ? 'чат' : (archivedCount > 1 && archivedCount < 5) ? 'чата' : 'чатов'}</p>
               </div>
             </div>
-            <svg className="h-4 w-4 text-muted/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="ml-auto h-4 w-4 text-muted/65" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
@@ -945,7 +945,7 @@ export function ChatsPageClient({
       )}
 
       {chats.length === 0 ? (
-        <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+        <div className="nox-empty-state">
           <div className="nox-empty-icon text-primary">
             <MessageCircle className="h-9 w-9" strokeWidth={1.8} />
           </div>
@@ -954,7 +954,7 @@ export function ChatsPageClient({
             Здесь будут отображаться ваши диалоги с другими пользователями.
           </p>
           <Link
-            className="btn-primary mt-9 inline-flex h-12 items-center rounded-full px-7 text-sm font-semibold"
+            className="btn-primary mt-9 inline-flex h-12 items-center rounded-[0.875rem] px-7 text-sm font-semibold"
             href="/chats/new"
             prefetch
           >
@@ -962,7 +962,7 @@ export function ChatsPageClient({
           </Link>
         </div>
       ) : filteredChats.length === 0 ? (
-        <div className="nox-empty-state min-h-64 animate-in fade-in duration-200">
+        <div className="nox-empty-state min-h-64">
           <h2 className="nox-empty-title">
             {activeSelectedFolder === "important" ? "Нет важных чатов"
               : activeSelectedFolder === "unread" ? "Нет непрочитанных"

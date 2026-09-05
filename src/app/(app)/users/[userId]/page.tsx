@@ -51,25 +51,26 @@ export default async function UserProfilePage({
   const fullAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
   return (
-    <div className="app-section">
-      <header className="app-section-header flex items-center gap-3">
+    <div className="app-section app-section-compact">
+      <header className="nox-detail-header app-section-header !grid">
         <BackButton />
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Профиль</h1>
+        <h1 className="nox-detail-title">Профиль</h1>
+        <div className="h-11 w-11" />
       </header>
 
-      <div className="mt-6 flex flex-col items-center">
+      <div className="mt-3 flex flex-col items-center">
         <UserAvatar src={fullAvatarUrl} displayName={displayName} username={username} />
         
-        <h2 className="mt-5 text-2xl font-semibold text-foreground tracking-tight">{displayName}</h2>
-        <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
+        <h2 className="mt-4 max-w-full truncate px-4 text-2xl font-semibold tracking-tight text-foreground">{displayName}</h2>
+        <p className="mt-0.5 text-sm text-primary">@{username}</p>
 
         {bio ? (
-          <p className="mt-4 max-w-sm text-center text-sm font-normal leading-relaxed text-foreground/80">
+          <p className="mt-3 max-w-sm px-5 text-center text-sm leading-6 text-foreground/80">
             {bio}
           </p>
         ) : null}
 
-        <div className="mt-8 flex w-full max-w-xs gap-4">
+        <div className="mt-6 flex w-full max-w-xs gap-4 px-4">
           <DirectChatButton userId={targetUser.id} />
         </div>
         <E2EEUserDevices userId={targetUser.id} />

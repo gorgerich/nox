@@ -5,7 +5,7 @@ const ROWS = Array.from({ length: 8 });
 
 export default function ContactsLoading() {
   return (
-    <div className="app-section" aria-busy="true" aria-label="Загрузка контактов">
+    <div className="app-section app-section-compact" aria-busy="true" aria-label="Загрузка контактов">
       <header className="nox-page-header">
         <h1 className="nox-page-title">Контакты</h1>
         <div className="h-10 w-10 rounded-full bg-surface-muted/70 animate-pulse" />

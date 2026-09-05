@@ -1,7 +1,6 @@
 "use client";
 
 import { CloudOff, RefreshCw, Wifi } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { useClientValue } from "@/lib/use-client-value";
 
 export type ConnectionStatus = "online" | "offline" | "reconnecting" | "restored" | "error";
@@ -29,32 +28,9 @@ const COPY: Record<Exclude<ConnectionStatus, "online">, { label: string; tone: "
  */
 export function InlineConnectionNotice({ status }: { status: ConnectionStatus }) {
   const hydrated = useClientValue(() => true, false);
-  const [visible, setVisible] = useState(status !== "online");
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-
-    if (status === "online") {
-      setVisible(false);
-      return;
-    }
-
-    setVisible(true);
-
-    // "Restored" is an acknowledgement, not a persistent state — retire it
-    // quickly instead of leaving a banner the user has to dismiss.
-    if (status === "restored") {
-      hideTimer.current = setTimeout(() => setVisible(false), 2000);
-    }
-
-    return () => {
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-    };
-  }, [status]);
 
   // Before hydration the banner is simply absent, on both sides.
-  if (!hydrated || !visible || status === "online") return null;
+  if (!hydrated || status === "online") return null;
 
   const { label, tone } = COPY[status];
   const Icon = status === "restored" ? Wifi : status === "reconnecting" ? RefreshCw : CloudOff;

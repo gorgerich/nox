@@ -25,6 +25,10 @@ type SwipeStart = {
   y: number;
   time: number;
   pointerId: number;
+  dragging: boolean;
+  lastX: number;
+  lastTime: number;
+  velocityX: number;
 };
 
 function getTabScrollKey(pathname: string) {
@@ -73,6 +77,8 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
   const isMainDockScreen = pathname === "/chats" || pathname === "/chats/search" || pathname === "/calls" || pathname === "/profile" || pathname === "/contacts" || pathname === "/admin";
   const fullscreenRoute = isFullscreenRoute(pathname);
   const swipeStartRef = useRef<SwipeStart | null>(null);
+  const swipeSurfaceRef = useRef<HTMLElement | null>(null);
+  const suppressClickRef = useRef(false);
   const previousPathnameRef = useRef(pathname);
   const motionTimeoutRef = useRef<number | null>(null);
   const [routeMotion, setRouteMotion] = useState<RouteMotion>("route-motion-idle");
@@ -212,6 +218,10 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
       y: event.clientY,
       time: Date.now(),
       pointerId: event.pointerId,
+      dragging: false,
+      lastX: event.clientX,
+      lastTime: performance.now(),
+      velocityX: 0,
     };
   }, [activeTabIndex]);
 
@@ -225,6 +235,29 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     const dy = event.clientY - start.y;
     if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)) {
       swipeStartRef.current = null;
+      return;
+    }
+
+    if (!start.dragging && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+      start.dragging = true;
+      suppressClickRef.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    if (!start.dragging) return;
+
+    event.preventDefault();
+    const now = performance.now();
+    const elapsed = Math.max(1, now - start.lastTime);
+    const instantVelocity = (event.clientX - start.lastX) / elapsed;
+    start.velocityX = start.velocityX * 0.55 + instantVelocity * 0.45;
+    start.lastX = event.clientX;
+    start.lastTime = now;
+
+    const surface = swipeSurfaceRef.current;
+    if (surface) {
+      surface.style.transition = "none";
+      surface.style.transform = `translate3d(${Math.max(-12, Math.min(12, dx * 0.1))}px, 0, 0)`;
     }
   }, []);
 
@@ -238,12 +271,38 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     const elapsed = Date.now() - start.time;
-    const isHorizontal = Math.abs(dx) > 74 && Math.abs(dx) > Math.abs(dy) * 1.35;
-    if (!isHorizontal || elapsed > 700) {
+    const projectedDx = dx + start.velocityX * 150;
+    const isHorizontal = start.dragging && (Math.abs(dx) > 58 || (Math.abs(dx) > 18 && Math.abs(projectedDx) > 76)) && Math.abs(dx) > Math.abs(dy) * 1.2;
+    const surface = swipeSurfaceRef.current;
+
+    if (start.dragging) {
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 300);
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (!isHorizontal || elapsed > 850) {
+      if (surface) {
+        surface.style.transition = "transform 180ms var(--ease-out)";
+        surface.style.transform = "translate3d(0, 0, 0)";
+        window.setTimeout(() => {
+          surface.style.transition = "";
+          surface.style.transform = "";
+        }, 190);
+      }
       return;
     }
 
-    const nextIndex = dx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
+    if (surface) {
+      surface.style.transition = "";
+      surface.style.transform = "";
+    }
+    const navigationDx = Math.abs(projectedDx) > Math.abs(dx) ? projectedDx : dx;
+    const nextIndex = navigationDx < 0 ? activeTabIndex + 1 : activeTabIndex - 1;
     const nextRoute = TAB_ROUTES[nextIndex];
     if (!nextRoute) {
       return;
@@ -252,8 +311,30 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
     router.push(nextRoute, { scroll: false });
   }, [activeTabIndex, router]);
 
-  const handlePointerCancel = useCallback(() => {
+  const handlePointerCancel = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    const surface = swipeSurfaceRef.current;
+    if (surface) {
+      surface.style.transition = "transform 180ms var(--ease-out)";
+      surface.style.transform = "translate3d(0, 0, 0)";
+      window.setTimeout(() => {
+        surface.style.transition = "";
+        surface.style.transform = "";
+      }, 190);
+    }
     swipeStartRef.current = null;
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 300);
+  }, []);
+
+  const handleClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = false;
   }, []);
 
   if (fullscreenRoute) {
@@ -268,8 +349,9 @@ export function AppShellChrome({ user, incomingRequestCount, children }: AppShel
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onClickCapture={handleClickCapture}
       >
-        <main className={clsx(isMainDockScreen ? "main-app-content flex-1 w-full" : "flex-1 w-full", routeMotion)}>
+        <main ref={swipeSurfaceRef} className={clsx(isMainDockScreen ? "main-app-content flex-1 w-full" : "flex-1 w-full", routeMotion)}>
           {children}
         </main>
       </div>

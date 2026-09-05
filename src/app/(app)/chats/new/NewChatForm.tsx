@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Clock3, Search } from "lucide-react";
+import { avatarTint } from "@/lib/avatar-tint";
 
 type FoundUser = {
   id: string;
@@ -172,7 +173,7 @@ export function NewChatForm() {
   }
 
   return (
-    <div className="space-y-5 transition-smooth">
+    <div className="space-y-6 px-1 transition-smooth">
       <div>
         <form className="flex items-center gap-2" onSubmit={searchUser} method="POST">
           <div className="relative min-w-0 flex-1">
@@ -187,7 +188,7 @@ export function NewChatForm() {
             />
           </div>
           <button
-            className="fast-tap flex h-12 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+            className="fast-tap flex h-12 shrink-0 items-center justify-center rounded-[0.875rem] bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-45"
             // An empty query has nothing to search for, so the button said it
             // was available and then did nothing when pressed.
             disabled={pendingAction !== "" || username.trim() === ""}
@@ -197,13 +198,13 @@ export function NewChatForm() {
           </button>
         </form>
 
-        {error ? <p className="px-3 pt-3 text-sm font-semibold text-danger animate-in fade-in">{error}</p> : null}
-        {notice ? <p className="px-3 pt-3 text-sm font-semibold text-primary animate-in fade-in">{notice}</p> : null}
+        {error ? <p role="alert" className="px-3 pt-3 text-sm font-medium text-danger">{error}</p> : null}
+        {notice ? <p role="status" className="px-3 pt-3 text-sm font-medium text-primary">{notice}</p> : null}
 
         {foundUser && (
-          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200 rounded-[1.5rem] border border-border-subtle bg-surface/70 p-4">
+          <div className="mt-3 rounded-[0.875rem] bg-surface p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
+              <div className="nox-avatar-tint flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold" data-avatar-tint={avatarTint(foundUser.displayName || foundUser.username)}>
                 {foundUser.displayName.slice(0, 1).toLocaleUpperCase("ru-RU")}
               </div>
               <div className="min-w-0 flex-1">
@@ -216,7 +217,7 @@ export function NewChatForm() {
               <div className="mt-4 space-y-3">
                 <p className="px-1 text-sm text-muted">Это ваш профиль. Можно открыть избранное.</p>
                 <button
-                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+                  className="fast-tap flex h-12 w-full items-center justify-center rounded-[0.875rem] bg-primary text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-45"
                   disabled={pendingAction !== ""}
                   onClick={async () => {
                     setPendingAction("start-self");
@@ -244,14 +245,14 @@ export function NewChatForm() {
             ) : (
               <div className="mt-4 space-y-3">
                 <textarea
-                  className="min-h-24 w-full resize-none rounded-2xl border border-border-subtle bg-background/70 px-4 py-3 text-sm font-medium outline-none transition-smooth placeholder:text-muted/55 focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
+                  className="min-h-24 w-full resize-none rounded-[0.875rem] bg-background px-4 py-3 text-sm outline-none transition-colors placeholder:text-muted/55 focus:bg-input"
                   maxLength={500}
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Сообщение к запросу (необязательно)"
                   value={message}
                 />
                 <button
-                  className="fast-tap flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+                  className="fast-tap flex h-12 w-full items-center justify-center rounded-[0.875rem] bg-primary text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-45"
                   disabled={pendingAction !== ""}
                   onClick={sendRequest}
                   type="button"
@@ -264,10 +265,10 @@ export function NewChatForm() {
         )}
       </div>
 
-      <div className="grid gap-5 animate-in fade-in slide-in-from-bottom-4 duration-180 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2">
         <section className="space-y-3">
           <h2 className="px-1 text-[0.8125rem] font-semibold text-muted">Входящие запросы</h2>
-          <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">
+          <div className="overflow-hidden rounded-[0.875rem] bg-surface">
             {incoming.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted">Запросов пока нет</p>
             ) : (
@@ -276,7 +277,7 @@ export function NewChatForm() {
                   {item.status === "PENDING" && (
                     <div className="mt-4 flex gap-3">
                       <button
-                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-[0.75rem] bg-primary text-sm font-semibold text-primary-foreground transition-colors disabled:opacity-45"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "accept")}
                         type="button"
@@ -284,7 +285,7 @@ export function NewChatForm() {
                         {pendingAction === `accept-${item.id}` ? "Принимаем" : "Принять"}
                       </button>
                       <button
-                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-foreground transition-smooth active:scale-[0.96] disabled:opacity-45"
+                        className="fast-tap flex h-10 flex-1 items-center justify-center rounded-[0.75rem] bg-background text-sm font-medium text-foreground transition-colors hover:bg-surface-hover disabled:opacity-45"
                         disabled={pendingAction !== ""}
                         onClick={() => respondToRequest(item.id, "decline")}
                         type="button"
@@ -301,7 +302,7 @@ export function NewChatForm() {
 
         <section className="space-y-3">
           <h2 className="px-1 text-[0.8125rem] font-semibold text-muted">Ваши запросы</h2>
-          <div className="overflow-hidden border-y border-border-subtle bg-surface/60 sm:rounded-[1.5rem] sm:border">
+          <div className="overflow-hidden rounded-[0.875rem] bg-surface">
             {outgoing.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted">Вы не отправляли запросов</p>
             ) : (
@@ -309,7 +310,7 @@ export function NewChatForm() {
                 <RequestCard key={item.id} request={item} user={item.toUser}>
                   {item.status === "PENDING" && (
                     <button
-                      className="fast-tap mt-3 flex h-10 w-full items-center justify-center rounded-full border border-border-subtle bg-background text-sm font-semibold text-danger transition-smooth active:scale-[0.96] disabled:opacity-45"
+                      className="fast-tap mt-3 flex h-10 w-full items-center justify-center rounded-[0.75rem] bg-background text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-45"
                       disabled={pendingAction !== ""}
                       onClick={() => respondToRequest(item.id, "cancel")}
                       type="button"
@@ -348,17 +349,13 @@ function RequestCard({
             <p className="truncate text-[0.8125rem] text-muted">@{user.username}</p>
           </div>
         </div>
-        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[0.75rem] font-semibold ${
-          request.status === "PENDING" ? "bg-primary/10 text-primary" : "bg-foreground/5 text-muted"
-        }`}>
+        <span className={`inline-flex shrink-0 items-center gap-1 text-[0.75rem] font-medium ${request.status === "PENDING" ? "text-primary" : "text-muted"}`}>
           {request.status === "PENDING" ? <Clock3 className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
           {statusLabels[request.status]}
         </span>
       </div>
       {request.message && (
-        <div className="mt-3 rounded-2xl bg-background px-3 py-2">
-          <p className="text-[0.8125rem] leading-relaxed text-muted">&ldquo;{request.message}&rdquo;</p>
-        </div>
+        <p className="mt-2 text-[0.8125rem] leading-5 text-muted">{request.message}</p>
       )}
       {children}
     </article>

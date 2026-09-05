@@ -12,7 +12,14 @@ import { normalizeAvatarUrl } from "@/lib/media-url";
 import { buildConversationPreview, type PreviewIcon } from "@/lib/chat-preview";
 import { LocalTime } from "@/lib/time-format";
 
-const SWIPE_OPEN_THRESHOLD = 72;
+const SWIPE_OPEN_THRESHOLD = 58;
+const SWIPE_PROJECTION_MS = 150;
+
+function rubberBand(value: number, min: number, max: number) {
+  if (value < min) return min - Math.min(24, (min - value) * 0.22);
+  if (value > max) return max + Math.min(24, (value - max) * 0.22);
+  return value;
+}
 
 /** The preview's icon keys resolved to the row's own icon set. */
 const PREVIEW_ICONS: Record<NonNullable<PreviewIcon>, typeof Check> = {
@@ -73,9 +80,14 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
   const startXRef = useRef(0);
   const startYRef = useRef(0);
   const startOffsetRef = useRef(0);
+  const lastXRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const velocityXRef = useRef(0);
   const directionLockedRef = useRef<"horizontal" | "vertical" | null>(null);
   const movedRef = useRef(false);
+  const didSwipeRef = useRef(false);
   const [translateX, setTranslateX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const muted = Boolean(chat.mutedUntil && new Date(chat.mutedUntil).getTime() > Date.now());
   const pinned = Boolean(chat.pinnedAt);
@@ -116,10 +128,12 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     pointerIdRef.current = null;
     directionLockedRef.current = null;
     movedRef.current = false;
+    velocityXRef.current = 0;
+    setIsDragging(false);
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary) {
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) {
       return;
     }
 
@@ -131,8 +145,12 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     startXRef.current = event.clientX;
     startYRef.current = event.clientY;
     startOffsetRef.current = translateX;
+    lastXRef.current = event.clientX;
+    lastTimeRef.current = performance.now();
+    velocityXRef.current = 0;
     directionLockedRef.current = null;
     movedRef.current = false;
+    didSwipeRef.current = false;
   }, [chat.id, onPrefetch, onPressStart, translateX]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -153,6 +171,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
         directionLockedRef.current = "horizontal";
         onPressCancel?.(chat.id);
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setIsDragging(true);
       } else {
         return;
       }
@@ -166,15 +186,25 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     event.preventDefault();
 
     movedRef.current = true;
-    const nextX = Math.max(-RIGHT_ACTIONS_WIDTH, Math.min(LEFT_ACTIONS_WIDTH, startOffsetRef.current + deltaX));
+    const now = performance.now();
+    const elapsed = Math.max(1, now - lastTimeRef.current);
+    const instantVelocity = (event.clientX - lastXRef.current) / elapsed;
+    velocityXRef.current = velocityXRef.current * 0.55 + instantVelocity * 0.45;
+    lastXRef.current = event.clientX;
+    lastTimeRef.current = now;
+
+    const nextX = rubberBand(startOffsetRef.current + deltaX, -RIGHT_ACTIONS_WIDTH, LEFT_ACTIONS_WIDTH);
     setTranslateX(nextX);
-  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, chat.id, onPressCancel, resetGesture, startOffsetRef]);
+  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, chat.id, onPressCancel, resetGesture]);
 
   const finalizeSwipe = useCallback(() => {
-    if (translateX < -SWIPE_OPEN_THRESHOLD) {
+    const projectedX = translateX + velocityXRef.current * SWIPE_PROJECTION_MS;
+    didSwipeRef.current = movedRef.current;
+
+    if (projectedX < -SWIPE_OPEN_THRESHOLD) {
       setTranslateX(-RIGHT_ACTIONS_WIDTH);
       onOpen(chat.id);
-    } else if (translateX > SWIPE_OPEN_THRESHOLD) {
+    } else if (projectedX > SWIPE_OPEN_THRESHOLD) {
       setTranslateX(LEFT_ACTIONS_WIDTH);
       onOpen(chat.id);
     } else {
@@ -190,6 +220,9 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     }
 
     finalizeSwipe();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }, [finalizeSwipe]);
 
   const handlePointerCancel = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -198,18 +231,30 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
     }
 
     onPressCancel?.(chat.id);
-    setTranslateX(isOpen ? translateX : 0);
+    didSwipeRef.current = movedRef.current;
+    setTranslateX(isOpen ? (translateX < 0 ? -RIGHT_ACTIONS_WIDTH : LEFT_ACTIONS_WIDTH) : 0);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     resetGesture();
-  }, [chat.id, isOpen, onPressCancel, resetGesture, translateX]);
+  }, [LEFT_ACTIONS_WIDTH, RIGHT_ACTIONS_WIDTH, chat.id, isOpen, onPressCancel, resetGesture, translateX]);
 
   const handleOpenChat = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
-    if (movedRef.current || translateX !== 0) {
+    if (didSwipeRef.current) {
+      didSwipeRef.current = false;
       event.preventDefault();
       onPressCancel?.(chat.id);
       return;
     }
+    if (translateX !== 0) {
+      event.preventDefault();
+      setTranslateX(0);
+      onOpen(null);
+      onPressCancel?.(chat.id);
+      return;
+    }
     onNavigate(chat.id);
-  }, [chat.id, onNavigate, onPressCancel, translateX]);
+  }, [chat.id, onNavigate, onOpen, onPressCancel, translateX]);
 
   const title = chat.isSelfChat
     ? "Личное"
@@ -240,8 +285,8 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       : preview.tone === "danger"
         ? "text-danger/80"
         : hasUnread
-          ? "font-medium text-foreground/78"
-          : "text-muted/70";
+          ? "font-medium text-foreground/86"
+          : "text-muted";
 
   const previewNode: ReactNode = preview.prefix ? (
     <>
@@ -325,12 +370,17 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
       </div>
 
       <div
-        className="relative z-10 will-change-transform"
+        className="relative z-10"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        style={{ transform: `translate3d(${translateX}px, 0, 0)`, touchAction: "pan-y" }}
+        style={{
+          transform: `translate3d(${translateX}px, 0, 0)`,
+          touchAction: "pan-y",
+          transition: isDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+          willChange: isDragging || translateX !== 0 ? "transform" : "auto",
+        }}
       >
         <Link
           href={`/chats/${chat.id}`}
@@ -368,13 +418,13 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                 {hasUnread ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" /> : null}
                 <p className={`truncate text-[0.9375rem] text-foreground ${hasUnread ? "font-bold" : "font-semibold"}`}>{title}</p>
                 {muted ? (
-                  <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/50" />
+                  <BellOff className="h-3.5 w-3.5 shrink-0 text-muted/75" />
                 ) : null}
               </div>
               <LocalTime
                 value={chat.lastMessage?.createdAt ?? chat.createdAt}
                 kind="chatListStamp"
-                className={`shrink-0 text-[0.75rem] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/58"}`}
+                className={`shrink-0 text-[0.75rem] font-medium tabular-nums ${hasUnread ? "text-primary" : "text-muted/78"}`}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -383,20 +433,20 @@ export const SwipeableChatRow = memo(function SwipeableChatRow({
                   preview.deliveryState === "read" ? (
                     <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2.5} aria-label="Прочитано" />
                   ) : preview.deliveryState === "delivered" ? (
-                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/55" strokeWidth={2.4} aria-label="Доставлено" />
+                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-muted/75" strokeWidth={2.4} aria-label="Доставлено" />
                   ) : (
-                    <Check className="h-3.5 w-3.5 shrink-0 text-muted/50" strokeWidth={2.4} aria-label="Отправлено" />
+                    <Check className="h-3.5 w-3.5 shrink-0 text-muted/72" strokeWidth={2.4} aria-label="Отправлено" />
                   )
                 ) : null}
                 {PreviewIconComponent ? (
-                  <PreviewIconComponent className="h-3.5 w-3.5 shrink-0 text-muted/60" strokeWidth={2} aria-hidden="true" />
+                  <PreviewIconComponent className="h-3.5 w-3.5 shrink-0 text-muted/78" strokeWidth={2} aria-hidden="true" />
                 ) : null}
                 <p className={`min-w-0 flex-1 truncate text-[0.84375rem] leading-snug ${previewToneClass}`}>
                   {previewNode}
                 </p>
               </div>
               {pinned && !hasUnread ? (
-                <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/40" />
+                <Pin className="h-4 w-4 shrink-0 rotate-45 text-muted/65" />
               ) : null}
               {hasUnread ? (
                 <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold leading-none tabular-nums text-white ${muted ? "bg-muted/50" : "bg-primary"}`}>

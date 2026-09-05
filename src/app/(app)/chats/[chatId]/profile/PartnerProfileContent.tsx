@@ -193,25 +193,24 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const fullAvatarUrl = normalizeAvatarUrl(partnerUser.avatarUrl);
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto scrollbar-hide safe-bottom pb-[var(--bottom-dock-clearance)] transition-smooth">
+    <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom pb-[var(--bottom-dock-clearance)] transition-smooth">
       <header
-        className="liquid-top-chrome sticky top-0 z-50 flex items-center justify-between px-3 py-2"
+        className="liquid-top-chrome sticky top-0 z-50"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]" aria-label="Назад">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsEditSheetOpen(true)}
-          className="rounded-full bg-surface-elevated px-4 py-2 text-[1rem] font-semibold text-foreground shadow-sm transition-smooth active:scale-[0.96]"
-        >
-          Изменить
-        </button>
+        <div className="nox-detail-header nox-detail-header-wide-action mx-auto w-full max-w-[42rem] px-2">
+          <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/8" aria-label="Назад">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h1 className="nox-detail-title">Профиль</h1>
+          <button type="button" onClick={() => setIsEditSheetOpen(true)} className="h-11 justify-self-end whitespace-nowrap px-1 text-[0.9375rem] font-medium text-primary transition-colors hover:text-primary-hover">
+            Изменить
+          </button>
+        </div>
       </header>
 
-      <section className="flex flex-col items-center px-5 pb-6 pt-5">
-        <div className="group relative mb-4 h-28 w-28">
+      <section className="mx-auto flex w-full max-w-[42rem] flex-col items-center px-5 pb-5 pt-4">
+        <div className="group relative mb-3 h-24 w-24">
           <button
             type="button"
             onClick={() => fullAvatarUrl && setShowAvatarViewer(true)}
@@ -223,17 +222,17 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
-              <span className="text-5xl font-semibold">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
+              <span className="text-3xl font-semibold">{(settings.nickname || partnerUser.displayName)[0].toUpperCase()}</span>
             )}
           </button>
-          {presence.isOnline && <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full border-4 border-background bg-primary" />}
+          {presence.isOnline && <div className="absolute bottom-0.5 right-0.5 h-5 w-5 rounded-full border-[3px] border-background bg-primary" />}
         </div>
         
-        <h2 className="text-center text-[2rem] font-semibold leading-tight tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
-        <p className={`mt-1 text-[1rem] ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
+        <h2 className="max-w-full truncate px-4 text-center text-2xl font-semibold leading-tight tracking-tight">{settings.nickname || partnerUser.displayName}</h2>
+        <p className={`mt-0.5 text-[0.875rem] ${presence.isOnline ? "text-primary" : "text-muted"}`}>{presence.label}</p>
       </section>
 
-      <div className="mb-7 grid grid-cols-4 gap-1 px-5">
+      <div className="mx-auto mb-5 grid w-full max-w-[42rem] grid-cols-4 gap-1 px-5">
         <ActionButton
           onClick={() => startCall(chatId, { displayName: settings.nickname || partnerUser.displayName, avatarUrl: partnerUser.avatarUrl ?? null }, { video: true })}
           label="Видео"
@@ -263,18 +262,18 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         />
       </div>
 
-      <div className="mb-6 px-5">
-        <section className="overflow-hidden rounded-[28px] bg-surface-elevated">
+      <div className="mx-auto mb-5 w-full max-w-[42rem] px-5">
+        <section className="overflow-hidden rounded-[0.875rem] bg-surface">
           <div className="px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[0.9375rem] text-muted">Username</p>
-                <p className="mt-0.5 truncate text-[1.25rem] font-medium text-primary">@{partnerUser.username}</p>
+                <p className="text-[0.8125rem] text-muted">Username</p>
+                <p className="mt-0.5 truncate text-[1.0625rem] text-primary">@{partnerUser.username}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsEncryptionOpen(true)}
-                className="mt-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-primary transition-smooth active:scale-[0.96]"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-primary transition-colors hover:text-primary-hover"
                 aria-label="Информация о шифровании"
               >
                 <QrIcon />
@@ -283,15 +282,15 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           </div>
           <div className="mx-5 h-px bg-border-subtle" />
           <div className="px-5 py-4">
-            <p className="text-[0.9375rem] text-muted">Описание</p>
-            <p className="mt-0.5 whitespace-pre-wrap text-[1.0625rem] leading-snug text-foreground">
+            <p className="text-[0.8125rem] text-muted">Описание</p>
+            <p className="mt-0.5 whitespace-pre-wrap text-[1rem] leading-6 text-foreground">
               {partnerUser.bio?.trim() || "Описание профиля не добавлено"}
             </p>
           </div>
         </section>
       </div>
-      <div className="flex flex-1 flex-col px-5">
-        <div className="sticky top-0 z-20 mb-4 rounded-full border border-border-subtle bg-foreground/5 p-1">
+      <div className="mx-auto flex w-full max-w-[42rem] flex-1 flex-col px-5">
+        <div className="sticky top-0 z-20 mb-4 rounded-[0.875rem] bg-surface-tertiary p-1">
           <div className="grid grid-cols-3 gap-1">
           <TabButton active={activeTab === "media"} onClick={() => setActiveSection("media")} label="Медиа" />
           <TabButton active={activeTab === "files"} onClick={() => setActiveSection("files")} label="Файлы" />
@@ -388,7 +387,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
 function ActionButton({ label, icon, onClick, destructive }: { label: string, icon: React.ReactNode, onClick: () => void, destructive?: boolean }) {
   return (
     <button onClick={onClick} className="group flex flex-col items-center gap-1.5">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-full transition-smooth active:scale-[0.96] group-hover:bg-foreground/5 ${destructive ? "text-danger" : "text-primary"}`}>
+      <div className={`flex h-11 w-11 items-center justify-center transition-colors group-hover:text-primary-hover ${destructive ? "text-danger" : "text-primary"}`}>
         {icon}
       </div>
       <span className={`text-[0.6875rem] font-medium ${destructive ? "text-danger" : "text-primary"}`}>{label}</span>
@@ -437,7 +436,7 @@ function MoreProfileButton({
       <ActionButton onClick={() => setIsOpen((v) => !v)} label="Ещё" icon={<MoreIcon />} />
       {isOpen && (
         <div ref={menuRef} className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} role="dialog" aria-modal="true" aria-label="Дополнительные действия">
-          <div className="apple-glass-control absolute right-5 top-[calc(env(safe-area-inset-top,0px)+17rem)] w-64 overflow-hidden rounded-2xl p-2 animate-in zoom-in-95" onClick={(event) => event.stopPropagation()}>
+          <div className="apple-glass-control absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl p-2 animate-in slide-in-from-bottom-2" onClick={(event) => event.stopPropagation()}>
             <MenuItem onClick={() => { setIsOpen(false); onSearch(); }} icon={<SearchIcon />} label="Поиск" />
             <MenuItem onClick={() => { setIsOpen(false); onClear(); }} icon={<TrashIcon />} label="Очистить диалог" destructive disabled={disabled} />
             <MenuItem onClick={() => { setIsOpen(false); onBlock(); }} icon={<BlockIcon />} label={isBlocked ? "Разблокировать" : "Блок"} destructive={!isBlocked} />
@@ -456,7 +455,7 @@ function MenuItem({ icon, label, onClick, destructive, disabled }: { icon: React
       disabled={disabled}
       className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-smooth hover:bg-foreground/5 disabled:opacity-50 ${destructive ? "text-danger" : "text-foreground"}`}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5">{icon}</span>
+      <span className="flex h-8 w-8 items-center justify-center">{icon}</span>
       {label}
     </button>
   );
@@ -464,7 +463,7 @@ function MenuItem({ icon, label, onClick, destructive, disabled }: { icon: React
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button onClick={onClick} className={`h-10 rounded-full text-sm font-semibold transition-smooth active:scale-[0.96] ${active ? "bg-surface text-foreground shadow-sm" : "text-foreground/75 hover:bg-foreground/5"}`}>
+    <button onClick={onClick} className={`h-9 rounded-[0.625rem] text-sm font-medium transition-colors ${active ? "bg-surface text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.10)]" : "text-foreground/70 hover:text-foreground"}`}>
       {label}
     </button>
   );

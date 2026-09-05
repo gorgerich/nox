@@ -37,7 +37,7 @@ export default async function CallsPage() {
   });
 
   return (
-    <div className="app-section transition-smooth">
+    <div className="app-section app-section-compact transition-smooth">
       <div className="nox-page-header">
         <div>
           <h1 className="nox-page-title">Звонки</h1>
@@ -45,7 +45,7 @@ export default async function CallsPage() {
       </div>
 
       {logs.length === 0 ? (
-        <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+        <div className="nox-empty-state">
           <div className="nox-empty-icon text-primary">
             <Phone className="h-9 w-9" strokeWidth={1.6} />
           </div>

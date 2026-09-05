@@ -67,14 +67,14 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
 
   if (chats.length === 0) {
     return (
-      <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+      <div className="nox-empty-state">
         <ArchiveIntroSheet />
         <h2 className="nox-empty-title">В архиве пусто</h2>
         <p className="nox-empty-copy">
           Сюда попадают скрытые чаты.
         </p>
         <Link
-          className="mt-7 inline-flex h-11 items-center rounded-full bg-surface-elevated px-5 text-sm font-semibold text-foreground transition-smooth active:scale-[0.96]"
+          className="fast-tap mt-7 inline-flex h-11 items-center rounded-[0.875rem] bg-surface-elevated px-5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-hover"
           href="/chats"
           prefetch
         >
@@ -85,10 +85,10 @@ export function ArchivePageClient({ initialChats }: ArchivePageClientProps) {
   }
 
   return (
-    <div className="space-y-1 animate-in fade-in duration-200">
+    <div className="-mx-5 md:mx-0">
       <ArchiveIntroSheet />
       {error ? (
-        <div className="mx-4 mb-3 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
+        <div role="alert" className="mx-4 mb-3 rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
           {error}
         </div>
       ) : null}

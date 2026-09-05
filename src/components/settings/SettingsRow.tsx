@@ -58,7 +58,7 @@ export function SettingsNavRow({
       className={`${ROW} transition-smooth hover:bg-surface-hover active:bg-surface-hover disabled:opacity-45`}
     >
       {icon ? (
-        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center text-primary">
           {icon}
         </span>
       ) : null}
@@ -87,7 +87,7 @@ export function SettingsValueRow({
   return (
     <div className={ROW}>
       {icon ? (
-        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center text-primary">
           {icon}
         </span>
       ) : null}
@@ -359,7 +359,7 @@ export function SettingsPrimaryButton({
   return (
     <button
       {...props}
-      className="fast-tap h-12 w-full rounded-full bg-primary text-[1.0625rem] font-medium text-primary-foreground transition-smooth disabled:opacity-40"
+      className="fast-tap h-12 w-full rounded-[0.875rem] bg-primary text-[1.0625rem] font-medium text-primary-foreground transition-colors disabled:opacity-40"
     >
       {children}
     </button>

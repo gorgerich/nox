@@ -37,7 +37,7 @@ export function DirectChatButton({ userId }: { userId: string }) {
       <button
         onClick={handleClick}
         disabled={pending}
-        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth hover:bg-primary-hover active:scale-[0.96] fast-tap disabled:opacity-50"
+        className="fast-tap inline-flex h-12 w-full items-center justify-center gap-2 rounded-[0.875rem] bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {pending ? (
           <>

@@ -124,7 +124,8 @@ export const getCurrentUser = cache(async () => {
     return null;
   }
 
-  const { passwordHash: _passwordHash, ...safeUser } = user;
+  const { passwordHash, ...safeUser } = user;
+  void passwordHash;
   return safeUser;
 });
 

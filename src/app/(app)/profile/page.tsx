@@ -19,7 +19,7 @@ export default async function ProfilePage() {
   if (!dbUser) return null;
 
   return (
-    <div className="app-section transition-smooth">
+    <div className="app-section app-section-compact transition-smooth">
       {/* No page title: the avatar and name are the heading on this screen, and
           a second "Профиль" above them only pushed everything down. */}
       <h1 className="sr-only">Профиль</h1>

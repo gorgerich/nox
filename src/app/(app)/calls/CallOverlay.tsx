@@ -54,11 +54,13 @@ function CallControlButton({
       disabled={disabled || loading}
       aria-label={label}
       aria-pressed={active}
-      className="flex flex-col items-center gap-1.5 disabled:opacity-40"
+      className="flex min-w-0 flex-col items-center gap-1.5 disabled:opacity-40"
     >
       <span
         className={`fast-tap flex h-14 w-14 items-center justify-center rounded-full border backdrop-blur-xl transition-smooth ${
-          active ? "border-white bg-white text-black" : "border-white/12 bg-white/10 text-white"
+          active
+            ? "border-white/80 bg-white text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+            : "border-white/10 bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
         }`}
       >
         {loading ? (
@@ -70,7 +72,7 @@ function CallControlButton({
           icon
         )}
       </span>
-      <span className="text-[0.75rem] font-medium text-white/75">{label}</span>
+      <span className="w-full truncate text-[0.6875rem] font-medium text-white/72">{label}</span>
     </button>
   );
 }
@@ -545,7 +547,7 @@ export function CallOverlay() {
         type="button"
         onClick={() => setMinimized(false)}
         aria-label={`Вернуться к звонку с ${peer.displayName}`}
-        className="fast-tap fixed left-1/2 z-[1000] flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#2fbf47] px-4 py-2 text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] safe-top"
+        className="fast-tap fixed left-1/2 z-[1000] flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-success px-4 py-2 text-white shadow-[0_2px_8px_rgba(0,0,0,0.22)] safe-top"
         style={{ top: "calc(env(safe-area-inset-top, 0px) + 6px)" }}
       >
         <PhoneIcon />
@@ -591,7 +593,7 @@ export function CallOverlay() {
         onClick={(event) => { if (showRemoteFullscreen) event.stopPropagation(); }}
         style={localVideoStyle}
         className={`z-20 touch-none overflow-hidden bg-neutral-900 ${
-          showRemoteFullscreen ? "cursor-grab border border-white/15 shadow-[0_14px_36px_rgba(0,0,0,0.35)] active:cursor-grabbing" : ""
+          showRemoteFullscreen ? "cursor-grab border border-white/12 shadow-[0_4px_14px_rgba(0,0,0,0.28)] active:cursor-grabbing" : ""
         }`}
       >
         <video
@@ -618,7 +620,7 @@ export function CallOverlay() {
       />
 
       {DEBUG_CALLS && (
-        <div className="absolute left-4 top-24 z-50 max-w-[200px] rounded-lg bg-black/80 p-3 text-[0.625rem] font-mono text-green-500 shadow-xl backdrop-blur-md">
+        <div className="absolute left-4 top-24 z-50 max-w-[200px] rounded-lg border border-white/10 bg-black/88 p-3 text-[0.625rem] font-mono text-green-500 shadow-[0_2px_8px_rgba(0,0,0,0.24)] backdrop-blur-md">
           <div className="mb-1 border-b border-green-500/30 pb-1 font-bold">CALL DEBUG</div>
           <div>ID: {debugInfo.callId?.slice(0, 8)}...</div>
           <div>Role: {debugInfo.role}</div>
@@ -670,7 +672,7 @@ export function CallOverlay() {
             type="button"
             aria-label="Свернуть звонок"
             onClick={() => setMinimized(true)}
-            className="fast-tap flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-xl"
+            className="fast-tap flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-xl"
           >
             <ChevronDownIcon />
           </button>
@@ -684,14 +686,14 @@ export function CallOverlay() {
               aria-haspopup="menu"
               aria-expanded={showMoreMenu}
               onClick={() => setShowMoreMenu((value) => !value)}
-              className="fast-tap flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-xl"
+              className="fast-tap flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-xl"
             >
               <MoreIcon />
             </button>
             {showMoreMenu && (
               <div
                 role="menu"
-                className="premium-glass absolute right-0 top-11 z-40 w-56 overflow-hidden rounded-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+                className="absolute right-0 top-12 z-40 w-56 overflow-hidden rounded-[0.875rem] border border-white/10 bg-neutral-900/90 py-1 text-white shadow-[0_4px_16px_rgba(0,0,0,0.28)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150"
               >
                 <button
                   type="button"
@@ -717,8 +719,7 @@ export function CallOverlay() {
           <div
             className={`relative mb-6 h-32 w-32 ${isRinging && !isVideo ? "animate-call-breathe" : ""}`}
           >
-            <div className="absolute -inset-3 rounded-full bg-primary/14 blur-xl" />
-            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/15 bg-neutral-900 shadow-xl">
+            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/14 bg-neutral-900 shadow-[0_3px_12px_rgba(0,0,0,0.24)]">
               {fullAvatarUrl ? (
                 <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
               ) : (
@@ -729,7 +730,7 @@ export function CallOverlay() {
         )}
 
         <h2
-          className={`mb-1 text-[1.75rem] font-semibold tracking-tight text-white ${
+          className={`mb-1 text-[1.75rem] font-semibold text-white ${
             showRemoteFullscreen ? "drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]" : ""
           }`}
         >
@@ -748,18 +749,18 @@ export function CallOverlay() {
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            Звонок зашифрован
+            Медиа защищено WebRTC
           </p>
         )}
 
         {error && error !== "CAMERA_PERMISSION_DENIED" ? (
-          <p className="mt-4 rounded-xl border border-danger/20 bg-danger/10 px-4 py-2 text-xs font-bold text-danger">
+          <p className="mt-4 rounded-[0.875rem] bg-danger/12 px-4 py-2 text-xs font-semibold text-danger">
             {error}
           </p>
         ) : null}
 
         {speakerHint ? (
-          <p className="mt-3 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
+          <p className="mt-3 rounded-[0.875rem] bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
             {speakerHint}
           </p>
         ) : null}
@@ -767,12 +768,12 @@ export function CallOverlay() {
         {needsTapToPlay && remoteStream ? (
           <button
             onClick={handleTapToPlay}
-            className="mt-4 flex flex-col items-center gap-2 rounded-2xl border-2 border-primary bg-primary/20 px-6 py-4 transition-smooth active:scale-[0.96]"
+            className="mt-4 flex min-h-11 items-center gap-2 rounded-[0.875rem] bg-white px-4 py-2.5 text-black shadow-[0_2px_8px_rgba(0,0,0,0.2)] transition-smooth active:scale-[0.97]"
           >
-            <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
             </svg>
-            <span className="text-sm font-semibold text-primary">Включить звук</span>
+            <span className="text-sm font-semibold">Включить звук</span>
           </button>
         ) : null}
       </div>
@@ -787,7 +788,7 @@ export function CallOverlay() {
               type="button"
               aria-label="Отклонить звонок"
               onClick={declineCall}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-lg transition-smooth active:scale-[0.96]"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-[0_3px_8px_rgba(0,0,0,0.24)] transition-smooth active:scale-[0.96]"
             >
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -797,7 +798,7 @@ export function CallOverlay() {
               type="button"
               aria-label="Принять звонок"
               onClick={acceptCall}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-[#2fbf47] text-white shadow-lg transition-smooth active:scale-[0.96]"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-success text-white shadow-[0_3px_8px_rgba(0,0,0,0.24)] transition-smooth active:scale-[0.96]"
             >
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -805,8 +806,8 @@ export function CallOverlay() {
             </button>
           </div>
         ) : (
-          <div className="mx-auto flex w-full max-w-[280px] flex-col items-center gap-7">
-            <div className="flex justify-center gap-6">
+          <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-7">
+            <div className="grid w-full grid-flow-col auto-cols-fr gap-2">
               <CallControlButton
                 onClick={toggleMute}
                 active={isMuted}
@@ -838,7 +839,7 @@ export function CallOverlay() {
                 <CallControlButton
                   onClick={() => void switchCamera()}
                   disabled={isScreenSharing}
-                  label="Перевернуть"
+                  label="Сменить"
                   icon={<FlipCameraIcon />}
                 />
               )}
@@ -848,7 +849,7 @@ export function CallOverlay() {
               type="button"
               aria-label="Завершить звонок"
               onClick={endCall}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-lg transition-smooth active:scale-[0.96]"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-[0_3px_8px_rgba(0,0,0,0.24)] transition-smooth active:scale-[0.96]"
             >
               <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />

@@ -5,18 +5,19 @@
 
 export default function UserProfileLoading() {
   return (
-    <div className="app-section" aria-busy="true" aria-label="Загрузка профиля">
-      <header className="app-section-header flex items-center gap-3">
+    <div className="app-section app-section-compact" aria-busy="true" aria-label="Загрузка профиля">
+      <header className="nox-detail-header app-section-header !grid">
         <div className="h-11 w-11 shrink-0 rounded-full bg-surface-muted/70" />
-        <div className="h-6 w-28 rounded-full bg-surface-muted/70" />
+        <div className="mx-auto h-5 w-20 rounded-full bg-surface-muted/70" />
+        <div className="h-11 w-11" />
       </header>
 
-      <div className="mt-6 flex flex-col items-center">
-        <div className="h-32 w-32 rounded-full bg-surface-muted/70 animate-pulse" />
-        <div className="mt-5 h-7 w-44 rounded-full bg-surface-muted/70 animate-pulse" />
+      <div className="mt-3 flex flex-col items-center">
+        <div className="h-24 w-24 rounded-full bg-surface-muted/70 animate-pulse" />
+        <div className="mt-4 h-7 w-44 rounded-full bg-surface-muted/70 animate-pulse" />
         <div className="mt-2 h-4 w-28 rounded-full bg-surface-muted/50 animate-pulse" />
 
-        <div className="mt-8 flex w-full max-w-xs gap-4">
+        <div className="mt-6 flex w-full max-w-xs gap-4 px-4">
           <div className="h-12 w-full rounded-2xl bg-surface-muted/70 animate-pulse" />
         </div>
 

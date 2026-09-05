@@ -246,17 +246,20 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
     // only accounts for the home indicator, so the final row scrolled under it.
     <div className="flex h-full flex-col overflow-y-auto bg-background scrollbar-hide safe-bottom pb-[var(--bottom-dock-clearance)] transition-smooth">
       <header
-        className="liquid-top-chrome sticky top-0 z-50 flex items-center justify-between px-3 py-2"
+        className="liquid-top-chrome sticky top-0 z-50"
         style={{ minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))", paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-smooth hover:bg-primary/10 active:scale-[0.96]" aria-label="Назад">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-        </button>
-        <div className="w-10" /> 
+        <div className="nox-detail-header mx-auto w-full max-w-[42rem] px-2">
+          <button onClick={() => router.back()} className="touch-target flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/8" aria-label="Назад">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h1 className="nox-detail-title">Информация</h1>
+          <div className="h-11 w-11" />
+        </div>
       </header>
 
-      <section className="flex flex-col items-center px-6 pb-8 pt-7">
-        <div className="group relative mb-5 h-32 w-32">
+      <section className="mx-auto flex w-full max-w-[42rem] flex-col items-center px-6 pb-5 pt-4">
+        <div className="group relative mb-3 h-24 w-24">
           <button 
             type="button"
             aria-label={permissions.canEditGroup ? "Изменить фото группы" : `Фото группы ${chat.title}`}
@@ -268,7 +271,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
             {fullAvatarUrl ? (
               <Image src={fullAvatarUrl} alt="" fill className="object-cover" />
             ) : (
-              <span className="text-5xl font-semibold">{chat.title[0]?.toUpperCase()}</span>
+              <span className="text-3xl font-semibold">{chat.title[0]?.toUpperCase()}</span>
             )}
             
             {permissions.canEditGroup && (
@@ -301,7 +304,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                 })
               }
               disabled={pending}
-              className="absolute -bottom-1 -right-1 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle bg-surface text-danger shadow-lg transition-smooth active:scale-[0.96]"
+              className="absolute -bottom-1 -right-1 z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-background bg-surface text-danger transition-smooth active:scale-[0.96]"
               aria-label="Удалить фото группы"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -311,34 +314,34 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
           )}
         </div>
         
-        <h2 className="text-center text-3xl font-semibold tracking-tight">{chat.title}</h2>
-        <p className="mt-1 text-sm font-normal text-muted">{members.length} участников</p>
-        <p className="mt-3 text-xs font-normal text-muted">Группа создана {formatCalendarDate(chat.createdAt)}</p>
+        <h2 className="max-w-full truncate px-4 text-center text-2xl font-semibold tracking-tight">{chat.title}</h2>
+        <p className="mt-0.5 text-sm text-muted">{members.length} участников</p>
+        <p className="mt-1 text-xs text-muted">Создана {formatCalendarDate(chat.createdAt)}</p>
         {statusMessage ? (
-          <p className="mt-3 rounded-full bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger">
+          <p role="status" className="mt-2 px-3 text-xs font-medium text-danger">
             {statusMessage}
           </p>
         ) : null}
       </section>
 
       {/* Quick Actions */}
-      <div className={`mb-8 grid ${quickActionColumnClass} gap-1 px-4`}>
+      <div className={`mx-auto mb-5 grid w-full max-w-[42rem] ${quickActionColumnClass} gap-1 px-4`}>
         <ActionButton onClick={() => router.push(`/chats/${chatId}?search=true`)} label="Найти" icon={<SearchIcon />} />
         <ActionButton onClick={() => setIsAppearanceOpen(true)} label="Стиль" icon={<AppearanceIcon />} />
         {permissions.canEditGroup && <ActionButton onClick={() => setIsEditingTitle(true)} label="Изменить название" icon={<EditIcon />} />}
       </div>
 
-      <div className="mb-8 space-y-3 px-4">
-        <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+      <div className="mx-auto mb-6 w-full max-w-[42rem] space-y-3 px-4">
+        <section className="overflow-hidden rounded-[0.875rem] bg-surface">
           {permissions.canAddMembers && (
             <>
-              <button onClick={() => setIsAddingMembers(true)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <button onClick={() => setIsAddingMembers(true)} className="flex min-h-[52px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-foreground/5 active:bg-foreground/10">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center text-primary">
                   <AddMemberIcon />
                 </div>
                 <span className="text-sm font-semibold text-primary">Добавить участников</span>
               </button>
-              <div className="ml-[4.25rem] h-px bg-border-subtle" />
+              <div className="ml-[3.75rem] h-px bg-border-subtle" />
             </>
           )}
           <div className="divide-y divide-border-subtle">
@@ -358,7 +361,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-foreground/5 px-2 py-1 text-[0.6875rem] font-medium text-muted">{roleLabel(m.role)}</span>
+                  <span className="text-[0.6875rem] text-muted">{roleLabel(m.role)}</span>
                 {permissions.canRemoveMembers && !m.isSelf && (
                   <button onClick={() =>
                     setConfirming({
@@ -367,7 +370,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
                       confirmLabel: "Удалить",
                       run: () => handleRemoveMember(m.userId),
                     })
-                  } className="rounded-full p-2 text-danger opacity-0 transition-opacity hover:bg-danger/10 group-hover:opacity-100" aria-label="Удалить участника">
+                  } className="flex h-10 w-10 items-center justify-center rounded-full text-danger transition-colors hover:bg-danger/10" aria-label="Удалить участника">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 )}
@@ -378,8 +381,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         </section>
       </div>
 
-      <div className="flex flex-1 flex-col px-4">
-        <div className="sticky top-0 z-20 mb-4 rounded-full border border-border-subtle bg-foreground/5 p-1">
+      <div className="mx-auto flex w-full max-w-[42rem] flex-1 flex-col px-4">
+        <div className="sticky top-0 z-20 mb-4 rounded-[0.875rem] bg-surface-tertiary p-1">
           <div className="grid grid-cols-3 gap-1">
           <TabButton active={activeTab === "media"} onClick={() => setActiveSection("media")} label="Медиа" />
           <TabButton active={activeTab === "files"} onClick={() => setActiveSection("files")} label="Файлы" />
@@ -484,8 +487,8 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
 
 function ActionButton({ label, icon, onClick }: { label: string, icon: React.ReactNode, onClick: () => void }) {
   return (
-    <button onClick={onClick} className="group flex flex-col items-center gap-2">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-smooth active:scale-[0.96]">
+    <button onClick={onClick} className="group flex flex-col items-center gap-1.5">
+      <div className="flex h-11 w-11 items-center justify-center text-primary transition-colors group-hover:text-primary-hover">
         {icon}
       </div>
       <span className="text-[0.6875rem] font-semibold text-primary opacity-90">{label}</span>
@@ -500,7 +503,7 @@ function EditIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 2
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button onClick={onClick} className={`h-10 rounded-full text-sm font-semibold transition-smooth active:scale-[0.96] ${active ? "bg-surface text-foreground shadow-sm" : "text-foreground/75 hover:bg-foreground/5"}`}>
+    <button onClick={onClick} className={`h-9 rounded-[0.625rem] text-sm font-medium transition-colors ${active ? "bg-surface text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.10)]" : "text-foreground/70 hover:text-foreground"}`}>
       {label}
     </button>
   );

@@ -13,7 +13,6 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
-  composerOf,
   createChecker,
   createPrisma,
   loadPlaywright,

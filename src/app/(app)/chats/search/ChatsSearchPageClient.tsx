@@ -119,7 +119,7 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
   }
 
   return (
-    <div className="min-h-dvh bg-background pb-[var(--bottom-dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
+    <div className="min-h-dvh bg-[var(--app-bg)] pb-[var(--bottom-dock-clearance)] pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
       <div className="mx-auto flex w-full max-w-2xl flex-col">
         <div className="flex items-center gap-2 px-4">
           <button
@@ -160,17 +160,17 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
             className="mt-5 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             data-nox-horizontal-scroll="true"
           >
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {recentChats.map((chat) => {
                 const title = chatTitle(chat);
                 const avatarUrl = chatAvatar(chat);
                 return (
-                  <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex w-20 shrink-0 flex-col items-center gap-2 text-center">
+                  <Link key={chat.id} href={`/chats/${chat.id}`} className="fast-tap fluid-hit flex w-[4.5rem] shrink-0 flex-col items-center gap-1.5 text-center">
                     {/* The same name-derived tint the chat list uses, seeded
                         from the displayed title so one conversation keeps one
                         colour on both screens. */}
                     <div
-                      className="nox-avatar-tint relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full text-xl font-semibold"
+                      className="nox-avatar-tint relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-lg font-semibold"
                       data-avatar-tint={avatarTint(title)}
                     >
                       {avatarUrl ? (
@@ -216,8 +216,9 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                   </button>
                 ) : null}
               </div>
+              {history.length > 0 ? (
               <div className="nox-list mx-0 mt-2 md:mx-4">
-                {history.length > 0 ? history.map((item) => (
+                {history.map((item) => (
                   <button
                     key={item}
                     type="button"
@@ -227,10 +228,11 @@ export function ChatsSearchPageClient({ chats, incomingRequests }: Props) {
                     <Search className="h-5 w-5 shrink-0 text-muted" strokeWidth={2.1} />
                     <span className="nox-row-title min-w-0 flex-1">{item}</span>
                   </button>
-                )) : (
-                  <p className="px-5 py-4 text-sm font-medium text-muted">История поиска появится здесь.</p>
-                )}
+                ))}
               </div>
+              ) : (
+                <p className="px-5 pt-3 text-sm text-muted">Здесь появятся ваши последние запросы.</p>
+              )}
             </section>
 
             {incomingRequests.length > 0 ? (

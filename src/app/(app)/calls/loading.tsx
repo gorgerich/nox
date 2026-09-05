@@ -2,7 +2,7 @@ const ROWS = Array.from({ length: 10 });
 
 export default function CallsLoading() {
   return (
-    <div className="app-section" aria-busy="true" aria-label="Загрузка звонков">
+    <div className="app-section app-section-compact" aria-busy="true" aria-label="Загрузка звонков">
       <div className="nox-page-header">
         <h1 className="nox-page-title">Звонки</h1>
       </div>

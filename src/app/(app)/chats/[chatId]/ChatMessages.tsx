@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } fr
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import Image from "next/image";
 import Link from "next/link";
-import { createPortal } from "react-dom";
 import { useSocket } from "@/hooks/useSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
@@ -176,16 +175,16 @@ function E2EEDisclaimer() {
     <div className="px-3 pb-3 pt-1">
       <Link
         href="/safety"
-        className="mx-auto flex max-w-[34rem] items-start gap-3 rounded-[1.25rem] border border-border-subtle/50 bg-surface/82 px-4 py-3.5 text-left shadow-[0_10px_28px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-smooth active:scale-[0.96]"
+        className="mx-auto flex max-w-[34rem] items-start gap-3 rounded-[0.875rem] bg-surface/88 px-4 py-3.5 text-left transition-colors active:bg-surface-hover"
       >
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-foreground">
           <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3.75 5.5 6.4v5.35c0 4.08 2.76 7.9 6.5 8.95 3.74-1.05 6.5-4.87 6.5-8.95V6.4L12 3.75Z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M9.6 12.2 11.3 14l3.5-4" />
           </svg>
         </span>
-        <span className="text-[0.875rem] font-semibold leading-5 text-foreground">
-          Сообщения и звонки защищены сквозным шифрованием. Никто вне этого чата, даже Nox, не может читать или слушать их. Нажмите, чтобы узнать больше.
+        <span className="text-[0.875rem] font-medium leading-5 text-foreground">
+          Личные сообщения защищены сквозным шифрованием. Звонки шифруются WebRTC при передаче. Нажмите, чтобы узнать подробности.
         </span>
       </Link>
     </div>
@@ -285,14 +284,15 @@ export function ChatMessages({
   // Surface the transport state in the UI. The socket already tracked
   // connect/disconnect; nothing rendered it, so a dropped connection was
   // invisible until a send failed.
-  const [isBrowserOnline, setIsBrowserOnline] = useState(true);
+  const [isBrowserOnline, setIsBrowserOnline] = useState(
+    () => (typeof navigator === "undefined" ? true : navigator.onLine),
+  );
   const wasDisconnectedRef = useRef(false);
   const [showRestored, setShowRestored] = useState(false);
 
   useEffect(() => {
     const online = () => setIsBrowserOnline(true);
     const offline = () => setIsBrowserOnline(false);
-    setIsBrowserOnline(navigator.onLine);
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
     return () => {
@@ -304,14 +304,16 @@ export function ChatMessages({
   useEffect(() => {
     if (!connected) {
       wasDisconnectedRef.current = true;
-      setShowRestored(false);
       return;
     }
     if (wasDisconnectedRef.current) {
       wasDisconnectedRef.current = false;
-      setShowRestored(true);
-      const id = setTimeout(() => setShowRestored(false), 2200);
-      return () => clearTimeout(id);
+      const showId = window.setTimeout(() => setShowRestored(true), 0);
+      const hideId = window.setTimeout(() => setShowRestored(false), 2200);
+      return () => {
+        window.clearTimeout(showId);
+        window.clearTimeout(hideId);
+      };
     }
   }, [connected]);
 

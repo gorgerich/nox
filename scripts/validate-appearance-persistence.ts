@@ -26,6 +26,9 @@ import {
 const PORT = Number(process.env.APPEARANCE_PERSIST_PORT ?? 4009);
 const { check, failures } = createChecker();
 const SHEET = ".appearance-sheet";
+// The stored swatch is a preference token. Production resolves it to a deeper
+// accessible bubble colour before painting white message text.
+const EXPECTED_GREEN_BUBBLE = "#0c865d";
 
 async function openSheet(page: PageLike, base: string, chatId: string) {
   await page.goto(`${base}/chats/${chatId}`, { waitUntil: "networkidle" });
@@ -126,7 +129,11 @@ async function main() {
         stored: window.localStorage.getItem(Object.keys(window.localStorage).find((key) => key.startsWith("nox:chat-appearance")) ?? ""),
       })));
     }
-    check("and are applied to the conversation", /10B981/i.test(appliedAfterReload), appliedAfterReload);
+    check(
+      "and are applied to the conversation",
+      appliedAfterReload.toLowerCase() === EXPECTED_GREEN_BUBBLE,
+      appliedAfterReload,
+    );
 
     // --- the other conversation is untouched ---------------------------------
     await page.goto(`${app.base}/chats/${chatB}`, { waitUntil: "networkidle" });
@@ -143,7 +150,11 @@ async function main() {
       const anchor = screens[screens.length - 1] ?? document.body;
       return getComputedStyle(anchor).getPropertyValue("--bubble-outgoing-bg").trim();
     });
-    check("and does not inherit the first one's colour", !/10B981/i.test(otherApplied), otherApplied);
+    check(
+      "and does not inherit the first one's colour",
+      otherApplied.toLowerCase() !== EXPECTED_GREEN_BUBBLE,
+      otherApplied,
+    );
 
     // --- reset ----------------------------------------------------------------
     await openSheet(page, app.base, chatA);
@@ -163,7 +174,11 @@ async function main() {
       const anchor = screens[screens.length - 1] ?? document.body;
       return getComputedStyle(anchor).getPropertyValue("--bubble-outgoing-bg").trim();
     });
-    check("no stale variable is left applied", !/10B981/i.test(appliedAfterReset), appliedAfterReset);
+    check(
+      "no stale variable is left applied",
+      appliedAfterReset.toLowerCase() !== EXPECTED_GREEN_BUBBLE,
+      appliedAfterReset,
+    );
 
     // --- a corrupted entry must not take the conversation down ---------------
     await page.evaluate((id) => window.localStorage.setItem(`nox:chat-appearance:${id}:v2`, "{not json"), chatA);

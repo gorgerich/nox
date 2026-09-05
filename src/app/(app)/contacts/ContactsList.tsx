@@ -79,7 +79,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
   };
 
   return (
-    <div className="app-section animate-in fade-in duration-200">
+    <div className="app-section app-section-compact">
       <header className="nox-page-header">
         <div>
           <h1 className="nox-page-title">Контакты</h1>
@@ -106,13 +106,13 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
       </label>
 
       {error ? (
-        <div className="mb-3 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+        <div role="alert" className="mb-3 rounded-xl bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
           {error}
         </div>
       ) : null}
 
       {contacts.length === 0 ? (
-        <div className="nox-empty-state animate-in fade-in zoom-in-95 duration-200">
+        <div className="nox-empty-state">
           <div className="nox-empty-icon text-primary">
             <UsersRound className="h-9 w-9" strokeWidth={1.7} />
           </div>
@@ -120,7 +120,7 @@ export function ContactsList({ contacts }: { contacts: Contact[] }) {
           <p className="nox-empty-copy">
             Начните новый чат, чтобы контакт появился здесь.
           </p>
-          <Link href="/chats/new" className="mt-7 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-smooth active:scale-[0.96]">
+          <Link href="/chats/new" className="fast-tap mt-7 inline-flex h-11 items-center gap-2 rounded-[0.875rem] bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors">
             <Plus className="h-4 w-4" strokeWidth={2.2} />
             Добавить контакт
           </Link>

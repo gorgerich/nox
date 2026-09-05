@@ -334,9 +334,9 @@ export function ProfileContent({
   return (
     <>
       {activeScreen === "main" && (
-        <div className="pb-[var(--bottom-dock-clearance)] animate-in fade-in slide-in-from-bottom-4 duration-180 safe-top">
-          <section className="mt-4 flex flex-col items-center text-center">
-            <div className="group relative mb-5">
+        <div className="pb-[var(--bottom-dock-clearance)] safe-top">
+          <section className="mt-1 flex flex-col items-center text-center">
+            <div className="group relative mb-3">
               <button
                 type="button"
                 aria-label={fullAvatarUrl ? "Открыть фото профиля" : "Добавить фото профиля"}
@@ -348,13 +348,13 @@ export function ProfileContent({
                 /* The same name-derived tint every other avatar uses. A plain
                    surface-muted disc was invisible against the surface behind
                    it, so the initial read as floating type. */
-                className="nox-avatar-tint relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-full transition-smooth active:scale-[0.96]"
+                className="nox-avatar-tint relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full transition-smooth active:scale-[0.96]"
                 data-avatar-tint={avatarTint(displayName || username)}
               >
                 {fullAvatarUrl ? (
                   <Image src={fullAvatarUrl} alt={displayName} fill className="object-cover" />
                 ) : (
-                  <span className="text-4xl font-semibold">
+                  <span className="text-3xl font-semibold">
                     {displayName[0]?.toUpperCase() || username[0]?.toUpperCase()}
                   </span>
                 )}
@@ -378,7 +378,7 @@ export function ProfileContent({
                 type="button"
                 aria-label="Изменить фото профиля"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-1 right-1 z-10 flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-background bg-surface-secondary text-primary transition-smooth active:scale-[0.96]"
+                className="absolute bottom-0 right-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-background bg-surface-secondary text-primary transition-smooth active:scale-[0.96]"
                 title="Изменить фото"
               >
                 <svg className="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -388,58 +388,58 @@ export function ProfileContent({
 
             </div>
 
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground">{displayName || username}</h2>
-            <p className="mt-1 text-sm font-medium text-primary">@{username}</p>
+            <h2 className="max-w-[22rem] truncate px-4 text-2xl font-semibold tracking-tight text-foreground">{displayName || username}</h2>
+            <p className="mt-0.5 text-sm text-primary">@{username}</p>
           </section>
 
           {/* The main list keeps its original presentation: one bordered card,
               icon + label + subtitle rows, hairline dividers, and the same
               pressed state. Only the destinations changed — Уведомления is now
               a screen of its own rather than an inline toggle. */}
-          <div className="mt-8 space-y-6 px-4">
-            <section className="flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+          <div className="mt-4 space-y-3 px-4">
+            <section className="flex flex-col overflow-hidden rounded-[0.875rem] bg-surface">
               <SettingsMenuButton
                 label="Мой профиль"
                 subtitle="Имя, username, о себе"
                 onClick={() => setActiveScreen("profile")}
                 icon={<ProfileIcon />}
               />
-              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
+              <div className="ml-[60px] h-px bg-border-subtle/70" />
               <SettingsMenuButton
                 label="Уведомления"
                 subtitle={pushValue}
                 onClick={() => setActiveScreen("notifications")}
                 icon={<BellIcon />}
               />
-              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
+              <div className="ml-[60px] h-px bg-border-subtle/70" />
               <SettingsMenuButton
                 label="Устройства"
                 subtitle="Активные сеансы"
                 onClick={() => setActiveScreen("devices")}
                 icon={<DevicesIcon />}
               />
-              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
+              <div className="ml-[60px] h-px bg-border-subtle/70" />
               <SettingsMenuButton
                 label="Оформление"
                 subtitle="Тема и акцент"
                 onClick={() => setActiveScreen("appearance")}
                 icon={<AppearanceIcon />}
               />
-              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
+              <div className="ml-[60px] h-px bg-border-subtle/70" />
               <SettingsMenuButton
                 label="Безопасность"
                 subtitle="Пароль и восстановление"
                 onClick={() => setActiveScreen("security")}
                 icon={<SecurityIcon />}
               />
-              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
+              <div className="ml-[60px] h-px bg-border-subtle/70" />
               <SettingsMenuButton
                 label="Папки чатов"
                 subtitle={`${visibleFolderCount} активных`}
                 onClick={() => setActiveScreen("folders")}
                 icon={<FoldersIcon />}
               />
-              <div className="h-px bg-border-subtle/40 ml-[72px] mr-0" />
+              <div className="ml-[60px] h-px bg-border-subtle/70" />
               <SettingsMenuButton
                 label="Данные и кэш"
                 subtitle="Хранилище и кэш"
@@ -449,12 +449,12 @@ export function ProfileContent({
             </section>
 
             {isAdmin && (
-              <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+              <section className="overflow-hidden rounded-[0.875rem] bg-surface">
                 <Link
                   href="/admin"
-                  className="group flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10"
+                  className="group flex min-h-[52px] w-full items-center gap-3 px-4 py-2 transition-colors hover:bg-foreground/5 active:bg-foreground/10"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center text-primary">
                     <ShieldIcon />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-foreground">Админ-панель</span>
@@ -465,14 +465,14 @@ export function ProfileContent({
               </section>
             )}
 
-            <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+            <section className="overflow-hidden rounded-[0.875rem] bg-surface">
               <button
                 type="button"
                 onClick={() => setConfirmLogout(true)}
                 disabled={pending}
-                className="flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-danger/5 active:bg-danger/10 disabled:opacity-50"
+                className="flex min-h-[52px] w-full items-center gap-3 px-4 py-2 transition-colors hover:bg-danger/5 active:bg-danger/10 disabled:opacity-50"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center text-danger">
                   <LogoutIcon />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-danger">
@@ -924,8 +924,8 @@ export function ProfileContent({
 
 function SettingsMenuButton({ label, subtitle, icon, onClick }: { label: string; subtitle: string; icon: React.ReactNode; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="group flex w-full items-center gap-4 px-4 py-3.5 transition-smooth hover:bg-foreground/5 active:bg-foreground/10">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform">
+    <button onClick={onClick} className="group flex min-h-[52px] w-full items-center gap-3 px-4 py-2 transition-colors hover:bg-foreground/5 active:bg-foreground/10">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center text-primary">
         {icon}
       </div>
       <div className="min-w-0 flex-1 text-left">

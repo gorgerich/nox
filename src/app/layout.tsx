@@ -1,16 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
-
-// Inter — the closest web equivalent to Telegram's clean system sans. Cyrillic
-// subset is required (the UI is in Russian); `display: swap` avoids invisible
-// text while the webfont loads.
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin", "cyrillic"],
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -73,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${inter.variable} h-full antialiased`}
+      className="h-full antialiased"
       suppressHydrationWarning
     >
       <head>

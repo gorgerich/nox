@@ -30,11 +30,11 @@ export function SettingsGroup({
   return (
     <section className={`px-4 ${className}`}>
       {label ? (
-        <h2 className="px-1 pb-2 text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-muted">
+        <h2 className="px-1 pb-2 text-[0.8125rem] font-medium text-muted">
           {label}
         </h2>
       ) : null}
-      <div className="overflow-hidden rounded-2xl bg-surface">
+      <div className="overflow-hidden rounded-[0.875rem] bg-surface">
         {rows.map((row, index) => (
           <div key={index}>
             {index > 0 ? <div className="ml-4 h-px bg-border-subtle" /> : null}
@@ -68,7 +68,7 @@ export function SettingsBlock({
   return (
     <section className={`px-4 ${className}`}>
       {label ? (
-        <h2 className="px-1 pb-2 text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-muted">
+        <h2 className="px-1 pb-2 text-[0.8125rem] font-medium text-muted">
           {label}
         </h2>
       ) : null}
@@ -82,5 +82,5 @@ export function SettingsBlock({
 
 /** Vertical rhythm between groups on a settings screen. */
 export function SettingsStack({ children }: { children: ReactNode }) {
-  return <div className="space-y-8">{children}</div>;
+  return <div className="space-y-6">{children}</div>;
 }
