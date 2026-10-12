@@ -1202,17 +1202,6 @@ app.prepare().then(() => {
   server.listen(PORT, HOST, () => {
     console.log(`> Ready on http://${HOST}:${PORT}`);
   });
-
-  // Keep the (serverless/auto-suspending) database compute warm so the first
-  // request after a quiet period doesn't pay a multi-second cold start.
-  // Lightweight no-op query on an interval; failures are ignored.
-  const DB_KEEPALIVE_MS = 240_000; // 4 min — below typical 5-min autosuspend
-  const keepAlive = setInterval(() => {
-    prisma.$queryRaw`SELECT 1`.catch((error) => {
-      console.error("[db-keepalive] ping failed", error?.message ?? error);
-    });
-  }, DB_KEEPALIVE_MS);
-  if (typeof keepAlive.unref === "function") keepAlive.unref();
 }).catch((error) => {
   // app.prepare() had no rejection handler: if it ever fails, the process dies
   // before listening and the platform only reports "no port", with the real
