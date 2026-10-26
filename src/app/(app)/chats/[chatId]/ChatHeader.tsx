@@ -44,11 +44,9 @@ export function ChatHeader({
   const router = useRouter();
   const { startCall, status } = useAudioCall();
   const [timerMenuOpen, setTimerMenuOpen] = useState(false);
-  // The dropdown renders via a body portal: nesting a backdrop-filter menu
-  // inside the header (itself backdrop-filtered + pseudo-layered glass pills)
-  // broke iOS WebView compositing — the header exploded into a giant circle
-  // with scattered icons whenever the menu opened. Portaled + anchored to the
-  // trigger's rect, the menu lives outside that subtree entirely.
+  // The dropdown renders via a body portal. Earlier nested glass layers broke
+  // iOS WebView compositing and painted a giant circle behind the menu.
+  // Portaled + anchored to the trigger, the menu stays outside that subtree.
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number }>({ top: 64, right: 12 });
   const menuRef = useMenuKeyboard<HTMLDivElement>(timerMenuOpen, () => setTimerMenuOpen(false), moreButtonRef);

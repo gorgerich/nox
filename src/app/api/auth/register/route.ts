@@ -106,15 +106,34 @@ export async function POST(request: Request) {
         },
       });
 
-      const nextUsedCount = currentInvite.usedCount + 1;
-
-      await tx.invite.update({
-        where: { id: currentInvite.id },
-        data: {
-          usedCount: nextUsedCount,
-          status: nextUsedCount >= currentInvite.maxUses ? "USED" : "ACTIVE",
+      // Reserve a use with a conditional database update. The earlier read is
+      // useful for validation, but cannot enforce maxUses under concurrency.
+      const now = new Date();
+      const reservation = await tx.invite.updateMany({
+        where: {
+          id: currentInvite.id,
+          status: "ACTIVE",
+          usedCount: { lt: currentInvite.maxUses },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         },
+        data: { usedCount: { increment: 1 } },
       });
+
+      if (reservation.count !== 1) {
+        throw new Error("Invite is no longer available.");
+      }
+
+      const updatedInvite = await tx.invite.findUniqueOrThrow({
+        where: { id: currentInvite.id },
+        select: { usedCount: true, maxUses: true },
+      });
+
+      if (updatedInvite.usedCount >= updatedInvite.maxUses) {
+        await tx.invite.update({
+          where: { id: currentInvite.id },
+          data: { status: "USED" },
+        });
+      }
 
       return createdUser;
     });

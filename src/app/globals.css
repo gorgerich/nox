@@ -1494,10 +1494,13 @@ body {
   .nox-chat-topbar {
     width: 100%;
     min-width: 0;
-    background: color-mix(in oklab, var(--chat-header) 92%, transparent);
+    /* Keep glyphs crisp in iOS WebView. Backdrop blur on a sticky ancestor can
+       be composited over its descendants for a frame while scrolling. The
+       contained controls still carry material depth without filtering text. */
+    background: color-mix(in oklab, var(--chat-header) 96%, var(--surface-elevated));
     border-bottom: 1px solid color-mix(in oklab, var(--chat-composer-border) 72%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(142%);
-    backdrop-filter: blur(18px) saturate(142%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     box-shadow: inset 0 1px 0 color-mix(in oklab, var(--glass-highlight) 58%, transparent);
   }
 
@@ -1528,12 +1531,9 @@ body {
       inset 0 -1px 0 color-mix(in oklab, var(--glass-edge) 10%, transparent),
       0 2px 6px color-mix(in oklab, var(--glass-shadow) 64%, transparent);
     transform: translateZ(0);
-    /* NB: intentionally NO backdrop-filter, clip-path, or -webkit-mask here.
-       These pills sit inside the backdrop-filtered topbar; nesting another
-       filter (or blend-mode pseudo — see the specular layer exclusion above)
-       breaks iOS WebView compositing the moment an extra layer (the "ещё"
-       menu) appears: the header exploded into a giant circle with scattered
-       icons. The near-opaque background gives the same look without filters. */
+    /* Intentionally no backdrop-filter, clip-path, or -webkit-mask here.
+       Nested filtered layers break iOS WebView compositing when the "ещё"
+       menu appears. Tonal elevation keeps the material legible and crisp. */
   }
 
   .nox-chat-profile-pill {
@@ -1556,10 +1556,8 @@ body {
     gap: 0;
     border-radius: 9999px;
     padding: 2px;
-    /* The "ещё" dropdown is an absolutely-positioned child of this pill; the
-       shared clip (overflow: clip / contain: paint) would crop it to the pill.
-       backdrop-filter still respects border-radius, so dropping the clip keeps
-       the glass rounded while letting the menu escape. */
+    /* The "ещё" dropdown is anchored to this pill; clipping here would crop
+       the trigger's focus/press feedback before the portalled menu appears. */
     overflow: visible;
     contain: none;
   }

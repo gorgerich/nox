@@ -54,3 +54,11 @@ export function putMediaUrl(attachmentId: string, url: string) {
 export function hasMediaUrl(attachmentId: string): boolean {
   return store.has(attachmentId);
 }
+
+/** Drop a decoded URL after the browser reports corrupt or unsupported media. */
+export function removeMediaUrl(attachmentId: string): void {
+  const entry = store.get(attachmentId);
+  if (!entry) return;
+  store.delete(attachmentId);
+  try { URL.revokeObjectURL(entry.url); } catch { /* ignore */ }
+}

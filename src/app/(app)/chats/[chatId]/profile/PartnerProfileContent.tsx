@@ -10,11 +10,10 @@ import { usePresence } from "@/hooks/usePresence";
 import { E2EEContactDevices } from "./E2EEContactDevices";
 import { ConfirmSheet } from "@/components/settings/ConfirmSheet";
 import { AvatarViewer } from "../../../profile/AvatarViewer";
-import { getLocalDeviceId, registerCurrentDevice } from "@/lib/e2ee/keys";
 import { clearCachedMessagesForChat, clearPersistedChatMessagesForChat } from "@/lib/e2ee/indexed-db";
-import { decryptMediaBlob } from "@/lib/e2ee/media";
 import { normalizeAvatarUrl } from "@/lib/media-url";
 import { clearChatCache } from "@/lib/chat-cache";
+import { SharedFileRow, SharedMediaTile, type SharedMediaFile, type SharedMediaPhoto } from "../SharedMediaTile";
 
 interface PartnerProfileProps {
   chatId: string;
@@ -35,34 +34,13 @@ interface PartnerProfileProps {
   };
 }
 
-interface PhotoItem {
-  id: string;
-  url: string;
-  type: "IMAGE" | "VIDEO";
-  createdAt: string;
-  mimeType?: string;
-  senderUserId?: string;
-  fileIv?: string | null;
-  isEncrypted?: boolean;
-  mediaKeyEnvelopes?: {
-    recipientUserId: string;
-    recipientDeviceId: string;
-    senderDeviceId: string;
-    encryptedMediaKey: string;
-    iv: string;
-    salt: string | null;
-    algorithm: string;
-    encryptionVersion: number;
-  }[];
-}
-interface AudioItem { id: string; url: string; fileName: string; createdAt: string }
-interface FileItem { id: string; fileName: string; size: number; createdAt: string }
+type PhotoItem = SharedMediaPhoto;
 interface LinkItem { url: string; createdAt: string }
 
 interface SharedMedia {
   photos: PhotoItem[];
-  audio: AudioItem[];
-  files: FileItem[];
+  audio: SharedMediaFile[];
+  files: SharedMediaFile[];
   links: LinkItem[];
 }
 
@@ -74,6 +52,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
   const [shared, setShared] = useState<SharedMedia | null>(null);
   const [loadingShared, setLoadingShared] = useState(true);
   const [sharedError, setSharedError] = useState(false);
+  const [sharedRetry, setSharedRetry] = useState(0);
   const [newName, setNewName] = useState(settings.nickname || partnerUser.displayName);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
@@ -114,7 +93,7 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
         setLoadingShared(false);
       });
     return () => { cancelled = true; };
-  }, [chatId]);
+  }, [chatId, sharedRetry]);
 
   const updateContact = async (patch: Partial<typeof settings>) => {
     try {
@@ -304,7 +283,8 @@ export function PartnerProfileContent({ chatId, currentUserId, partnerUser, init
           ) : sharedError ? (
             <div className="py-20 text-center">
               <p className="text-sm font-medium text-foreground">Не удалось загрузить</p>
-              <p className="mt-1 text-[0.8125rem] text-muted">Проверьте соединение и попробуйте снова.</p>
+              <button type="button" onClick={() => { setLoadingShared(true); setSharedRetry((value) => value + 1); }}
+                className="fast-tap mt-3 min-h-11 px-4 text-sm font-semibold text-primary">Повторить</button>
             </div>
           ) : (
             <SharedContent type={activeTab} data={shared} chatId={chatId} currentUserId={currentUserId} />
@@ -469,8 +449,6 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
   );
 }
 
-type GenericSharedItem = PhotoItem | AudioItem | FileItem | LinkItem;
-
 function SharedContent({ type, data, chatId, currentUserId }: { type: string, data: SharedMedia | null, chatId: string, currentUserId: string }) {
   if (!data) return null;
   
@@ -486,86 +464,33 @@ function SharedContent({ type, data, chatId, currentUserId }: { type: string, da
     );
   }
 
-  const items: GenericSharedItem[] = type === "files" ? data.files : data.links;
+  if (type === "files") {
+    const files = [...data.files, ...data.audio].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    if (files.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
+    return <div className="space-y-1">{files.map((item) => (
+      <SharedFileRow key={item.id} item={item} chatId={chatId} currentUserId={currentUserId} />
+    ))}</div>;
+  }
+
+  const items = data.links;
   if (items.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
 
   return (
     <div className="space-y-4">
       {items.map((item, i) => {
-        const url = 'url' in item ? item.url : '#';
-        const fileName = 'fileName' in item ? item.fileName : ('url' in item ? item.url : 'Link');
+        const url = item.url;
         return (
           <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-xl p-2 transition-smooth hover:bg-foreground/5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
-              {type === "files" ? <FileIcon /> : <LinkIcon />}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center text-primary">
+              <LinkIcon />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{fileName}</p>
-              <p className="text-xs font-normal text-muted">{'createdAt' in item ? new Date(item.createdAt).toLocaleDateString() : ''}</p>
+              <p className="truncate text-sm font-semibold">{url}</p>
+              <p className="text-xs font-normal text-muted">{new Date(item.createdAt).toLocaleDateString()}</p>
             </div>
           </a>
         );
       })}
-    </div>
-  );
-}
-
-function SharedMediaTile({ item, chatId, currentUserId }: { item: PhotoItem, chatId: string, currentUserId: string }) {
-  const [src, setSrc] = useState<string | null>(() => item.isEncrypted ? null : item.url);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (!item.isEncrypted) {
-      return;
-    }
-
-    let cancelled = false;
-    let objectUrl: string | null = null;
-
-    async function decryptPreview() {
-      try {
-        const device = await registerCurrentDevice(currentUserId).catch(async () => ({ deviceId: await getLocalDeviceId(currentUserId) }));
-        const envelope = item.mediaKeyEnvelopes?.find((entry) => entry.recipientDeviceId === device.deviceId);
-        if (!envelope || !item.fileIv || !item.senderUserId) throw new Error("NO_MEDIA_ENVELOPE");
-
-        const response = await fetch(item.url);
-        if (!response.ok) throw new Error("DOWNLOAD_FAILED");
-        const decrypted = await decryptMediaBlob({
-          encryptedBlob: await response.blob(),
-          fileIv: item.fileIv,
-          senderUserId: item.senderUserId,
-          senderDeviceId: envelope.senderDeviceId,
-          chatId,
-          envelope,
-          mimeType: item.mimeType || (item.type === "VIDEO" ? "video/mp4" : "image/jpeg"),
-        });
-        if (!decrypted) throw new Error("DECRYPT_FAILED");
-        objectUrl = URL.createObjectURL(decrypted);
-        if (!cancelled) setSrc(objectUrl);
-      } catch {
-        if (!cancelled) setError(true);
-      }
-    }
-
-    void decryptPreview();
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [chatId, currentUserId, item]);
-
-  return (
-    <div className="aspect-square bg-surface-muted rounded-md overflow-hidden active:scale-[0.96] transition-smooth relative">
-      {src && !error && item.type === "VIDEO" ? (
-        <video src={src} className="h-full w-full object-cover" preload="metadata" muted playsInline />
-      ) : src && !error ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} className="h-full w-full object-cover" alt="" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[0.625rem] font-bold text-muted">
-          {error ? "Медиа недоступно" : "Расшифровка…"}
-        </div>
-      )}
     </div>
   );
 }
@@ -578,5 +503,4 @@ function MuteIcon({ isMuted }: { isMuted: boolean }) { return <svg className="h-
 function BlockIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>; }
 function TrashIcon() { return <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 7h12m-9 0V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.7 12.1A2 2 0 0 1 14.3 21H9.7a2 2 0 0 1-2-1.9L7 7m3 4v6m4-6v6" /></svg>; }
 function QrIcon() { return <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeWidth={2} d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" /></svg>; }
-function FileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>; }
 function LinkIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>; }

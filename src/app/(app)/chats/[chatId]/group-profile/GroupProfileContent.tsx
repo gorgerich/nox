@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useChatAppearance, ChatAppearanceSheet } from "../ChatAppearance";
 import { ConfirmSheet } from "@/components/settings/ConfirmSheet";
 import { normalizeAvatarUrl } from "@/lib/media-url";
+import { SharedFileRow, SharedMediaTile, type SharedMediaFile, type SharedMediaPhoto } from "../SharedMediaTile";
 
 interface GroupMember {
   userId: string;
@@ -22,6 +23,7 @@ interface GroupMember {
 
 interface GroupProfileProps {
   chatId: string;
+  currentUserId: string;
   chat: {
     id: string;
     title: string;
@@ -36,9 +38,7 @@ interface GroupProfileProps {
   };
 }
 
-interface PhotoItem { id: string; url: string; type: "IMAGE" | "VIDEO"; createdAt: string }
-interface AudioItem { id: string; url: string; fileName: string; createdAt: string }
-interface FileItem { id: string; fileName: string; size: number; createdAt: string }
+type PhotoItem = SharedMediaPhoto;
 interface LinkItem { url: string; createdAt: string }
 
 interface FoundGroupUser {
@@ -51,18 +51,19 @@ interface FoundGroupUser {
 
 interface SharedMedia {
   photos: PhotoItem[];
-  audio: AudioItem[];
-  files: FileItem[];
+  audio: SharedMediaFile[];
+  files: SharedMediaFile[];
   links: LinkItem[];
 }
 
-export function GroupProfileContent({ chatId, chat, members: initialMembers, permissions }: GroupProfileProps) {
+export function GroupProfileContent({ chatId, currentUserId, chat, members: initialMembers, permissions }: GroupProfileProps) {
   const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
   const [activeTab, setActiveSection] = useState<"media" | "files" | "links">("media");
   const [shared, setShared] = useState<SharedMedia | null>(null);
   const [loadingShared, setLoadingShared] = useState(true);
   const [sharedError, setSharedError] = useState(false);
+  const [sharedRetry, setSharedRetry] = useState(0);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState(chat.title);
   const [isAddingMembers, setIsAddingMembers] = useState(false);
@@ -106,7 +107,7 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
         setLoadingShared(false);
       });
     return () => { cancelled = true; };
-  }, [chatId]);
+  }, [chatId, sharedRetry]);
 
   useEffect(() => {
     const query = searchUser.trim();
@@ -395,10 +396,11 @@ export function GroupProfileContent({ chatId, chat, members: initialMembers, per
           ) : sharedError ? (
             <div className="py-20 text-center">
               <p className="text-sm font-medium text-foreground">Не удалось загрузить</p>
-              <p className="mt-1 text-[0.8125rem] text-muted">Проверьте соединение и попробуйте снова.</p>
+              <button type="button" onClick={() => { setLoadingShared(true); setSharedRetry((value) => value + 1); }}
+                className="fast-tap mt-3 min-h-11 px-4 text-sm font-semibold text-primary">Повторить</button>
             </div>
           ) : (
-            <SharedContent type={activeTab} data={shared} />
+            <SharedContent type={activeTab} data={shared} chatId={chatId} currentUserId={currentUserId} />
           )}
         </div>
       </div>
@@ -509,7 +511,7 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
   );
 }
 
-function SharedContent({ type, data }: { type: string, data: SharedMedia | null }) {
+function SharedContent({ type, data, chatId, currentUserId }: { type: string, data: SharedMedia | null, chatId: string, currentUserId: string }) {
   if (!data) return null;
   if (type === "media") {
     const items = data.photos || [];
@@ -517,27 +519,32 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
     return (
       <div className="grid grid-cols-3 gap-1">
         {items.map((m) => (
-          <div key={m.id} className="relative aspect-square overflow-hidden rounded-md bg-surface-muted transition-smooth active:scale-[0.96]">
-            <Image src={m.url} fill className="object-cover" alt="" />
-          </div>
+          <SharedMediaTile key={m.id} item={m} chatId={chatId} currentUserId={currentUserId} />
         ))}
       </div>
     );
   }
-  const items = type === "files" ? data.files : data.links;
+  if (type === "files") {
+    const files = [...data.files, ...data.audio].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    if (files.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
+    return <div className="space-y-1">{files.map((item) => (
+      <SharedFileRow key={item.id} item={item} chatId={chatId} currentUserId={currentUserId} />
+    ))}</div>;
+  }
+
+  const items = data.links;
   if (items.length === 0) return <div className="py-20 text-center text-sm font-medium text-muted">Ничего не найдено</div>;
   return (
     <div className="space-y-4">
-      {items.map((item: PhotoItem | AudioItem | FileItem | LinkItem, i: number) => {
-        const url = 'url' in item ? item.url : '#';
-        const fileName = 'fileName' in item ? item.fileName : ('url' in item ? item.url : 'Link');
+      {items.map((item, i: number) => {
+        const url = item.url;
         return (
           <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 rounded-xl p-2 transition-smooth hover:bg-foreground/5">
-             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-primary">
-               {type === "files" ? <FileIcon /> : <LinkIcon />}
+             <div className="flex h-10 w-10 shrink-0 items-center justify-center text-primary">
+               <LinkIcon />
              </div>
              <div className="min-w-0 flex-1">
-               <p className="truncate text-sm font-semibold">{fileName}</p>
+               <p className="truncate text-sm font-semibold">{url}</p>
                <p className="text-xs font-normal text-muted">{formatCalendarDate(item.createdAt)}</p>
              </div>
           </a>
@@ -547,5 +554,4 @@ function SharedContent({ type, data }: { type: string, data: SharedMedia | null 
   );
 }
 
-function FileIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>; }
 function LinkIcon() { return <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>; }

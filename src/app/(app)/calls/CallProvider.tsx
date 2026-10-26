@@ -1312,6 +1312,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const applyIncomingCall = useCallback(({ callId, chatId, offer, fromUser, source = "foreground", video = false }: IncomingPayload) => {
       debugCall("incoming received", { callId, chatId, status: statusRef.current, video });
+      // Socket reconnect and foreground delivery can repeat the same invite.
+      // Declining it as "busy" also terminates the call already ringing.
+      if (currentCallRef.current?.callId === callId) return true;
       if (statusRef.current !== "idle") {
         socket.emit("call:declined", { callId, chatId, reason: "busy" });
         return false;

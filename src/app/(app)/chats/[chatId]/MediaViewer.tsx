@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { createPortal } from "react-dom";
 
@@ -18,24 +18,35 @@ export function MediaViewer({
   item: MediaItem | null;
   onClose: () => void;
 }) {
+  const [failedMediaKey, setFailedMediaKey] = useState<string | null>(null);
+  const [failedDownloadKey, setFailedDownloadKey] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const mediaKey = item ? `${item.id}:${item.url}` : null;
+  const mediaError = mediaKey !== null && failedMediaKey === mediaKey;
+  const downloadError = mediaKey !== null && failedDownloadKey === mediaKey;
+  const close = useCallback(() => {
+    setFailedMediaKey(null);
+    setFailedDownloadKey(null);
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
     if (item) {
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        close();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [item, onClose]);
+  }, [item, close]);
 
   // Escape is already handled above; the trap owns focus and inert. It has to
   // sit above the early return so its call order never changes.
@@ -45,9 +56,14 @@ export function MediaViewer({
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (downloading) return;
+    setDownloading(true);
+    setFailedDownloadKey(null);
     try {
       const response = await fetch(item.url);
+      if (!response.ok) throw new Error("DOWNLOAD_FAILED");
       const blob = await response.blob();
+      if (!blob.size) throw new Error("EMPTY_FILE");
       const fileName = item.fileName || "nox-file";
       
       // Prefer Web Share API with files when supported (better for mobile PWA)
@@ -59,7 +75,7 @@ export function MediaViewer({
             return;
           }
         } catch (shareError) {
-          console.error("Share failed:", shareError);
+          if (shareError instanceof DOMException && shareError.name === "AbortError") return;
         }
       }
 
@@ -71,16 +87,11 @@ export function MediaViewer({
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      console.error("Download failed:", error);
-      // Fallback to direct link if fetch fails
-      const link = document.createElement("a");
-      link.href = `${item.url}?download=1`;
-      link.download = item.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+    } catch {
+      setFailedDownloadKey(mediaKey);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -92,7 +103,7 @@ export function MediaViewer({
       role="dialog"
       aria-modal="true"
       aria-label={`Просмотр файла ${item.fileName}`}
-      onClick={onClose}
+      onClick={close}
     >
       {/* Header */}
       <header
@@ -102,7 +113,7 @@ export function MediaViewer({
         <button
           type="button"
           aria-label="Закрыть просмотр"
-          onClick={onClose}
+          onClick={close}
           className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-transform active:scale-[0.96]"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -118,7 +129,8 @@ export function MediaViewer({
           type="button"
           aria-label="Сохранить файл"
           onClick={handleDownload}
-          className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-transform active:scale-[0.96]"
+          disabled={downloading}
+          className="touch-target flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 backdrop-blur-xl transition-transform active:scale-[0.96] disabled:opacity-50"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -127,13 +139,19 @@ export function MediaViewer({
       </header>
 
       {/* Content */}
-      <main className="flex flex-1 items-center justify-center overflow-hidden p-2">
-        {item.type === "IMAGE" ? (
+      <main className="flex flex-1 flex-col items-center justify-center overflow-hidden p-2">
+        {mediaError ? (
+          <div className="max-w-xs px-4 text-center text-white" role="alert">
+            <p className="text-base font-semibold">Не удалось открыть медиа</p>
+            <p className="mt-2 text-sm text-white/70">Вернитесь в чат и повторите загрузку.</p>
+          </div>
+        ) : item.type === "IMAGE" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.url}
             alt={item.fileName}
-            className="max-h-full max-w-full object-contain animate-in zoom-in-95 duration-200"
+            className="max-h-full max-w-full object-contain"
+            onError={() => setFailedMediaKey(mediaKey)}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
@@ -141,10 +159,12 @@ export function MediaViewer({
             src={item.url} 
             controls 
             autoPlay
-            className="max-h-full max-w-full animate-in zoom-in-95 duration-200"
+            className="max-h-full max-w-full"
+            onError={() => setFailedMediaKey(mediaKey)}
             onClick={(e) => e.stopPropagation()}
           />
         )}
+        {downloadError ? <p className="mt-4 text-sm text-white" role="alert">Не удалось сохранить файл. Повторите попытку.</p> : null}
       </main>
 
       <div className="safe-bottom h-4 shrink-0" aria-hidden="true" />

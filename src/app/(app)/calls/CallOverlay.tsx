@@ -499,6 +499,7 @@ export function CallOverlay() {
   // video — gating on the track itself (never on a status enum value) is what
   // keeps this from ever drawing a frame that has not arrived yet.
   const showRemoteFullscreen = hasRemoteVideo;
+  const showLocalVideoSurface = isVideo || hasLocalVideo || isUpgradingVideo;
   const fullAvatarUrl = peer.avatarUrl
     ? (peer.avatarUrl.startsWith("http") ? peer.avatarUrl : `/api/avatars/${peer.avatarUrl}`)
     : null;
@@ -562,7 +563,9 @@ export function CallOverlay() {
   return createPortal(
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-[1000] flex flex-col overflow-hidden bg-black animate-in fade-in duration-200 pointer-events-auto"
+      data-call-overlay="true"
+      className="fixed inset-x-0 top-0 z-[1000] flex w-screen flex-col overflow-hidden bg-black pointer-events-auto"
+      style={{ height: "100dvh", minHeight: "100svh" }}
       role="dialog"
       aria-modal="true"
       aria-label={`${isVideo ? "Видеозвонок" : "Аудиозвонок"} с ${peer.displayName}`}
@@ -586,36 +589,41 @@ export function CallOverlay() {
 
       {/* Local camera — fullscreen while ringing/no remote video yet, morphs
           into the PiP the instant showRemoteFullscreen flips true. */}
-      <div
-        onPointerDown={showRemoteFullscreen ? handlePipPointerDown : undefined}
-        onPointerMove={showRemoteFullscreen ? handlePipPointerMove : undefined}
-        onPointerUp={showRemoteFullscreen ? handlePipPointerUp : undefined}
-        onClick={(event) => { if (showRemoteFullscreen) event.stopPropagation(); }}
-        style={localVideoStyle}
-        className={`z-20 touch-none overflow-hidden bg-neutral-900 ${
-          showRemoteFullscreen ? "cursor-grab border border-white/12 shadow-[0_4px_14px_rgba(0,0,0,0.28)] active:cursor-grabbing" : ""
-        }`}
-      >
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          muted
-          className={`h-full w-full -scale-x-100 bg-neutral-900 object-cover transition-opacity duration-300 ${
-            hasLocalVideo && !isCameraOff ? "opacity-100" : "opacity-0"
+      {showLocalVideoSurface ? (
+        <div
+          data-call-local-video="true"
+          onPointerDown={showRemoteFullscreen ? handlePipPointerDown : undefined}
+          onPointerMove={showRemoteFullscreen ? handlePipPointerMove : undefined}
+          onPointerUp={showRemoteFullscreen ? handlePipPointerUp : undefined}
+          onClick={(event) => { if (showRemoteFullscreen) event.stopPropagation(); }}
+          style={localVideoStyle}
+          className={`touch-none overflow-hidden bg-neutral-900 ${
+            showRemoteFullscreen
+              ? "z-20 cursor-grab border border-white/12 shadow-[0_4px_14px_rgba(0,0,0,0.28)] active:cursor-grabbing"
+              : "z-0"
           }`}
-        />
-        {(!hasLocalVideo || isCameraOff) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-neutral-900">
-            <span className="text-sm font-semibold text-white/70">Вы</span>
-          </div>
-        )}
-      </div>
+        >
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`h-full w-full -scale-x-100 bg-neutral-900 object-cover transition-opacity duration-200 ${
+              hasLocalVideo && !isCameraOff ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          {(!hasLocalVideo || isCameraOff) && (
+            <div className="absolute inset-0 flex items-center justify-center bg-neutral-900">
+              <span className="text-sm font-semibold text-white/70">Вы</span>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Legibility gradient — only while a camera image is actually behind it. */}
       <div
-        className={`pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-black/55 via-transparent to-black/80 transition-opacity duration-500 ${
-          isVideo ? "opacity-100" : "opacity-0"
+        className={`pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-black/55 via-transparent to-black/80 transition-opacity duration-300 ${
+          showLocalVideoSurface || showRemoteFullscreen ? "opacity-100" : "opacity-0"
         }`}
       />
 
@@ -676,9 +684,14 @@ export function CallOverlay() {
           >
             <ChevronDownIcon />
           </button>
-          {status === "outgoing" && !isVideo ? (
+          {showRemoteFullscreen ? (
+            <div className="min-w-0 flex-1 px-3 text-center text-white">
+              <p className="truncate text-sm font-semibold">{peer.displayName}</p>
+              <p className="truncate text-xs font-medium tabular-nums text-white/75">{statusText}</p>
+            </div>
+          ) : status === "outgoing" && !isVideo ? (
             <span className="text-[0.8125rem] font-medium text-white/55">Исходящий аудиозвонок</span>
-          ) : <span />}
+          ) : <span className="flex-1" />}
           <div className="relative">
             <button
               type="button"
@@ -729,22 +742,20 @@ export function CallOverlay() {
           </div>
         )}
 
-        <h2
-          className={`mb-1 text-[1.75rem] font-semibold text-white ${
-            showRemoteFullscreen ? "drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]" : ""
-          }`}
-        >
-          {peer.displayName}
-        </h2>
-        <p className={`text-[0.9375rem] font-medium tabular-nums ${isActive ? "text-white/85" : "text-white/60"}`}>
-          {statusText}
-        </p>
+        {!showRemoteFullscreen && (
+          <>
+            <h2 className="mb-1 text-[1.75rem] font-semibold text-white">{peer.displayName}</h2>
+            <p className={`text-[0.9375rem] font-medium tabular-nums ${isActive ? "text-white/85" : "text-white/60"}`}>
+              {statusText}
+            </p>
+          </>
+        )}
 
         {/* Only once the call is genuinely live — never during ringing, and
             never a stronger claim than what actually happens: WebRTC's own
             mandatory DTLS-SRTP, not the app's pinned-device-key E2EE that
             messages use. */}
-        {isActive && (
+        {isActive && !showRemoteFullscreen && (
           <p className="mt-2 flex items-center gap-1 text-[0.75rem] font-medium text-white/45">
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -779,7 +790,8 @@ export function CallOverlay() {
       </div>
 
       <div
-        className={`relative z-10 flex w-full flex-col gap-6 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] transition-opacity duration-200 ${isVideo && isActive ? chromeVisibilityClass : "opacity-100"}`}
+        data-call-controls="true"
+        className={`relative z-30 flex w-full flex-col gap-6 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] transition-opacity duration-200 ${isVideo && isActive ? chromeVisibilityClass : "opacity-100"}`}
         onClick={(event) => event.stopPropagation()}
       >
         {isIncoming ? (

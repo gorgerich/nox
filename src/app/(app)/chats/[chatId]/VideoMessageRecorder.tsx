@@ -34,6 +34,10 @@ export function VideoMessageRecorder({
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [switchingCamera, setSwitchingCamera] = useState(false);
+  const switchingCameraRef = useRef(false);
+  const closedRef = useRef(false);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -70,6 +74,18 @@ export function VideoMessageRecorder({
     return navigator.mediaDevices.getUserMedia({
       video: { facingMode: mode, width: { ideal: 360 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } },
       audio: { echoCancellation: true, noiseSuppression: true },
+    });
+  }, []);
+
+  const openVideoStream = useCallback(async (mode: "user" | "environment", deviceId?: string) => {
+    return navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: mode } }),
+        width: { ideal: 360 },
+        height: { ideal: 360 },
+        frameRate: { ideal: 24, max: 30 },
+      },
     });
   }, []);
 
@@ -118,6 +134,7 @@ export function VideoMessageRecorder({
   }, [onCapture, stopStream]);
 
   useEffect(() => {
+    closedRef.current = false;
     let cancelled = false;
     (async () => {
       try {
@@ -133,6 +150,7 @@ export function VideoMessageRecorder({
 
   return () => {
       cancelled = true;
+      closedRef.current = true;
       discardRecording();
       stopStream();
     };
@@ -160,18 +178,44 @@ export function VideoMessageRecorder({
   }, [ready, error, startRecording]);
 
   const cancel = useCallback(() => {
+    closedRef.current = true;
     discardRecording();
     stopStream();
     onClose();
   }, [discardRecording, onClose, stopStream]);
 
-  const switchCamera = useCallback(async () => {
+  const switchCamera = useCallback(async (confirmed = false) => {
     const stream = streamRef.current;
-    if (!stream) return;
+    if (!stream || switchingCameraRef.current) return;
+    if (recorderRef.current?.state === "recording" && !confirmed) {
+      setConfirmSwitch(true);
+      return;
+    }
+    setConfirmSwitch(false);
     const nextFacingMode = facingMode === "user" ? "environment" : "user";
     const wasRecording = recorderRef.current?.state === "recording";
+    const currentVideoTrack = stream.getVideoTracks()[0];
+    const currentDeviceId = currentVideoTrack?.getSettings().deviceId;
+    const audioTracks = stream.getAudioTracks().filter((track) => track.readyState === "live");
+
+    switchingCameraRef.current = true;
+    setSwitchingCamera(true);
+    setError(null);
 
     try {
+      const cameras = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput");
+      const preferredPattern = nextFacingMode === "environment"
+        ? /(back|rear|environment|зад)/i
+        : /(front|user|face|перед)/i;
+      const alternate = cameras.find((device) => device.deviceId !== currentDeviceId && preferredPattern.test(device.label))
+        ?? cameras.find((device) => device.deviceId !== currentDeviceId);
+
+      if (currentDeviceId && cameras.length > 0 && !alternate) {
+        setError("Вторая камера не найдена.");
+        setTimeout(() => setError(null), 2200);
+        return;
+      }
+
       setReady(false);
       if (wasRecording) {
         discardRecording();
@@ -183,8 +227,25 @@ export function VideoMessageRecorder({
         setSeconds(0);
       }
 
-      stream.getTracks().forEach((track) => track.stop());
-      const nextStream = await openStream(nextFacingMode);
+      currentVideoTrack?.stop();
+      if (currentVideoTrack) stream.removeTrack(currentVideoTrack);
+      if (videoRef.current) videoRef.current.srcObject = null;
+
+      // iOS needs one render turn to release the active camera before another
+      // device can be opened. Without it, getUserMedia often returns the same
+      // track or rejects with NotReadableError.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      let cameraStream: MediaStream;
+      try {
+        cameraStream = await openVideoStream(nextFacingMode, alternate?.deviceId);
+      } catch {
+        cameraStream = await openVideoStream(nextFacingMode);
+      }
+      const nextVideoTrack = cameraStream.getVideoTracks()[0];
+      if (!nextVideoTrack) throw new Error("CAMERA_TRACK_MISSING");
+      if (closedRef.current) { cameraStream.getTracks().forEach((track) => track.stop()); return; }
+      const nextStream = new MediaStream([...audioTracks, nextVideoTrack]);
       streamRef.current = nextStream;
       bindPreview(nextStream);
       setFacingMode(nextFacingMode);
@@ -194,7 +255,11 @@ export function VideoMessageRecorder({
       }
     } catch {
       try {
-        const fallbackStream = await openStream(facingMode);
+        const fallbackCameraStream = await openVideoStream(facingMode);
+        const fallbackVideoTrack = fallbackCameraStream.getVideoTracks()[0];
+        if (!fallbackVideoTrack) throw new Error("CAMERA_TRACK_MISSING");
+        if (closedRef.current) { fallbackCameraStream.getTracks().forEach((track) => track.stop()); return; }
+        const fallbackStream = new MediaStream([...audioTracks, fallbackVideoTrack]);
         streamRef.current = fallbackStream;
         bindPreview(fallbackStream);
         setReady(true);
@@ -204,10 +269,15 @@ export function VideoMessageRecorder({
       } catch {
         setReady(false);
       }
-      setError("Не удалось переключить камеру.");
-      setTimeout(() => setError(null), 2200);
+      if (!closedRef.current) {
+        setError("Не удалось переключить камеру.");
+        setTimeout(() => setError(null), 2200);
+      }
+    } finally {
+      switchingCameraRef.current = false;
+      setSwitchingCamera(false);
     }
-  }, [bindPreview, discardRecording, facingMode, openStream, startRecordingForStream]);
+  }, [bindPreview, discardRecording, facingMode, openVideoStream, startRecordingForStream]);
 
   if (typeof document === "undefined") return null;
 
@@ -225,6 +295,14 @@ export function VideoMessageRecorder({
 
       {error ? (
         <p className="mb-6 max-w-xs rounded-xl border border-danger/20 bg-danger/10 px-4 py-2 text-center text-xs font-bold text-danger">{error}</p>
+      ) : confirmSwitch ? (
+        <div className="mb-6 max-w-xs text-center text-sm text-white" role="group" aria-label="Сменить камеру">
+          <p>Смена камеры начнёт запись заново. Текущий фрагмент удалится.</p>
+          <div className="mt-3 flex justify-center gap-5">
+            <button type="button" onClick={() => setConfirmSwitch(false)} className="min-h-11 px-2 font-medium text-white/70">Продолжить запись</button>
+            <button type="button" onClick={() => void switchCamera(true)} className="min-h-11 px-2 font-semibold text-white">Начать заново</button>
+          </div>
+        </div>
       ) : (
         <p className="mb-6 text-sm font-medium text-white/60">
           {recording ? "Идёт запись — нажмите, чтобы отправить" : "Видеосообщение"}
@@ -260,12 +338,19 @@ export function VideoMessageRecorder({
         <button
           type="button"
           onClick={() => void switchCamera()}
-          disabled={!ready}
-          className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96] disabled:opacity-40"
+          disabled={!ready || switchingCamera}
+          className="relative flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-smooth active:scale-[0.96] disabled:opacity-40"
           aria-label="Переключить камеру"
+          aria-busy={switchingCamera}
         >
-          <RotateCcw className="h-7 w-7" strokeWidth={2.3} />
-          <Camera className="absolute h-3.5 w-3.5 translate-x-1.5 translate-y-1.5" strokeWidth={2.4} />
+          {switchingCamera ? (
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-r-transparent" />
+          ) : (
+            <>
+              <RotateCcw className="h-7 w-7" strokeWidth={2.3} />
+              <Camera className="absolute h-3.5 w-3.5 translate-x-1.5 translate-y-1.5" strokeWidth={2.4} />
+            </>
+          )}
         </button>
       </div>
     </div>,

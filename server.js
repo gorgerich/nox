@@ -1077,6 +1077,10 @@ app.prepare().then(() => {
         callback?.({ ok: false, error: "CALL_EXPIRED" });
         return;
       }
+      if (!(await isActiveMember(chatId, userId))) {
+        callback?.({ ok: false, error: "Нет доступа" });
+        return;
+      }
 
       const targetId = userId === call.callerId ? call.calleeId : call.callerId;
       if (!isUserSocketReachable(io, targetId)) {

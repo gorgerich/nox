@@ -51,7 +51,10 @@
     "validate:e2ee-recovery": "tsx scripts/validate-e2ee-recovery.ts",
     "validate:ui-scale": "tsx scripts/validate-ui-scale.ts",
     "validate:instant-send": "tsx scripts/validate-instant-send.ts",
-    "validate:long-text": "tsx scripts/validate-long-text.ts"
+    "validate:long-text": "tsx scripts/validate-long-text.ts",
+    "validate:call-overlay-layout": "tsx scripts/validate-call-overlay-layout.ts",
+    "validate:shared-media-ux": "tsx scripts/validate-shared-media-ux.ts",
+    "validate:video-note-controls": "tsx scripts/validate-video-note-controls.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

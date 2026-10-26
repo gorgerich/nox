@@ -71,6 +71,19 @@ export async function POST(request: Request) {
         data: { passwordHash },
       });
 
+      const revokedAt = new Date();
+      await tx.userDevice.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt },
+      });
+      await tx.deviceKeyBundle.updateMany({
+        where: {
+          userDevice: { userId: user.id },
+          revokedAt: null,
+        },
+        data: { revokedAt },
+      });
+
       const ip = request.headers.get("x-forwarded-for") || "unknown";
       const ipHash = crypto.createHash("sha256").update(ip).digest("hex");
 
@@ -80,7 +93,7 @@ export async function POST(request: Request) {
           action: "PASSWORD_RESET_FROM_REQUEST",
           targetType: "ACCOUNT_RECOVERY_REQUEST",
           targetId: recoveryRequest.id,
-          metadata: { devicesRevoked: false },
+          metadata: { devicesRevoked: true },
           ipHash,
         },
       });

@@ -60,9 +60,14 @@ export async function GET(
           mediaKeyEnvelopes: att.mediaKeyEnvelopes,
         });
       } else if (att.mimeType.startsWith("audio/") || msg.type === "VOICE") {
-        audio.push({ id: att.id, url: `/api/attachments/${att.id}/download`, fileName: att.fileName, createdAt: att.createdAt });
+        audio.push({ id: att.id, url: `/api/attachments/${att.id}/download`, fileName: att.fileName, createdAt: att.createdAt,
+          mimeType: att.mimeType, senderUserId: msg.senderUserId, isEncrypted: att.isEncrypted,
+          fileIv: att.fileIv, mediaKeyEnvelopes: att.mediaKeyEnvelopes });
       } else {
-        files.push({ id: att.id, fileName: att.fileName, size: att.sizeBytes, createdAt: att.createdAt });
+        files.push({ id: att.id, url: `/api/attachments/${att.id}/download`, fileName: att.fileName,
+          size: att.sizeBytes, createdAt: att.createdAt, mimeType: att.mimeType,
+          senderUserId: msg.senderUserId, isEncrypted: att.isEncrypted, fileIv: att.fileIv,
+          mediaKeyEnvelopes: att.mediaKeyEnvelopes });
       }
     }
 

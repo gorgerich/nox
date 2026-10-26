@@ -50,6 +50,7 @@ export default async function GroupProfilePage({
     <div className="chat-screen bg-background">
       <GroupProfileContent 
         chatId={chatId}
+        currentUserId={user.id}
         chat={{
           id: chat.id,
           title: chat.title || "Группа",

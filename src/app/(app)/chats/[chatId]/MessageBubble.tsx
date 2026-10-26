@@ -3,12 +3,12 @@
 import { AppearanceSettings } from "./ChatAppearance";
 import { reportClientEvent } from "@/lib/report-client-event";
 import { VoicePlayer } from "./VoicePlayer";
-import { FileText, Play } from "lucide-react";
+import { FileText, Play, RefreshCw } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MediaItem } from "./MediaViewer";
 import { decryptMediaBlob } from "@/lib/e2ee/media";
 import { useFormattedTimestamp } from "@/lib/time-format";
-import { getMediaUrl, putMediaUrl } from "@/lib/media-cache";
+import { getMediaUrl, putMediaUrl, removeMediaUrl } from "@/lib/media-cache";
 import { escapeRegExp } from "@/lib/text";
 import {
   isVisualOnlyBubble,
@@ -204,6 +204,8 @@ function AttachmentPreview({
   // rejects, so the <img> paints nothing and the bubble reads as empty. The
   // element tells us; nothing else can.
   const [imageBroken, setImageBroken] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [fileDownloadPhase, setFileDownloadPhase] = useState<"idle" | "loading" | "error">("idle");
   // Playing, not expanded: the circle is the same size either way.
   const [roundPlaying, setRoundPlaying] = useState(false);
   const [roundProgress, setRoundProgress] = useState(0);
@@ -274,13 +276,15 @@ function AttachmentPreview({
     const activeChatId = chatId;
 
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
 
     async function decryptAttachment(envelope: MediaKeyEnvelope) {
       setIsDecrypting(true);
       setDecryptError(null);
 
       try {
-        const response = await fetch(`/api/attachments/${attachment.id}/download`);
+        const response = await fetch(`/api/attachments/${attachment.id}/download`, { signal: controller.signal });
         if (!response.ok) throw new Error("DOWNLOAD_FAILED");
         const encryptedBlob = await response.blob();
         const decryptedBlob = await decryptMediaBlob({
@@ -293,7 +297,7 @@ function AttachmentPreview({
           mimeType: attachment.mimeType,
         });
 
-        if (!decryptedBlob) throw new Error("DECRYPT_FAILED");
+        if (!decryptedBlob || decryptedBlob.size === 0) throw new Error("DECRYPT_FAILED");
         const freshUrl = URL.createObjectURL(decryptedBlob);
         // Hand the URL to the cache (it owns the lifetime). If another bubble
         // already cached it, the cache returns the existing one and we drop ours.
@@ -308,8 +312,10 @@ function AttachmentPreview({
       } catch {
         if (!cancelled) {
           setIsDecrypting(false);
-          setDecryptError("Не удалось расшифровать медиа");
+          setDecryptError(controller.signal.aborted ? "Медиа загружается слишком долго" : "Не удалось открыть медиа");
         }
+      } finally {
+        window.clearTimeout(timeoutId);
       }
     }
 
@@ -320,6 +326,8 @@ function AttachmentPreview({
     // eviction.
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timeoutId);
     };
   }, [
     notReady,
@@ -331,11 +339,37 @@ function AttachmentPreview({
     chatId,
     attachment.fileIv,
     message.senderUserId,
+    retryNonce,
   ]);
 
   const sourceUrl = attachment.isEncrypted
     ? decryptedUrl
     : decryptedUrl || `/api/attachments/${attachment.id}/download`;
+  const downloadFile = useCallback(async () => {
+    if (!sourceUrl || fileDownloadPhase === "loading") return;
+    setFileDownloadPhase("loading");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
+    try {
+      const response = await fetch(sourceUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error("DOWNLOAD_FAILED");
+      const blob = await response.blob();
+      if (!blob.size) throw new Error("EMPTY_FILE");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.fileName || "nox-file";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setFileDownloadPhase("idle");
+    } catch {
+      setFileDownloadPhase("error");
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }, [attachment.fileName, fileDownloadPhase, sourceUrl]);
   const isImage = attachment.mimeType.startsWith("image/");
   const isVideo = attachment.mimeType.startsWith("video/");
   // Round video messages ("кружочки") are flagged by the message type (survives E2EE,
@@ -363,6 +397,23 @@ function AttachmentPreview({
   const ratioStyle: React.CSSProperties = attachment.width && attachment.height
     ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
     : { minHeight: "12rem" };
+
+  const retryAttachment = useCallback(() => {
+    removeMediaUrl(attachment.id);
+    setImageBroken(false);
+    setDecryptError(null);
+
+    if (attachment.isEncrypted) {
+      setDecryptedUrl(null);
+      setIsDecrypting(true);
+    } else {
+      const baseUrl = attachment.url || `/api/attachments/${attachment.id}/download`;
+      const separator = baseUrl.includes("?") ? "&" : "?";
+      setDecryptedUrl(`${baseUrl}${separator}retry=${Date.now()}`);
+    }
+
+    setRetryNonce((value) => value + 1);
+  }, [attachment.id, attachment.isEncrypted, attachment.url]);
 
   const toggleRoundVideo = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -432,9 +483,14 @@ function AttachmentPreview({
 
   if (imageBroken) {
     return (
-      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted">
-        Изображение не открывается
-      </div>
+      <button
+        type="button"
+        onClick={retryAttachment}
+        className="fast-tap mt-2 first:mt-0 flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted"
+      >
+        <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.2} />
+        Изображение не открывается. Повторить
+      </button>
     );
   }
 
@@ -444,9 +500,14 @@ function AttachmentPreview({
 
   if (decryptError || !sourceUrl) {
     return (
-      <div className="mt-2 first:mt-0 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted">
-        {decryptError || "Медиа недоступно на этом устройстве"}
-      </div>
+      <button
+        type="button"
+        onClick={retryAttachment}
+        className="fast-tap mt-2 first:mt-0 flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-muted/60 px-3 py-2 text-[0.75rem] font-medium text-muted"
+      >
+        <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.2} />
+        {decryptError || "Медиа не загрузилось"}. Повторить
+      </button>
     );
   }
 
@@ -477,6 +538,7 @@ function AttachmentPreview({
             className="absolute inset-0 h-full w-full object-cover transition-smooth hover:scale-[1.02]"
             loading="lazy"
             onError={() => {
+              removeMediaUrl(attachment.id);
               setImageBroken(true);
               reportClientEvent("client.media.broken", { detail: attachment.mimeType });
             }}
@@ -512,6 +574,11 @@ function AttachmentPreview({
             muted={!roundPlaying}
             playsInline
             preload="metadata"
+            onError={() => {
+              removeMediaUrl(attachment.id);
+              setImageBroken(true);
+              reportClientEvent("client.media.broken", { detail: attachment.mimeType });
+            }}
             onTimeUpdate={(event) => {
               const video = event.currentTarget;
               if (!roundPlaying || !video.duration || Number.isNaN(video.duration)) return;
@@ -562,7 +629,18 @@ function AttachmentPreview({
           }}
           onClick={(e) => { e.stopPropagation(); onMediaClick({ id: attachment.id, type: "VIDEO", url: sourceUrl, fileName: attachment.fileName }); }}
         >
-          <video src={sourceUrl} className="absolute inset-0 h-full w-full object-cover" preload="metadata" muted playsInline />
+          <video
+            src={sourceUrl}
+            className="absolute inset-0 h-full w-full object-cover"
+            preload="metadata"
+            muted
+            playsInline
+            onError={() => {
+              removeMediaUrl(attachment.id);
+              setImageBroken(true);
+              reportClientEvent("client.media.broken", { detail: attachment.mimeType });
+            }}
+          />
           <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.2)" }}>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/35 text-white">
               <Play className="ml-0.5 h-6 w-6" fill="currentColor" strokeWidth={0} />
@@ -572,7 +650,8 @@ function AttachmentPreview({
       ) : (
         <button
           type="button"
-          aria-label={`Скачать файл ${attachment.fileName}`}
+          aria-label={`${fileDownloadPhase === "error" ? "Повторить скачивание" : "Скачать файл"} ${attachment.fileName}`}
+          disabled={fileDownloadPhase === "loading"}
           // w-full/min-w-0 keeps a long file name inside the bubble instead of
           // widening the chip until the text spills past the bubble edge.
           className="flex w-full min-w-0 max-w-full cursor-pointer items-center gap-3 rounded-xl p-3 text-left transition-smooth active:opacity-85"
@@ -582,14 +661,7 @@ function AttachmentPreview({
               : "color-mix(in srgb, var(--bubble-incoming-fg) 8%, transparent)",
             border: "1px solid var(--bubble-incoming-border)",
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-            const link = document.createElement("a");
-            link.href = sourceUrl;
-            link.download = attachment.fileName || "nox-file";
-            link.target = "_self";
-            link.click();
-          }}
+          onClick={(e) => { e.stopPropagation(); void downloadFile(); }}
         >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: mine ? "var(--bubble-outgoing-muted)" : "var(--chat-focus-ring)", color: mine ? "var(--bubble-outgoing-fg)" : "var(--bubble-incoming-fg)" }}>
             <FileText className="h-5 w-5" strokeWidth={2} />
@@ -597,7 +669,11 @@ function AttachmentPreview({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{attachment.fileName}</p>
             <p className="mt-0.5 text-[0.6875rem] font-medium opacity-60">
-              {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB
+              {fileDownloadPhase === "loading"
+                ? "Загрузка…"
+                : fileDownloadPhase === "error"
+                  ? "Не удалось скачать. Повторить"
+                  : `${(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB`}
             </p>
           </div>
         </button>
@@ -711,9 +787,6 @@ export const MessageBubble = memo(function MessageBubble({
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (selectionMode || !event.isPrimary) return;
-    if (rowRef.current) {
-      rowRef.current.setPointerCapture(event.pointerId);
-    }
     pointerIdRef.current = event.pointerId;
     const point = { x: event.clientX, y: event.clientY };
     startPosRef.current = point;
@@ -758,6 +831,12 @@ export const MessageBubble = memo(function MessageBubble({
       return;
     }
 
+    // Capturing on pointer-down retargets the eventual click to the row and
+    // makes media, file, and reaction controls inside the bubble untappable.
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
     // prevent default to stop scroll or selection when swiping horizontally
     event.preventDefault();
 
@@ -773,7 +852,7 @@ export const MessageBubble = memo(function MessageBubble({
   }, [canSwipeReply, clearLongPress, updateDOM]);
 
   const resetGesture = useCallback(() => {
-    if (rowRef.current && pointerIdRef.current !== null) {
+    if (rowRef.current && pointerIdRef.current !== null && rowRef.current.hasPointerCapture(pointerIdRef.current)) {
       rowRef.current.releasePointerCapture(pointerIdRef.current);
     }
     pointerIdRef.current = null;
